@@ -652,7 +652,7 @@ function BotsPanel({ onClose }: { onClose: () => void }) {
         Essa área serve para não deixar a tarefa morrer: mantenha seus bots ligados ou desligue quando quiser.
       </p>
       <ul className="flex flex-col gap-2">
-        {[["discord", "Discord"], ["whatsapp", "WhatsApp"], ["telegram", "Telegram"]].map(([k, n]) => (
+        {([["discord", "Discord"], ["whatsapp", "WhatsApp"], ["telegram", "Telegram"]] as const).map(([k, n]) => (
           <li key={k} className="flex items-center gap-3 rounded-xl border p-3">
             {BRAND_ICONS[k]}
             <div className="flex-1">
