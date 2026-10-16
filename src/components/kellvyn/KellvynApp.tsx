@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
-  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -11,7 +11,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser" | "tasks";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -346,7 +346,7 @@ export function KellvynApp() {
             ["Navegador", Globe, () => setPanel("browser")],
             ["Editor", Code2, () => setPanel("editor")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
-            ["Git", GitBranch, () => window.open("https://github.com", "_blank", "noopener")],
+            ["Tarefas", ListChecks, () => setPanel("tasks")],
             ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
@@ -477,6 +477,7 @@ export function KellvynApp() {
 
       {panel === "editor" && <CodeEditor onClose={() => setPanel(null)} />}
       {panel === "browser" && <BrowserPanel onClose={() => setPanel(null)} />}
+      {panel === "tasks" && <TasksPanel onClose={() => setPanel(null)} />}
 
       {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
       {panel === "phoneapps" && (
@@ -582,10 +583,40 @@ function BrowserPanel({ onClose }: { onClose: () => void }) {
         <button className="rounded-lg bg-primary px-3 text-primary-foreground" aria-label="Ir"><Search size={18} /></button>
       </form>
       <div className="mt-3 grid grid-cols-4 gap-2">
-        {[["Google","https://www.google.com"],["YouTube","https://www.youtube.com"],["GitHub","https://github.com"],["Wikipédia","https://pt.wikipedia.org"]].map(([n,u]) => (
+        {[["Google","https://www.google.com"],["YouTube","https://www.youtube.com"],["Gmail","https://mail.google.com"],["Wikipédia","https://pt.wikipedia.org"]].map(([n,u]) => (
           <button key={n} onClick={() => window.open(u, "_blank", "noopener")} className="rounded-lg border border-input py-2 text-xs hover:bg-accent">{n}</button>
         ))}
       </div>
+    </Sheet>
+  );
+}
+
+type Task = { id: string; text: string; done: boolean };
+function TasksPanel({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<Task[]>([]);
+  const [draft, setDraft] = useState("");
+  useEffect(() => { try { setList(JSON.parse(localStorage.getItem("kellvyn.tasks") || "[]")); } catch { /* empty */ } }, []);
+  const persist = (n: Task[]) => { setList(n); localStorage.setItem("kellvyn.tasks", JSON.stringify(n)); };
+  const left = list.filter((t) => !t.done).length;
+  return (
+    <Sheet title="TAREFAS" subtitle={`${left} pendente(s)`} onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); const t = draft.trim(); if (!t) return; persist([{ id: uid(), text: t, done: false }, ...list]); setDraft(""); }} className="mb-3 flex gap-2">
+        <input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Nova tarefa…"
+          className="min-w-0 flex-1 rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none" />
+        <button className="rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">Adicionar</button>
+      </form>
+      <ul className="flex flex-col gap-2">
+        {list.map((t) => (
+          <li key={t.id} className="flex items-center gap-2 rounded-lg border p-2">
+            <button aria-label="Concluir" onClick={() => persist(list.map((x) => x.id === t.id ? { ...x, done: !x.done } : x))}
+              className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border ${t.done ? "border-primary bg-primary text-primary-foreground" : "border-input"}`}>
+              {t.done && <Check size={13} />}
+            </button>
+            <span className={`flex-1 text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.text}</span>
+            <IconBtn label="Excluir" onClick={() => persist(list.filter((x) => x.id !== t.id))}><Trash2 size={15} /></IconBtn>
+          </li>
+        ))}
+      </ul>
     </Sheet>
   );
 }
