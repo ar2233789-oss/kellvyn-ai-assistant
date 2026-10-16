@@ -48,10 +48,12 @@ export function DigitalRain({ effect }: { effect: Effect }) {
     resize();
 
     const makeBolt = () => {
-      const pts = [{ x: w * (0.15 + Math.random() * 0.7), y: 0 }];
-      while (pts[pts.length - 1].y < h * (0.45 + Math.random() * 0.3)) {
-        const p = pts[pts.length - 1];
-        pts.push({ x: p.x + (Math.random() - 0.5) * 50, y: p.y + 15 + Math.random() * 30 });
+      let cur = { x: w * (0.15 + Math.random() * 0.7), y: 0 };
+      const pts = [cur];
+      const end = h * (0.45 + Math.random() * 0.3);
+      while (cur.y < end) {
+        cur = { x: cur.x + (Math.random() - 0.5) * 50, y: cur.y + 15 + Math.random() * 30 };
+        pts.push(cur);
       }
       return pts;
     };
@@ -73,7 +75,7 @@ export function DigitalRain({ effect }: { effect: Effect }) {
           ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, 6.283); ctx.fill();
         } else if (effect === "folhas") {
           ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
-          ctx.fillStyle = LEAF[Math.floor(p.phase) % LEAF.length];
+          ctx.fillStyle = LEAF[Math.floor(p.phase) % LEAF.length] ?? "#C9682B";
           ctx.beginPath(); ctx.ellipse(0, 0, p.size, p.size * 0.45, 0, 0, 6.283); ctx.fill();
           ctx.restore();
         } else {
