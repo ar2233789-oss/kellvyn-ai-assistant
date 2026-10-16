@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
-  COLORS, normalizeHex, storage, uid,
+  COLORS, DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
@@ -94,7 +94,7 @@ const NATIVE_NOTE = "Requer o app Android nativo — indisponível nesta versão
 
 export function KellvynApp() {
   const [hydrated, setHydrated] = useState(false);
-  const [settings, setSettings] = useState<Settings>(() => ({ color: "#38E6BC", web: false, rain: true, strongProtection: true }));
+  const [settings, setSettings] = useState<Settings>(() => ({ ...DEFAULT_SETTINGS }));
   const [convs, setConvs] = useState<Conversation[]>([]);
   const [activeId, setActiveId] = useState<string>("");
   const [memories, setMemories] = useState<Memory[]>([]);
@@ -128,7 +128,10 @@ export function KellvynApp() {
     setHexDraft(s.color); setHydrated(true); setStatus("Pronta");
   }, []);
 
-  useEffect(() => { document.documentElement.style.setProperty("--brand", settings.color); }, [settings.color]);
+  useEffect(() => {
+    document.documentElement.style.setProperty("--brand", settings.color);
+    document.documentElement.style.setProperty("--bg", settings.bg);
+  }, [settings.color, settings.bg]);
 
   const flash = (t: string) => { setToast(t); window.setTimeout(() => setToast(null), 2600); };
   const updateSettings = (patch: Partial<Settings>) => setSettings((p) => { const n = { ...p, ...patch }; storage.saveSettings(n); return n; });
@@ -225,7 +228,7 @@ export function KellvynApp() {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
-      <DigitalRain color="#CFE3F2" enabled={hydrated && settings.rain} />
+      <DigitalRain effect={hydrated ? settings.effect : "nenhum"} />
 
       {/* Header */}
       <header className="relative z-10 flex items-center gap-3 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
@@ -407,11 +410,45 @@ export function KellvynApp() {
             </div>
           </Category>
 
+          <Category title="PALETAS DE CORES">
+            <div className="grid grid-cols-2 gap-2 py-2.5">
+              {PALETTES.map(([name, accent, bg]) => {
+                const on = settings.color.toUpperCase() === accent && settings.bg.toUpperCase() === bg;
+                return (
+                  <button key={name} onClick={() => { updateSettings({ color: accent, bg }); setHexDraft(accent); }}
+                    className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs ${on ? "border-primary" : "border-input"}`}>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-input" style={{ background: bg }}>
+                      <span className="h-3.5 w-3.5 rounded-full" style={{ background: accent }} />
+                    </span>
+                    <span className="truncate">{name}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <p className="pt-1 text-xs text-muted-foreground">Personalizada</p>
+            <div className="flex items-center gap-3 py-2.5 text-xs">
+              <label className="flex items-center gap-2">
+                <input type="color" value={settings.color} onChange={(e) => { const h = e.target.value.toUpperCase(); updateSettings({ color: h }); setHexDraft(h); }}
+                  className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent" aria-label="Cor de destaque" />
+                Destaque
+              </label>
+              <label className="flex items-center gap-2">
+                <input type="color" value={settings.bg} onChange={(e) => updateSettings({ bg: e.target.value.toUpperCase() })}
+                  className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent" aria-label="Cor de fundo" />
+                Fundo
+              </label>
+            </div>
+          </Category>
 
-          <Category title="EFEITO VISUAL">
-            <Row title="Chuva digital" desc="Fica atrás da conversa, sem bloquear textos.">
-              <Toggle on={settings.rain} onChange={(v) => updateSettings({ rain: v })} label="Chuva digital" />
-            </Row>
+          <Category title="EFEITO NA TELA">
+            <div className="flex flex-wrap gap-2 py-2.5">
+              {EFFECTS.map(([id, label]) => (
+                <button key={id} onClick={() => updateSettings({ effect: id })}
+                  className={`rounded-full border px-3 py-1.5 text-xs ${settings.effect === id ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </Category>
 
           <Category title="ATALHOS">
