@@ -438,6 +438,17 @@ export function KellvynApp() {
         </Sheet>
       )}
 
+      {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
+      {panel === "phoneapps" && (
+        <Sheet title="APPS DO CELULAR" onClose={() => setPanel(null)}>
+          <a href="intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.HOME;end"
+            className="flex items-center gap-3 rounded-xl border border-input px-4 py-4 text-sm text-primary hover:bg-accent">
+            <LayoutGrid size={22} /> Abrir apps do celular
+          </a>
+          <p className="mt-3 text-xs text-muted-foreground">Abre a tela de apps do seu Android. Funciona pelo Chrome no celular.</p>
+        </Sheet>
+      )}
+
       {/* Memory */}
       {panel === "memory" && (
         <Sheet title="MEMÓRIA LOCAL" subtitle="Informações salvas explicitamente por você" onClose={() => setPanel("settings")}>
