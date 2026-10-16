@@ -10,7 +10,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -225,7 +225,7 @@ export function KellvynApp() {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
-      <DigitalRain color={settings.color} enabled={hydrated && settings.rain} />
+      <DigitalRain color="#CFE3F2" enabled={hydrated && settings.rain} />
 
       {/* Header */}
       <header className="relative z-10 flex items-center gap-3 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
@@ -334,7 +334,7 @@ export function KellvynApp() {
             ["Editor", Code2, () => setPanel("apps")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
             ["Git", GitBranch, () => setPanel("apps")],
-            ["Apps", LayoutGrid, () => setPanel("apps")],
+            ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
               <Icon size={22} className={i === 0 ? "icon-glow" : "text-primary/80"} strokeWidth={1.6} />
@@ -435,6 +435,17 @@ export function KellvynApp() {
               <Toggle on={settings.strongProtection} onChange={(v) => updateSettings({ strongProtection: v })} label="Proteção reforçada" />
             </Row>
           </Category>
+        </Sheet>
+      )}
+
+      {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
+      {panel === "phoneapps" && (
+        <Sheet title="APPS DO CELULAR" onClose={() => setPanel(null)}>
+          <a href="intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.HOME;end"
+            className="flex items-center gap-3 rounded-xl border border-input px-4 py-4 text-sm text-primary hover:bg-accent">
+            <LayoutGrid size={22} /> Abrir apps do celular
+          </a>
+          <p className="mt-3 text-xs text-muted-foreground">Abre a tela de apps do seu Android. Funciona pelo Chrome no celular.</p>
         </Sheet>
       )}
 
