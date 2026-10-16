@@ -91,3 +91,11 @@
 
 .kv-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 9999px; background: var(--fg); border: 2px solid var(--bg); box-shadow: 0 1px 4px rgb(0 0 0 / .5); }
 .kv-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 9999px; background: var(--fg); border: 2px solid var(--bg); }
+
+.shimmer-text {
+  background: linear-gradient(90deg, var(--color-muted-foreground) 30%, var(--color-primary) 50%, var(--color-muted-foreground) 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }

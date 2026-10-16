@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
-  ChevronDown, ChevronRight, Sparkles, TerminalSquare,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -11,7 +11,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -162,12 +162,17 @@ export function KellvynApp() {
       id: uid(), role: "assistant", error: true,
       text: "O modelo da Kellvyn IA ainda não está conectado nesta versão. Sua mensagem foi salva na conversa, mas nenhuma resposta foi gerada.",
     };
-    updateConvs((p) => p.map((c) => c.id !== active.id ? c : {
+    const cid = active.id;
+    updateConvs((p) => p.map((c) => c.id !== cid ? c : {
       ...c, updatedAt: Date.now(),
       title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
-      messages: [...c.messages, userMsg, reply],
+      messages: [...c.messages, userMsg],
     }).sort((a, b) => b.updatedAt - a.updatedAt));
-    setInput(""); setAttachment(null); setStatus("Pronta");
+    setInput(""); setAttachment(null); setStatus("Executando");
+    setTimeout(() => {
+      updateConvs((p) => p.map((c) => c.id !== cid ? c : { ...c, messages: [...c.messages, reply] }));
+      setStatus("Pronta");
+    }, 2200);
     taRef.current?.focus();
   };
 
@@ -273,6 +278,7 @@ export function KellvynApp() {
               </div>
             </div>
           ))}
+          {status === "Executando" && <ThinkingBrain />}
         </div>
       </main>
 
@@ -337,10 +343,10 @@ export function KellvynApp() {
         <div className="mx-auto grid max-w-2xl grid-cols-6">
           {([
             ["AI", Sparkles, () => setPanel(null)],
-            ["Navegador", Globe, () => window.open("https://www.google.com", "_blank", "noopener")],
-            ["Editor", Code2, () => setPanel("apps")],
+            ["Navegador", Globe, () => setPanel("browser")],
+            ["Editor", Code2, () => setPanel("editor")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
-            ["Git", GitBranch, () => setPanel("apps")],
+            ["Git", GitBranch, () => window.open("https://github.com", "_blank", "noopener")],
             ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
@@ -449,25 +455,28 @@ export function KellvynApp() {
             <Row title="Memória local" desc={`${memories.length} informação(ões) salva(s).`}>
               <button onClick={() => setPanel("memory")} className="rounded-lg border border-input px-3 py-1.5 text-xs text-primary hover:bg-accent">Abrir</button>
             </Row>
-            <Row title="Assistente virtual" desc={`Bolha flutuante sobre outros apps. ${NATIVE_NOTE}`}>
+            <Row title="Assistente virtual" >
               <Toggle on={false} onChange={() => {}} label="Assistente virtual" disabled />
             </Row>
-            <Row title="Leitura de tela" desc={`Serviço de Acessibilidade do Android. ${NATIVE_NOTE}`} />
+            <Row title="Leitura de tela" />
           </Category>
 
           <Category title="MODO DE JOGO">
-            <Row title="Modo de jogo" desc={`Captura automática de tela para análise. ${NATIVE_NOTE}`}>
+            <Row title="Modo de jogo" >
               <Toggle on={false} onChange={() => {}} label="Modo de jogo" disabled />
             </Row>
           </Category>
 
           <Category title="SEGURANÇA">
-            <Row title="Proteção reforçada da IA" desc="Exige confirmação antes de gravar arquivos ou compilar APKs.">
+            <Row title="Proteção reforçada da IA">
               <Toggle on={settings.strongProtection} onChange={(v) => updateSettings({ strongProtection: v })} label="Proteção reforçada" />
             </Row>
           </Category>
         </Sheet>
       )}
+
+      {panel === "editor" && <CodeEditor onClose={() => setPanel(null)} />}
+      {panel === "browser" && <BrowserPanel onClose={() => setPanel(null)} />}
 
       {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
       {panel === "phoneapps" && (
@@ -476,7 +485,6 @@ export function KellvynApp() {
             className="flex items-center gap-3 rounded-xl border border-input px-4 py-4 text-sm text-primary hover:bg-accent">
             <LayoutGrid size={22} /> Abrir apps do celular
           </a>
-          <p className="mt-3 text-xs text-muted-foreground">Abre a tela de apps do seu Android. Funciona pelo Chrome no celular.</p>
         </Sheet>
       )}
 
@@ -508,5 +516,76 @@ export function KellvynApp() {
         </Sheet>
       )}
     </div>
+  );
+}
+
+function ThinkingBrain() {
+  const steps = ["Analisando", "Pensando", "Organizando a resposta"];
+  const [i, setI] = useState(0);
+  useEffect(() => { const t = setInterval(() => setI((x) => (x + 1) % steps.length), 900); return () => clearInterval(t); }, []);
+  return (
+    <div className="flex items-center gap-2 py-2 text-[13px] text-muted-foreground">
+      <span className="relative flex h-7 w-7 items-center justify-center">
+        <span className="absolute inset-0 animate-ping rounded-full bg-primary/25" />
+        <Brain size={18} className="relative animate-pulse text-primary icon-glow" />
+      </span>
+      <span className="shimmer-text">{steps[i]}…</span>
+    </div>
+  );
+}
+
+type Snip = { id: string; name: string; code: string };
+function CodeEditor({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<Snip[]>([]);
+  const [cur, setCur] = useState<Snip>({ id: "", name: "", code: "" });
+  useEffect(() => { try { setList(JSON.parse(localStorage.getItem("kellvyn.snippets") || "[]")); } catch { /* empty */ } }, []);
+  const persist = (n: Snip[]) => { setList(n); localStorage.setItem("kellvyn.snippets", JSON.stringify(n)); };
+  const save = () => {
+    if (!cur.code.trim()) return;
+    const s = { ...cur, id: cur.id || uid(), name: cur.name.trim() || "Sem nome" };
+    persist(cur.id ? list.map((x) => x.id === s.id ? s : x) : [s, ...list]); setCur(s);
+  };
+  return (
+    <Sheet title="EDITOR DE CÓDIGO" onClose={onClose}>
+      <input value={cur.name} onChange={(e) => setCur({ ...cur, name: e.target.value })} placeholder="Nome do arquivo"
+        className="mb-2 w-full rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none" />
+      <textarea value={cur.code} onChange={(e) => setCur({ ...cur, code: e.target.value })} spellCheck={false} placeholder="Escreva seu código aqui…"
+        className="h-56 w-full resize-none rounded-lg border border-input bg-muted p-3 font-mono text-[13px] outline-none" />
+      <div className="mt-2 flex gap-2">
+        <button onClick={save} className="flex-1 rounded-lg bg-primary py-2 text-sm font-medium text-primary-foreground">Salvar</button>
+        <button onClick={() => setCur({ id: "", name: "", code: "" })} className="rounded-lg border border-input px-4 text-sm">Novo</button>
+      </div>
+      <ul className="mt-3 flex flex-col gap-2">
+        {list.map((x) => (
+          <li key={x.id} className="flex items-center gap-2 rounded-lg border p-2">
+            <button onClick={() => setCur(x)} className="flex-1 truncate text-left text-sm">{x.name}</button>
+            <IconBtn label="Excluir" onClick={() => { if (confirm("Excluir este código?")) persist(list.filter((y) => y.id !== x.id)); }}><Trash2 size={15} /></IconBtn>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
+  );
+}
+
+function BrowserPanel({ onClose }: { onClose: () => void }) {
+  const [q, setQ] = useState("");
+  const go = () => {
+    const t = q.trim(); if (!t) return;
+    const url = /^https?:\/\//.test(t) ? t : /^[\w-]+(\.[\w-]+)+(\/.*)?$/.test(t) ? `https://${t}` : `https://www.google.com/search?q=${encodeURIComponent(t)}`;
+    window.open(url, "_blank", "noopener");
+  };
+  return (
+    <Sheet title="NAVEGADOR" onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); go(); }} className="flex gap-2">
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Pesquise ou digite um site" inputMode="url"
+          className="min-w-0 flex-1 rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none" />
+        <button className="rounded-lg bg-primary px-3 text-primary-foreground" aria-label="Ir"><Search size={18} /></button>
+      </form>
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {[["Google","https://www.google.com"],["YouTube","https://www.youtube.com"],["GitHub","https://github.com"],["Wikipédia","https://pt.wikipedia.org"]].map(([n,u]) => (
+          <button key={n} onClick={() => window.open(u, "_blank", "noopener")} className="rounded-lg border border-input py-2 text-xs hover:bg-accent">{n}</button>
+        ))}
+      </div>
+    </Sheet>
   );
 }
