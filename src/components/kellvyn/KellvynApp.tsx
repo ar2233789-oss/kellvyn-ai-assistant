@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
-  TerminalSquare, Brain, Search, ListChecks, Bot, Puzzle,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks, Bot, Puzzle,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -285,17 +285,9 @@ export function KellvynApp() {
       <DigitalRain effect={hydrated ? settings.effect : "nenhum"} color={settings.color} />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center gap-2 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
+      <header className="relative z-10 flex items-center gap-3 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
         <IconBtn label="Histórico de conversas" onClick={() => setPanel("history")}><Menu size={22} strokeWidth={1.6} /></IconBtn>
-        <KellvynLogo size={27} />
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-[16px] leading-tight text-primary">Kellvyn Assistente</h1>
-          <p className="mt-0.5 flex items-center gap-1.5 truncate text-[9px] tracking-[0.12em] text-muted-foreground">
-            <span className={"h-1.5 w-1.5 rounded-full " + (status === "Erro" || status === "Não configurada" ? "bg-destructive" : "bg-primary glow")} />
-            {status === "Pronta" ? "KELLVYN IA • CONFIGURADA" : status === "Não configurada" ? "CÉREBRO NÃO CONFIGURADO" : status === "Executando" ? "PROCESSANDO" : status === "Erro" ? "SERVIÇO INDISPONÍVEL" : "VERIFICANDO SERVIÇO"}
-          </p>
-        </div>
-        <IconBtn label="Apps, bots e projetos" onClick={() => setPanel("apps")}><LayoutGrid size={20} /></IconBtn>
+        <h1 className="min-w-0 flex-1 truncate text-[18px] text-primary">Kellvyn Assistente</h1>
         <IconBtn label="Configurações" onClick={() => setPanel("settings")}><MoreVertical size={20} /></IconBtn>
       </header>
 
@@ -318,7 +310,7 @@ export function KellvynApp() {
           ) : (
             <div key={m.id} className="flex">
               <div className="min-w-0 flex-1">
-                <p className="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground"><KellvynLogo size={18} /> Kellvyn IA</p>
+                <p className="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground"><Globe size={13} className="text-primary" /> Thinking <ChevronRight size={13} /></p>
                 <p className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed ${m.error ? "text-muted-foreground" : "text-foreground"}`}>{m.text}</p>
                 <div className="mt-1 flex gap-0.5 text-muted-foreground">
                   <IconBtn label="Copiar" onClick={() => copy(m.text)}><Copy size={15} /></IconBtn>
@@ -341,6 +333,9 @@ export function KellvynApp() {
           <div className="absolute bottom-full left-3 mb-2 w-64 rounded-xl border bg-popover p-1.5 glow-soft animate-in fade-in zoom-in-95">
             <button onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent">
               <Paperclip size={17} className="text-primary" /> Imagem ou arquivo
+            </button>
+            <button onClick={() => { setPlusOpen(false); setPanel("plugins"); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent">
+              <Puzzle size={17} className="text-primary" /> Plugins
             </button>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
               <Globe size={17} className="text-primary" /><span className="flex-1">Acesso à Web</span>
@@ -368,14 +363,14 @@ export function KellvynApp() {
           )}
           <textarea
             ref={taRef} value={input} onChange={(e) => setInput(e.target.value)} rows={1}
-            placeholder="Converse ou peça para criar um aplicativo…"
+            placeholder="Pergunte qualquer coisa..."
             className="max-h-36 min-h-[40px] w-full resize-none bg-transparent px-2 py-1.5 text-[15px] text-foreground outline-none placeholder:text-muted-foreground field-sizing-content"
           />
           <div className="flex items-center gap-1">
             <IconBtn label="Anexos e Web" onClick={() => setPlusOpen((v) => !v)} active={plusOpen}><Plus size={19} /></IconBtn>
             <span className="flex items-center gap-1 rounded-lg border border-input px-2.5 py-1 text-[12px] text-foreground/80">
               <span className={`h-1.5 w-1.5 rounded-full ${status === "Erro" ? "bg-destructive" : "bg-primary glow"}`} />
-              Kellvyn IA
+              Kellvyn <ChevronDown size={13} />
             </span>
             <div className="flex-1" />
             <IconBtn label={listening ? "Parar ditado" : "Ditado por voz"} onClick={toggleMic} active={listening}>
@@ -391,8 +386,27 @@ export function KellvynApp() {
         </div>
       </footer>
 
+      {/* Bottom tab bar — as in the reference image */}
+      <nav className="relative z-20 border-t bg-panel pb-safe backdrop-blur-md">
+        <div className="mx-auto grid max-w-2xl grid-cols-6">
+          {([
+            ["AI", Sparkles, () => setPanel(null)],
+            ["Navegador", Globe, () => setPanel("browser")],
+            ["Editor", Code2, () => setPanel("editor")],
+            ["Terminal", TerminalSquare, () => setPanel("terminal")],
+            ["Bots", Bot, () => setPanel("bots")],
+            ["Apps", LayoutGrid, () => setPanel("phoneapps")],
+          ] as const).map(([label, Icon, fn], i) => (
+            <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+              <Icon size={22} className={i === 0 ? "icon-glow" : "text-primary/80"} strokeWidth={1.6} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {toast && (
-        <div role="status" className="fixed inset-x-4 bottom-24 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
+        <div role="status" className="fixed inset-x-4 bottom-44 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
           {toast}
         </div>
       )}
@@ -420,26 +434,18 @@ export function KellvynApp() {
 
       {/* Apps / APKs */}
       {panel === "apps" && (
-        <Sheet title="APPS, BOTS E PROJETOS" subtitle="Seus apps, projetos e ferramentas" onClose={() => setPanel(null)}>
+        <Sheet title="APPS, BOTS E PROJETOS" subtitle="Seus apps e projetos salvos" onClose={() => setPanel(null)}>
           <div className="grid grid-cols-3 gap-2">
-            <button onClick={() => setPanel("editor")} className="flex flex-col items-center gap-1.5 rounded-xl border border-input p-3 text-xs hover:bg-accent"><Code2 size={20} className="text-primary" />Códigos</button>
+            <button disabled title={NATIVE_NOTE} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 text-xs opacity-40"><Code2 size={20} className="text-primary" />Códigos</button>
             <button disabled title={NATIVE_NOTE} className="flex flex-col items-center gap-1.5 rounded-xl border p-3 text-xs opacity-40"><GitBranch size={20} className="text-primary" />Git</button>
-            <button onClick={() => setPanel("browser")} className="flex flex-col items-center gap-1.5 rounded-xl border border-input p-3 text-xs hover:bg-accent"><ExternalLink size={20} className="text-primary" />Navegador</button>
+            <button onClick={() => window.open("https://www.google.com", "_blank", "noopener")} className="flex flex-col items-center gap-1.5 rounded-xl border border-input p-3 text-xs hover:bg-accent">
+              <ExternalLink size={20} className="text-primary" />Navegador
+            </button>
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">Git: {NATIVE_NOTE}</p>
-          <div className="mt-4 rounded-xl border bg-card/60 p-3">
-            <h3 className="mb-2 text-[11px] font-semibold tracking-[0.16em] text-primary">FERRAMENTAS DO WORKSPACE</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => setPanel("terminal")} className="rounded-lg border border-input px-3 py-2.5 text-left text-sm hover:bg-accent"><TerminalSquare size={16} className="mr-2 inline text-primary" />Terminal local</button>
-              <button onClick={() => setPanel("tasks")} className="rounded-lg border border-input px-3 py-2.5 text-left text-sm hover:bg-accent"><ListChecks size={16} className="mr-2 inline text-primary" />Tarefas</button>
-              <button onClick={() => setPanel("bots")} className="rounded-lg border border-input px-3 py-2.5 text-left text-sm hover:bg-accent"><Bot size={16} className="mr-2 inline text-primary" />Bots</button>
-              <button onClick={() => setPanel("plugins")} className="rounded-lg border border-input px-3 py-2.5 text-left text-sm hover:bg-accent"><Puzzle size={16} className="mr-2 inline text-primary" />Plugins HTTP</button>
-            </div>
-            <p className="mt-2 text-[11px] text-muted-foreground">Terminal e tarefas são locais a este navegador; bots não executam em segundo plano nesta versão.</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">Códigos e Git: {NATIVE_NOTE}</p>
+          <div className="mt-5 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">
+            Nenhum projeto salvo ainda. Peça no chat principal para a Kellvyn IA criar um app ou bot.
           </div>
-          <button onClick={() => setPanel("phoneapps")} className="mt-3 flex w-full items-center gap-3 rounded-xl border border-input px-4 py-3 text-sm text-primary hover:bg-accent"><LayoutGrid size={19} />Abrir apps do celular (Android)</button>
-          <p className="mt-1 text-[11px] text-muted-foreground">O navegador pode bloquear a abertura do iniciador do Poco F6.</p>
-          <div className="mt-5 rounded-xl border border-dashed p-5 text-center text-sm text-muted-foreground">Nenhum projeto salvo ainda. Peça no chat principal para a Kellvyn IA planejar um projeto.</div>
         </Sheet>
       )}
 
@@ -497,14 +503,14 @@ export function KellvynApp() {
             <Row title="Memória local" desc={`${memories.length} informação(ões) salva(s).`}>
               <button onClick={() => setPanel("memory")} className="rounded-lg border border-input px-3 py-1.5 text-xs text-primary hover:bg-accent">Abrir</button>
             </Row>
-            <Row title="Assistente virtual" desc={NATIVE_NOTE}>
+            <Row title="Assistente virtual" >
               <Toggle on={false} onChange={() => {}} label="Assistente virtual" disabled />
             </Row>
-            <Row title="Leitura de tela" desc={NATIVE_NOTE} />
+            <Row title="Leitura de tela" />
           </Category>
 
           <Category title="MODO DE JOGO">
-            <Row title="Modo de jogo" desc={NATIVE_NOTE}>
+            <Row title="Modo de jogo" >
               <Toggle on={false} onChange={() => {}} label="Modo de jogo" disabled />
             </Row>
           </Category>
@@ -526,19 +532,17 @@ export function KellvynApp() {
 
       {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
       {panel === "phoneapps" && (
-        <Sheet title="APPS DO CELULAR" subtitle="Atalho para o iniciador padrão do Android" onClose={() => setPanel("apps")}>
+        <Sheet title="APPS DO CELULAR" onClose={() => setPanel(null)}>
           <a href="intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.HOME;end"
-            onClick={() => window.setTimeout(() => { if (!document.hidden) flash("O navegador bloqueou o atalho. Abra a tela inicial pelo gesto padrão do Poco F6."); }, 1200)}
             className="flex items-center gap-3 rounded-xl border border-input px-4 py-4 text-sm text-primary hover:bg-accent">
-            <LayoutGrid size={22} /> Tentar abrir a tela inicial
+            <LayoutGrid size={22} /> Abrir apps do celular
           </a>
-          <p className="mt-3 text-xs leading-relaxed text-muted-foreground">Este site só pode solicitar a tela inicial padrão do Android. Ele não consegue listar ou abrir diretamente a gaveta de aplicativos do Poco F6.</p>
         </Sheet>
       )}
 
       {/* Memory */}
       {panel === "memory" && (
-        <Sheet title="MEMÓRIA LOCAL" subtitle="Salvas neste navegador; enviadas com suas mensagens ao cérebro para contextualizar respostas." onClose={() => setPanel("settings")}>
+        <Sheet title="MEMÓRIA LOCAL" subtitle="Informações salvas explicitamente por você" onClose={() => setPanel("settings")}>
           <div className="mb-3 flex gap-2">
             <input value={memDraft} onChange={(e) => setMemDraft(e.target.value)} placeholder="Nova informação…"
               className="min-w-0 flex-1 rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring" />
@@ -691,7 +695,7 @@ function BotsPanel({ onClose }: { onClose: () => void }) {
   return (
     <Sheet title="BOTS ATIVOS" onClose={onClose}>
       <p className="mb-4 rounded-lg border border-input bg-muted p-3 text-sm text-muted-foreground">
-        Estes controles salvam preferências locais; não iniciam serviços nem bots em segundo plano nesta versão web.
+        Essa área serve para não deixar a tarefa morrer: mantenha seus bots ligados ou desligue quando quiser.
       </p>
       <ul className="flex flex-col gap-2">
         {([["discord", "Discord"], ["whatsapp", "WhatsApp"], ["telegram", "Telegram"]] as const).map(([k, n]) => (
@@ -699,7 +703,7 @@ function BotsPanel({ onClose }: { onClose: () => void }) {
             {BRAND_ICONS[k]}
             <div className="flex-1">
               <p className="text-sm font-medium">{n}</p>
-              <p className="text-xs" style={{ color: st[k] ? "#22c55e" : undefined }}>{st[k] ? "Preferência ativada" : "Desativado"}</p>
+              <p className="text-xs" style={{ color: st[k] ? "#22c55e" : undefined }}>{st[k] ? "Ativo" : "Desativado"}</p>
             </div>
             <GreenSwitch on={!!st[k]} onChange={(v) => set(k!, v)} label={`Bot do ${n}`} />
           </li>
