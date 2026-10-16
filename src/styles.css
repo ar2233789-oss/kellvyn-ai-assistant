@@ -37,19 +37,20 @@
 /* --brand is the user-selected accent (default emerald). Everything derives from it. */
 :root {
   --brand: #38e6bc;
+  --bg: #0b1413;
   --radius: 0.75rem;
-  --background: oklch(0.11 0.012 190);
+  --background: var(--bg);
   --foreground: oklch(0.93 0.02 180);
-  --card: oklch(0.15 0.015 190);
+  --card: color-mix(in oklab, var(--bg) 88%, white);
   --card-foreground: var(--foreground);
-  --popover: oklch(0.14 0.015 190);
+  --popover: color-mix(in oklab, var(--bg) 92%, white);
   --popover-foreground: var(--foreground);
-  --panel: color-mix(in oklab, oklch(0.13 0.015 190) 88%, transparent);
+  --panel: color-mix(in oklab, color-mix(in oklab, var(--bg) 94%, white) 88%, transparent);
   --primary: var(--brand);
-  --primary-foreground: oklch(0.15 0.02 190);
-  --secondary: oklch(0.2 0.02 190);
+  --primary-foreground: var(--bg);
+  --secondary: color-mix(in oklab, var(--bg) 82%, white);
   --secondary-foreground: var(--foreground);
-  --muted: oklch(0.19 0.015 190);
+  --muted: color-mix(in oklab, var(--bg) 84%, white);
   --muted-foreground: oklch(0.68 0.03 185);
   --accent: color-mix(in oklab, var(--brand) 16%, transparent);
   --accent-foreground: var(--brand);
@@ -58,13 +59,13 @@
   --border: color-mix(in oklab, var(--brand) 18%, transparent);
   --input: color-mix(in oklab, var(--brand) 35%, transparent);
   --ring: var(--brand);
-  --bubble-user: color-mix(in oklab, var(--brand) 12%, oklch(0.12 0.02 180));
+  --bubble-user: color-mix(in oklab, var(--brand) 12%, var(--bg));
   --glow: 0 0 10px color-mix(in oklab, var(--brand) 70%, transparent),
     0 0 22px color-mix(in oklab, var(--brand) 35%, transparent);
   --glow-soft: 0 0 18px -4px color-mix(in oklab, var(--brand) 45%, transparent);
   --scene: radial-gradient(120% 60% at 10% 0%, color-mix(in oklab, var(--brand) 14%, transparent), transparent 60%),
     radial-gradient(90% 50% at 100% 100%, color-mix(in oklab, var(--brand) 10%, transparent), transparent 65%),
-    oklch(0.09 0.01 190);
+    var(--bg);
 }
 
 @layer base {
