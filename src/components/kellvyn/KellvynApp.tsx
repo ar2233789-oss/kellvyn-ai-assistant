@@ -1,3 +1,4 @@
+import { ColorStudio } from "./ColorStudio";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
@@ -6,7 +7,7 @@ import {
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
-  COLORS, DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
+  DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
@@ -107,6 +108,7 @@ export function KellvynApp() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [hexDraft, setHexDraft] = useState("");
+  const [studio, setStudio] = useState<null | "color" | "bg" | "text">(null);
   const [memDraft, setMemDraft] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -131,7 +133,9 @@ export function KellvynApp() {
   useEffect(() => {
     document.documentElement.style.setProperty("--brand", settings.color);
     document.documentElement.style.setProperty("--bg", settings.bg);
-  }, [settings.color, settings.bg]);
+    document.documentElement.style.setProperty("--fg", settings.text);
+    document.documentElement.style.setProperty("--glow-k", `${settings.glow}%`);
+  }, [settings.color, settings.bg, settings.text, settings.glow]);
 
   const flash = (t: string) => { setToast(t); window.setTimeout(() => setToast(null), 2600); };
   const updateSettings = (patch: Partial<Settings>) => setSettings((p) => { const n = { ...p, ...patch }; storage.saveSettings(n); return n; });
@@ -394,51 +398,41 @@ export function KellvynApp() {
       {/* Settings */}
       {panel === "settings" && (
         <Sheet title="CONFIGURAÇÕES DO KELLVYN" onClose={() => setPanel(null)}>
-          <Category title="COR DA INTERFACE">
-            <div className="grid grid-cols-6 gap-2 py-2.5">
-              {COLORS.map(([name, hex]) => (
-                <button key={hex} aria-label={name} title={name} onClick={() => { updateSettings({ color: hex }); setHexDraft(hex); }}
-                  className="grid aspect-square place-items-center rounded-full border border-input" style={{ background: hex }}>
-                  {settings.color.toUpperCase() === hex && <Check size={14} className="text-primary-foreground" />}
+          <Category title="CORES">
+            <div className="grid grid-cols-3 gap-2 py-3">
+              {([["color", "Destaque"], ["bg", "Fundo"], ["text", "Texto"]] as const).map(([k, label]) => (
+                <button key={k} onClick={() => setStudio(k)} className="flex flex-col items-center gap-1.5 rounded-xl border border-input bg-muted/40 p-2.5">
+                  <span className="h-10 w-10 rounded-full border border-input shadow-inner" style={{ background: settings[k] }} />
+                  <span className="text-[11px]">{label}</span>
+                  <span className="font-mono text-[10px] text-muted-foreground">{settings[k]}</span>
                 </button>
               ))}
             </div>
-            <div className="flex gap-2 pb-3">
-              <input value={hexDraft} onChange={(e) => setHexDraft(e.target.value)} maxLength={7} placeholder="#38E6BC" aria-label="Cor HEX"
-                className="min-w-0 flex-1 rounded-lg border border-input bg-muted px-3 py-2 font-mono text-sm uppercase outline-none focus:ring-1 focus:ring-ring" />
-              <button onClick={applyHex} className="rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground">Aplicar</button>
-            </div>
-          </Category>
-
-          <Category title="PALETAS DE CORES">
+            <label className="block pb-3">
+              <div className="mb-1 flex justify-between text-[11px] text-muted-foreground"><span>Intensidade do brilho</span><span className="font-mono">{settings.glow}%</span></div>
+              <input type="range" min={0} max={60} value={settings.glow} onChange={(e) => updateSettings({ glow: Number(e.target.value) })}
+                className="kv-range h-2 w-full cursor-pointer appearance-none rounded-full bg-muted" />
+            </label>
+            <p className="text-[11px] text-muted-foreground">Temas prontos</p>
             <div className="grid grid-cols-2 gap-2 py-2.5">
-              {PALETTES.map(([name, accent, bg]) => {
+              {PALETTES.map(([name, accent, bg, text]) => {
                 const on = settings.color.toUpperCase() === accent && settings.bg.toUpperCase() === bg;
                 return (
-                  <button key={name} onClick={() => { updateSettings({ color: accent, bg }); setHexDraft(accent); }}
+                  <button key={name} onClick={() => updateSettings({ color: accent, bg, text })}
                     className={`flex items-center gap-2 rounded-lg border p-2 text-left text-xs ${on ? "border-primary" : "border-input"}`}>
-                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-input" style={{ background: bg }}>
-                      <span className="h-3.5 w-3.5 rounded-full" style={{ background: accent }} />
+                    <span className="flex shrink-0 -space-x-1.5">
+                      {[bg, accent, text].map((c, i) => <span key={i} className="h-5 w-5 rounded-full border border-input" style={{ background: c }} />)}
                     </span>
                     <span className="truncate">{name}</span>
                   </button>
                 );
               })}
             </div>
-            <p className="pt-1 text-xs text-muted-foreground">Personalizada</p>
-            <div className="flex items-center gap-3 py-2.5 text-xs">
-              <label className="flex items-center gap-2">
-                <input type="color" value={settings.color} onChange={(e) => { const h = e.target.value.toUpperCase(); updateSettings({ color: h }); setHexDraft(h); }}
-                  className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent" aria-label="Cor de destaque" />
-                Destaque
-              </label>
-              <label className="flex items-center gap-2">
-                <input type="color" value={settings.bg} onChange={(e) => updateSettings({ bg: e.target.value.toUpperCase() })}
-                  className="h-8 w-10 cursor-pointer rounded border border-input bg-transparent" aria-label="Cor de fundo" />
-                Fundo
-              </label>
-            </div>
           </Category>
+          {studio && (
+            <ColorStudio key={studio} title={studio === "color" ? "Cor de destaque" : studio === "bg" ? "Cor de fundo" : "Cor do texto"}
+              value={settings[studio]} onChange={(h) => updateSettings({ [studio]: h })} onClose={() => setStudio(null)} />
+          )}
 
           <Category title="EFEITO NA TELA">
             <div className="flex flex-wrap gap-2 py-2.5">

@@ -40,7 +40,9 @@
   --bg: #0b1413;
   --radius: 0.75rem;
   --background: var(--bg);
-  --foreground: oklch(0.93 0.02 180);
+  --fg: #e3eeec;
+  --glow-k: 40%;
+  --foreground: var(--fg);
   --card: color-mix(in oklab, var(--bg) 88%, white);
   --card-foreground: var(--foreground);
   --popover: color-mix(in oklab, var(--bg) 92%, white);
@@ -51,7 +53,7 @@
   --secondary: color-mix(in oklab, var(--bg) 82%, white);
   --secondary-foreground: var(--foreground);
   --muted: color-mix(in oklab, var(--bg) 84%, white);
-  --muted-foreground: oklch(0.68 0.03 185);
+  --muted-foreground: color-mix(in oklab, var(--fg) 62%, var(--bg));
   --accent: color-mix(in oklab, var(--brand) 16%, transparent);
   --accent-foreground: var(--brand);
   --destructive: oklch(0.65 0.2 25);
@@ -60,9 +62,9 @@
   --input: color-mix(in oklab, var(--brand) 35%, transparent);
   --ring: var(--brand);
   --bubble-user: color-mix(in oklab, var(--brand) 12%, var(--bg));
-  --glow: 0 0 10px color-mix(in oklab, var(--brand) 70%, transparent),
-    0 0 22px color-mix(in oklab, var(--brand) 35%, transparent);
-  --glow-soft: 0 0 18px -4px color-mix(in oklab, var(--brand) 45%, transparent);
+  --glow: 0 0 10px color-mix(in oklab, var(--brand) calc(var(--glow-k) * 1.6), transparent),
+    0 0 22px color-mix(in oklab, var(--brand) calc(var(--glow-k) * 0.8), transparent);
+  --glow-soft: 0 0 18px -4px color-mix(in oklab, var(--brand) var(--glow-k), transparent);
   --scene: radial-gradient(120% 60% at 10% 0%, color-mix(in oklab, var(--brand) 14%, transparent), transparent 60%),
     radial-gradient(90% 50% at 100% 100%, color-mix(in oklab, var(--brand) 10%, transparent), transparent 65%),
     var(--bg);
@@ -81,8 +83,11 @@
 
 @utility glow { box-shadow: var(--glow); }
 @utility glow-soft { box-shadow: var(--glow-soft); }
-@utility text-glow { text-shadow: 0 0 8px color-mix(in oklab, var(--brand) 70%, transparent); }
+@utility text-glow { text-shadow: 0 0 8px color-mix(in oklab, var(--brand) calc(var(--glow-k) * 1.6), transparent); }
 @utility icon-glow { filter: drop-shadow(0 0 4px var(--brand)) drop-shadow(0 0 10px color-mix(in oklab, var(--brand) 60%, transparent)); }
 @utility bg-scene { background: var(--scene); }
 @utility pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
 @utility pt-safe { padding-top: env(safe-area-inset-top); }
+
+.kv-range::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; border-radius: 9999px; background: var(--fg); border: 2px solid var(--bg); box-shadow: 0 1px 4px rgb(0 0 0 / .5); }
+.kv-range::-moz-range-thumb { width: 20px; height: 20px; border-radius: 9999px; background: var(--fg); border: 2px solid var(--bg); }
