@@ -10,7 +10,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -225,7 +225,7 @@ export function KellvynApp() {
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
-      <DigitalRain color={settings.color} enabled={hydrated && settings.rain} />
+      <DigitalRain color="#CFE3F2" enabled={hydrated && settings.rain} />
 
       {/* Header */}
       <header className="relative z-10 flex items-center gap-3 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
@@ -334,7 +334,7 @@ export function KellvynApp() {
             ["Editor", Code2, () => setPanel("apps")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
             ["Git", GitBranch, () => setPanel("apps")],
-            ["Apps", LayoutGrid, () => setPanel("apps")],
+            ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
               <Icon size={22} className={i === 0 ? "icon-glow" : "text-primary/80"} strokeWidth={1.6} />
