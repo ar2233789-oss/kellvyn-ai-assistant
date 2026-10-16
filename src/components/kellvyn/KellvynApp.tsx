@@ -278,6 +278,7 @@ export function KellvynApp() {
               </div>
             </div>
           ))}
+          {status === "Executando" && <ThinkingBrain />}
         </div>
       </main>
 
