@@ -1,4 +1,5 @@
 import { ColorStudio } from "./ColorStudio";
+import { askKellvyn } from "@/lib/kellvyn-server";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
@@ -11,7 +12,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser" | "tasks" | "bots" | "plugins";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser" | "tasks" | "bots" | "plugins" | "terminal";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -153,27 +154,67 @@ export function KellvynApp() {
   };
   const openConversation = (id: string) => { setActiveId(id); storage.saveActiveId(id); setPanel(null); };
 
-  const send = () => {
+  const send = async () => {
     const text = input.trim();
     if ((!text && !attachment) || !active || status === "Executando") return;
-    const userMsg: Msg = { id: uid(), role: "user", text, attachment: attachment ?? undefined };
-    // Honest state: no model is connected in this build yet, so report it instead of faking a reply.
-    const reply: Msg = {
-      id: uid(), role: "assistant", error: true,
-      text: "O modelo da Kellvyn IA ainda não está conectado nesta versão. Sua mensagem foi salva na conversa, mas nenhuma resposta foi gerada.",
-    };
+
+    const selectedAttachment = attachment ?? undefined;
     const cid = active.id;
-    updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-      ...c, updatedAt: Date.now(),
-      title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
-      messages: [...c.messages, userMsg],
+    const userMsg: Msg = { id: uid(), role: "user", text, attachment: selectedAttachment };
+    const previousHistory = active.messages.slice(-20).map((m) => ({ role: m.role, text: m.text }));
+    let plugins: Array<{ id: string; name: string; url: string; on: boolean }> = [];
+    try {
+      const stored: unknown = JSON.parse(localStorage.getItem("kellvyn.plugins") || "[]");
+      if (Array.isArray(stored)) {
+        plugins = stored.filter((p): p is { id: string; name: string; url: string; on: boolean } =>
+          !!p && typeof p.id === "string" && typeof p.name === "string" &&
+          typeof p.url === "string" && typeof p.on === "boolean");
+      }
+    } catch { /* a damaged local plugin list must not block the chat */ }
+
+    updateConvs((p) => p.map((conv) => conv.id !== cid ? conv : {
+      ...conv,
+      updatedAt: Date.now(),
+      title: conv.messages.length === 0 && text ? text.slice(0, 40) : conv.title,
+      messages: [...conv.messages, userMsg],
     }).sort((a, b) => b.updatedAt - a.updatedAt));
-    setInput(""); setAttachment(null); setStatus("Executando");
-    setTimeout(() => {
-      updateConvs((p) => p.map((c) => c.id !== cid ? c : { ...c, messages: [...c.messages, reply] }));
+    setInput("");
+    setAttachment(null);
+    setStatus("Executando");
+
+    try {
+      const result = await askKellvyn({
+        data: {
+          text,
+          attachment: selectedAttachment,
+          history: previousHistory,
+          webEnabled: settings.web,
+          plugins,
+        },
+      });
+      const reply: Msg = { id: uid(), role: "assistant", text: result.text };
+      updateConvs((p) => p.map((conv) => conv.id !== cid ? conv : {
+        ...conv, updatedAt: Date.now(), messages: [...conv.messages, reply],
+      }).sort((a, b) => b.updatedAt - a.updatedAt));
       setStatus("Pronta");
-    }, 2200);
-    taRef.current?.focus();
+      if (settings.web && result.webStatus && result.webStatus !== "Pesquisa na Web executada.") {
+        flash(result.webStatus);
+      }
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "Falha inesperada ao consultar o cérebro.";
+      const reply: Msg = {
+        id: uid(),
+        role: "assistant",
+        error: true,
+        text: `Não consegui concluir a resposta. ${detail}`,
+      };
+      updateConvs((p) => p.map((conv) => conv.id !== cid ? conv : {
+        ...conv, updatedAt: Date.now(), messages: [...conv.messages, reply],
+      }).sort((a, b) => b.updatedAt - a.updatedAt));
+      setStatus("Erro");
+    } finally {
+      taRef.current?.focus();
+    }
   };
 
   const toggleMic = () => {
@@ -224,7 +265,7 @@ export function KellvynApp() {
 
   const toggleWeb = (v: boolean) => {
     updateSettings({ web: v });
-    flash(v ? "Acesso à Web ativado (será usado quando o modelo estiver conectado)." : "Acesso à Web desativado. A IA permanece local.");
+    flash(v ? "Acesso à Web ativado." : "Acesso à Web desativado.");
   };
 
   const applyHex = () => {
@@ -348,7 +389,7 @@ export function KellvynApp() {
             ["AI", Sparkles, () => setPanel(null)],
             ["Navegador", Globe, () => setPanel("browser")],
             ["Editor", Code2, () => setPanel("editor")],
-            ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
+            ["Terminal", TerminalSquare, () => setPanel("terminal")],
             ["Bots", Bot, () => setPanel("bots")],
             ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
@@ -480,6 +521,7 @@ export function KellvynApp() {
 
       {panel === "editor" && <CodeEditor onClose={() => setPanel(null)} />}
       {panel === "browser" && <BrowserPanel onClose={() => setPanel(null)} />}
+      {panel === "terminal" && <TerminalPanel onClose={() => setPanel(null)} />}
       {panel === "tasks" && <TasksPanel onClose={() => setPanel(null)} />}
       {panel === "bots" && <BotsPanel onClose={() => setPanel(null)} />}
       {panel === "plugins" && <PluginsPanel onClose={() => setPanel(null)} />}
@@ -690,6 +732,268 @@ function PluginsPanel({ onClose }: { onClose: () => void }) {
           </li>
         ))}
       </ul>
+    </Sheet>
+  );
+}
+
+type TerminalLog = { kind: "command" | "output" | "error"; text: string };
+type WorkspaceEntry = { type: "file" | "dir"; content: string };
+type WorkspaceFs = Record<string, WorkspaceEntry>;
+
+const WORKSPACE_ROOT = "/workspace";
+const DEFAULT_WORKSPACE: WorkspaceFs = { [WORKSPACE_ROOT]: { type: "dir", content: "" } };
+
+function normalizeWorkspacePath(raw: string, cwd: string): string | null {
+  const parts = (raw.startsWith("/") ? raw : `${cwd}/${raw}`).split("/");
+  const clean: string[] = [];
+  for (const part of parts) {
+    if (!part || part === ".") continue;
+    if (part === "..") {
+      if (clean.length > 1) clean.pop();
+      continue;
+    }
+    if (part.includes("\\0")) return null;
+    clean.push(part);
+  }
+  if (clean[0] !== "workspace") return null;
+  return "/" + clean.join("/");
+}
+
+function quotedValue(value: string): string {
+  const v = value.trim();
+  if (v.length >= 2 && ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'")))) {
+    return v.slice(1, -1);
+  }
+  return v;
+}
+
+async function runSandboxedJavaScript(source: string): Promise<string> {
+  if (source.length > 12_000) throw new Error("O código ultrapassa o limite de 12.000 caracteres.");
+  return await new Promise((resolve, reject) => {
+    const workerSource = `
+      self.fetch = undefined;
+      self.XMLHttpRequest = undefined;
+      self.WebSocket = undefined;
+      self.EventSource = undefined;
+      self.importScripts = undefined;
+      const lines = [];
+      const show = (v) => {
+        if (typeof v === "string") return v;
+        try { return JSON.stringify(v); } catch { return String(v); }
+      };
+      const safeConsole = {
+        log: (...v) => lines.push(v.map(show).join(" ")),
+        info: (...v) => lines.push(v.map(show).join(" ")),
+        warn: (...v) => lines.push("[aviso] " + v.map(show).join(" ")),
+        error: (...v) => lines.push("[erro] " + v.map(show).join(" ")),
+        table: (v) => lines.push(show(v)),
+      };
+      self.console = safeConsole;
+      self.onmessage = async ({ data }) => {
+        try {
+          const result = await eval("(async () => {\\n" + data + "\\n})()");
+          if (result !== undefined) lines.push(show(result));
+          self.postMessage({ ok: true, output: lines.join("\\n") || "(executado sem saída)" });
+        } catch (error) {
+          self.postMessage({ ok: false, output: error && error.stack ? error.stack : String(error) });
+        }
+      };
+    `;
+    const blobUrl = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+    const worker = new Worker(blobUrl);
+    let settled = false;
+    const cleanup = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      worker.terminate();
+      URL.revokeObjectURL(blobUrl);
+    };
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("Execução interrompida após 4 segundos (limite antitravamento)."));
+    }, 4000);
+    worker.onmessage = (event: MessageEvent<{ ok: boolean; output: string }>) => {
+      const result = event.data;
+      cleanup();
+      if (result.ok) resolve(result.output);
+      else reject(new Error(result.output));
+    };
+    worker.onerror = (event) => {
+      cleanup();
+      reject(new Error(event.message || "Falha ao iniciar o ambiente JavaScript isolado."));
+    };
+    worker.postMessage(source);
+  });
+}
+
+function TerminalPanel({ onClose }: { onClose: () => void }) {
+  const [fs, setFs] = useState<WorkspaceFs>(DEFAULT_WORKSPACE);
+  const [cwd, setCwd] = useState(WORKSPACE_ROOT);
+  const [command, setCommand] = useState("");
+  const [logs, setLogs] = useState<TerminalLog[]>([
+    { kind: "output", text: "Terminal de workspace pronto. Digite help para ver os comandos." },
+  ]);
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("kellvyn.terminal.fs") || "{}") as WorkspaceFs;
+      if (saved && typeof saved === "object" && saved[WORKSPACE_ROOT]?.type === "dir") setFs(saved);
+    } catch { /* start with an empty workspace */ }
+  }, []);
+
+  const persistFs = (next: WorkspaceFs) => {
+    setFs(next);
+    try { localStorage.setItem("kellvyn.terminal.fs", JSON.stringify(next)); } catch { /* browser storage quota */ }
+  };
+  const append = (kind: TerminalLog["kind"], text: string) => {
+    setLogs((p) => [...p, { kind, text: text.slice(0, 12_000) }].slice(-160));
+  };
+  const pathOf = (raw: string) => normalizeWorkspacePath(raw || cwd, cwd);
+  const listDirectory = (path: string) => {
+    const prefix = path === "/" ? "/" : path + "/";
+    return Object.keys(fs)
+      .filter((p) => p !== path && p.startsWith(prefix) && !p.slice(prefix.length).includes("/"))
+      .sort()
+      .map((p) => fs[p].type === "dir" ? p.slice(prefix.length) + "/" : p.slice(prefix.length));
+  };
+  const parentOf = (path: string) => path.slice(0, path.lastIndexOf("/")) || WORKSPACE_ROOT;
+
+  const execute = async () => {
+    const line = command.trim();
+    if (!line || running) return;
+    setCommand("");
+    if (line === "clear") { setLogs([]); return; }
+    append("command", `${cwd} $ ${line}`);
+    setRunning(true);
+    try {
+      const parts = line.match(/^([\\w.-]+)(?:\\s+([\\s\\S]*))?$/);
+      const name = parts?.[1] ?? "";
+      const args = parts?.[2] ?? "";
+      const argPath = () => pathOf(quotedValue(args.split(/\\s+/)[0] ?? ""));
+      let output = "";
+
+      if (name === "help") {
+        output = [
+          "help                 lista os comandos",
+          "pwd                  mostra o diretório atual",
+          "ls [caminho]         lista arquivos e pastas",
+          "cd [caminho]         muda o diretório dentro de /workspace",
+          "tree                 lista o workspace",
+          "date                 mostra data e hora",
+          "whoami               mostra o usuário da sessão",
+          "echo texto           imprime texto; echo texto > arquivo grava arquivo",
+          "touch arquivo        cria arquivo vazio",
+          "mkdir pasta          cria pasta",
+          "cat arquivo          mostra o conteúdo do arquivo",
+          "write arquivo texto  grava conteúdo no arquivo",
+          "rm arquivo           remove arquivo; rm -r pasta remove pasta e conteúdo",
+          "node -e \"console.log(1+1)\" executa JavaScript isolado (limite de 4s)",
+          "clear                limpa o terminal",
+          "",
+          "O workspace é local ao navegador. Comandos do sistema operacional, acesso ao Android e sudo não são expostos pelo servidor web.",
+        ].join("\\n");
+      } else if (name === "pwd") {
+        output = cwd;
+      } else if (name === "date") {
+        output = new Date().toString();
+      } else if (name === "whoami") {
+        output = "kellvyn";
+      } else if (name === "ls") {
+        const path = args.trim() ? pathOf(quotedValue(args.trim())) : cwd;
+        if (!path) throw new Error("Caminho inválido. O workspace fica dentro de /workspace.");
+        if (fs[path]?.type !== "dir") throw new Error(`Não é uma pasta: ${path}`);
+        output = listDirectory(path).join("\\n") || "(pasta vazia)";
+      } else if (name === "cd") {
+        const path = pathOf(quotedValue(args.trim() || WORKSPACE_ROOT));
+        if (!path) throw new Error("Caminho inválido. Não é permitido sair de /workspace.");
+        if (fs[path]?.type !== "dir") throw new Error(`Pasta não encontrada: ${path}`);
+        setCwd(path);
+        output = path;
+      } else if (name === "tree") {
+        output = [WORKSPACE_ROOT, ...Object.keys(fs).filter((p) => p !== WORKSPACE_ROOT).sort().map((p) => {
+          const depth = p.slice(WORKSPACE_ROOT.length).split("/").filter(Boolean).length;
+          return "  ".repeat(Math.max(0, depth - 1)) + (fs[p].type === "dir" ? "📁 " : "📄 ") + p.split("/").pop();
+        })].join("\\n");
+      } else if (name === "touch" || name === "mkdir") {
+        const path = argPath();
+        if (!path || path === WORKSPACE_ROOT) throw new Error("Informe um nome de arquivo ou pasta dentro do workspace.");
+        if (!fs[parentOf(path)] || fs[parentOf(path)].type !== "dir") throw new Error("A pasta de destino não existe.");
+        if (name === "mkdir" && Object.keys(fs).some((p) => p.startsWith(path + "/"))) throw new Error("A pasta já contém itens.");
+        const next = { ...fs, [path]: { type: name === "mkdir" ? "dir" as const : "file" as const, content: "" } };
+        persistFs(next);
+        output = `${name === "mkdir" ? "Pasta" : "Arquivo"} criado: ${path}`;
+      } else if (name === "cat") {
+        const path = argPath();
+        if (!path || !fs[path] || fs[path].type !== "file") throw new Error("Arquivo não encontrado.");
+        output = fs[path].content || "(arquivo vazio)";
+      } else if (name === "write") {
+        const match = args.match(/^("[^"]+"|'[^']+'|\\S+)\\s+([\\s\\S]*)$/);
+        if (!match) throw new Error("Uso: write arquivo texto");
+        const path = pathOf(quotedValue(match[1]));
+        if (!path || !fs[parentOf(path)] || fs[parentOf(path)].type !== "dir") throw new Error("Caminho inválido ou pasta de destino ausente.");
+        if (Object.values(fs).reduce((sum, item) => sum + item.content.length, 0) + match[2].length > 1_000_000) throw new Error("O workspace atingiu o limite de 1 MB de texto.");
+        persistFs({ ...fs, [path]: { type: "file", content: match[2] } });
+        output = `Arquivo salvo: ${path}`;
+      } else if (name === "echo") {
+        const match = args.match(/^([\\s\\S]*?)\\s+>\\s+("[^"]+"|'[^']+'|\\S+)$/);
+        if (match) {
+          const path = pathOf(quotedValue(match[2]));
+          const text = quotedValue(match[1]);
+          if (!path || !fs[parentOf(path)] || fs[parentOf(path)].type !== "dir") throw new Error("Caminho inválido ou pasta de destino ausente.");
+          if (Object.values(fs).reduce((sum, item) => sum + item.content.length, 0) + text.length > 1_000_000) throw new Error("O workspace atingiu o limite de 1 MB de texto.");
+          persistFs({ ...fs, [path]: { type: "file", content: text } });
+          output = `Arquivo salvo: ${path}`;
+        } else output = quotedValue(args);
+      } else if (name === "rm") {
+        const raw = args.trim().replace(/^-r\\s+/, "").replace(/^-rf\\s+/, "");
+        const path = pathOf(quotedValue(raw));
+        if (!path || path === WORKSPACE_ROOT || !fs[path]) throw new Error("Arquivo ou pasta não encontrada.");
+        const next = { ...fs };
+        for (const key of Object.keys(next)) if (key === path || key.startsWith(path + "/")) delete next[key];
+        persistFs(next);
+        output = `Removido: ${path}`;
+      } else if (name === "node" || name === "js") {
+        const match = args.match(/^(?:-e\\s+)?([\\s\\S]+)$/);
+        if (!match) throw new Error('Uso: node -e "console.log(1+1)"');
+        output = await runSandboxedJavaScript(quotedValue(match[1]));
+      } else {
+        throw new Error(`Comando não disponível neste terminal web: ${name || line}. Digite help para listar os comandos.`);
+      }
+      append("output", output);
+    } catch (error) {
+      append("error", error instanceof Error ? error.message : "Falha ao executar o comando.");
+    } finally {
+      setRunning(false);
+    }
+  };
+
+  return (
+    <Sheet title="TERMINAL" subtitle={cwd} onClose={onClose}>
+      <div className="rounded-lg border border-input bg-background p-3 font-mono text-xs">
+        <div className="mb-3 max-h-[42dvh] min-h-28 overflow-y-auto whitespace-pre-wrap break-words">
+          {logs.map((entry, i) => (
+            <p key={i} className={entry.kind === "command" ? "text-primary" : entry.kind === "error" ? "text-destructive" : "text-foreground"}>
+              {entry.text}
+            </p>
+          ))}
+          {running && <p className="animate-pulse text-muted-foreground">Executando…</p>}
+        </div>
+        <form onSubmit={(event) => { event.preventDefault(); void execute(); }} className="flex items-start gap-2 border-t border-input pt-3">
+          <span className="pt-2 text-primary">$</span>
+          <textarea
+            value={command}
+            onChange={(event) => setCommand(event.target.value)}
+            onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void execute(); } }}
+            disabled={running}
+            rows={1}
+            spellCheck={false}
+            placeholder='help ou node -e "console.log(1+1)"'
+            className="min-h-9 min-w-0 flex-1 resize-y bg-transparent font-mono text-xs outline-none placeholder:text-muted-foreground"
+          />
+        </form>
+      </div>
     </Sheet>
   );
 }
