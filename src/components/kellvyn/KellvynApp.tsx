@@ -3,7 +3,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
-  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks, Bot, Puzzle,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -11,7 +11,7 @@ import {
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
-type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser" | "tasks";
+type Panel = null | "history" | "apps" | "settings" | "memory" | "phoneapps" | "editor" | "browser" | "tasks" | "bots" | "plugins";
 type Status = "Inicializando" | "Pronta" | "Executando" | "Erro";
 
 function KellvynLogo({ size = 28 }: { size?: number }) {
@@ -289,6 +289,9 @@ export function KellvynApp() {
             <button onClick={() => fileRef.current?.click()} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent">
               <Paperclip size={17} className="text-primary" /> Imagem ou arquivo
             </button>
+            <button onClick={() => { setPlusOpen(false); setPanel("plugins"); }} className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm hover:bg-accent">
+              <Puzzle size={17} className="text-primary" /> Plugins
+            </button>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
               <Globe size={17} className="text-primary" /><span className="flex-1">Acesso à Web</span>
               <button role="checkbox" aria-checked={settings.web} aria-label="Acesso à Web" onClick={() => toggleWeb(!settings.web)}
@@ -346,7 +349,7 @@ export function KellvynApp() {
             ["Navegador", Globe, () => setPanel("browser")],
             ["Editor", Code2, () => setPanel("editor")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
-            ["Tarefas", ListChecks, () => setPanel("tasks")],
+            ["Bots", Bot, () => setPanel("bots")],
             ["Apps", LayoutGrid, () => setPanel("phoneapps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
@@ -478,6 +481,8 @@ export function KellvynApp() {
       {panel === "editor" && <CodeEditor onClose={() => setPanel(null)} />}
       {panel === "browser" && <BrowserPanel onClose={() => setPanel(null)} />}
       {panel === "tasks" && <TasksPanel onClose={() => setPanel(null)} />}
+      {panel === "bots" && <BotsPanel onClose={() => setPanel(null)} />}
+      {panel === "plugins" && <PluginsPanel onClose={() => setPanel(null)} />}
 
       {/* Phone apps — opens the Android launcher via intent (works in Chrome on Android) */}
       {panel === "phoneapps" && (
@@ -614,6 +619,74 @@ function TasksPanel({ onClose }: { onClose: () => void }) {
             </button>
             <span className={`flex-1 text-sm ${t.done ? "text-muted-foreground line-through" : ""}`}>{t.text}</span>
             <IconBtn label="Excluir" onClick={() => persist(list.filter((x) => x.id !== t.id))}><Trash2 size={15} /></IconBtn>
+          </li>
+        ))}
+      </ul>
+    </Sheet>
+  );
+}
+
+const BRAND_ICONS: Record<string, ReactNode> = {
+  discord: <svg viewBox="0 0 24 24" width="22" height="22" fill="#5865F2"><path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.3a18.4 18.4 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.5C.6 9.1-.3 13.6.1 18.1a19.9 19.9 0 0 0 6 3l1.3-2.1a13 13 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12.2 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2.1a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.7-3.6-13.7ZM8 15.4c-1.2 0-2.2-1.1-2.2-2.4S6.8 10.6 8 10.6s2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Zm8 0c-1.2 0-2.2-1.1-2.2-2.4s1-2.4 2.2-2.4 2.2 1.1 2.2 2.4-1 2.4-2.2 2.4Z"/></svg>,
+  whatsapp: <svg viewBox="0 0 24 24" width="22" height="22" fill="#25D366"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2Zm5.4 14.1c-.2.6-1.3 1.2-1.8 1.3-.5 0-1 .2-3.3-.7-2.8-1.1-4.5-4-4.7-4.2-.1-.2-1.1-1.5-1.1-2.9s.7-2 1-2.3c.2-.3.5-.3.7-.3h.5c.2 0 .4 0 .6.5l.8 2c.1.2.1.4 0 .5l-.3.5-.4.4c-.1.1-.3.3-.1.6.2.3.7 1.2 1.6 2 1.1 1 2 1.3 2.3 1.4.3.2.5.1.6 0l.9-1c.2-.3.4-.2.6-.1l1.9.9c.3.1.5.2.5.3.1.1.1.6-.1 1.1Z"/></svg>,
+  telegram: <svg viewBox="0 0 24 24" width="22" height="22" fill="#29A9EB"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm4.6 6.8-1.6 7.7c-.1.6-.5.7-1 .4l-2.6-1.9-1.3 1.2c-.1.1-.3.3-.6.3l.2-2.7 4.9-4.4c.2-.2 0-.3-.3-.1l-6 3.8-2.6-.8c-.6-.2-.6-.6.1-.8l10.1-3.9c.5-.2.9.1.7.9Z"/></svg>,
+};
+
+function GreenSwitch({ on, onChange, label }: { on: boolean; onChange: (v: boolean) => void; label: string }) {
+  return (
+    <button role="switch" aria-checked={on} aria-label={label} onClick={() => onChange(!on)}
+      className="relative h-7 w-12 shrink-0 rounded-full transition-colors duration-300"
+      style={{ background: on ? "#22c55e" : "#4b5563", boxShadow: on ? "0 0 12px #22c55e88" : "none" }}>
+      <span className="absolute top-1 h-5 w-5 rounded-full bg-white shadow transition-all duration-300" style={{ left: on ? 24 : 4 }} />
+    </button>
+  );
+}
+
+function BotsPanel({ onClose }: { onClose: () => void }) {
+  const [st, setSt] = useState<Record<string, boolean>>({});
+  useEffect(() => { try { setSt(JSON.parse(localStorage.getItem("kellvyn.bots") || "{}")); } catch { /* empty */ } }, []);
+  const set = (k: string, v: boolean) => { const n = { ...st, [k]: v }; setSt(n); localStorage.setItem("kellvyn.bots", JSON.stringify(n)); };
+  return (
+    <Sheet title="BOTS ATIVOS" onClose={onClose}>
+      <p className="mb-4 rounded-lg border border-input bg-muted p-3 text-sm text-muted-foreground">
+        Essa área serve para não deixar a tarefa morrer: mantenha seus bots ligados ou desligue quando quiser.
+      </p>
+      <ul className="flex flex-col gap-2">
+        {([["discord", "Discord"], ["whatsapp", "WhatsApp"], ["telegram", "Telegram"]] as const).map(([k, n]) => (
+          <li key={k} className="flex items-center gap-3 rounded-xl border p-3">
+            {BRAND_ICONS[k]}
+            <div className="flex-1">
+              <p className="text-sm font-medium">{n}</p>
+              <p className="text-xs" style={{ color: st[k] ? "#22c55e" : undefined }}>{st[k] ? "Ativo" : "Desativado"}</p>
+            </div>
+            <GreenSwitch on={!!st[k]} onChange={(v) => set(k!, v)} label={`Bot do ${n}`} />
+          </li>
+        ))}
+      </ul>
+    </Sheet>
+  );
+}
+
+type Plugin = { id: string; name: string; url: string; on: boolean };
+function PluginsPanel({ onClose }: { onClose: () => void }) {
+  const [list, setList] = useState<Plugin[]>([]);
+  const [name, setName] = useState(""); const [url, setUrl] = useState("");
+  useEffect(() => { try { setList(JSON.parse(localStorage.getItem("kellvyn.plugins") || "[]")); } catch { /* empty */ } }, []);
+  const persist = (n: Plugin[]) => { setList(n); localStorage.setItem("kellvyn.plugins", JSON.stringify(n)); };
+  return (
+    <Sheet title="PLUGINS" subtitle="Adicione outras IAs e ferramentas" onClose={onClose}>
+      <form onSubmit={(e) => { e.preventDefault(); if (!name.trim()) return; persist([...list, { id: uid(), name: name.trim(), url: url.trim(), on: true }]); setName(""); setUrl(""); }} className="mb-3 flex flex-col gap-2">
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Nome (ex: Gemini, Claude)" className="rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none" />
+        <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Endereço (opcional)" inputMode="url" className="rounded-lg border border-input bg-muted px-3 py-2 text-sm outline-none" />
+        <button className="rounded-lg bg-primary py-2 text-sm font-medium text-primary-foreground">Adicionar plugin</button>
+      </form>
+      <ul className="flex flex-col gap-2">
+        {list.map((p) => (
+          <li key={p.id} className="flex items-center gap-3 rounded-xl border p-3">
+            <Puzzle size={20} className="text-primary" />
+            <div className="min-w-0 flex-1"><p className="truncate text-sm">{p.name}</p>{p.url && <p className="truncate text-xs text-muted-foreground">{p.url}</p>}</div>
+            <GreenSwitch on={p.on} onChange={(v) => persist(list.map((x) => x.id === p.id ? { ...x, on: v } : x))} label={p.name} />
+            <IconBtn label="Excluir" onClick={() => persist(list.filter((x) => x.id !== p.id))}><Trash2 size={15} /></IconBtn>
           </li>
         ))}
       </ul>
