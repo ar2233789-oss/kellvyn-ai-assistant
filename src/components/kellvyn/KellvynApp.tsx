@@ -278,7 +278,13 @@ export function KellvynApp() {
             </button>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
               <Globe size={17} className="text-primary" /><span className="flex-1">Acesso à Web</span>
-              <Toggle on={settings.web} onChange={toggleWeb} label="Acesso à Web" />
+              <button role="checkbox" aria-checked={settings.web} aria-label="Acesso à Web" onClick={() => toggleWeb(!settings.web)}
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs hover:bg-accent">
+                <span className={`grid h-5 w-5 place-items-center rounded border border-input ${settings.web ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {settings.web && <Check size={14} strokeWidth={3} />}
+                </span>
+                <span className={settings.web ? "text-primary" : "text-muted-foreground"}>{settings.web ? "Sim" : "Não"}</span>
+              </button>
             </div>
           </div>
         )}
@@ -303,7 +309,7 @@ export function KellvynApp() {
             <IconBtn label="Anexos e Web" onClick={() => setPlusOpen((v) => !v)} active={plusOpen}><Plus size={19} /></IconBtn>
             <span className="flex items-center gap-1 rounded-lg border border-input px-2.5 py-1 text-[12px] text-foreground/80">
               <span className={`h-1.5 w-1.5 rounded-full ${status === "Erro" ? "bg-destructive" : "bg-primary glow"}`} />
-              Build • GPT-5 Nano <ChevronDown size={13} />
+              Kellvyn <ChevronDown size={13} />
             </span>
             <div className="flex-1" />
             <IconBtn label={listening ? "Parar ditado" : "Ditado por voz"} onClick={toggleMic} active={listening}>
@@ -328,7 +334,7 @@ export function KellvynApp() {
             ["Editor", Code2, () => setPanel("apps")],
             ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
             ["Git", GitBranch, () => setPanel("apps")],
-            ["Abas", LayoutGrid, () => setPanel("apps")],
+            ["Apps", LayoutGrid, () => setPanel("apps")],
           ] as const).map(([label, Icon, fn], i) => (
             <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
               <Icon size={22} className={i === 0 ? "icon-glow" : "text-primary/80"} strokeWidth={1.6} />
@@ -401,11 +407,6 @@ export function KellvynApp() {
             </div>
           </Category>
 
-          <Category title="INTERNET DA KELLVYN IA">
-            <Row title="Acesso à Web" desc="Usa o Wi-Fi ou dados móveis do celular. A mesma IA consulta páginas externas.">
-              <Toggle on={settings.web} onChange={toggleWeb} label="Acesso à Web" />
-            </Row>
-          </Category>
 
           <Category title="EFEITO VISUAL">
             <Row title="Chuva digital" desc="Fica atrás da conversa, sem bloquear textos.">
