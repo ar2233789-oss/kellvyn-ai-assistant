@@ -7,7 +7,7 @@ import {
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
-  COLORS, DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
+  DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
@@ -135,7 +135,7 @@ export function KellvynApp() {
     document.documentElement.style.setProperty("--bg", settings.bg);
     document.documentElement.style.setProperty("--fg", settings.text);
     document.documentElement.style.setProperty("--glow-k", `${settings.glow}%`);
-  }, [settings.color, settings.bg]);
+  }, [settings.color, settings.bg, settings.text, settings.glow]);
 
   const flash = (t: string) => { setToast(t); window.setTimeout(() => setToast(null), 2600); };
   const updateSettings = (patch: Partial<Settings>) => setSettings((p) => { const n = { ...p, ...patch }; storage.saveSettings(n); return n; });
