@@ -278,7 +278,13 @@ export function KellvynApp() {
             </button>
             <div className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm">
               <Globe size={17} className="text-primary" /><span className="flex-1">Acesso à Web</span>
-              <Toggle on={settings.web} onChange={toggleWeb} label="Acesso à Web" />
+              <button role="checkbox" aria-checked={settings.web} aria-label="Acesso à Web" onClick={() => toggleWeb(!settings.web)}
+                className="flex items-center gap-1.5 rounded-md px-1 py-0.5 text-xs hover:bg-accent">
+                <span className={`grid h-5 w-5 place-items-center rounded border border-input ${settings.web ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  {settings.web && <Check size={14} strokeWidth={3} />}
+                </span>
+                <span className={settings.web ? "text-primary" : "text-muted-foreground"}>{settings.web ? "Sim" : "Não"}</span>
+              </button>
             </div>
           </div>
         )}
@@ -401,11 +407,6 @@ export function KellvynApp() {
             </div>
           </Category>
 
-          <Category title="INTERNET DA KELLVYN IA">
-            <Row title="Acesso à Web" desc="Usa o Wi-Fi ou dados móveis do celular. A mesma IA consulta páginas externas.">
-              <Toggle on={settings.web} onChange={toggleWeb} label="Acesso à Web" />
-            </Row>
-          </Category>
 
           <Category title="EFEITO VISUAL">
             <Row title="Chuva digital" desc="Fica atrás da conversa, sem bloquear textos.">
