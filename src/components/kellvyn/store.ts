@@ -1,7 +1,19 @@
 export type Attachment = { name: string; type: string; dataUrl: string };
 export type Msg = { id: string; role: "user" | "assistant"; text: string; attachment?: Attachment | undefined; error?: boolean };
 export type Conversation = { id: string; title: string; updatedAt: number; messages: Msg[] };
-export type Settings = { color: string; web: boolean; rain: boolean; strongProtection: boolean };
+export type Effect = "chuva" | "neve" | "folhas" | "raios" | "nenhum";
+export type Settings = { color: string; bg: string; effect: Effect; web: boolean; rain: boolean; strongProtection: boolean };
+
+export const EFFECTS: [Effect, string][] = [["chuva", "Chuva"], ["neve", "Neve"], ["folhas", "Folhas"], ["raios", "Raios"], ["nenhum", "Nenhum"]];
+
+/** [name, accent, background] */
+export const PALETTES: [string, string, string][] = [
+  ["Esmeralda", "#38E6BC", "#0B1413"], ["Preto e Dourado", "#FFD166", "#0A0907"],
+  ["Preto e Vermelho", "#FF4D4D", "#0D0707"], ["Azul Noturno", "#5CB8FF", "#070D18"],
+  ["Roxo Neon", "#C59BFF", "#0E0A16"], ["Rosa Noite", "#FF79C6", "#140A11"],
+  ["Prata Grafite", "#E6E6E6", "#111214"], ["Laranja Brasa", "#FF7A45", "#120A06"],
+  ["Lima Escuro", "#B5E853", "#0A0F06"], ["Branco e Preto", "#FFFFFF", "#000000"],
+];
 export type Memory = { id: string; text: string };
 
 export const COLORS: [string, string][] = [
@@ -10,7 +22,7 @@ export const COLORS: [string, string][] = [
   ["Laranja", "#FF7A45"], ["Índigo", "#7C83FF"], ["Ciano", "#38D6E8"], ["Branco", "#FFFFFF"],
 ];
 
-export const DEFAULT_SETTINGS: Settings = { color: "#38E6BC", web: false, rain: true, strongProtection: true };
+export const DEFAULT_SETTINGS: Settings = { color: "#38E6BC", bg: "#0B1413", effect: "chuva", web: false, rain: true, strongProtection: true };
 
 export function normalizeHex(input: string): string | null {
   const v = input.trim().replace(/^#/, "");
