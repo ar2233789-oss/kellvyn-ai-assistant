@@ -121,7 +121,8 @@ export function KellvynApp() {
       const first: Conversation = { id: uid(), title: "Nova conversa", updatedAt: Date.now(), messages: [] };
       c = [first]; a = first.id; storage.saveConversations(c); storage.saveActiveId(first.id);
     }
-    if (!a || !c.some((x) => x.id === a)) a = c[0].id;
+    if (!a || !c.some((x) => x.id === a)) a = c[0]?.id ?? null;
+    if (!a) return;
     setSettings(s); setConvs(c); setActiveId(a); setMemories(storage.memories());
     setHexDraft(s.color); setHydrated(true); setStatus("Pronta");
   }, []);
