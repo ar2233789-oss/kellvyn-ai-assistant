@@ -1,5 +1,5 @@
 export type Attachment = { name: string; type: string; dataUrl: string };
-export type Msg = { id: string; role: "user" | "assistant"; text: string; attachment?: Attachment; error?: boolean };
+export type Msg = { id: string; role: "user" | "assistant"; text: string; attachment?: Attachment | undefined; error?: boolean };
 export type Conversation = { id: string; title: string; updatedAt: number; messages: Msg[] };
 export type Settings = { color: string; web: boolean; rain: boolean; strongProtection: boolean };
 export type Memory = { id: string; text: string };
