@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -221,21 +222,15 @@ export function KellvynApp() {
   };
 
   const userCount = (c: Conversation) => c.messages.filter((m) => m.role === "user").length;
-  const statusLabel = `KELLVYN IA • LOCAL • ${status.toUpperCase()}`;
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
       <DigitalRain color={settings.color} enabled={hydrated && settings.rain} />
 
       {/* Header */}
-      <header className="relative z-10 flex items-center gap-2 border-b bg-panel px-2 py-2 pt-safe backdrop-blur-md">
-        <IconBtn label="Histórico de conversas" onClick={() => setPanel("history")}><Menu size={21} /></IconBtn>
-        <KellvynLogo />
-        <div className="min-w-0 flex-1 leading-tight">
-          <h1 className="truncate text-[17px] font-medium text-primary text-glow">Kellvyn Assistente</h1>
-          <p className="truncate text-[10px] tracking-[0.14em] text-muted-foreground">{statusLabel}</p>
-        </div>
-        <IconBtn label="Apps e APKs" onClick={() => setPanel("apps")}><LayoutGrid size={19} /></IconBtn>
+      <header className="relative z-10 flex items-center gap-3 border-b bg-panel px-3 py-2.5 pt-safe backdrop-blur-md">
+        <IconBtn label="Histórico de conversas" onClick={() => setPanel("history")}><Menu size={22} strokeWidth={1.6} /></IconBtn>
+        <h1 className="min-w-0 flex-1 truncate text-[18px] text-primary">Kellvyn Assistente</h1>
         <IconBtn label="Configurações" onClick={() => setPanel("settings")}><MoreVertical size={20} /></IconBtn>
       </header>
 
@@ -256,12 +251,10 @@ export function KellvynApp() {
               {m.text && <p className="whitespace-pre-wrap break-words">{m.text}</p>}
             </div>
           ) : (
-            <div key={m.id} className="flex max-w-[94%] gap-2">
-              <div className="pt-1"><KellvynLogo size={20} /></div>
+            <div key={m.id} className="flex">
               <div className="min-w-0 flex-1">
-                <div className={`rounded-2xl rounded-tl-md border bg-panel px-3.5 py-2.5 text-[15px] leading-relaxed ${m.error ? "border-destructive/40 text-muted-foreground" : "text-foreground"}`}>
-                  <p className="whitespace-pre-wrap break-words">{m.text}</p>
-                </div>
+                <p className="mb-1.5 flex items-center gap-1.5 text-[13px] text-muted-foreground"><Globe size={13} className="text-primary" /> Thinking <ChevronRight size={13} /></p>
+                <p className={`whitespace-pre-wrap break-words text-[15px] leading-relaxed ${m.error ? "text-muted-foreground" : "text-foreground"}`}>{m.text}</p>
                 <div className="mt-1 flex gap-0.5 text-muted-foreground">
                   <IconBtn label="Copiar" onClick={() => copy(m.text)}><Copy size={15} /></IconBtn>
                   <IconBtn label={speakingId === m.id ? "Parar leitura" : "Ouvir"} onClick={() => speak(m)} active={speakingId === m.id}>
@@ -303,14 +296,14 @@ export function KellvynApp() {
           )}
           <textarea
             ref={taRef} value={input} onChange={(e) => setInput(e.target.value)} rows={1}
-            placeholder="Converse ou peça para criar um aplicativo…"
+            placeholder="Pergunte qualquer coisa..."
             className="max-h-36 min-h-[40px] w-full resize-none bg-transparent px-2 py-1.5 text-[15px] text-foreground outline-none placeholder:text-muted-foreground field-sizing-content"
           />
           <div className="flex items-center gap-1">
             <IconBtn label="Anexos e Web" onClick={() => setPlusOpen((v) => !v)} active={plusOpen}><Plus size={19} /></IconBtn>
-            <span className="flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1 rounded-lg border border-input px-2.5 py-1 text-[12px] text-foreground/80">
               <span className={`h-1.5 w-1.5 rounded-full ${status === "Erro" ? "bg-destructive" : "bg-primary glow"}`} />
-              Kellvyn IA • {status}{settings.web ? " • Web" : ""}
+              Build • GPT-5 Nano <ChevronDown size={13} />
             </span>
             <div className="flex-1" />
             <IconBtn label={listening ? "Parar ditado" : "Ditado por voz"} onClick={toggleMic} active={listening}>
@@ -318,16 +311,35 @@ export function KellvynApp() {
             </IconBtn>
             <button
               aria-label="Enviar" onClick={send} disabled={(!input.trim() && !attachment) || status === "Executando"}
-              className="grid h-9 w-9 place-items-center rounded-lg border border-input text-primary transition hover:bg-accent disabled:opacity-35"
+              className="grid h-8 w-8 place-items-center rounded-full border border-input text-primary transition hover:bg-accent disabled:opacity-50"
             >
-              <ArrowUp size={18} />
+              <ArrowUp size={17} />
             </button>
           </div>
         </div>
       </footer>
 
+      {/* Bottom tab bar — as in the reference image */}
+      <nav className="relative z-20 border-t bg-panel pb-safe backdrop-blur-md">
+        <div className="mx-auto grid max-w-2xl grid-cols-6">
+          {([
+            ["AI", Sparkles, () => setPanel(null)],
+            ["Navegador", Globe, () => window.open("https://www.google.com", "_blank", "noopener")],
+            ["Editor", Code2, () => setPanel("apps")],
+            ["Terminal", TerminalSquare, () => flash("Terminal: requer o app Android nativo.")],
+            ["Git", GitBranch, () => setPanel("apps")],
+            ["Abas", LayoutGrid, () => setPanel("apps")],
+          ] as const).map(([label, Icon, fn], i) => (
+            <button key={label} onClick={fn} className={`flex flex-col items-center gap-1 py-2 text-[11px] ${i === 0 ? "text-primary" : "text-muted-foreground"}`}>
+              <Icon size={22} className={i === 0 ? "icon-glow" : "text-primary/80"} strokeWidth={1.6} />
+              {label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       {toast && (
-        <div role="status" className="fixed inset-x-4 bottom-28 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
+        <div role="status" className="fixed inset-x-4 bottom-44 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
           {toast}
         </div>
       )}
