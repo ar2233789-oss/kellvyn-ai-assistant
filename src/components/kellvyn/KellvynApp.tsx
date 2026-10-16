@@ -752,7 +752,7 @@ function normalizeWorkspacePath(raw: string, cwd: string): string | null {
       if (clean.length > 1) clean.pop();
       continue;
     }
-    if (part.includes("\\0")) return null;
+    if (part.includes("\0")) return null;
     clean.push(part);
   }
   if (clean[0] !== "workspace") return null;
@@ -868,10 +868,10 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
     append("command", `${cwd} $ ${line}`);
     setRunning(true);
     try {
-      const parts = line.match(/^([\\w.-]+)(?:\\s+([\\s\\S]*))?$/);
+      const parts = line.match(/^([\w.-]+)(?:\s+([\s\S]*))?$/);
       const name = parts?.[1] ?? "";
       const args = parts?.[2] ?? "";
-      const argPath = () => pathOf(quotedValue(args.split(/\\s+/)[0] ?? ""));
+      const argPath = () => pathOf(quotedValue(args.split(/\s+/)[0] ?? ""));
       let output = "";
 
       if (name === "help") {
@@ -893,7 +893,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
           "clear                limpa o terminal",
           "",
           "O workspace é local ao navegador. Comandos do sistema operacional, acesso ao Android e sudo não são expostos pelo servidor web.",
-        ].join("\\n");
+        ].join("\n");
       } else if (name === "pwd") {
         output = cwd;
       } else if (name === "date") {
@@ -904,7 +904,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         const path = args.trim() ? pathOf(quotedValue(args.trim())) : cwd;
         if (!path) throw new Error("Caminho inválido. O workspace fica dentro de /workspace.");
         if (fs[path]?.type !== "dir") throw new Error(`Não é uma pasta: ${path}`);
-        output = listDirectory(path).join("\\n") || "(pasta vazia)";
+        output = listDirectory(path).join("\n") || "(pasta vazia)";
       } else if (name === "cd") {
         const path = pathOf(quotedValue(args.trim() || WORKSPACE_ROOT));
         if (!path) throw new Error("Caminho inválido. Não é permitido sair de /workspace.");
@@ -915,7 +915,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         output = [WORKSPACE_ROOT, ...Object.keys(fs).filter((p) => p !== WORKSPACE_ROOT).sort().map((p) => {
           const depth = p.slice(WORKSPACE_ROOT.length).split("/").filter(Boolean).length;
           return "  ".repeat(Math.max(0, depth - 1)) + (fs[p].type === "dir" ? "📁 " : "📄 ") + p.split("/").pop();
-        })].join("\\n");
+        })].join("\n");
       } else if (name === "touch" || name === "mkdir") {
         const path = argPath();
         if (!path || path === WORKSPACE_ROOT) throw new Error("Informe um nome de arquivo ou pasta dentro do workspace.");
@@ -929,7 +929,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         if (!path || !fs[path] || fs[path].type !== "file") throw new Error("Arquivo não encontrado.");
         output = fs[path].content || "(arquivo vazio)";
       } else if (name === "write") {
-        const match = args.match(/^("[^"]+"|'[^']+'|\\S+)\\s+([\\s\\S]*)$/);
+        const match = args.match(/^("[^"]+"|'[^']+'|\S+)\s+([\s\S]*)$/);
         if (!match) throw new Error("Uso: write arquivo texto");
         const path = pathOf(quotedValue(match[1]));
         if (!path || !fs[parentOf(path)] || fs[parentOf(path)].type !== "dir") throw new Error("Caminho inválido ou pasta de destino ausente.");
@@ -937,7 +937,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         persistFs({ ...fs, [path]: { type: "file", content: match[2] } });
         output = `Arquivo salvo: ${path}`;
       } else if (name === "echo") {
-        const match = args.match(/^([\\s\\S]*?)\\s+>\\s+("[^"]+"|'[^']+'|\\S+)$/);
+        const match = args.match(/^([\s\S]*?)\s+>\s+("[^"]+"|'[^']+'|\S+)$/);
         if (match) {
           const path = pathOf(quotedValue(match[2]));
           const text = quotedValue(match[1]);
@@ -947,7 +947,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
           output = `Arquivo salvo: ${path}`;
         } else output = quotedValue(args);
       } else if (name === "rm") {
-        const raw = args.trim().replace(/^-r\\s+/, "").replace(/^-rf\\s+/, "");
+        const raw = args.trim().replace(/^-r\s+/, "").replace(/^-rf\s+/, "");
         const path = pathOf(quotedValue(raw));
         if (!path || path === WORKSPACE_ROOT || !fs[path]) throw new Error("Arquivo ou pasta não encontrada.");
         const next = { ...fs };
@@ -955,7 +955,7 @@ function TerminalPanel({ onClose }: { onClose: () => void }) {
         persistFs(next);
         output = `Removido: ${path}`;
       } else if (name === "node" || name === "js") {
-        const match = args.match(/^(?:-e\\s+)?([\\s\\S]+)$/);
+        const match = args.match(/^(?:-e\s+)?([\s\S]+)$/);
         if (!match) throw new Error('Uso: node -e "console.log(1+1)"');
         output = await runSandboxedJavaScript(quotedValue(match[1]));
       } else {
