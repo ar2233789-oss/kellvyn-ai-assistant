@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import {
   Menu, LayoutGrid, MoreVertical, Plus, Mic, ArrowUp, Copy, Volume2, Download, Share2, X,
   Paperclip, Globe, Check, MessageSquare, Code2, GitBranch, ExternalLink, Trash2, Square,
+  ChevronDown, ChevronRight, Sparkles, TerminalSquare,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
 import {
@@ -221,7 +222,6 @@ export function KellvynApp() {
   };
 
   const userCount = (c: Conversation) => c.messages.filter((m) => m.role === "user").length;
-  const statusLabel = `KELLVYN IA • LOCAL • ${status.toUpperCase()}`;
 
   return (
     <div className="relative flex h-dvh flex-col overflow-hidden">
@@ -339,7 +339,7 @@ export function KellvynApp() {
       </nav>
 
       {toast && (
-        <div role="status" className="fixed inset-x-4 bottom-28 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
+        <div role="status" className="fixed inset-x-4 bottom-44 z-[60] mx-auto max-w-sm rounded-xl border bg-popover px-4 py-2.5 text-center text-sm glow-soft animate-in fade-in">
           {toast}
         </div>
       )}
