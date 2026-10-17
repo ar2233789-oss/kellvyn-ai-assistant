@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   build:
-    name: Typecheck and build
+    name: Build Lovable frontend
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
