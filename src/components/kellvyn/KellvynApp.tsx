@@ -151,6 +151,17 @@ export function KellvynApp() {
     updateConvs((p) => [c, ...p]); setActiveId(c.id); storage.saveActiveId(c.id); setPanel(null);
     taRef.current?.focus();
   };
+  const deleteConversation = (id: string) => {
+    const rest = convs.filter((c) => c.id !== id);
+    if (rest.length === 0) {
+      const c: Conversation = { id: uid(), title: "Nova conversa", updatedAt: Date.now(), messages: [] };
+      updateConvs(() => [c]); setActiveId(c.id); storage.saveActiveId(c.id);
+    } else {
+      updateConvs(() => rest);
+      if (id === activeId) { setActiveId(rest[0]!.id); storage.saveActiveId(rest[0]!.id); }
+    }
+    flash("Conversa apagada.");
+  };
   const openConversation = (id: string) => { setActiveId(id); storage.saveActiveId(id); setPanel(null); };
 
   const send = () => {
@@ -374,14 +385,14 @@ export function KellvynApp() {
           </button>
           <ul className="flex flex-col gap-1">
             {[...convs].sort((a, b) => b.updatedAt - a.updatedAt).map((c) => (
-              <li key={c.id}>
+              <SwipeRow key={c.id} onDelete={() => deleteConversation(c.id)}>
                 <button onClick={() => openConversation(c.id)}
                   className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-left text-sm hover:bg-accent ${c.id === activeId ? "border border-input bg-accent" : ""}`}>
                   <MessageSquare size={16} className="shrink-0 text-primary" />
                   <span className="flex-1 truncate">{c.title}</span>
                   <span className="text-xs text-muted-foreground">{userCount(c)}</span>
                 </button>
-              </li>
+              </SwipeRow>
             ))}
           </ul>
         </Sheet>
@@ -691,5 +702,28 @@ function PluginsPanel({ onClose }: { onClose: () => void }) {
         ))}
       </ul>
     </Sheet>
+  );
+}
+
+function SwipeRow({ children, onDelete }: { children: ReactNode; onDelete: () => void }) {
+  const [x, setX] = useState(0);
+  const start = useRef<number | null>(null);
+  const base = useRef(0);
+  const OPEN = -72;
+  return (
+    <li className="relative overflow-hidden rounded-lg">
+      <button aria-label="Apagar conversa" onClick={() => { if (confirm("Apagar esta conversa?")) onDelete(); else setX(0); }}
+        className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive text-destructive-foreground">
+        <Trash2 size={20} />
+      </button>
+      <div className="relative bg-panel" style={{ transform: `translateX(${x}px)`, transition: start.current === null ? "transform .25s" : "none", touchAction: "pan-y" }}
+        onPointerDown={(e) => { start.current = e.clientX; base.current = x; }}
+        onPointerMove={(e) => { if (start.current === null) return; setX(Math.max(OPEN - 20, Math.min(0, base.current + e.clientX - start.current))); }}
+        onPointerUp={() => { start.current = null; setX((v) => (v < OPEN / 2 ? OPEN : 0)); }}
+        onPointerCancel={() => { start.current = null; setX(0); }}
+        onClickCapture={(e) => { if (x !== 0) { e.stopPropagation(); setX(0); } }}>
+        {children}
+      </div>
+    </li>
   );
 }
