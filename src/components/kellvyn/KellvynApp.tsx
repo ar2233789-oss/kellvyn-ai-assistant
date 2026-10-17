@@ -189,7 +189,7 @@ export function KellvynApp() {
           `Arquivo anexado: ${submittedAttachment.name}`,
           "Conteúdo do arquivo:",
           fileText,
-        ].join("\\n");
+        ].join("\n");
       }
     } catch (error) {
       const explanation = error instanceof Error ? error.message : "Não foi possível ler o anexo.";
