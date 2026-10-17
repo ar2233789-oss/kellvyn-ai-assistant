@@ -6,6 +6,7 @@ import {
   ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks, Bot, Puzzle,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
+import { askLocalBrain, textFromAttachment } from "./localBrain";
 import {
   DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
@@ -164,27 +165,75 @@ export function KellvynApp() {
   };
   const openConversation = (id: string) => { setActiveId(id); storage.saveActiveId(id); setPanel(null); };
 
-  const send = () => {
+  const send = async () => {
     const text = input.trim();
     if ((!text && !attachment) || !active || status === "Executando") return;
-    const userMsg: Msg = { id: uid(), role: "user", text, attachment: attachment ?? undefined };
-    // Honest state: no model is connected in this build yet, so report it instead of faking a reply.
-    const reply: Msg = {
-      id: uid(), role: "assistant", error: true,
-      text: "O modelo da Kellvyn IA ainda não está conectado nesta versão. Sua mensagem foi salva na conversa, mas nenhuma resposta foi gerada.",
-    };
+
     const cid = active.id;
+    const submittedAttachment = attachment ?? undefined;
+    const userMsg: Msg = { id: uid(), role: "user", text, attachment: submittedAttachment };
+    const replyId = uid();
+    const reply: Msg = { id: replyId, role: "assistant", text: "" };
+    const history = messages
+      .filter((m) => !m.error && m.text.trim())
+      .slice(-12)
+      .map((m) => ({ role: m.role, text: m.text, error: m.error }));
+
+    let prompt = text;
+    try {
+      if (submittedAttachment) {
+        const fileText = textFromAttachment(submittedAttachment);
+        prompt = [
+          text || "Analise o conteúdo textual do arquivo anexado.",
+          "",
+          `Arquivo anexado: ${submittedAttachment.name}`,
+          "Conteúdo do arquivo:",
+          fileText,
+        ].join("\\n");
+      }
+    } catch (error) {
+      const explanation = error instanceof Error ? error.message : "Não foi possível ler o anexo.";
+      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
+        ...c,
+        updatedAt: Date.now(),
+        title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
+        messages: [...c.messages, userMsg, { ...reply, error: true, text: explanation }],
+      }).sort((a, b) => b.updatedAt - a.updatedAt));
+      setInput(""); setAttachment(null); setStatus("Erro");
+      taRef.current?.focus();
+      return;
+    }
+
     updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-      ...c, updatedAt: Date.now(),
+      ...c,
+      updatedAt: Date.now(),
       title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
-      messages: [...c.messages, userMsg],
+      messages: [...c.messages, userMsg, reply],
     }).sort((a, b) => b.updatedAt - a.updatedAt));
     setInput(""); setAttachment(null); setStatus("Executando");
-    setTimeout(() => {
-      updateConvs((p) => p.map((c) => c.id !== cid ? c : { ...c, messages: [...c.messages, reply] }));
+
+    try {
+      const answer = await askLocalBrain(cid, prompt, history, (partial) => {
+        updateConvs((p) => p.map((c) => c.id !== cid ? c : {
+          ...c,
+          messages: c.messages.map((m) => m.id === replyId ? { ...m, text: partial, error: false } : m),
+        }));
+      });
+      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
+        ...c,
+        messages: c.messages.map((m) => m.id === replyId ? { ...m, text: answer, error: false } : m),
+      }));
       setStatus("Pronta");
-    }, 2200);
-    taRef.current?.focus();
+    } catch (error) {
+      const explanation = error instanceof Error ? error.message : "Falha inesperada ao iniciar a IA local.";
+      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
+        ...c,
+        messages: c.messages.map((m) => m.id === replyId ? { ...m, text: explanation, error: true } : m),
+      }));
+      setStatus("Erro");
+    } finally {
+      taRef.current?.focus();
+    }
   };
 
   const toggleMic = () => {
