@@ -5,7 +5,8 @@
  * prompts and generated text are not sent to a hosted AI service.
  * The web SDK currently supports text input/output only.
  */
-import { buildSystemPrompt, isBuildRequest, withBuilderGuidelines } from "./brainPrompt";
+import { buildSystemPrompt } from "./brainPrompt";
+import { prepareUserText } from "./webContext";
 
 type HistoryTurn = {
   role: "user" | "assistant";
@@ -201,8 +202,8 @@ export async function askLocalBrain(
     }
   }
 
-  // Build requests get delivery guidelines; the chat screen still shows the original text.
-  const outgoing = isBuildRequest(userText) ? withBuilderGuidelines(userText) : userText;
+  // Build guidelines and Web context are added here; the chat screen still shows the original text.
+  const outgoing = await prepareUserText(userText);
 
   let output = "";
   for await (const chunk of conversation.sendMessageStreaming(outgoing)) {
