@@ -8,7 +8,7 @@
 type HistoryTurn = {
   role: "user" | "assistant";
   text: string;
-  error?: boolean;
+  error?: boolean | undefined;
 };
 
 type StreamItem = { type?: string; text?: string };
