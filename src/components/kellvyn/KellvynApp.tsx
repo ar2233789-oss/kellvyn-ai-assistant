@@ -716,7 +716,7 @@ function SwipeRow({ children, onDelete }: { children: ReactNode; onDelete: () =>
         className="absolute inset-y-0 right-0 flex w-[72px] items-center justify-center bg-destructive text-destructive-foreground">
         <Trash2 size={20} />
       </button>
-      <div className="relative bg-panel" style={{ transform: `translateX(${x}px)`, transition: start.current === null ? "transform .25s" : "none", touchAction: "pan-y" }}
+      <div className="relative bg-background" style={{ transform: `translateX(${x}px)`, transition: start.current === null ? "transform .25s" : "none", touchAction: "pan-y" }}
         onPointerDown={(e) => { start.current = e.clientX; base.current = x; }}
         onPointerMove={(e) => { if (start.current === null) return; setX(Math.max(OPEN - 20, Math.min(0, base.current + e.clientX - start.current))); }}
         onPointerUp={() => { start.current = null; setX((v) => (v < OPEN / 2 ? OPEN : 0)); }}
