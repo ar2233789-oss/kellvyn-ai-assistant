@@ -615,7 +615,7 @@ public class MainActivity extends Activity {
                 "Para cada arquivo, use exatamente uma linha 'Arquivo: caminho/relativo.ext' seguida de um bloco Markdown de código com o conteúdo completo. " +
                 "Inclua os arquivos principais e instruções curtas de execução, use poucas dependências e não omita trechos com reticências. " +
                 "Não afirme que compilou, instalou, executou ou publicou um APK/bot se nenhuma ferramenta real fez isso. " +
-                "Pedido do usuário:\\n\\n" + userPrompt;
+                "Pedido do usuário:\n\n" + userPrompt;
     }
 
     /** Store complete files produced for an explicit project request; no ZIP or new UI control is created. */
@@ -802,8 +802,8 @@ public class MainActivity extends Activity {
     }
 
     private void saveEditorFile(String name, String contents) {
-        String safeName = name.replace("\\", "_").replace("/", "_").trim();
-        if (safeName.isEmpty()) safeName = "nota.txt";
+        String safeName = name.replace("\\", "/").replaceAll("^/+", "").trim();
+        if (safeName.isEmpty() || safeName.equals(".") || safeName.equals("..")) safeName = "nota.txt";
         ArrayList<String> names = readEditorFileNames();
         if (!names.contains(safeName)) names.add(safeName);
         JSONArray array = new JSONArray();
