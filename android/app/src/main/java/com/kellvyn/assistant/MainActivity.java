@@ -356,9 +356,14 @@ public class MainActivity extends Activity {
     private void showPlusMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Imagem ou arquivo");
+        android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
+        webAccess.setCheckable(true);
+        webAccess.setChecked(isWebAccessEnabled());
         popup.getMenu().add("Abrir Web no navegador do celular");
         popup.setOnMenuItemClickListener(item -> {
-            if (item.getTitle().toString().startsWith("Imagem")) pickFile();
+            String label = item.getTitle().toString();
+            if (label.startsWith("Imagem")) pickFile();
+            else if (label.equals("Acesso à Web")) toggleWebAccess();
             else askWebAddress();
             return true;
         });
@@ -415,7 +420,7 @@ public class MainActivity extends Activity {
         url.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_URI);
         url.setHint("https://");
         new AlertDialog.Builder(this).setTitle("Abrir Web")
-                .setMessage("O navegador do Android usará a conexão atual do celular. Esta ação não conecta a Web ao cérebro da IA.")
+                .setMessage("O navegador abre páginas separadamente. Para permitir consultas limitadas da IA à Wikipédia em português, ative Acesso à Web no menu + ou nas configurações.")
                 .setView(url).setNegativeButton("Cancelar", null)
                 .setPositiveButton("Abrir", (d, w) -> {
                     String value = url.getText().toString().trim();
@@ -456,10 +461,14 @@ public class MainActivity extends Activity {
         PopupMenu popup = new PopupMenu(this, findViewById(android.R.id.content));
         popup.getMenu().add("Configurações");
         popup.getMenu().add("Cor da interface");
+        android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
+        webAccess.setCheckable(true);
+        webAccess.setChecked(isWebAccessEnabled());
         popup.getMenu().add("Proteção da IA");
         popup.setOnMenuItemClickListener(item -> {
             String label = item.getTitle().toString();
             if (label.equals("Cor da interface")) showPalette();
+            else if (label.equals("Acesso à Web")) toggleWebAccess();
             else if (label.equals("Proteção da IA")) new AlertDialog.Builder(this).setTitle("Proteção da IA")
                     .setMessage("A proteção visual está disponível. Controles avançados de proteção do motor de IA dependem da integração do cérebro.")
                     .setPositiveButton("Ativar proteção visual", (d, w) -> {
@@ -467,11 +476,23 @@ public class MainActivity extends Activity {
                         toast("Proteção visual ativada.");
                     }).setNegativeButton("Fechar", null).show();
             else new AlertDialog.Builder(this).setTitle("Configurações")
-                    .setMessage("Kellvyn IA nativa\nTema escuro · cor esmeralda\nHistórico salvo neste aparelho\nMotor de IA: ainda não conectado")
+                    .setMessage("Kellvyn IA nativa\nTema escuro · cor esmeralda\nHistórico salvo neste aparelho\nMotor local: baixa e inicia sob solicitação\nAcesso à Web: " + (isWebAccessEnabled() ? "ativado (Wikipédia PT)" : "desativado"))
                     .setPositiveButton("OK", null).show();
             return true;
         });
         popup.show();
+    }
+
+    private boolean isWebAccessEnabled() {
+        return prefs.getBoolean("web_access", false);
+    }
+
+    private void toggleWebAccess() {
+        boolean enabled = !isWebAccessEnabled();
+        prefs.edit().putBoolean("web_access", enabled).apply();
+        toast(enabled
+                ? "Acesso à Web ativado. Perguntas compatíveis podem consultar a Wikipédia em português."
+                : "Acesso à Web desativado. As mensagens não farão consultas externas.");
     }
 
     private void showPalette() {
