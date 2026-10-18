@@ -81,7 +81,7 @@ class LocalBrain(context: Context) {
             try {
                 ensureModel(listener)
                 val input = prepareInput(prompt, attachmentUri, attachmentName, listener)
-                val activeConversation = getConversation(listener)
+                val activeConversation = withContext(Dispatchers.IO) { getConversation(listener) }
                 if (input.containsImages && !supportsVision) {
                     throw IllegalStateException("O motor deste aparelho iniciou em modo somente texto. Não foi possível analisar essa imagem/PDF; envie uma mensagem de texto ou tente novamente após reiniciar o app.")
                 }
