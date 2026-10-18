@@ -29,6 +29,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
+import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -388,6 +389,7 @@ public class MainActivity extends Activity {
         }
         String userText = composer.getText().toString().trim();
         if (userText.isEmpty() && selectedAttachment == null) return;
+        if (selectedAttachment == null && handleLocalBotChatCommand(userText)) return;
 
         final String fileName = selectedAttachment;
         final Uri fileUri = selectedAttachmentUri;
@@ -809,10 +811,173 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Fechar", null).show();
     }
 
+    private String botStatusText(String platform, boolean enabled, boolean tokenPresent) {
+        String runtime = prefs.getString("bot_status_" + platform, "");
+        if (!tokenPresent) return "Sem token. Configure pelo chat principal.";
+        if (!brain.hasModel()) return "O cérebro local precisa ser preparado no chat principal.";
+        if (!enabled) return "Desativado";
+        if (runtime == null || runtime.isEmpty() || runtime.equals("Desativado")) return "Iniciando…";
+        return runtime;
+    }
+
+    private void refreshBotStatus(TextView label, String platform, boolean enabled, boolean tokenPresent) {
+        label.setText(botStatusText(platform, enabled, tokenPresent));
+    }
+
     private void showBots() {
-        new AlertDialog.Builder(this).setTitle("BOTS ATIVOS")
-                .setMessage("A área de bots foi solicitada, mas este APK ainda não possui um runtime real conectado para manter bots Discord, WhatsApp ou Telegram em segundo plano. Não vou mostrar um bot como Ativo sem um processo real. Peça à Kellvyn no chat principal para preparar o bot; a execução persistente ainda precisa ser integrada.")
-                .setPositiveButton("Fechar", null).show();
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(18), dp(8), dp(18), dp(4));
+
+        TextView instructions = text(
+                "Configure os tokens pelo chat principal. Telegram: /bot telegram token SEU_TOKEN. " +
+                "Discord: /bot discord token SEU_TOKEN (ative Message Content Intent no portal do Discord). " +
+                "O modelo local precisa estar baixado antes de ativar um bot. O WhatsApp exige uma integração pública de webhook e permanece indisponível neste APK.",
+                12, MUTED, false);
+        instructions.setLineSpacing(dp(3), 1f);
+        layout.addView(instructions, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout botsContainer = new LinearLayout(this);
+        botsContainer.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams listLp = new LinearLayout.LayoutParams(-1, -2);
+        listLp.topMargin = dp(10);
+        layout.addView(botsContainer, listLp);
+
+        final class BotRow {
+            final String platform;
+            final Switch toggle;
+            final TextView status;
+            final boolean tokenPresent;
+
+            BotRow(String platform, String title, boolean supportsRuntime) {
+                this.platform = platform;
+                tokenPresent = supportsRuntime && BotTokenStore.hasToken(MainActivity.this, platform);
+
+                LinearLayout row = new LinearLayout(MainActivity.this);
+                row.setGravity(Gravity.CENTER_VERTICAL);
+                row.setPadding(dp(2), dp(8), dp(2), dp(8));
+
+                LinearLayout labels = new LinearLayout(MainActivity.this);
+                labels.setOrientation(LinearLayout.VERTICAL);
+                labels.setGravity(Gravity.CENTER_VERTICAL);
+                labels.addView(text(title, 14, TEXT, true));
+                status = text(botStatusText(platform, prefs.getBoolean("bot_enabled_" + platform, false), tokenPresent),
+                        11, MUTED, false);
+                status.setPadding(0, dp(2), dp(8), 0);
+                labels.addView(status, new LinearLayout.LayoutParams(-1, -2));
+                row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+
+                toggle = new Switch(MainActivity.this);
+                boolean enabled = supportsRuntime && prefs.getBoolean("bot_enabled_" + platform, false);
+                toggle.setChecked(enabled);
+                toggle.setEnabled(supportsRuntime && tokenPresent && brain.hasModel());
+                row.addView(toggle, new LinearLayout.LayoutParams(-2, -2));
+                botsContainer.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+                View divider = new View(MainActivity.this);
+                divider.setBackgroundColor(0x2233C995);
+                botsContainer.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
+
+                if (!supportsRuntime) {
+                    status.setText("Indisponível: precisa de webhook público.");
+                    toggle.setChecked(false);
+                    toggle.setEnabled(false);
+                }
+                toggle.setOnCheckedChangeListener((button, checked) -> {
+                    if (checked && !brain.hasModel()) {
+                        toggle.setChecked(false);
+                        toast("Abra o chat principal, autorize e conclua o download do cérebro local antes de ativar bots.");
+                        return;
+                    }
+                    if (checked && !BotTokenStore.hasToken(MainActivity.this, platform)) {
+                        toggle.setChecked(false);
+                        toast("Configure o token do bot pelo chat principal; não envie o token em uma conversa normal.");
+                        return;
+                    }
+                    prefs.edit().putBoolean("bot_enabled_" + platform, checked).apply();
+                    status.setText(checked ? "Conectando…" : "Desativando…");
+                    BotRuntimeService.refresh(MainActivity.this);
+                    toggle.setEnabled(false);
+                    button.postDelayed(() -> {
+                        boolean stillConfigured = supportsRuntime && BotTokenStore.hasToken(MainActivity.this, platform);
+                        toggle.setEnabled(stillConfigured && brain.hasModel());
+                        refreshBotStatus(status, platform, prefs.getBoolean("bot_enabled_" + platform, false), stillConfigured);
+                    }, 1200L);
+                });
+            }
+        }
+
+        BotRow telegram = new BotRow("telegram", "Telegram", true);
+        BotRow discord = new BotRow("discord", "Discord", true);
+        BotRow whatsapp = new BotRow("whatsapp", "WhatsApp", false);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("BOTS ATIVOS")
+                .setView(layout)
+                .setPositiveButton("Fechar", null)
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            android.os.Handler handler = new android.os.Handler();
+            Runnable update = new Runnable() {
+                @Override public void run() {
+                    if (!dialog.isShowing()) return;
+                    boolean tgEnabled = prefs.getBoolean("bot_enabled_telegram", false);
+                    boolean dcEnabled = prefs.getBoolean("bot_enabled_discord", false);
+                    refreshBotStatus(telegram.status, "telegram", tgEnabled, BotTokenStore.hasToken(MainActivity.this, "telegram"));
+                    refreshBotStatus(discord.status, "discord", dcEnabled, BotTokenStore.hasToken(MainActivity.this, "discord"));
+                    handler.postDelayed(this, 1500L);
+                }
+            };
+            handler.post(update);
+            dialog.setOnDismissListener(event -> handler.removeCallbacks(update));
+        });
+        dialog.show();
+    }
+
+    private boolean handleLocalBotChatCommand(String userText) {
+        Matcher tokenCommand = Pattern.compile(
+                "(?is)^/bot\\s+(telegram|discord)\\s+token\\b(.*)$"
+        ).matcher(userText);
+        if (tokenCommand.matches()) {
+            String platform = tokenCommand.group(1).toLowerCase(Locale.ROOT);
+            String rawToken = tokenCommand.group(2).trim();
+            boolean validShape = rawToken.matches("[^\\s<>]{12,512}");
+            boolean saved = validShape && BotTokenStore.save(this, platform, rawToken);
+            composer.setText("");
+            selectedAttachment = null;
+            selectedAttachmentUri = null;
+            String hiddenCommand = "Comando local: configurar token " + platform + " [segredo oculto]";
+            String response = saved
+                    ? "Credencial do " + platform + " guardada criptografada neste aparelho. Abra BOTS para ativar o processo quando o cérebro local estiver pronto. O token não foi enviado ao modelo."
+                    : "Não consegui guardar a credencial. Use o formato /bot " + platform + " token SEU_TOKEN com o token real, sem espaços nem os sinais < >. O segredo não foi enviado ao modelo.";
+            appendLocalChatResult(hiddenCommand, response);
+            return true;
+        }
+
+        Matcher behaviorCommand = Pattern.compile(
+                "(?is)^/bot\\s+(telegram|discord)\\s+instrucoes\\s+([\\s\\S]+)$"
+        ).matcher(userText);
+        if (behaviorCommand.matches()) {
+            String platform = behaviorCommand.group(1).toLowerCase(Locale.ROOT);
+            String behavior = behaviorCommand.group(2).trim();
+            prefs.edit().putString("bot_behavior_" + platform, behavior.substring(0, Math.min(behavior.length(), 3000))).apply();
+            composer.setText("");
+            appendLocalChatResult("Comando local: instruções do bot " + platform,
+                    "Instruções locais do bot " + platform + " foram salvas. A execução usa a mesma Kellvyn IA.");
+            return true;
+        }
+        return false;
+    }
+
+    private void appendLocalChatResult(String userText, String responseText) {
+        if (messages.getChildCount() == 1 && messages.getChildAt(0).getTag() == null) messages.removeAllViews();
+        transcript.add("U|" + userText);
+        addMessageView(true, userText);
+        transcript.add("S|" + responseText);
+        addMessageView(false, responseText);
+        saveTranscript();
+        // Local credential/config commands bypass inference; preserve the actual engine readiness state.
+        updateStatus();
     }
 
     private void showEditor() {
