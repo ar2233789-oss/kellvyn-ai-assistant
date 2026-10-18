@@ -93,22 +93,14 @@ public class MainActivity extends Activity {
         TextView menu = iconButton("☰", "Histórico");
         header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
         menu.setOnClickListener(v -> showHistory());
-        header.addView(new OrbitMark(), new LinearLayout.LayoutParams(dp(38), dp(38)));
-
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -2, 1);
         brandLp.leftMargin = dp(5);
         header.addView(brand, brandLp);
-        brand.addView(text("Kellvyn Assistente", 15, TEXT, true));
-        status = text("IA NÃO CONECTADA", 9, MUTED, false);
-        status.setLetterSpacing(0.08f);
-        brand.addView(status);
-
-        TextView apps = iconButton("▣", "Apps/APKs");
-        header.addView(apps, new LinearLayout.LayoutParams(dp(38), dp(44)));
-        apps.setOnClickListener(v -> showApps());
+        brand.addView(text("Kellvyn Assistente", 18, TEXT, true));
+        status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
         settings.setOnClickListener(v -> showSettings());
@@ -137,11 +129,6 @@ public class MainActivity extends Activity {
         entry.setBackground(roundRect(PANEL_ALT, dp(15), 0x8845A989, dp(1)));
         composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView plus = iconButton("+", "Anexar arquivo ou abrir Web");
-        plus.setTextSize(25);
-        entry.addView(plus, new LinearLayout.LayoutParams(dp(44), dp(50)));
-        plus.setOnClickListener(v -> showPlusMenu(v));
-
         composer = new EditText(this);
         composer.setHint("Converse ou peça para criar um aplicativo…");
         composer.setHintTextColor(MUTED);
@@ -152,22 +139,47 @@ public class MainActivity extends Activity {
         composer.setMaxLines(4);
         composer.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         composer.setBackgroundColor(Color.TRANSPARENT);
-        composer.setPadding(dp(4), dp(10), dp(4), dp(10));
-        entry.addView(composer, new LinearLayout.LayoutParams(0, -2, 1));
+        composer.setPadding(dp(8), dp(10), dp(8), dp(10));
+        entry.addView(composer, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout controls = new LinearLayout(this);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
+        controls.setPadding(0, dp(4), 0, 0);
+        composerPanel.addView(controls, new LinearLayout.LayoutParams(-1, dp(42)));
+
+        TextView plus = iconButton("+", "Anexos e Web");
+        plus.setTextSize(25);
+        controls.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        plus.setOnClickListener(v -> showPlusMenu(v));
+
+        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, MUTED, false);
+        footerStatus.setSingleLine(true);
+        footerStatus.setGravity(Gravity.CENTER_VERTICAL);
+        controls.addView(footerStatus, new LinearLayout.LayoutParams(0, dp(34), 1));
 
         TextView mic = iconButton("♩", "Ditado por voz");
-        entry.addView(mic, new LinearLayout.LayoutParams(dp(40), dp(48)));
+        controls.addView(mic, new LinearLayout.LayoutParams(dp(38), dp(38)));
         mic.setOnClickListener(v -> startSpeech());
 
         TextView send = iconButton("↑", "Enviar mensagem");
         send.setTextSize(23);
-        entry.addView(send, new LinearLayout.LayoutParams(dp(43), dp(48)));
+        controls.addView(send, new LinearLayout.LayoutParams(dp(38), dp(38)));
         send.setOnClickListener(v -> sendMessage());
 
-        footerStatus = text("KELLVYN IA  ·  CONVERSA LOCAL  ·  MOTOR DE IA PENDENTE", 9, MUTED, false);
-        footerStatus.setGravity(Gravity.CENTER);
-        footerStatus.setPadding(0, dp(7), 0, 0);
-        composerPanel.addView(footerStatus, new LinearLayout.LayoutParams(-1, -2));
+        View navDivider = new View(this);
+        navDivider.setBackgroundColor(0x4433C995);
+        shell.addView(navDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+        LinearLayout bottomNav = new LinearLayout(this);
+        bottomNav.setGravity(Gravity.CENTER_VERTICAL);
+        bottomNav.setBackgroundColor(0xF20A1110);
+        bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
+        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(58)));
+        addNavItem(bottomNav, "✦", "AI", () -> { composer.requestFocus(); });
+        addNavItem(bottomNav, "⌕", "Navegador", this::askWebAddress);
+        addNavItem(bottomNav, "</>", "Editor", this::showEditor);
+        addNavItem(bottomNav, ">_", "Terminal", this::openTermux);
+        addNavItem(bottomNav, "♧", "Bots", this::showBots);
+        addNavItem(bottomNav, "▦", "Apps", this::openPhoneApps);
         setContentView(root);
     }
 
