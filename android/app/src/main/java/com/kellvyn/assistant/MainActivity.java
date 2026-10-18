@@ -47,6 +47,12 @@ public class MainActivity extends Activity {
     private RainView rain;
     private SharedPreferences prefs;
     private String selectedAttachment = null;
+    private Uri selectedAttachmentUri = null;
+    private TextView footerStatus;
+    private TextView activeReplyBubble;
+    private LocalBrain brain;
+    private boolean waitingForReply = false;
+    private String engineLabel = "MOTOR LOCAL PENDENTE";
     private int accent = EMERALD;
 
     @Override public void onCreate(Bundle state) {
@@ -55,6 +61,7 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(BG);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        brain = new LocalBrain(getApplicationContext());
         accent = prefs.getInt("accent", EMERALD);
         restoreTranscript();
         buildScreen();
@@ -155,10 +162,10 @@ public class MainActivity extends Activity {
         entry.addView(send, new LinearLayout.LayoutParams(dp(43), dp(48)));
         send.setOnClickListener(v -> sendMessage());
 
-        TextView foot = text("KELLVYN IA  ·  CONVERSA LOCAL  ·  MOTOR DE IA PENDENTE", 9, MUTED, false);
-        foot.setGravity(Gravity.CENTER);
-        foot.setPadding(0, dp(7), 0, 0);
-        composerPanel.addView(foot, new LinearLayout.LayoutParams(-1, -2));
+        footerStatus = text("KELLVYN IA  ·  CONVERSA LOCAL  ·  MOTOR DE IA PENDENTE", 9, MUTED, false);
+        footerStatus.setGravity(Gravity.CENTER);
+        footerStatus.setPadding(0, dp(7), 0, 0);
+        composerPanel.addView(footerStatus, new LinearLayout.LayoutParams(-1, -2));
         setContentView(root);
     }
 
@@ -219,7 +226,7 @@ public class MainActivity extends Activity {
         messages.addView(welcome, new LinearLayout.LayoutParams(-1, -2));
     }
 
-    private void addMessageView(boolean user, String value) {
+    private TextView addMessageView(boolean user, String value) {
         if (messages.getChildCount() == 1 && messages.getChildAt(0).getTag() == null) messages.removeAllViews();
         LinearLayout row = new LinearLayout(this);
         row.setGravity(user ? Gravity.END : Gravity.START);
@@ -234,23 +241,110 @@ public class MainActivity extends Activity {
         messages.addView(row, new LinearLayout.LayoutParams(-1, -2));
         row.setTag("message");
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+        return bubble;
     }
 
     private void sendMessage() {
-        String value = composer.getText().toString().trim();
-        if (value.isEmpty() && selectedAttachment == null) return;
-        if (selectedAttachment != null) value = value.isEmpty() ? "Anexo selecionado: " + selectedAttachment : value + "\n\nAnexo selecionado: " + selectedAttachment;
+        if (waitingForReply) {
+            toast("A Kellvyn ainda está respondendo. Aguarde a resposta atual.");
+            return;
+        }
+        String userText = composer.getText().toString().trim();
+        if (userText.isEmpty() && selectedAttachment == null) return;
+
+        final String fileName = selectedAttachment;
+        final Uri fileUri = selectedAttachmentUri;
+        final String displayText = fileName == null
+                ? userText
+                : (userText.isEmpty() ? "Anexo selecionado: " + fileName
+                : userText + "\n\nAnexo selecionado: " + fileName);
+        final String prompt;
+        if (fileName == null) {
+            prompt = userText;
+        } else if (userText.isEmpty()) {
+            prompt = "Analise o arquivo anexado chamado " + fileName + ". Se o aplicativo não tiver enviado conteúdo legível, diga isso claramente e não invente seu conteúdo.";
+        } else {
+            prompt = userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.";
+        }
+
+        if (!brain.hasModel()) {
+            new AlertDialog.Builder(this)
+                    .setTitle("Preparar o cérebro local")
+                    .setMessage("Para ativar respostas reais no aparelho, é necessário baixar o modelo Gemma local (aproximadamente 2,01 GB). O download usa a conexão atual do celular e pode ser retomado se for interrompido. Depois de instalado, as respostas são processadas no aparelho, sem enviar suas mensagens a um serviço de IA na nuvem. Libere pelo menos 2,2 GB de espaço livre. Deseja baixar o modelo e enviar esta mensagem?")
+                    .setNegativeButton("Agora não", null)
+                    .setPositiveButton("Baixar e enviar", (dialog, which) ->
+                            startBrainRequest(displayText, prompt, fileUri, fileName))
+                    .show();
+            return;
+        }
+        startBrainRequest(displayText, prompt, fileUri, fileName);
+    }
+
+    private void startBrainRequest(String displayText, String prompt, Uri attachmentUri, String attachmentName) {
+        if (waitingForReply) return;
+        waitingForReply = true;
+
         if (messages.getChildCount() == 1 && messages.getChildAt(0).getTag() == null) messages.removeAllViews();
-        transcript.add("U|" + value);
-        addMessageView(true, value);
+        transcript.add("U|" + displayText);
+        addMessageView(true, displayText);
         composer.setText("");
         selectedAttachment = null;
+        selectedAttachmentUri = null;
         saveTranscript();
-        String honest = "O chat nativo recebeu sua mensagem e a manteve no histórico, mas o motor de IA ainda não está conectado neste APK. Não vou inventar uma resposta. A integração do cérebro precisa ser concluída antes de responder de verdade.";
-        transcript.add("S|" + honest);
-        addMessageView(false, honest);
-        saveTranscript();
+
+        activeReplyBubble = addMessageView(false, "Preparando o cérebro local…");
+        engineLabel = "PREPARANDO MOTOR";
         updateStatus();
+
+        brain.reply(prompt, attachmentUri, attachmentName, new LocalBrain.Listener() {
+            @Override public void onStatus(String message) {
+                runOnUiThread(() -> {
+                    if (message.startsWith("BAIXANDO MODELO LOCAL")) {
+                        engineLabel = "BAIXANDO MODELO";
+                    } else if (message.contains("MOTOR LOCAL GPU")) {
+                        engineLabel = "MOTOR LOCAL GPU";
+                    } else if (message.contains("MOTOR LOCAL CPU")) {
+                        engineLabel = "MOTOR LOCAL CPU";
+                    } else {
+                        engineLabel = "PREPARANDO MOTOR";
+                    }
+                    updateStatus();
+                    if (activeReplyBubble != null) activeReplyBubble.setText(message);
+                });
+            }
+
+            @Override public void onPartial(String text) {
+                runOnUiThread(() -> {
+                    if (activeReplyBubble != null) activeReplyBubble.setText(text);
+                    if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+                });
+            }
+
+            @Override public void onComplete(String text, String backend) {
+                runOnUiThread(() -> {
+                    waitingForReply = false;
+                    if (activeReplyBubble != null) activeReplyBubble.setText(text);
+                    transcript.add("S|" + text);
+                    saveTranscript();
+                    engineLabel = "MOTOR LOCAL " + backend;
+                    updateStatus();
+                    activeReplyBubble = null;
+                });
+            }
+
+            @Override public void onError(String message) {
+                runOnUiThread(() -> {
+                    waitingForReply = false;
+                    String errorText = "Não consegui concluir esta solicitação no motor local: " + message;
+                    if (activeReplyBubble != null) activeReplyBubble.setText(errorText);
+                    transcript.add("S|" + errorText);
+                    saveTranscript();
+                    engineLabel = "MOTOR LOCAL INDISPONÍVEL";
+                    updateStatus();
+                    activeReplyBubble = null;
+                });
+            }
+        });
     }
 
     private void showPlusMenu(View anchor) {
@@ -287,7 +381,8 @@ public class MainActivity extends Activity {
                 }
             } catch (Exception ignored) {}
             selectedAttachment = name == null ? "arquivo selecionado" : name;
-            toast("Anexo preparado: " + selectedAttachment + ". O motor de visão/leitura ainda não está conectado.");
+            selectedAttachmentUri = uri;
+            toast("Anexo selecionado: " + selectedAttachment + ". O conteúdo será preparado pelo motor local ao enviar.");
             composer.requestFocus();
         } else if (requestCode == SPEECH) {
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
@@ -381,7 +476,12 @@ public class MainActivity extends Activity {
         }).setNegativeButton("Cancelar", null).show();
     }
 
-    private void updateStatus() { if (status != null) status.setText("KELLVYN IA  •  MOTOR PENDENTE"); }
+    private void updateStatus() {
+        if (status != null) status.setText("KELLVYN IA  •  " + engineLabel);
+        if (footerStatus != null) {
+            footerStatus.setText("KELLVYN IA  ·  CONVERSA LOCAL  ·  " + engineLabel);
+        }
+    }
 
     private void restoreTranscript() {
         String saved = prefs.getString("transcript", "");
@@ -395,6 +495,10 @@ public class MainActivity extends Activity {
 
     @Override protected void onResume() { super.onResume(); if (rain != null) rain.start(); }
     @Override protected void onPause() { if (rain != null) rain.stop(); super.onPause(); }
+    @Override protected void onDestroy() {
+        if (brain != null) brain.close();
+        super.onDestroy();
+    }
 
     private class OrbitMark extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
