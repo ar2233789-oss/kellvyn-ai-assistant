@@ -32,6 +32,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.json.JSONArray;
+import org.json.JSONObject;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,6 +61,7 @@ public class MainActivity extends Activity {
             Pattern.DOTALL);
 
     private final ArrayList<String> transcript = new ArrayList<>();
+    private String activeHistoryId = "current";
     private LinearLayout messages;
     private ScrollView chatScroll;
     private EditText composer;
@@ -85,6 +87,7 @@ public class MainActivity extends Activity {
         getWindow().setNavigationBarColor(BG);
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        activeHistoryId = prefs.getString("active_history_id", "current");
         brain = new LocalBrain(getApplicationContext());
         textToSpeech = new TextToSpeech(this, result -> {
             if (result == TextToSpeech.SUCCESS && textToSpeech != null) {
@@ -585,21 +588,111 @@ public class MainActivity extends Activity {
 
     private void showHistory() {
         if (waitingForReply) {
-            toast("Aguarde a resposta atual antes de iniciar uma nova conversa.");
+            toast("Aguarde a resposta atual antes de abrir o histórico.");
             return;
         }
+        JSONArray saved = readHistoryIndex();
+        ArrayList<String> labels = new ArrayList<>();
+        ArrayList<String> ids = new ArrayList<>();
+        labels.add("Conversa atual");
+        ids.add("current");
+        for (int i = 0; i < saved.length(); i++) {
+            JSONObject item = saved.optJSONObject(i);
+            if (item == null) continue;
+            String id = item.optString("id", "");
+            if (id.isEmpty()) continue;
+            labels.add(item.optString("title", "Conversa salva"));
+            ids.add(id);
+        }
+        labels.add("Nova conversa");
+        ids.add("new");
+
         new AlertDialog.Builder(this).setTitle("Histórico de conversas")
-                .setItems(new String[]{"Conversa atual (salva neste aparelho)", "Nova conversa"}, (d, which) -> {
-                    if (which == 1) {
-                        if (!transcript.isEmpty()) prefs.edit().putString("last_history", encodeTranscript()).apply();
+                .setItems(labels.toArray(new String[0]), (d, which) -> {
+                    String selected = ids.get(which);
+                    if ("current".equals(selected)) return;
+                    if ("new".equals(selected)) {
+                        archiveCurrentHistory();
                         brain.resetConversation();
                         transcript.clear();
-                        messages.removeAllViews();
-                        prefs.edit().remove("transcript").apply();
-                        showWelcome();
-                        updateStatus();
+                        activeHistoryId = "current";
+                        prefs.edit().putString("active_history_id", "current")
+                                .putString("transcript", "[]").apply();
+                        rebuildTranscriptViews();
+                        return;
                     }
+                    archiveCurrentHistory();
+                    String stored = prefs.getString("history:" + selected, "[]");
+                    transcript.clear();
+                    decodeTranscript(stored, transcript);
+                    activeHistoryId = selected;
+                    brain.resetConversation();
+                    prefs.edit().putString("active_history_id", activeHistoryId)
+                            .putString("transcript", encodeTranscript()).apply();
+                    saveTranscript();
+                    rebuildTranscriptViews();
                 }).setNegativeButton("Fechar", null).show();
+    }
+
+    private void rebuildTranscriptViews() {
+        messages.removeAllViews();
+        for (String item : transcript) {
+            if (item.startsWith("U|") || item.startsWith("S|")) {
+                addMessageView(item.startsWith("U|"), item.substring(2));
+            }
+        }
+        if (transcript.isEmpty()) showWelcome();
+        updateStatus();
+    }
+
+    private JSONArray readHistoryIndex() {
+        try {
+            JSONArray existing = new JSONArray(prefs.getString("history_index", "[]"));
+            return existing;
+        } catch (Exception ignored) {
+            return new JSONArray();
+        }
+    }
+
+    private String historyTitle() {
+        for (String item : transcript) {
+            if (!item.startsWith("U|")) continue;
+            String title = item.substring(2).trim().replaceAll("\\\\s+", " ");
+            if (title.isEmpty()) continue;
+            return title.length() > 48 ? title.substring(0, 48) + "…" : title;
+        }
+        return "Conversa salva";
+    }
+
+    private void upsertHistoryEntry(String id, String encoded, String title) {
+        JSONArray existing = readHistoryIndex();
+        JSONArray next = new JSONArray();
+        JSONObject updated = new JSONObject();
+        try {
+            updated.put("id", id);
+            updated.put("title", title);
+            updated.put("updatedAt", System.currentTimeMillis());
+        } catch (Exception ignored) {}
+        next.put(updated);
+        for (int i = 0; i < existing.length() && next.length() < 50; i++) {
+            JSONObject item = existing.optJSONObject(i);
+            if (item == null || id.equals(item.optString("id", ""))) continue;
+            next.put(item);
+        }
+        prefs.edit().putString("history_index", next.toString())
+                .putString("history:" + id, encoded).apply();
+    }
+
+    /** Save the current conversation under a persistent ID before switching away from it. */
+    private void archiveCurrentHistory() {
+        if (transcript.isEmpty()) return;
+        if ("current".equals(activeHistoryId)) {
+            activeHistoryId = Long.toString(System.currentTimeMillis(), 36);
+        }
+        String encoded = encodeTranscript();
+        upsertHistoryEntry(activeHistoryId, encoded, historyTitle());
+        prefs.edit().putString("active_history_id", activeHistoryId)
+                .putString("transcript", encoded).apply();
     }
 
     private boolean isProjectBuildRequest(String text) {
@@ -881,23 +974,28 @@ public class MainActivity extends Activity {
     private void restoreTranscript() {
         String saved = prefs.getString("transcript", "");
         if (saved.isEmpty()) return;
+        decodeTranscript(saved, transcript);
+        if (transcript.isEmpty()) activeHistoryId = "current";
+    }
 
-        // Version 1.1 saved one message per newline, which broke any multi-line chat.
-        // Read that legacy format once and write all future transcripts as a JSON array.
+    private void decodeTranscript(String saved, ArrayList<String> target) {
+        target.clear();
+        if (saved == null || saved.isEmpty()) return;
         if (saved.trim().startsWith("[")) {
             try {
                 JSONArray array = new JSONArray(saved);
                 for (int i = 0; i < array.length(); i++) {
                     String item = array.optString(i, "");
-                    if (item.startsWith("U|") || item.startsWith("S|")) transcript.add(item);
+                    if (item.startsWith("U|") || item.startsWith("S|")) target.add(item);
                 }
                 return;
             } catch (Exception ignored) {
-                transcript.clear();
+                target.clear();
             }
         }
-        for (String line : saved.split("\\\\n|\\r?\\n")) {
-            if (line.startsWith("U|") || line.startsWith("S|")) transcript.add(line);
+        // Legacy support for transcripts written with escaped or actual newlines.
+        for (String line : saved.split("\\\\\\\\n|\\\\r?\\\\n")) {
+            if (line.startsWith("U|") || line.startsWith("S|")) target.add(line);
         }
     }
 
@@ -930,7 +1028,14 @@ public class MainActivity extends Activity {
                 history + "\nPedido atual do usuário:\n" + prompt;
     }
 
-    private void saveTranscript() { prefs.edit().putString("transcript", encodeTranscript()).apply(); }
+    private void saveTranscript() {
+        String encoded = encodeTranscript();
+        prefs.edit().putString("transcript", encoded)
+                .putString("active_history_id", activeHistoryId).apply();
+        if (!"current".equals(activeHistoryId) && !transcript.isEmpty()) {
+            upsertHistoryEntry(activeHistoryId, encoded, historyTitle());
+        }
+    }
     private void toast(String message) { Toast.makeText(this, message, Toast.LENGTH_LONG).show(); }
 
     @Override protected void onResume() { super.onResume(); if (rain != null) rain.start(); }
