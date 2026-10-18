@@ -482,15 +482,15 @@ public class MainActivity extends Activity {
     private void showPlusMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Imagem ou arquivo");
+        popup.getMenu().add("Plugins");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
         webAccess.setCheckable(true);
         webAccess.setChecked(isWebAccessEnabled());
-        popup.getMenu().add("Abrir Web no navegador do celular");
         popup.setOnMenuItemClickListener(item -> {
             String label = item.getTitle().toString();
             if (label.startsWith("Imagem")) pickFile();
-            else if (label.equals("Acesso à Web")) toggleWebAccess();
-            else askWebAddress();
+            else if (label.equals("Plugins")) showPlugins();
+            else toggleWebAccess();
             return true;
         });
         popup.show();
@@ -616,6 +616,12 @@ public class MainActivity extends Activity {
         home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try { startActivity(home); }
         catch (ActivityNotFoundException e) { toast("Não foi possível abrir a tela de aplicativos do Android."); }
+    }
+
+    private void showPlugins() {
+        new AlertDialog.Builder(this).setTitle("PLUGINS")
+                .setMessage("As integrações são coordenadas pela única Kellvyn IA através do chat principal. Não há troca de modelo nem cadastro de IAs/provedores alternativos nesta aplicação.")
+                .setPositiveButton("Fechar", null).show();
     }
 
     private void showBots() {
@@ -839,6 +845,12 @@ public class MainActivity extends Activity {
     @Override protected void onResume() { super.onResume(); if (rain != null) rain.start(); }
     @Override protected void onPause() { if (rain != null) rain.stop(); super.onPause(); }
     @Override protected void onDestroy() {
+        hideThinkingIndicator();
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+        }
         if (brain != null) brain.close();
         super.onDestroy();
     }
