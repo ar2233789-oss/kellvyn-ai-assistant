@@ -98,6 +98,25 @@ class LocalBrain(context: Context) {
         }
     }
 
+    /** Bot runtime helper: wait until the previous reply and conversation are safely closed. */
+    suspend fun resetConversationAndWait() {
+        activeJob?.join()
+        val previous = synchronized(engineLock) {
+            val current = conversation
+            conversation = null
+            current
+        }
+        if (previous != null) {
+            withContext(Dispatchers.IO) {
+                try {
+                    previous.close()
+                } catch (error: Exception) {
+                    Log.w(TAG, "Não foi possível encerrar a conversa anterior", error)
+                }
+            }
+        }
+    }
+
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
         if (activeJob?.isActive == true) {
             listener.onError("A Kellvyn já está processando outra mensagem. Aguarde a resposta atual.")
