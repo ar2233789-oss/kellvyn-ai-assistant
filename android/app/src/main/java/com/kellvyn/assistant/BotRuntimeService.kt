@@ -485,17 +485,11 @@ class BotRuntimeService : Service() {
                 append("Você é a mesma Kellvyn IA respondendo através de um bot de ")
                     .append(platform).append(". Use português brasileiro por padrão. ")
                 append("Não revele tokens, credenciais ou dados de outras conversas. ")
-                if (behavior.isNotBlank()) append("
-Instruções específicas definidas pelo dono do bot:
-").append(behavior.take(3000)).append('
-')
-                if (history.isNotBlank()) append("
-Histórico recente deste chat:
-").append(history).append('
-')
-                append("
-Mensagem recebida:
-").append(incoming.take(3000))
+                if (behavior.isNotBlank()) append("\nInstruções específicas definidas pelo dono do bot:\n")
+                    .append(behavior.take(3000)).append('\n')
+                if (history.isNotBlank()) append("\nHistórico recente deste chat:\n")
+                    .append(history).append('\n')
+                append("\nMensagem recebida:\n").append(incoming.take(3000))
             }
             brain.resetConversationAndWait()
             val answer = askLocalBrain(prompt).take(MAX_RESPONSE_CHARS)
@@ -532,8 +526,7 @@ Mensagem recebida:
                     lines.add(role + ": " + text.take(1000))
                 }
             }
-            lines.joinToString("
-")
+            lines.joinToString("\n")
         } catch (_: Exception) {
             ""
         }
@@ -556,8 +549,7 @@ Mensagem recebida:
         val parts = ArrayList<String>()
         var rest = remaining
         while (rest.length > limit) {
-            var cut = rest.lastIndexOf('
-', limit)
+            var cut = rest.lastIndexOf('\n', limit)
             if (cut < limit / 2) cut = limit
             parts.add(rest.substring(0, cut).trim())
             rest = rest.substring(cut).trim()
