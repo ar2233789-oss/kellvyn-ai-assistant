@@ -2,7 +2,11 @@ package com.kellvyn.assistant;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
@@ -14,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -28,7 +33,10 @@ import android.widget.Toast;
 
 import org.json.JSONArray;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final int BG = Color.rgb(8, 13, 13);
@@ -40,6 +48,7 @@ public class MainActivity extends Activity {
     private static final String PREFS = "kellvyn_native";
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
+    private static final int SAVE_TEXT = 1003;
 
     private final ArrayList<String> transcript = new ArrayList<>();
     private LinearLayout messages;
@@ -52,6 +61,10 @@ public class MainActivity extends Activity {
     private Uri selectedAttachmentUri = null;
     private TextView footerStatus;
     private TextView activeReplyBubble;
+    private TextView thinkingIndicator;
+    private ObjectAnimator thinkingAnimator;
+    private TextToSpeech textToSpeech;
+    private String pendingDownloadText = "";
     private LocalBrain brain;
     private boolean waitingForReply = false;
     private String engineLabel = "MOTOR LOCAL PENDENTE";
@@ -64,6 +77,11 @@ public class MainActivity extends Activity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         brain = new LocalBrain(getApplicationContext());
+        textToSpeech = new TextToSpeech(this, result -> {
+            if (result == TextToSpeech.SUCCESS && textToSpeech != null) {
+                textToSpeech.setLanguage(new Locale("pt", "BR"));
+            }
+        });
         accent = prefs.getInt("accent", EMERALD);
         restoreTranscript();
         buildScreen();
@@ -251,11 +269,103 @@ public class MainActivity extends Activity {
         bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.84f));
         bubble.setBackground(roundRect(user ? 0xE51B3D31 : 0xE5111B19, dp(14),
                 user ? 0xAA29C78D : 0x5544A58A, dp(1)));
-        row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+
+        if (user) {
+            row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+        } else {
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            column.setGravity(Gravity.START);
+            column.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+
+            LinearLayout actions = new LinearLayout(this);
+            actions.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            actions.setPadding(dp(1), dp(1), 0, 0);
+            addMessageAction(actions, "▢", "Copiar", () -> copyText(bubble.getText().toString()));
+            addMessageAction(actions, "♫", "Ouvir", () -> speakText(bubble.getText().toString()));
+            addMessageAction(actions, "↓", "Baixar", () -> downloadText(bubble.getText().toString()));
+            addMessageAction(actions, "↗", "Compartilhar", () -> shareText(bubble.getText().toString()));
+            column.addView(actions, new LinearLayout.LayoutParams(-2, dp(30)));
+            row.addView(column, new LinearLayout.LayoutParams(-2, -2));
+        }
+
         messages.addView(row, new LinearLayout.LayoutParams(-1, -2));
         row.setTag("message");
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
         return bubble;
+    }
+
+    private void addMessageAction(LinearLayout parent, String glyph, String description, Runnable action) {
+        TextView button = text(glyph, 17, MUTED, false);
+        button.setGravity(Gravity.CENTER);
+        button.setContentDescription(description);
+        button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
+        button.setOnClickListener(v -> action.run());
+        parent.addView(button, new LinearLayout.LayoutParams(dp(34), dp(30)));
+    }
+
+    private void copyText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        ClipboardManager manager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (manager != null) {
+            manager.setPrimaryClip(ClipData.newPlainText("Resposta da Kellvyn IA", value));
+            toast("Resposta copiada.");
+        }
+    }
+
+    private void speakText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        if (textToSpeech == null) {
+            toast("Leitura em voz alta indisponível.");
+            return;
+        }
+        textToSpeech.speak(value, TextToSpeech.QUEUE_FLUSH, null, "kellvyn-response");
+    }
+
+    private void downloadText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        pendingDownloadText = value;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "kellvyn-resposta.txt");
+        try { startActivityForResult(intent, SAVE_TEXT); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir o seletor para salvar a resposta."); }
+    }
+
+    private void shareText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TEXT, value);
+        try { startActivity(Intent.createChooser(intent, "Compartilhar resposta")); }
+        catch (ActivityNotFoundException e) { toast("Não há aplicativo compatível para compartilhar."); }
+    }
+
+    private void showThinkingIndicator() {
+        hideThinkingIndicator();
+        thinkingIndicator = text("🧠  Pensando…", 12, MUTED, false);
+        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
+        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
+        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
+        thinkingAnimator.setDuration(850);
+        thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        thinkingAnimator.start();
+        chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+    }
+
+    private void hideThinkingIndicator() {
+        if (thinkingAnimator != null) {
+            thinkingAnimator.cancel();
+            thinkingAnimator = null;
+        }
+        if (thinkingIndicator != null) {
+            if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) thinkingIndicator.getParent()).removeView(thinkingIndicator);
+            }
+            thinkingIndicator = null;
+        }
     }
 
     private void sendMessage() {
