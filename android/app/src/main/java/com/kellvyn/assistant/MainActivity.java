@@ -2,7 +2,11 @@ package com.kellvyn.assistant;
 
 import android.app.Activity;
 import android.app.AlertDialog;
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.graphics.Canvas;
@@ -14,6 +18,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
+import android.speech.tts.TextToSpeech;
 import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
@@ -28,7 +33,10 @@ import android.widget.Toast;
 
 import org.json.JSONArray;
 
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Locale;
 
 public class MainActivity extends Activity {
     private static final int BG = Color.rgb(8, 13, 13);
@@ -40,6 +48,7 @@ public class MainActivity extends Activity {
     private static final String PREFS = "kellvyn_native";
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
+    private static final int SAVE_TEXT = 1003;
 
     private final ArrayList<String> transcript = new ArrayList<>();
     private LinearLayout messages;
@@ -52,6 +61,10 @@ public class MainActivity extends Activity {
     private Uri selectedAttachmentUri = null;
     private TextView footerStatus;
     private TextView activeReplyBubble;
+    private TextView thinkingIndicator;
+    private ObjectAnimator thinkingAnimator;
+    private TextToSpeech textToSpeech;
+    private String pendingDownloadText = "";
     private LocalBrain brain;
     private boolean waitingForReply = false;
     private String engineLabel = "MOTOR LOCAL PENDENTE";
@@ -64,6 +77,11 @@ public class MainActivity extends Activity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         brain = new LocalBrain(getApplicationContext());
+        textToSpeech = new TextToSpeech(this, result -> {
+            if (result == TextToSpeech.SUCCESS && textToSpeech != null) {
+                textToSpeech.setLanguage(new Locale("pt", "BR"));
+            }
+        });
         accent = prefs.getInt("accent", EMERALD);
         restoreTranscript();
         buildScreen();
@@ -93,22 +111,14 @@ public class MainActivity extends Activity {
         TextView menu = iconButton("☰", "Histórico");
         header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
         menu.setOnClickListener(v -> showHistory());
-        header.addView(new OrbitMark(), new LinearLayout.LayoutParams(dp(38), dp(38)));
-
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -2, 1);
         brandLp.leftMargin = dp(5);
         header.addView(brand, brandLp);
-        brand.addView(text("Kellvyn Assistente", 15, TEXT, true));
-        status = text("IA NÃO CONECTADA", 9, MUTED, false);
-        status.setLetterSpacing(0.08f);
-        brand.addView(status);
-
-        TextView apps = iconButton("▣", "Apps/APKs");
-        header.addView(apps, new LinearLayout.LayoutParams(dp(38), dp(44)));
-        apps.setOnClickListener(v -> showApps());
+        brand.addView(text("Kellvyn Assistente", 18, TEXT, true));
+        status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
         settings.setOnClickListener(v -> showSettings());
@@ -137,11 +147,6 @@ public class MainActivity extends Activity {
         entry.setBackground(roundRect(PANEL_ALT, dp(15), 0x8845A989, dp(1)));
         composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
-        TextView plus = iconButton("+", "Anexar arquivo ou abrir Web");
-        plus.setTextSize(25);
-        entry.addView(plus, new LinearLayout.LayoutParams(dp(44), dp(50)));
-        plus.setOnClickListener(v -> showPlusMenu(v));
-
         composer = new EditText(this);
         composer.setHint("Converse ou peça para criar um aplicativo…");
         composer.setHintTextColor(MUTED);
@@ -152,22 +157,47 @@ public class MainActivity extends Activity {
         composer.setMaxLines(4);
         composer.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         composer.setBackgroundColor(Color.TRANSPARENT);
-        composer.setPadding(dp(4), dp(10), dp(4), dp(10));
-        entry.addView(composer, new LinearLayout.LayoutParams(0, -2, 1));
+        composer.setPadding(dp(8), dp(10), dp(8), dp(10));
+        entry.addView(composer, new LinearLayout.LayoutParams(-1, -2));
+
+        LinearLayout controls = new LinearLayout(this);
+        controls.setGravity(Gravity.CENTER_VERTICAL);
+        controls.setPadding(0, dp(4), 0, 0);
+        composerPanel.addView(controls, new LinearLayout.LayoutParams(-1, dp(42)));
+
+        TextView plus = iconButton("+", "Anexos e Web");
+        plus.setTextSize(25);
+        controls.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        plus.setOnClickListener(v -> showPlusMenu(v));
+
+        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, MUTED, false);
+        footerStatus.setSingleLine(true);
+        footerStatus.setGravity(Gravity.CENTER_VERTICAL);
+        controls.addView(footerStatus, new LinearLayout.LayoutParams(0, dp(34), 1));
 
         TextView mic = iconButton("♩", "Ditado por voz");
-        entry.addView(mic, new LinearLayout.LayoutParams(dp(40), dp(48)));
+        controls.addView(mic, new LinearLayout.LayoutParams(dp(38), dp(38)));
         mic.setOnClickListener(v -> startSpeech());
 
         TextView send = iconButton("↑", "Enviar mensagem");
         send.setTextSize(23);
-        entry.addView(send, new LinearLayout.LayoutParams(dp(43), dp(48)));
+        controls.addView(send, new LinearLayout.LayoutParams(dp(38), dp(38)));
         send.setOnClickListener(v -> sendMessage());
 
-        footerStatus = text("KELLVYN IA  ·  CONVERSA LOCAL  ·  MOTOR DE IA PENDENTE", 9, MUTED, false);
-        footerStatus.setGravity(Gravity.CENTER);
-        footerStatus.setPadding(0, dp(7), 0, 0);
-        composerPanel.addView(footerStatus, new LinearLayout.LayoutParams(-1, -2));
+        View navDivider = new View(this);
+        navDivider.setBackgroundColor(0x4433C995);
+        shell.addView(navDivider, new LinearLayout.LayoutParams(-1, dp(1)));
+        LinearLayout bottomNav = new LinearLayout(this);
+        bottomNav.setGravity(Gravity.CENTER_VERTICAL);
+        bottomNav.setBackgroundColor(0xF20A1110);
+        bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
+        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(58)));
+        addNavItem(bottomNav, "✦", "AI", () -> { composer.requestFocus(); });
+        addNavItem(bottomNav, "⌕", "Navegador", this::askWebAddress);
+        addNavItem(bottomNav, "</>", "Editor", this::showEditor);
+        addNavItem(bottomNav, ">_", "Terminal", this::openTermux);
+        addNavItem(bottomNav, "♧", "Bots", this::showBots);
+        addNavItem(bottomNav, "▦", "Apps", this::openPhoneApps);
         setContentView(root);
     }
 
@@ -239,11 +269,103 @@ public class MainActivity extends Activity {
         bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.84f));
         bubble.setBackground(roundRect(user ? 0xE51B3D31 : 0xE5111B19, dp(14),
                 user ? 0xAA29C78D : 0x5544A58A, dp(1)));
-        row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+
+        if (user) {
+            row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+        } else {
+            LinearLayout column = new LinearLayout(this);
+            column.setOrientation(LinearLayout.VERTICAL);
+            column.setGravity(Gravity.START);
+            column.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
+
+            LinearLayout actions = new LinearLayout(this);
+            actions.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+            actions.setPadding(dp(1), dp(1), 0, 0);
+            addMessageAction(actions, "▢", "Copiar", () -> copyText(bubble.getText().toString()));
+            addMessageAction(actions, "♫", "Ouvir", () -> speakText(bubble.getText().toString()));
+            addMessageAction(actions, "↓", "Baixar", () -> downloadText(bubble.getText().toString()));
+            addMessageAction(actions, "↗", "Compartilhar", () -> shareText(bubble.getText().toString()));
+            column.addView(actions, new LinearLayout.LayoutParams(-2, dp(30)));
+            row.addView(column, new LinearLayout.LayoutParams(-2, -2));
+        }
+
         messages.addView(row, new LinearLayout.LayoutParams(-1, -2));
         row.setTag("message");
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
         return bubble;
+    }
+
+    private void addMessageAction(LinearLayout parent, String glyph, String description, Runnable action) {
+        TextView button = text(glyph, 17, MUTED, false);
+        button.setGravity(Gravity.CENTER);
+        button.setContentDescription(description);
+        button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
+        button.setOnClickListener(v -> action.run());
+        parent.addView(button, new LinearLayout.LayoutParams(dp(34), dp(30)));
+    }
+
+    private void copyText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        ClipboardManager manager = (ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+        if (manager != null) {
+            manager.setPrimaryClip(ClipData.newPlainText("Resposta da Kellvyn IA", value));
+            toast("Resposta copiada.");
+        }
+    }
+
+    private void speakText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        if (textToSpeech == null) {
+            toast("Leitura em voz alta indisponível.");
+            return;
+        }
+        textToSpeech.speak(value, TextToSpeech.QUEUE_FLUSH, null, "kellvyn-response");
+    }
+
+    private void downloadText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        pendingDownloadText = value;
+        Intent intent = new Intent(Intent.ACTION_CREATE_DOCUMENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TITLE, "kellvyn-resposta.txt");
+        try { startActivityForResult(intent, SAVE_TEXT); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir o seletor para salvar a resposta."); }
+    }
+
+    private void shareText(String value) {
+        if (value == null || value.trim().isEmpty()) return;
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_TEXT, value);
+        try { startActivity(Intent.createChooser(intent, "Compartilhar resposta")); }
+        catch (ActivityNotFoundException e) { toast("Não há aplicativo compatível para compartilhar."); }
+    }
+
+    private void showThinkingIndicator() {
+        hideThinkingIndicator();
+        thinkingIndicator = text("🧠  Pensando…", 12, MUTED, false);
+        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
+        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
+        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
+        thinkingAnimator.setDuration(850);
+        thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        thinkingAnimator.start();
+        chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+    }
+
+    private void hideThinkingIndicator() {
+        if (thinkingAnimator != null) {
+            thinkingAnimator.cancel();
+            thinkingAnimator = null;
+        }
+        if (thinkingIndicator != null) {
+            if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
+                ((android.view.ViewGroup) thinkingIndicator.getParent()).removeView(thinkingIndicator);
+            }
+            thinkingIndicator = null;
+        }
     }
 
     private void sendMessage() {
@@ -299,6 +421,7 @@ public class MainActivity extends Activity {
         saveTranscript();
 
         activeReplyBubble = addMessageView(false, "Preparando o cérebro local…");
+        showThinkingIndicator();
         engineLabel = "PREPARANDO MOTOR";
         updateStatus();
 
@@ -321,6 +444,7 @@ public class MainActivity extends Activity {
 
             @Override public void onPartial(String text) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
                 });
@@ -328,6 +452,7 @@ public class MainActivity extends Activity {
 
             @Override public void onComplete(String text, String backend) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     waitingForReply = false;
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     transcript.add("S|" + text);
@@ -340,6 +465,7 @@ public class MainActivity extends Activity {
 
             @Override public void onError(String message) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     waitingForReply = false;
                     String errorText = "Não consegui concluir esta solicitação no motor local: " + message;
                     if (activeReplyBubble != null) activeReplyBubble.setText(errorText);
@@ -356,15 +482,15 @@ public class MainActivity extends Activity {
     private void showPlusMenu(View anchor) {
         PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Imagem ou arquivo");
+        popup.getMenu().add("Plugins");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
         webAccess.setCheckable(true);
         webAccess.setChecked(isWebAccessEnabled());
-        popup.getMenu().add("Abrir Web no navegador do celular");
         popup.setOnMenuItemClickListener(item -> {
             String label = item.getTitle().toString();
             if (label.startsWith("Imagem")) pickFile();
-            else if (label.equals("Acesso à Web")) toggleWebAccess();
-            else askWebAddress();
+            else if (label.equals("Plugins")) showPlugins();
+            else toggleWebAccess();
             return true;
         });
         popup.show();
@@ -395,6 +521,16 @@ public class MainActivity extends Activity {
             selectedAttachmentUri = uri;
             toast("Anexo selecionado: " + selectedAttachment + ". O conteúdo será preparado pelo motor local ao enviar.");
             composer.requestFocus();
+        } else if (requestCode == SAVE_TEXT && data.getData() != null) {
+            try (OutputStream output = getContentResolver().openOutputStream(data.getData())) {
+                if (output == null) throw new java.io.IOException("Não foi possível abrir o arquivo de destino.");
+                output.write(pendingDownloadText.getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                pendingDownloadText = "";
+                toast("Resposta salva.");
+            } catch (Exception error) {
+                toast("Não consegui salvar a resposta: " + error.getMessage());
+            }
         } else if (requestCode == SPEECH) {
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
@@ -449,6 +585,142 @@ public class MainActivity extends Activity {
                         updateStatus();
                     }
                 }).setNegativeButton("Fechar", null).show();
+    }
+
+    private void addNavItem(LinearLayout parent, String glyph, String label, Runnable action) {
+        TextView item = text(glyph + "\n" + label, 10, MUTED, false);
+        item.setGravity(Gravity.CENTER);
+        item.setIncludeFontPadding(false);
+        item.setMaxLines(2);
+        item.setLineSpacing(dp(1), 1f);
+        item.setContentDescription(label);
+        item.setBackground(roundRect(0x00000000, dp(8), 0, 0));
+        item.setOnClickListener(v -> action.run());
+        parent.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+    }
+
+    /** Launch Termux only after the user taps the existing Terminal navigation item. */
+    private void openTermux() {
+        Intent launch = getPackageManager().getLaunchIntentForPackage("com.termux");
+        if (launch == null) {
+            toast("O Termux não está instalado. O terminal é independente; instale/abra-o separadamente.");
+            return;
+        }
+        try { startActivity(launch); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir o Termux."); }
+    }
+
+    private void openPhoneApps() {
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.addCategory(Intent.CATEGORY_HOME);
+        home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { startActivity(home); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir a tela de aplicativos do Android."); }
+    }
+
+    private void showPlugins() {
+        new AlertDialog.Builder(this).setTitle("PLUGINS")
+                .setMessage("As integrações são coordenadas pela única Kellvyn IA através do chat principal. Não há troca de modelo nem cadastro de IAs/provedores alternativos nesta aplicação.")
+                .setPositiveButton("Fechar", null).show();
+    }
+
+    private void showBots() {
+        new AlertDialog.Builder(this).setTitle("BOTS ATIVOS")
+                .setMessage("A área de bots foi solicitada, mas este APK ainda não possui um runtime real conectado para manter bots Discord, WhatsApp ou Telegram em segundo plano. Não vou mostrar um bot como Ativo sem um processo real. Peça à Kellvyn no chat principal para preparar o bot; a execução persistente ainda precisa ser integrada.")
+                .setPositiveButton("Fechar", null).show();
+    }
+
+    private void showEditor() {
+        EditText fileName = new EditText(this);
+        fileName.setSingleLine(true);
+        fileName.setHint("Nome do arquivo");
+        fileName.setTextColor(TEXT);
+        fileName.setHintTextColor(MUTED);
+        fileName.setTextSize(14);
+
+        EditText source = new EditText(this);
+        source.setHint("Escreva seu código ou nota aqui…");
+        source.setTextColor(TEXT);
+        source.setHintTextColor(MUTED);
+        source.setTextSize(13);
+        source.setGravity(Gravity.TOP | Gravity.START);
+        source.setMinLines(9);
+        source.setMaxLines(16);
+        source.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        source.setTypeface(Typeface.MONOSPACE);
+        source.setBackground(roundRect(PANEL_ALT, dp(10), 0x5545A989, dp(1)));
+        source.setPadding(dp(10), dp(10), dp(10), dp(10));
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(4), dp(8), dp(4), dp(4));
+        form.addView(fileName, new LinearLayout.LayoutParams(-1, dp(46)));
+        LinearLayout.LayoutParams sourceLp = new LinearLayout.LayoutParams(-1, -2);
+        sourceLp.topMargin = dp(8);
+        form.addView(source, sourceLp);
+
+        TextView newFile = text("Novo", 12, accent, true);
+        newFile.setGravity(Gravity.CENTER);
+        newFile.setPadding(dp(12), dp(8), dp(12), dp(8));
+        newFile.setOnClickListener(v -> { fileName.setText(""); source.setText(""); fileName.requestFocus(); });
+        LinearLayout.LayoutParams newLp = new LinearLayout.LayoutParams(-2, dp(36));
+        newLp.topMargin = dp(4);
+        form.addView(newFile, newLp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("EDITOR DE CÓDIGO")
+                .setView(form)
+                .setPositiveButton("Salvar", null)
+                .setNeutralButton("Arquivos salvos", null)
+                .setNegativeButton("Fechar", null)
+                .create();
+        dialog.setOnShowListener(v -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+                String name = fileName.getText().toString().trim();
+                String text = source.getText().toString();
+                if (name.isEmpty()) name = "nota.txt";
+                if (text.trim().isEmpty()) { toast("Escreva algo antes de salvar."); return; }
+                saveEditorFile(name, text);
+                fileName.setText(name);
+                toast("Arquivo salvo neste aparelho.");
+            });
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(view -> {
+                ArrayList<String> names = readEditorFileNames();
+                if (names.isEmpty()) { toast("Nenhum código ou nota salvo."); return; }
+                new AlertDialog.Builder(this).setTitle("Arquivos salvos")
+                        .setItems(names.toArray(new String[0]), (d, which) -> {
+                            String name = names.get(which);
+                            fileName.setText(name);
+                            source.setText(prefs.getString("editor:" + name, ""));
+                        }).setNegativeButton("Fechar", null).show();
+            });
+        });
+        dialog.show();
+    }
+
+    private ArrayList<String> readEditorFileNames() {
+        ArrayList<String> names = new ArrayList<>();
+        try {
+            JSONArray array = new JSONArray(prefs.getString("editor_files", "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                String name = array.optString(i, "");
+                if (!name.isEmpty() && !names.contains(name)) names.add(name);
+            }
+        } catch (Exception ignored) {}
+        return names;
+    }
+
+    private void saveEditorFile(String name, String contents) {
+        String safeName = name.replace("\\", "_").replace("/", "_").trim();
+        if (safeName.isEmpty()) safeName = "nota.txt";
+        ArrayList<String> names = readEditorFileNames();
+        if (!names.contains(safeName)) names.add(safeName);
+        JSONArray array = new JSONArray();
+        for (String item : names) array.put(item);
+        prefs.edit()
+                .putString("editor:" + safeName, contents)
+                .putString("editor_files", array.toString())
+                .apply();
     }
 
     private void showApps() {
@@ -573,6 +845,12 @@ public class MainActivity extends Activity {
     @Override protected void onResume() { super.onResume(); if (rain != null) rain.start(); }
     @Override protected void onPause() { if (rain != null) rain.stop(); super.onPause(); }
     @Override protected void onDestroy() {
+        hideThinkingIndicator();
+        if (textToSpeech != null) {
+            textToSpeech.stop();
+            textToSpeech.shutdown();
+            textToSpeech = null;
+        }
         if (brain != null) brain.close();
         super.onDestroy();
     }
