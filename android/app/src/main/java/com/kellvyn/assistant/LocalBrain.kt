@@ -30,7 +30,6 @@ import java.net.URL
 import java.net.URLDecoder
 import java.net.URLEncoder
 import org.jsoup.Jsoup
-import org.jsoup.nodes.Element
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.Locale
@@ -176,10 +175,12 @@ class LocalBrain(context: Context) {
         if (query.isEmpty() || query.length > 300) return false
         if (Regex("(?i)\\b(crie|criar|faça|fazer|gere|gerar|desenvolva|construa)\\b.{0,80}\\b(app|aplicativo|bot|jogo|site|programa|script|api)\\b")
                 .containsMatchIn(query)) return false
-        return query.contains("?") || Regex(
-            "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise)|pesquise|pesquisa|busque|procure|not[ií]cia|not[ií]cias|fale sobre|explique|resuma|atualiza[cç][aã]o)\\b"
-        ).containsMatchIn(query) ||
-            Regex("(?i)\\b(pesquise na internet|pesquise na web|busca na internet|procure na web|notícias de hoje)\\b").containsMatchIn(query)
+        return query.contains("?") ||
+            Regex("(?i)https?://\\\\S+").containsMatchIn(query) ||
+            Regex(
+                "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise|resuma|conte)|pesquise|pesquisa|busque|procure|leia|analise|analisa|not[ií]cia|not[ií]cias|fale sobre|explique|resuma|atualiza[cç][aã]o)\\\\b"
+            ).containsMatchIn(query) ||
+            Regex("(?i)\\\\b(pesquise na internet|pesquise na web|busca na internet|procure na web|leia esta página|resuma este site|notícias de hoje)\\\\b").containsMatchIn(query)
     }
 
     private fun normalizeSearchResultUrl(raw: String): String {
@@ -720,7 +721,6 @@ class LocalBrain(context: Context) {
         private const val MAX_ATTACHMENT_CHARS = 120_000
         private const val WEB_TIMEOUT_MS = 6_000
         private const val MAX_WEB_RESPONSE_CHARS = 90_000
-        private const val MAX_WEB_SEARCH_RESULTS = 4
         private val IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif")
         private val TEXT_EXTENSIONS = setOf(
             "txt", "md", "json", "csv", "xml", "html", "css", "java", "kt", "ts", "tsx",
