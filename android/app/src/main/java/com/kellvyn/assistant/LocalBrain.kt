@@ -220,8 +220,8 @@ class LocalBrain(context: Context) {
 
     private fun fetchWebContext(query: String): String {
         return try {
-            val explicitUrl = Regex("https?://[^\\\\s<>]+", RegexOption.IGNORE_CASE)
-                .find(query)?.value?.trimEnd('.', ',', ')', ']', '}', '"', '\\'')
+            val explicitUrl = Regex("https?://[^\\s<>]+", RegexOption.IGNORE_CASE)
+                .find(query)?.value?.trimEnd('.', ',', ')', ']', '}', '"')
             if (!explicitUrl.isNullOrBlank()) {
                 val safeUrl = normalizeSearchResultUrl(explicitUrl)
                 if (safeUrl.isNotBlank()) {
@@ -236,7 +236,7 @@ class LocalBrain(context: Context) {
                         val title = doc.title().take(180)
                         val body = doc.select("main, article, [role=main]").firstOrNull()?.text()
                             ?.takeIf { it.isNotBlank() } ?: doc.body()?.text().orEmpty()
-                        val excerpt = body.replace(Regex("\\\\s+"), " ").trim().take(3500)
+                        val excerpt = body.replace(Regex("\\s+"), " ").trim().take(3500)
                         if (excerpt.isNotBlank()) {
                             return "[Página consultada] $title\nURL: $finalUrl\nConteúdo extraído: $excerpt"
                         }
