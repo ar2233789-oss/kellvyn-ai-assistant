@@ -72,6 +72,27 @@ class LocalBrain(context: Context) {
     fun hasModel(): Boolean =
         readyFile.isFile && modelFile.isFile && modelFile.length() >= MIN_MODEL_BYTES
 
+    /** True when this process still holds the active in-memory conversation. */
+    fun hasActiveConversation(): Boolean = conversation != null
+
+    /** Start a genuinely new chat without deleting the already downloaded local model. */
+    fun resetConversation() {
+        val previous = synchronized(engineLock) {
+            val current = conversation
+            conversation = null
+            current
+        }
+        if (previous != null) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    previous.close()
+                } catch (error: Exception) {
+                    Log.w(TAG, "Não foi possível encerrar a conversa anterior", error)
+                }
+            }
+        }
+    }
+
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
         if (activeJob?.isActive == true) {
             listener.onError("A Kellvyn já está processando outra mensagem. Aguarde a resposta atual.")

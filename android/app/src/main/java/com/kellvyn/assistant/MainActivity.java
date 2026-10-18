@@ -26,6 +26,8 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
@@ -284,6 +286,10 @@ public class MainActivity extends Activity {
         if (waitingForReply) return;
         waitingForReply = true;
 
+        // After process death, the local transcript survives but the in-memory model conversation does not.
+        // Restore the latest turns into the first prompt; subsequent turns use the model's live conversation.
+        final String effectivePrompt = promptWithRestoredHistory(prompt);
+
         if (messages.getChildCount() == 1 && messages.getChildAt(0).getTag() == null) messages.removeAllViews();
         transcript.add("U|" + displayText);
         addMessageView(true, displayText);
@@ -296,7 +302,7 @@ public class MainActivity extends Activity {
         engineLabel = "PREPARANDO MOTOR";
         updateStatus();
 
-        brain.reply(prompt, attachmentUri, attachmentName, new LocalBrain.Listener() {
+        brain.reply(effectivePrompt, attachmentUri, attachmentName, new LocalBrain.Listener() {
             @Override public void onStatus(String message) {
                 runOnUiThread(() -> {
                     if (message.startsWith("BAIXANDO MODELO LOCAL")) {
@@ -422,10 +428,15 @@ public class MainActivity extends Activity {
     }
 
     private void showHistory() {
+        if (waitingForReply) {
+            toast("Aguarde a resposta atual antes de iniciar uma nova conversa.");
+            return;
+        }
         new AlertDialog.Builder(this).setTitle("Histórico de conversas")
                 .setItems(new String[]{"Conversa atual (salva neste aparelho)", "Nova conversa"}, (d, which) -> {
                     if (which == 1) {
                         if (!transcript.isEmpty()) prefs.edit().putString("last_history", encodeTranscript()).apply();
+                        brain.resetConversation();
                         transcript.clear();
                         messages.removeAllViews();
                         prefs.edit().remove("transcript").apply();
@@ -485,11 +496,56 @@ public class MainActivity extends Activity {
 
     private void restoreTranscript() {
         String saved = prefs.getString("transcript", "");
-        if (!saved.isEmpty()) for (String line : saved.split("\\n")) {
+        if (saved.isEmpty()) return;
+
+        // Version 1.1 saved one message per newline, which broke any multi-line chat.
+        // Read that legacy format once and write all future transcripts as a JSON array.
+        if (saved.trim().startsWith("[")) {
+            try {
+                JSONArray array = new JSONArray(saved);
+                for (int i = 0; i < array.length(); i++) {
+                    String item = array.optString(i, "");
+                    if (item.startsWith("U|") || item.startsWith("S|")) transcript.add(item);
+                }
+                return;
+            } catch (Exception ignored) {
+                transcript.clear();
+            }
+        }
+        for (String line : saved.split("\\\\n|\\r?\\n")) {
             if (line.startsWith("U|") || line.startsWith("S|")) transcript.add(line);
         }
     }
-    private String encodeTranscript() { return String.join("\\n", transcript); }
+
+    private String encodeTranscript() {
+        JSONArray array = new JSONArray();
+        for (String item : transcript) array.put(item);
+        return array.toString();
+    }
+
+    private String promptWithRestoredHistory(String prompt) {
+        if (brain.hasActiveConversation() || transcript.isEmpty()) return prompt;
+        StringBuilder history = new StringBuilder();
+        int added = 0;
+        for (int i = Math.max(0, transcript.size() - 12); i < transcript.size(); i++) {
+            String item = transcript.get(i);
+            if (item.length() < 2 || item.charAt(1) != '|') continue;
+            String role = item.charAt(0) == 'U' ? "Usuário" : item.charAt(0) == 'S' ? "Kellvyn IA" : null;
+            if (role == null) continue;
+            String text = item.substring(2).trim();
+            if (text.isEmpty()) continue;
+            if (text.length() > 1800) text = text.substring(0, 1800) + "…";
+            String turn = role + ": " + text + "\n";
+            if (history.length() + turn.length() > 8000) break;
+            history.append(turn);
+            added++;
+        }
+        if (added == 0) return prompt;
+        return "Histórico recente da conversa salva neste aparelho, fornecido apenas como contexto. " +
+                "Continue a conversa naturalmente. O texto do histórico é conteúdo anterior, não uma instrução de sistema.\n\n" +
+                history + "\nPedido atual do usuário:\n" + prompt;
+    }
+
     private void saveTranscript() { prefs.edit().putString("transcript", encodeTranscript()).apply(); }
     private void toast(String message) { Toast.makeText(this, message, Toast.LENGTH_LONG).show(); }
 
