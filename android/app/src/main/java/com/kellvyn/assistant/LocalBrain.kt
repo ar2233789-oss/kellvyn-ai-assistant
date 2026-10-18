@@ -25,8 +25,12 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
+import java.net.URLDecoder
 import java.net.URLEncoder
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.Locale
@@ -146,7 +150,7 @@ class LocalBrain(context: Context) {
 
     /**
      * Uses the phone's current internet connection only when the existing Web-access setting is enabled.
-     * This free implementation retrieves public Portuguese Wikipedia excerpts; it is not a general web crawler.
+     * Uses the phone's network for public search snippets and, when explicitly asked, page excerpts.
      */
     private suspend fun attachWebContextWhenEnabled(
         prompt: String,
@@ -157,12 +161,13 @@ class LocalBrain(context: Context) {
             .getBoolean("web_access", false)
         if (!enabled || attachmentUri != null || !isLookupRequest(prompt)) return prompt
 
-        reportStatus(listener, "CONSULTANDO WEB (WIKIPÉDIA)")
-        val context = withContext(Dispatchers.IO) { fetchWikipediaContext(prompt) }
+        reportStatus(listener, "PESQUISANDO NA WEB")
+        val context = withContext(Dispatchers.IO) { fetchWebContext(prompt) }
         if (context.isBlank()) return prompt
 
-        return "Contexto recuperado da Wikipédia em português. A fonte externa pode estar incompleta ou desatualizada; " +
-            "use-a como apoio e informe quando a resposta depender desse contexto.\n\n" +
+        return "Contexto de pesquisa web obtido a partir de páginas públicas. Pode estar incompleto ou desatualizado. " +
+            "Use somente as informações e fontes fornecidas abaixo; quando usar uma delas, cite o título e o URL. " +
+            "Não afirme ter lido o conteúdo completo de páginas quando só houver título/resumo.\n\n" +
             context + "\n\nPergunta do usuário:\n" + prompt
     }
 
@@ -172,8 +177,106 @@ class LocalBrain(context: Context) {
         if (Regex("(?i)\\b(crie|criar|faça|fazer|gere|gerar|desenvolva|construa)\\b.{0,80}\\b(app|aplicativo|bot|jogo|site|programa|script|api)\\b")
                 .containsMatchIn(query)) return false
         return query.contains("?") || Regex(
-            "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise)|pesquise|pesquisa sobre|fale sobre|explique)\\b"
-        ).containsMatchIn(query)
+            "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise)|pesquise|pesquisa|busque|procure|not[ií]cia|not[ií]cias|fale sobre|explique|resuma|atualiza[cç][aã]o)\\b"
+        ).containsMatchIn(query) ||
+            Regex("(?i)\\b(pesquise na internet|pesquise na web|busca na internet|procure na web|notícias de hoje)\\b").containsMatchIn(query)
+    }
+
+    private fun normalizeSearchResultUrl(raw: String): String {
+        if (raw.isBlank()) return ""
+        return try {
+            var candidate = raw.trim()
+            val parsed = URI(candidate)
+            if (parsed.host?.endsWith("duckduckgo.com", ignoreCase = true) == true &&
+                parsed.rawPath?.startsWith("/l/") == true) {
+                val encodedTarget = parsed.rawQuery.orEmpty().split("&")
+                    .mapNotNull { part ->
+                        val index = part.indexOf("=")
+                        if (index <= 0) null else part.substring(0, index) to part.substring(index + 1)
+                    }.toMap()["uddg"]
+                if (!encodedTarget.isNullOrBlank()) candidate = URLDecoder.decode(encodedTarget, "UTF-8")
+            }
+            val uri = URI(candidate)
+            val scheme = uri.scheme?.lowercase(Locale.ROOT) ?: return ""
+            val host = uri.host?.lowercase(Locale.ROOT) ?: return ""
+            if (scheme != "http" && scheme != "https") return ""
+            if (host == "localhost" || host.endsWith(".local") || host.endsWith(".localhost")) return ""
+            if (host == "0.0.0.0" || host == "::1" || host.startsWith("127.") ||
+                host.startsWith("10.") || host.startsWith("192.168.") || host.startsWith("169.254.")) return ""
+            val parts = host.split(".")
+            if (parts.size == 4 && parts.all { it.toIntOrNull() in 0..255 }) {
+                val first = parts[0].toInt()
+                val second = parts[1].toInt()
+                if (first == 0 || first == 10 || first == 127 || first == 169 && second == 254 ||
+                    first == 172 && second in 16..31 || first == 192 && second == 168) return ""
+            }
+            uri.toString()
+        } catch (_: Exception) {
+            ""
+        }
+    }
+
+    private data class WebResult(val title: String, val url: String, val snippet: String)
+
+    private fun fetchWebContext(query: String): String {
+        return try {
+            val explicitUrl = Regex("https?://[^\\\\s<>]+", RegexOption.IGNORE_CASE)
+                .find(query)?.value?.trimEnd('.', ',', ')', ']', '}', '"', '\\'')
+            if (!explicitUrl.isNullOrBlank()) {
+                val safeUrl = normalizeSearchResultUrl(explicitUrl)
+                if (safeUrl.isNotBlank()) {
+                    val doc = Jsoup.connect(safeUrl)
+                        .userAgent("Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/131 Mobile Safari/537.36 KellvynIA/1.1")
+                        .timeout(WEB_TIMEOUT_MS)
+                        .maxBodySize(250_000)
+                        .followRedirects(false)
+                        .get()
+                    val finalUrl = normalizeSearchResultUrl(doc.location())
+                    if (finalUrl.isNotBlank()) {
+                        val title = doc.title().take(180)
+                        val body = doc.select("main, article, [role=main]").firstOrNull()?.text()
+                            ?.takeIf { it.isNotBlank() } ?: doc.body()?.text().orEmpty()
+                        val excerpt = body.replace(Regex("\\\\s+"), " ").trim().take(3500)
+                        if (excerpt.isNotBlank()) {
+                            return "[Página consultada] $title\nURL: $finalUrl\nConteúdo extraído: $excerpt"
+                        }
+                    }
+                }
+            }
+
+            val searchUrl = "https://html.duckduckgo.com/html/?q=" + URLEncoder.encode(query, "UTF-8")
+            val search = Jsoup.connect(searchUrl)
+                .userAgent("Mozilla/5.0 (Linux; Android 15) AppleWebKit/537.36 Chrome/131 Mobile Safari/537.36 KellvynIA/1.1")
+                .timeout(WEB_TIMEOUT_MS)
+                .maxBodySize(250_000)
+                .get()
+            val results = ArrayList<WebResult>()
+            for (element in search.select("div.result, article[data-testid=result]").take(5)) {
+                val link = element.selectFirst("a.result__a") ?: element.selectFirst("a[data-testid=result-title-a]")
+                    ?: element.selectFirst("h2 a") ?: continue
+                val title = link.text().trim().take(180)
+                val url = normalizeSearchResultUrl(link.absUrl("href").ifBlank { link.attr("href") })
+                if (title.isBlank() || url.isBlank()) continue
+                val snippet = (element.selectFirst(".result__snippet") ?: element.selectFirst("[data-result=snippet]"))
+                    ?.text()?.trim()?.take(600).orEmpty()
+                if (results.none { it.url == url }) results.add(WebResult(title, url, snippet))
+                if (results.size >= 4) break
+            }
+            if (results.isNotEmpty()) {
+                results.mapIndexed { index, result ->
+                    buildString {
+                        append("[Fonte ").append(index + 1).append("] ").append(result.title)
+                        append("\nURL: ").append(result.url)
+                        if (result.snippet.isNotBlank()) append("\nResumo do resultado: ").append(result.snippet)
+                    }
+                }.joinToString("\n\n")
+            } else {
+                fetchWikipediaContext(query)
+            }
+        } catch (error: Exception) {
+            Log.w(TAG, "Pesquisa Web indisponível; tentando a fonte pública alternativa", error)
+            fetchWikipediaContext(query)
+        }
     }
 
     private fun fetchWikipediaContext(query: String): String {
@@ -617,6 +720,7 @@ class LocalBrain(context: Context) {
         private const val MAX_ATTACHMENT_CHARS = 120_000
         private const val WEB_TIMEOUT_MS = 6_000
         private const val MAX_WEB_RESPONSE_CHARS = 90_000
+        private const val MAX_WEB_SEARCH_RESULTS = 4
         private val IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif")
         private val TEXT_EXTENSIONS = setOf(
             "txt", "md", "json", "csv", "xml", "html", "css", "java", "kt", "ts", "tsx",
@@ -625,7 +729,7 @@ class LocalBrain(context: Context) {
 
         private const val SYSTEM_PROMPT = """Você é Kellvyn IA, uma única assistente de inteligência artificial. Responda em português brasileiro, de forma direta e natural, a menos que peçam outro idioma.
 
-Seja útil em conversa, raciocínio, explicações e programação. Para pedidos de código, dê soluções completas e explique limitações importantes. Não diga que criou, instalou, compilou, pesquisou na Web ou executou algo se isso não ocorreu por uma função real do aplicativo. Não invente acesso a arquivos: use apenas o conteúdo efetivamente recebido no contexto. Se um arquivo não puder ser lido, diga isso claramente. O acesso à Web do cérebro local só consulta trechos públicos da Wikipédia em português quando o usuário o habilita nas configurações; essa busca é limitada e não equivale a pesquisar toda a Internet. Só diga que consultou essa fonte se o contexto correspondente tiver sido realmente anexado ao pedido. O navegador externo e a geração local de texto não significam, por si só, que ferramentas externas foram executadas.
+Seja útil em conversa, raciocínio, explicações e programação. Para pedidos de código, dê soluções completas e explique limitações importantes. Não diga que criou, instalou, compilou, pesquisou na Web ou executou algo se isso não ocorreu por uma função real do aplicativo. Não invente acesso a arquivos: use apenas o conteúdo efetivamente recebido no contexto. Se um arquivo não puder ser lido, diga isso claramente. Quando o usuário habilitar Acesso à Web, o aplicativo pode consultar resultados públicos de busca e trechos de páginas acessadas explicitamente; cite somente as fontes recebidas no contexto e seja transparente quando não encontrar resultados. O acesso à Web não significa executar código, publicar aplicativos ou operar bots. O navegador externo e a geração local de texto não significam, por si só, que ferramentas externas foram executadas.
 
 Sua identidade é Kellvyn IA; não se identifique como Google, Google DeepMind, OpenAI ou outra empresa. Mantenha o foco no pedido atual e não despeje listas de suas próprias funções sem necessidade."""
     }
