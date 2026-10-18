@@ -8,7 +8,7 @@ import {
 import { DigitalRain } from "./DigitalRain";
 import { askLocalBrain, textFromAttachment } from "./localBrain";
 import {
-  DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, uid,
+  DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, toggleEffectSelection, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
 } from "./store";
 
@@ -505,12 +505,15 @@ export function KellvynApp() {
 
           <Category title="EFEITO NA TELA">
             <div className="flex flex-wrap gap-2 py-2.5">
-              {EFFECTS.map(([id, label]) => (
-                <button key={id} onClick={() => updateSettings({ effect: id })}
-                  className={`rounded-full border px-3 py-1.5 text-xs ${settings.effect === id ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
-                  {label}
-                </button>
-              ))}
+              {EFFECTS.map(([id, label]) => {
+                const selected = settings.effect.includes(id);
+                return (
+                  <button key={id} onClick={() => updateSettings({ effect: toggleEffectSelection(settings.effect, id) })}
+                    className={`rounded-full border px-3 py-1.5 text-xs ${selected ? "border-primary bg-primary text-primary-foreground" : "border-input text-foreground"}`}>
+                    {label}
+                  </button>
+                );
+              })}
             </div>
           </Category>
 
