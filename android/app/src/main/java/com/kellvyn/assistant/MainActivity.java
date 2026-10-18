@@ -657,7 +657,7 @@ public class MainActivity extends Activity {
     private String historyTitle() {
         for (String item : transcript) {
             if (!item.startsWith("U|")) continue;
-            String title = item.substring(2).trim().replaceAll("\\\\s+", " ");
+            String title = item.substring(2).trim().replaceAll("\\s+", " ");
             if (title.isEmpty()) continue;
             return title.length() > 48 ? title.substring(0, 48) + "…" : title;
         }
@@ -994,7 +994,7 @@ public class MainActivity extends Activity {
             }
         }
         // Legacy support for transcripts written with escaped or actual newlines.
-        for (String line : saved.split("\\\\\\\\n|\\\\r?\\\\n")) {
+        for (String line : saved.split("\\\\n|\\r?\\n")) {
             if (line.startsWith("U|") || line.startsWith("S|")) target.add(line);
         }
     }
