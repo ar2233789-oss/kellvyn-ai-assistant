@@ -8,35 +8,39 @@ on:
       - 'android/**'
       - '.github/workflows/build-apk.yml'
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
-
       - uses: gradle/actions/setup-gradle@v4
-
-      - name: Compilar APK
+        with:
+          gradle-version: '8.7'
+      - name: Compilar APK nativo
         working-directory: android
         run: gradle assembleDebug --no-daemon
-
-      - name: Renomear APK
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk kellvyn.apk
-
+      - name: Verificar e renomear APK
+        run: |
+          test -s android/app/build/outputs/apk/debug/app-debug.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk Kellvyn-IA.apk
       - uses: actions/upload-artifact@v4
         with:
-          name: kellvyn-apk
-          path: kellvyn.apk
-
-      - name: Publicar release com o APK
+          name: Kellvyn-IA-APK
+          path: Kellvyn-IA.apk
+          if-no-files-found: error
+          retention-days: 30
+      - name: Publicar Release com APK direto
         if: github.event_name == 'workflow_dispatch'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
-          name: Kellvyn Assistente
-          files: kellvyn.apk
+          name: Kellvyn IA nativa v1.0.${{ github.run_number }}
+          files: Kellvyn-IA.apk
+          generate_release_notes: true
