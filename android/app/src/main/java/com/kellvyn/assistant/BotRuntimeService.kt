@@ -320,8 +320,10 @@ class BotRuntimeService : Service() {
                 val sequence = AtomicLong(-1L)
                 val heartbeatJob = AtomicReference<Job?>(null)
                 val uri = URI(gateway.trimEnd('/') + "/?v=10&encoding=json")
-                client = object : WebSocketClient(uri) {
+                val socketHolder = AtomicReference<WebSocketClient?>(null)
+                val discordClient = object : WebSocketClient(uri) {
                     override fun onOpen(handshake: ServerHandshake?) {
+                        socketHolder.set(this)
                         Log.i(TAG, "Discord Gateway connected")
                     }
 
@@ -341,11 +343,12 @@ class BotRuntimeService : Service() {
                                     )
                                     send(identify.toString())
                                     heartbeatJob.set(serviceScope.launch {
-                                        while (isActive && this@object.isOpen) {
+                                        while (isActive && socketHolder.get()?.isOpen == true) {
                                             delay(interval.coerceAtLeast(10000L))
                                             val seq = sequence.get()
-                                            val data = if (seq >= 0L) org.json.JSONObject.valueToString(seq) else "null"
-                                            try { send("{\"op\":1,\"d\":" + data + "}") } catch (_: Exception) { break }
+                                            val heartbeat = JSONObject().put("op", 1)
+                                            heartbeat.put("d", if (seq >= 0L) seq else JSONObject.NULL)
+                                            try { socketHolder.get()?.send(heartbeat.toString()) } catch (_: Exception) { break }
                                         }
                                     })
                                 }
@@ -383,15 +386,15 @@ class BotRuntimeService : Service() {
                         closed.complete(Unit)
                     }
 
-                    override fun onError(ex: Exception?) {
+                    override fun onError(ex: Exception) {
                         heartbeatJob.getAndSet(null)?.cancel()
-                        if (!closed.isCompleted) {
-                            if (ex != null) closed.completeExceptionally(ex) else closed.complete(Unit)
-                        }
+                        if (!closed.isCompleted) closed.completeExceptionally(ex)
                     }
                 }
-                discordSocket = client
-                val connected = withContext(Dispatchers.IO) { client.connectBlocking(20, TimeUnit.SECONDS) }
+                client = discordClient
+                socketHolder.set(discordClient)
+                discordSocket = discordClient
+                val connected = withContext(Dispatchers.IO) { discordClient.connectBlocking(20, TimeUnit.SECONDS) }
                 if (!connected) throw IOException("Não foi possível conectar ao Discord Gateway.")
                 writeStatus("discord", "Conectado; aguardando mensagens")
                 closed.await()
