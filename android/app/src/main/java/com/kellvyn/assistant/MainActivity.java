@@ -976,7 +976,7 @@ public class MainActivity extends Activity {
         transcript.add("S|" + responseText);
         addMessageView(false, responseText);
         saveTranscript();
-        engineLabel = "PRONTA";
+        // Local credential/config commands bypass inference; preserve the actual engine readiness state.
         updateStatus();
     }
 
