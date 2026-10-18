@@ -81,6 +81,7 @@ class BotRuntimeService : Service() {
     private var telegramTokenInUse: String? = null
     private var discordTokenInUse: String? = null
     @Volatile private var discordSocket: WebSocketClient? = null
+    @Volatile private var discordBotUserId: String = ""
     private var foregroundStarted = false
 
     override fun onCreate() {
@@ -239,7 +240,8 @@ class BotRuntimeService : Service() {
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                Log.e(TAG, "Conexão do Telegram falhou", error)
+                // Do not log the exception object: some HTTP exceptions include the Telegram bot token URL.
+                Log.w(TAG, "Conexão do Telegram falhou; verificando token e rede")
                 writeStatus("telegram", "Erro de conexão/token; tentando novamente")
                 delay(5000L)
             }
@@ -355,20 +357,34 @@ class BotRuntimeService : Service() {
                                 7, 9 -> close()
                                 0 -> {
                                     val eventName = packet.optString("t", "")
-                                    if (eventName == "MESSAGE_CREATE") {
-                                        val data = packet.optJSONObject("d") ?: return
+                                    val data = packet.optJSONObject("d")
+                                    if (eventName == "READY" && data != null) {
+                                        discordBotUserId = data.optJSONObject("user")?.optString("id", "").orEmpty()
+                                    } else if (eventName == "MESSAGE_CREATE" && data != null) {
                                         val author = data.optJSONObject("author")
                                         val content = data.optString("content", "").trim()
                                         val channelId = data.optString("channel_id", "")
-                                        if (content.isNotBlank() && channelId.isNotBlank() && author?.optBoolean("bot", false) != true) {
+                                        val isDirectMessage = data.isNull("guild_id") || data.optString("guild_id", "").isBlank()
+                                        val mentions = data.optJSONArray("mentions") ?: JSONArray()
+                                        val mentioned = discordBotUserId.isNotBlank() &&
+                                            (content.contains("<@" + discordBotUserId + ">") ||
+                                                content.contains("<@!" + discordBotUserId + ">") ||
+                                                (0 until mentions.length()).any { mentions.optJSONObject(it)?.optString("id") == discordBotUserId })
+                                        val commandText = if (discordBotUserId.isBlank()) content else content
+                                            .replace("<@" + discordBotUserId + ">", "")
+                                            .replace("<@!" + discordBotUserId + ">", "").trim()
+                                        val explicitCommand = commandText.startsWith("/kellvyn", ignoreCase = true)
+                                        val shouldRespond = isDirectMessage || mentioned || explicitCommand
+                                        val cleanText = if (explicitCommand) commandText.removePrefix("/kellvyn").trim() else commandText
+                                        if (shouldRespond && cleanText.isNotBlank() && channelId.isNotBlank() && author?.optBoolean("bot", false) != true) {
                                             serviceScope.launch {
                                                 try {
-                                                    val answer = buildLocalBotReply("discord", channelId, content)
+                                                    val answer = buildLocalBotReply("discord", channelId, cleanText)
                                                     withContext(Dispatchers.IO) { sendDiscordMessage(token, channelId, answer) }
                                                 } catch (error: CancellationException) {
                                                     throw error
                                                 } catch (error: Exception) {
-                                                    Log.e(TAG, "Falha ao responder mensagem do Discord", error)
+                                                    Log.w(TAG, "Falha ao responder mensagem do Discord")
                                                     writeStatus("discord", "Erro ao gerar resposta")
                                                 }
                                             }
@@ -377,7 +393,7 @@ class BotRuntimeService : Service() {
                                 }
                             }
                         } catch (error: Exception) {
-                            Log.e(TAG, "Mensagem Discord inválida", error)
+                            Log.w(TAG, "Mensagem Discord inválida")
                         }
                     }
 
