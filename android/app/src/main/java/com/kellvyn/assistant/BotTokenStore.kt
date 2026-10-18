@@ -44,6 +44,7 @@ object BotTokenStore {
         return generator.generateKey()
     }
 
+    @JvmStatic
     fun save(context: Context, platform: String, rawToken: String): Boolean {
         if (!validPlatform(platform)) return false
         val token = rawToken.trim()
@@ -79,6 +80,7 @@ object BotTokenStore {
         }
     }
 
+    @JvmStatic
     fun hasToken(context: Context, platform: String): Boolean =
         !read(context, platform).isNullOrBlank()
 
