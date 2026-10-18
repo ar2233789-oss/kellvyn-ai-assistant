@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -1163,6 +1164,7 @@ public class MainActivity extends Activity {
 
         RainView() {
             super(MainActivity.this);
+            flashPaint.setColor(0x18DDE8FF);
             activeEffects = renderEffectSet();
         }
 
