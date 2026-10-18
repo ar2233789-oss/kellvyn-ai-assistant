@@ -936,12 +936,12 @@ public class MainActivity extends Activity {
 
     private boolean handleLocalBotChatCommand(String userText) {
         Matcher tokenCommand = Pattern.compile(
-                "(?is)^/bot\\\\s+(telegram|discord)\\\\s+token\\\\b(.*)$"
+                "(?is)^/bot\\s+(telegram|discord)\\s+token\\b(.*)$"
         ).matcher(userText);
         if (tokenCommand.matches()) {
             String platform = tokenCommand.group(1).toLowerCase(Locale.ROOT);
             String rawToken = tokenCommand.group(2).trim();
-            boolean validShape = rawToken.matches("[^\\\\s<>]{12,512}");
+            boolean validShape = rawToken.matches("[^\\s<>]{12,512}");
             boolean saved = validShape && BotTokenStore.save(this, platform, rawToken);
             composer.setText("");
             selectedAttachment = null;
@@ -955,7 +955,7 @@ public class MainActivity extends Activity {
         }
 
         Matcher behaviorCommand = Pattern.compile(
-                "(?is)^/bot\\\\s+(telegram|discord)\\\\s+instrucoes\\\\s+([\\\\s\\\\S]+)$"
+                "(?is)^/bot\\s+(telegram|discord)\\s+instrucoes\\s+([\\s\\S]+)$"
         ).matcher(userText);
         if (behaviorCommand.matches()) {
             String platform = behaviorCommand.group(1).toLowerCase(Locale.ROOT);
