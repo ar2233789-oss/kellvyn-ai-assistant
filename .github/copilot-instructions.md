@@ -95,3 +95,23 @@ Preservar as opções já previstas na interface original, inclusive paletas de 
 5. A IA só ajuda com Termux/terminal quando for solicitada no chat principal.
 6. A barra existente “manter bot ativo” controla processos reais em segundo plano e nunca é substituída por Git.
 7. Implementação verdadeira, build/testes comprovados e nenhuma capacidade inventada.
+
+
+## 11. UI audit and strict ban on post-Lovable controls
+
+The user explicitly orders a forensic audit of every visible control in the **current main layout** and removal of controls/options added after the approved Lovable layout. This is a narrow exception authorizing removal of proven non-Lovable extras, not a redesign.
+
+Before changing UI:
+1. Inspect current `main`, all relevant branches, commit ancestry, diffs, and the actual `KellvynApp.tsx`, `DigitalRain.tsx`, store/settings, and styles. Identify the last confirmed Lovable visual edits, including commits marked with `X-Lovable-Edit-ID`. Important Lovable-origin history includes `2b2a755200fb9ca37ef14d11280902673d2dd89a`, `65b1939caafbe1076bdfb48b552df609d67f06da`, `0d7e71061e16442ddd72409d38a2c19d8df55d28`, `05c45a6eda914d8bd2aeb11f785c44eff53775bc`, `f462211f27d7dacfc305a196d7b3564e19658ea4`, `c99c58e4c2ebd6d0e78147018d1c4d77bd2a480e`, `8ea07f5e167bc8d157d5e6954e80c826609e7726`, `7a8ab8401ffdca68d68f6df32a03cd36f9e2d727`, and `6f3c64fb4c6b1623fb7ffd8344ad4a5d48de2bad`. Do not mistake a later Lovable-approved revision for an unauthorized addition just because it differs from the first UI commit.
+2. Build a private audit inventory (in the task report, not a new user-facing panel) of each existing visible button/menu/option: its label/icon, exact location, associated handler, commit where it appeared, and whether it belongs to the last approved Lovable UI.
+3. Compare the current interface against the last approved Lovable state and screenshots/reference assets already in the repository. Remove a visible button/option only when a diff/history review shows it was introduced by a later non-Lovable change and was not part of the approved UI. If commit provenance or visual intent is ambiguous, do not delete it speculatively; report the ambiguity and ask rather than damaging the approved layout.
+4. Do **not** add buttons, labels, tabs, menu entries, settings, badges, modes, floating controls, or options. Do not create new visible UI to expose backend functions. Existing controls only.
+5. Do not create parallel navigation or new options to “make a function accessible.” Connect the requested technical behavior to controls already present in the approved Lovable UI. If a requested capability has no existing control, trigger it through the main chat and keep its implementation internal; do not add a control.
+6. Preserve the exact labels, order, placement, styles, touch areas, animations, and visual behavior for every control that remains. Do not replace one function/button with a new design. In particular, preserve the existing bot keep-alive bar/controls, the original animated thinking-brain component, and simultaneous rain + lightning effects.
+7. After changes, show a control-by-control audit and list exactly which proven post-Lovable extras were removed and which commit introduced each one. If no control can be proven to be a non-Lovable addition, remove none. Run build/tests and verify the final diff adds **zero new visible controls/options** and contains no unauthorized changes to layout or animations.
+
+## 12. Finish the implementation, not just the audit
+
+The requested end state is the existing Lovable UI with one working Kellvyn IA behind it. After the control audit, complete the brain/tool integrations through the main chat and the user's existing controls: contextual chat; on-device/offline local model; optional web access over the phone's network when enabled; real attachment/file/image/PDF processing where supported; real image generation only if an actual generator is integrated; code editing; APK/app generation and build verification; bot creation/configuration and real keep-alive start/stop controls; speech input/output; history/settings/memory; and Android-native integrations supported by the project. Keep compiler/builder/compactor internal.
+
+Do not stop at an audit document or a generic plan. Make the required technical changes, test what can actually be tested, fix failures, and open a focused PR. Build/package validation is not proof of successful on-device inference or bot operation; report those separately and accurately.
