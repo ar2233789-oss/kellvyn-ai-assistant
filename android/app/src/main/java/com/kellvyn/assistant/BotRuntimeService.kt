@@ -57,6 +57,7 @@ class BotRuntimeService : Service() {
         private const val MAX_RESPONSE_CHARS = 3500
         private const val MAX_CHAT_TURNS = 10
 
+        @JvmStatic
         fun refresh(context: Context) {
             val intent = Intent(context, BotRuntimeService::class.java).setAction(ACTION_REFRESH)
             try {
@@ -67,6 +68,7 @@ class BotRuntimeService : Service() {
             }
         }
 
+        @JvmStatic
         fun stop(context: Context) {
             val intent = Intent(context, BotRuntimeService::class.java).setAction(ACTION_STOP)
             try { context.startService(intent) } catch (_: Exception) {}
