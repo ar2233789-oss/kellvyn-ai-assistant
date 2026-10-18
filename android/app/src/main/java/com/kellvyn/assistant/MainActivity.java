@@ -521,6 +521,16 @@ public class MainActivity extends Activity {
             selectedAttachmentUri = uri;
             toast("Anexo selecionado: " + selectedAttachment + ". O conteúdo será preparado pelo motor local ao enviar.");
             composer.requestFocus();
+        } else if (requestCode == SAVE_TEXT && data.getData() != null) {
+            try (OutputStream output = getContentResolver().openOutputStream(data.getData())) {
+                if (output == null) throw new java.io.IOException("Não foi possível abrir o arquivo de destino.");
+                output.write(pendingDownloadText.getBytes(StandardCharsets.UTF_8));
+                output.flush();
+                pendingDownloadText = "";
+                toast("Resposta salva.");
+            } catch (Exception error) {
+                toast("Não consegui salvar a resposta: " + error.getMessage());
+            }
         } else if (requestCode == SPEECH) {
             ArrayList<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
             if (results != null && !results.isEmpty()) {
@@ -575,6 +585,136 @@ public class MainActivity extends Activity {
                         updateStatus();
                     }
                 }).setNegativeButton("Fechar", null).show();
+    }
+
+    private void addNavItem(LinearLayout parent, String glyph, String label, Runnable action) {
+        TextView item = text(glyph + "\n" + label, 10, MUTED, false);
+        item.setGravity(Gravity.CENTER);
+        item.setIncludeFontPadding(false);
+        item.setMaxLines(2);
+        item.setLineSpacing(dp(1), 1f);
+        item.setContentDescription(label);
+        item.setBackground(roundRect(0x00000000, dp(8), 0, 0));
+        item.setOnClickListener(v -> action.run());
+        parent.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
+    }
+
+    /** Launch Termux only after the user taps the existing Terminal navigation item. */
+    private void openTermux() {
+        Intent launch = getPackageManager().getLaunchIntentForPackage("com.termux");
+        if (launch == null) {
+            toast("O Termux não está instalado. O terminal é independente; instale/abra-o separadamente.");
+            return;
+        }
+        try { startActivity(launch); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir o Termux."); }
+    }
+
+    private void openPhoneApps() {
+        Intent home = new Intent(Intent.ACTION_MAIN);
+        home.addCategory(Intent.CATEGORY_HOME);
+        home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        try { startActivity(home); }
+        catch (ActivityNotFoundException e) { toast("Não foi possível abrir a tela de aplicativos do Android."); }
+    }
+
+    private void showBots() {
+        new AlertDialog.Builder(this).setTitle("BOTS ATIVOS")
+                .setMessage("A área de bots foi solicitada, mas este APK ainda não possui um runtime real conectado para manter bots Discord, WhatsApp ou Telegram em segundo plano. Não vou mostrar um bot como Ativo sem um processo real. Peça à Kellvyn no chat principal para preparar o bot; a execução persistente ainda precisa ser integrada.")
+                .setPositiveButton("Fechar", null).show();
+    }
+
+    private void showEditor() {
+        EditText fileName = new EditText(this);
+        fileName.setSingleLine(true);
+        fileName.setHint("Nome do arquivo");
+        fileName.setTextColor(TEXT);
+        fileName.setHintTextColor(MUTED);
+        fileName.setTextSize(14);
+
+        EditText source = new EditText(this);
+        source.setHint("Escreva seu código ou nota aqui…");
+        source.setTextColor(TEXT);
+        source.setHintTextColor(MUTED);
+        source.setTextSize(13);
+        source.setGravity(Gravity.TOP | Gravity.START);
+        source.setMinLines(9);
+        source.setMaxLines(16);
+        source.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        source.setTypeface(Typeface.MONOSPACE);
+        source.setBackground(roundRect(PANEL_ALT, dp(10), 0x5545A989, dp(1)));
+        source.setPadding(dp(10), dp(10), dp(10), dp(10));
+
+        LinearLayout form = new LinearLayout(this);
+        form.setOrientation(LinearLayout.VERTICAL);
+        form.setPadding(dp(4), dp(8), dp(4), dp(4));
+        form.addView(fileName, new LinearLayout.LayoutParams(-1, dp(46)));
+        LinearLayout.LayoutParams sourceLp = new LinearLayout.LayoutParams(-1, -2);
+        sourceLp.topMargin = dp(8);
+        form.addView(source, sourceLp);
+
+        TextView newFile = text("Novo", 12, accent, true);
+        newFile.setGravity(Gravity.CENTER);
+        newFile.setPadding(dp(12), dp(8), dp(12), dp(8));
+        newFile.setOnClickListener(v -> { fileName.setText(""); source.setText(""); fileName.requestFocus(); });
+        LinearLayout.LayoutParams newLp = new LinearLayout.LayoutParams(-2, dp(36));
+        newLp.topMargin = dp(4);
+        form.addView(newFile, newLp);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+                .setTitle("EDITOR DE CÓDIGO")
+                .setView(form)
+                .setPositiveButton("Salvar", null)
+                .setNeutralButton("Arquivos salvos", null)
+                .setNegativeButton("Fechar", null)
+                .create();
+        dialog.setOnShowListener(v -> {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+                String name = fileName.getText().toString().trim();
+                String text = source.getText().toString();
+                if (name.isEmpty()) name = "nota.txt";
+                if (text.trim().isEmpty()) { toast("Escreva algo antes de salvar."); return; }
+                saveEditorFile(name, text);
+                fileName.setText(name);
+                toast("Arquivo salvo neste aparelho.");
+            });
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(view -> {
+                ArrayList<String> names = readEditorFileNames();
+                if (names.isEmpty()) { toast("Nenhum código ou nota salvo."); return; }
+                new AlertDialog.Builder(this).setTitle("Arquivos salvos")
+                        .setItems(names.toArray(new String[0]), (d, which) -> {
+                            String name = names.get(which);
+                            fileName.setText(name);
+                            source.setText(prefs.getString("editor:" + name, ""));
+                        }).setNegativeButton("Fechar", null).show();
+            });
+        });
+        dialog.show();
+    }
+
+    private ArrayList<String> readEditorFileNames() {
+        ArrayList<String> names = new ArrayList<>();
+        try {
+            JSONArray array = new JSONArray(prefs.getString("editor_files", "[]"));
+            for (int i = 0; i < array.length(); i++) {
+                String name = array.optString(i, "");
+                if (!name.isEmpty() && !names.contains(name)) names.add(name);
+            }
+        } catch (Exception ignored) {}
+        return names;
+    }
+
+    private void saveEditorFile(String name, String contents) {
+        String safeName = name.replace("\\", "_").replace("/", "_").trim();
+        if (safeName.isEmpty()) safeName = "nota.txt";
+        ArrayList<String> names = readEditorFileNames();
+        if (!names.contains(safeName)) names.add(safeName);
+        JSONArray array = new JSONArray();
+        for (String item : names) array.put(item);
+        prefs.edit()
+                .putString("editor:" + safeName, contents)
+                .putString("editor_files", array.toString())
+                .apply();
     }
 
     private void showApps() {
