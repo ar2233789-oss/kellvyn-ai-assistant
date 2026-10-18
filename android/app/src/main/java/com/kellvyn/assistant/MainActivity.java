@@ -630,7 +630,7 @@ public class MainActivity extends Activity {
         try {
             String canonicalProject = projectDir.getCanonicalPath();
             while (matcher.find()) {
-                String relative = matcher.group(1).trim().replace('\\\\', '/');
+                String relative = matcher.group(1).trim().replace('\\', '/');
                 while (relative.startsWith("./")) relative = relative.substring(2);
                 if (relative.isEmpty() || relative.startsWith("/") || relative.matches("^[A-Za-z]:.*")) continue;
                 boolean unsafe = false;
