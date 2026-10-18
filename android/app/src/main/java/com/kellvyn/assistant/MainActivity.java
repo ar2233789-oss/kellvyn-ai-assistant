@@ -421,6 +421,7 @@ public class MainActivity extends Activity {
         saveTranscript();
 
         activeReplyBubble = addMessageView(false, "Preparando o cérebro local…");
+        showThinkingIndicator();
         engineLabel = "PREPARANDO MOTOR";
         updateStatus();
 
@@ -443,6 +444,7 @@ public class MainActivity extends Activity {
 
             @Override public void onPartial(String text) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
                 });
@@ -450,6 +452,7 @@ public class MainActivity extends Activity {
 
             @Override public void onComplete(String text, String backend) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     waitingForReply = false;
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     transcript.add("S|" + text);
@@ -462,6 +465,7 @@ public class MainActivity extends Activity {
 
             @Override public void onError(String message) {
                 runOnUiThread(() -> {
+                    hideThinkingIndicator();
                     waitingForReply = false;
                     String errorText = "Não consegui concluir esta solicitação no motor local: " + message;
                     if (activeReplyBubble != null) activeReplyBubble.setText(errorText);
