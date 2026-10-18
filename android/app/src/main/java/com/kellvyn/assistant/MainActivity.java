@@ -33,10 +33,16 @@ import android.widget.Toast;
 
 import org.json.JSONArray;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.Locale;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
     private static final int BG = Color.rgb(8, 13, 13);
@@ -49,6 +55,9 @@ public class MainActivity extends Activity {
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
     private static final int SAVE_TEXT = 1003;
+    private static final Pattern GENERATED_PROJECT_FILE = Pattern.compile(
+            "(?m)^Arquivo:\\s*([^\\r\\n]+)\\s*\\r?\\n\\s*(?:\\x60){3}[^\\r\\n]*\\r?\\n(.*?)\\r?\\n(?:\\x60){3}",
+            Pattern.DOTALL);
 
     private final ArrayList<String> transcript = new ArrayList<>();
     private LinearLayout messages;
@@ -384,11 +393,11 @@ public class MainActivity extends Activity {
                 : userText + "\n\nAnexo selecionado: " + fileName);
         final String prompt;
         if (fileName == null) {
-            prompt = userText;
+            prompt = promptWithProjectGuidelines(userText);
         } else if (userText.isEmpty()) {
             prompt = "Analise o arquivo anexado chamado " + fileName + ". Se o aplicativo não tiver enviado conteúdo legível, diga isso claramente e não invente seu conteúdo.";
         } else {
-            prompt = userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.";
+            prompt = promptWithProjectGuidelines(userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.");
         }
 
         if (!brain.hasModel()) {
@@ -454,8 +463,14 @@ public class MainActivity extends Activity {
                 runOnUiThread(() -> {
                     hideThinkingIndicator();
                     waitingForReply = false;
-                    if (activeReplyBubble != null) activeReplyBubble.setText(text);
-                    transcript.add("S|" + text);
+                    String finalAnswer = text;
+                    int savedFiles = saveGeneratedProjectFiles(displayText, text);
+                    if (savedFiles > 0) {
+                        finalAnswer += "\n\nArquivos do projeto salvos no Editor: " + savedFiles +
+                                " arquivo(s). Abra Editor → Arquivos salvos para revisar. Nenhum APK foi compilado nesta execução.";
+                    }
+                    if (activeReplyBubble != null) activeReplyBubble.setText(finalAnswer);
+                    transcript.add("S|" + finalAnswer);
                     saveTranscript();
                     engineLabel = "MOTOR LOCAL " + backend;
                     updateStatus();
@@ -585,6 +600,82 @@ public class MainActivity extends Activity {
                         updateStatus();
                     }
                 }).setNegativeButton("Fechar", null).show();
+    }
+
+    private boolean isProjectBuildRequest(String text) {
+        if (text == null) return false;
+        return Pattern.compile(
+                "(?is)\\b(crie|criar|faça|fazer|gere|gerar|desenvolva|desenvolver|construa|construir|monte|montar)\\b.{0,100}\\b(app|aplicativo|jogo|bot|site|programa|script|api|projeto)\\b"
+        ).matcher(text).find();
+    }
+
+    private String promptWithProjectGuidelines(String userPrompt) {
+        if (!isProjectBuildRequest(userPrompt)) return userPrompt;
+        return "O usuário pediu explicitamente para criar um projeto. Gere código completo, não pseudocódigo. " +
+                "Para cada arquivo, use exatamente uma linha 'Arquivo: caminho/relativo.ext' seguida de um bloco Markdown de código com o conteúdo completo. " +
+                "Inclua os arquivos principais e instruções curtas de execução, use poucas dependências e não omita trechos com reticências. " +
+                "Não afirme que compilou, instalou, executou ou publicou um APK/bot se nenhuma ferramenta real fez isso. " +
+                "Pedido do usuário:\\n\\n" + userPrompt;
+    }
+
+    /** Store complete files produced for an explicit project request; no ZIP or new UI control is created. */
+    private int saveGeneratedProjectFiles(String request, String response) {
+        if (!isProjectBuildRequest(request) || response == null || response.isEmpty()) return 0;
+        Matcher matcher = GENERATED_PROJECT_FILE.matcher(response);
+        String projectId = projectSlug(request);
+        File root = new File(getFilesDir(), "projects");
+        File projectDir = new File(root, projectId);
+        int saved = 0;
+        Set<String> seen = new HashSet<>();
+        try {
+            String canonicalProject = projectDir.getCanonicalPath();
+            while (matcher.find()) {
+                String relative = matcher.group(1).trim().replace('\\\\', '/');
+                while (relative.startsWith("./")) relative = relative.substring(2);
+                if (relative.isEmpty() || relative.startsWith("/") || relative.matches("^[A-Za-z]:.*")) continue;
+                boolean unsafe = false;
+                for (String part : relative.split("/")) {
+                    if (part.isEmpty() || part.equals(".") || part.equals("..")) { unsafe = true; break; }
+                }
+                if (unsafe || !seen.add(relative)) continue;
+
+                File destination = new File(projectDir, relative);
+                String canonicalDestination = destination.getCanonicalPath();
+                if (!canonicalDestination.startsWith(canonicalProject + File.separator)) continue;
+                File parent = destination.getParentFile();
+                if (parent == null && !projectDir.isDirectory()) continue;
+                if (parent != null && !parent.isDirectory() && !parent.mkdirs() && !parent.isDirectory()) continue;
+
+                String contents = matcher.group(2);
+                try (FileOutputStream output = new FileOutputStream(destination)) {
+                    output.write(contents.getBytes(StandardCharsets.UTF_8));
+                    output.flush();
+                }
+                registerGeneratedFileForEditor(projectId + "/" + relative, contents);
+                saved++;
+            }
+            if (saved > 0) prefs.edit().putString("last_generated_project", projectId).apply();
+        } catch (Exception error) {
+            android.util.Log.e("KellvynProjectStore", "Falha ao salvar arquivos gerados", error);
+            return 0;
+        }
+        return saved;
+    }
+
+    private String projectSlug(String prompt) {
+        String slug = prompt.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]+", "-").replaceAll("^-+|-+$", "");
+        if (slug.length() > 36) slug = slug.substring(0, 36);
+        if (slug.isEmpty()) slug = "projeto";
+        return slug + "-" + Long.toString(System.currentTimeMillis(), 36);
+    }
+
+    private void registerGeneratedFileForEditor(String label, String contents) {
+        ArrayList<String> names = readEditorFileNames();
+        if (!names.contains(label)) names.add(0, label);
+        if (names.size() > 60) names = new ArrayList<>(names.subList(0, 60));
+        JSONArray array = new JSONArray();
+        for (String name : names) array.put(name);
+        prefs.edit().putString("editor:" + label, contents).putString("editor_files", array.toString()).apply();
     }
 
     private void addNavItem(LinearLayout parent, String glyph, String label, Runnable action) {
