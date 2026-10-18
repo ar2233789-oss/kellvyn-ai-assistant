@@ -12,6 +12,7 @@ import android.content.SharedPreferences;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Path;
 import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Bundle;
@@ -917,6 +918,7 @@ public class MainActivity extends Activity {
         PopupMenu popup = new PopupMenu(this, findViewById(android.R.id.content));
         popup.getMenu().add("Configurações");
         popup.getMenu().add("Cor da interface");
+        popup.getMenu().add("Efeito na tela");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
         webAccess.setCheckable(true);
         webAccess.setChecked(isWebAccessEnabled());
@@ -924,6 +926,7 @@ public class MainActivity extends Activity {
         popup.setOnMenuItemClickListener(item -> {
             String label = item.getTitle().toString();
             if (label.equals("Cor da interface")) showPalette();
+            else if (label.equals("Efeito na tela")) showEffectSettings();
             else if (label.equals("Acesso à Web")) toggleWebAccess();
             else if (label.equals("Proteção da IA")) new AlertDialog.Builder(this).setTitle("Proteção da IA")
                     .setMessage("A proteção visual está disponível. Controles avançados de proteção do motor de IA dependem da integração do cérebro.")
@@ -949,6 +952,80 @@ public class MainActivity extends Activity {
         toast(enabled
                 ? "Acesso à Web ativado. Perguntas compatíveis podem consultar a Wikipédia em português."
                 : "Acesso à Web desativado. As mensagens não farão consultas externas.");
+    }
+
+    private static final String[] EFFECT_IDS = {"chuva", "neve", "folhas", "raios", "nenhum"};
+    private static final String[] EFFECT_LABELS = {"Chuva", "Neve", "Folhas", "Raios", "Nenhum"};
+
+    private Set<String> readEffectOptions() {
+        Set<String> selected = new HashSet<>();
+        String raw = prefs.getString("visual_effects", "");
+        if (raw.isEmpty()) {
+            selected.add("chuva");
+            return selected;
+        }
+        try {
+            JSONArray saved = new JSONArray(raw);
+            for (int i = 0; i < saved.length(); i++) {
+                String id = saved.optString(i, "");
+                for (String allowed : EFFECT_IDS) {
+                    if (allowed.equals(id)) selected.add(id);
+                }
+            }
+        } catch (Exception ignored) {}
+        if (selected.isEmpty()) selected.add("nenhum");
+        if (selected.contains("nenhum")) {
+            selected.clear();
+            selected.add("nenhum");
+        }
+        return selected;
+    }
+
+    private Set<String> renderEffectSet() {
+        Set<String> selected = readEffectOptions();
+        if (selected.contains("nenhum")) return new HashSet<>();
+        return selected;
+    }
+
+    private void saveEffectOptions(Set<String> selected) {
+        Set<String> normalized = new HashSet<>(selected);
+        if (normalized.contains("nenhum") || normalized.isEmpty()) {
+            normalized.clear();
+            normalized.add("nenhum");
+        }
+        JSONArray stored = new JSONArray();
+        for (String id : EFFECT_IDS) if (normalized.contains(id)) stored.put(id);
+        prefs.edit().putString("visual_effects", stored.toString()).apply();
+        if (rain != null) rain.setEffects(renderEffectSet());
+    }
+
+    private void showEffectSettings() {
+        Set<String> saved = readEffectOptions();
+        boolean[] checked = new boolean[EFFECT_IDS.length];
+        for (int i = 0; i < EFFECT_IDS.length; i++) checked[i] = saved.contains(EFFECT_IDS[i]);
+        Set<String> selected = new HashSet<>(saved);
+        new AlertDialog.Builder(this).setTitle("Efeito na tela")
+                .setMultiChoiceItems(EFFECT_LABELS, checked, (dialog, which, isChecked) -> {
+                    String id = EFFECT_IDS[which];
+                    if ("nenhum".equals(id)) {
+                        selected.clear();
+                        if (isChecked) selected.add("nenhum");
+                        return;
+                    }
+                    if (isChecked) {
+                        selected.remove("nenhum");
+                        selected.add(id);
+                    } else {
+                        selected.remove(id);
+                    }
+                })
+                .setPositiveButton("Aplicar", (dialog, which) -> {
+                    saveEffectOptions(selected);
+                    toast(selected.contains("nenhum")
+                            ? "Efeitos visuais desativados."
+                            : "Efeitos visuais atualizados.");
+                })
+                .setNegativeButton("Cancelar", null).show();
     }
 
     private void showPalette() {
@@ -1070,12 +1147,35 @@ public class MainActivity extends Activity {
 
     private class RainView extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint leafPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
         private final int count = 48;
+        private final int particleCount = 42;
         private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count];
+        private final float[] px = new float[particleCount], py = new float[particleCount];
+        private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
+        private final float[] boltX = new float[15], boltY = new float[15];
+        private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
-        RainView() { super(MainActivity.this); }
+        private int flashFrames = 0;
+        private long nextLightningAt = 0L;
+
+        RainView() {
+            super(MainActivity.this);
+            flashPaint.setColor(0x18DDE8FF);
+            activeEffects = renderEffectSet();
+        }
+
+        void setEffects(Set<String> effects) {
+            activeEffects = new HashSet<>(effects);
+            if (activeEffects.contains("raios") && nextLightningAt == 0L) {
+                nextLightningAt = System.currentTimeMillis() + 1200L;
+            }
+            invalidate();
+        }
+
         private void init() {
             for (int i=0;i<count;i++) {
                 x[i] = (float)Math.random()*Math.max(1,getWidth());
@@ -1083,24 +1183,105 @@ public class MainActivity extends Activity {
                 speed[i] = dp(2) + (float)Math.random()*dp(4);
                 len[i] = dp(7) + (float)Math.random()*dp(15);
             }
+            for (int i=0;i<particleCount;i++) {
+                px[i] = (float)Math.random()*Math.max(1,getWidth());
+                py[i] = (float)Math.random()*Math.max(1,getHeight());
+                pspeed[i] = dp(1) + (float)Math.random()*dp(2.4f);
+                psize[i] = dp(1) + (float)Math.random()*dp(2.3f);
+                prot[i] = (float)Math.random()*360f;
+                protSpeed[i] = -2.5f + (float)Math.random()*5f;
+            }
             initialized = true;
         }
-        void start() { if (!running) { running = true; h.post(frame); } }
-        void stop() { running = false; h.removeCallbacks(frame); }
-        @Override protected void onDraw(Canvas c) {
-            super.onDraw(c);
-            if (getWidth() == 0 || getHeight() == 0) return;
-            if (!initialized) init();
+
+        private void drawRain(Canvas c) {
             p.setStrokeWidth(dp(1));
             for (int i=0;i<count;i++) {
                 p.setColor(i%5==0 ? 0x3B5BC3A2 : 0x1D90A89C);
                 c.drawLine(x[i], y[i], x[i]-dp(1), y[i]+len[i], p);
                 if (running) {
                     y[i] += speed[i];
-                    if (y[i] > getHeight()) { y[i] = -len[i]; x[i] = (float)Math.random()*getWidth(); }
+                    if (y[i] > getHeight()) {
+                        y[i] = -len[i];
+                        x[i] = (float)Math.random()*getWidth();
+                    }
                 }
             }
-            if (running) h.postDelayed(frame, 45);
+        }
+
+        private void drawSnow(Canvas c) {
+            p.setColor(0xBBDDEEFF);
+            for (int i=0;i<particleCount;i++) {
+                c.drawCircle(px[i], py[i], psize[i], p);
+                if (running) {
+                    py[i] += pspeed[i];
+                    px[i] += (float)Math.sin((py[i] + i) * 0.015f) * dp(0.4f);
+                    if (py[i] > getHeight() + psize[i]) {
+                        py[i] = -psize[i];
+                        px[i] = (float)Math.random()*getWidth();
+                    }
+                }
+            }
+        }
+
+        private void drawLeaves(Canvas c) {
+            for (int i=0;i<particleCount/2;i++) {
+                c.save();
+                c.rotate(prot[i], px[i], py[i]);
+                leafPaint.setColor(new int[]{0xCCB66C36, 0xCC8E5B28, 0xCC8F9A45, 0xCCCB924D}[i%4]);
+                c.drawOval(px[i]-psize[i]*2.5f, py[i]-psize[i], px[i]+psize[i]*2.5f, py[i]+psize[i], leafPaint);
+                c.restore();
+                if (running) {
+                    py[i] += pspeed[i] * 1.15f;
+                    px[i] += (float)Math.sin(py[i] * 0.012f) * dp(0.8f);
+                    prot[i] += protSpeed[i];
+                    if (py[i] > getHeight() + dp(12)) {
+                        py[i] = -dp(12);
+                        px[i] = (float)Math.random()*getWidth();
+                    }
+                }
+            }
+        }
+
+        private void drawLightning(Canvas c) {
+            long now = System.currentTimeMillis();
+            if (flashFrames <= 0 && now >= nextLightningAt) {
+                float bx = getWidth() * (0.2f + (float)Math.random()*0.6f);
+                float by = 0f;
+                for (int i=0;i<boltX.length;i++) {
+                    boltX[i] = bx;
+                    boltY[i] = by;
+                    bx += (-getWidth()*0.055f + (float)Math.random()*getWidth()*0.11f);
+                    by += getHeight() / (float)(boltX.length - 1);
+                }
+                flashFrames = 3;
+                nextLightningAt = now + 3500L + (long)(Math.random()*5500L);
+            }
+            if (flashFrames > 0) {
+                c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
+                p.setColor(0xFFEAF1FF);
+                p.setStrokeWidth(dp(1.8f));
+                p.setShadowLayer(dp(12), 0, 0, 0xFF9DB8FF);
+                Path path = new Path();
+                path.moveTo(boltX[0], boltY[0]);
+                for (int i=1;i<boltX.length;i++) path.lineTo(boltX[i], boltY[i]);
+                c.drawPath(path, p);
+                p.clearShadowLayer();
+                flashFrames--;
+            }
+        }
+
+        void start() { if (!running) { running = true; h.post(frame); } }
+        void stop() { running = false; h.removeCallbacks(frame); }
+        @Override protected void onDraw(Canvas c) {
+            super.onDraw(c);
+            if (getWidth() == 0 || getHeight() == 0) return;
+            if (!initialized) init();
+            if (activeEffects.contains("chuva")) drawRain(c);
+            if (activeEffects.contains("neve")) drawSnow(c);
+            if (activeEffects.contains("folhas")) drawLeaves(c);
+            if (activeEffects.contains("raios")) drawLightning(c);
+            if (running && !activeEffects.isEmpty()) h.postDelayed(frame, 45);
         }
     }
 }
