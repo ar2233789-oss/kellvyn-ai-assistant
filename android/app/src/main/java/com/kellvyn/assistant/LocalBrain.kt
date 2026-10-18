@@ -26,6 +26,8 @@ import java.io.InputStream
 import java.io.InputStreamReader
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
+import org.json.JSONObject
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.zip.ZipInputStream
@@ -101,7 +103,8 @@ class LocalBrain(context: Context) {
         activeJob = scope.launch {
             try {
                 ensureModel(listener)
-                val input = prepareInput(prompt, attachmentUri, attachmentName, listener)
+                val promptWithWebContext = attachWebContextWhenEnabled(prompt, attachmentUri, listener)
+                val input = prepareInput(promptWithWebContext, attachmentUri, attachmentName, listener)
                 val activeConversation = withContext(Dispatchers.IO) { getConversation(listener) }
                 if (input.containsImages && !supportsVision) {
                     throw IllegalStateException("O motor deste aparelho iniciou em modo somente texto. Não foi possível analisar essa imagem/PDF; envie uma mensagem de texto ou tente novamente após reiniciar o app.")
@@ -139,6 +142,73 @@ class LocalBrain(context: Context) {
 
     private fun reportStatus(listener: Listener, message: String) {
         mainHandler.post { listener.onStatus(message) }
+    }
+
+    /**
+     * Uses the phone's current internet connection only when the existing Web-access setting is enabled.
+     * This free implementation retrieves public Portuguese Wikipedia excerpts; it is not a general web crawler.
+     */
+    private suspend fun attachWebContextWhenEnabled(
+        prompt: String,
+        attachmentUri: Uri?,
+        listener: Listener
+    ): String {
+        val enabled = app.getSharedPreferences("kellvyn_native", Context.MODE_PRIVATE)
+            .getBoolean("web_access", false)
+        if (!enabled || attachmentUri != null || !isLookupRequest(prompt)) return prompt
+
+        reportStatus(listener, "CONSULTANDO WEB (WIKIPÉDIA)")
+        val context = withContext(Dispatchers.IO) { fetchWikipediaContext(prompt) }
+        if (context.isBlank()) return prompt
+
+        return "Contexto recuperado da Wikipédia em português. A fonte externa pode estar incompleta ou desatualizada; " +
+            "use-a como apoio e informe quando a resposta depender desse contexto.\n\n" +
+            context + "\n\nPergunta do usuário:\n" + prompt
+    }
+
+    private fun isLookupRequest(prompt: String): Boolean {
+        val query = prompt.trim()
+        if (query.isEmpty() || query.length > 300) return false
+        if (Regex("(?i)\\b(crie|criar|faça|fazer|gere|gerar|desenvolva|construa)\\b.{0,80}\\b(app|aplicativo|bot|jogo|site|programa|script|api)\\b")
+                .containsMatchIn(query)) return false
+        return query.contains("?") || Regex(
+            "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise)|pesquise|pesquisa sobre|fale sobre|explique)\\b"
+        ).containsMatchIn(query)
+    }
+
+    private fun fetchWikipediaContext(query: String): String {
+        var connection: HttpURLConnection? = null
+        return try {
+            val encoded = URLEncoder.encode(query, "UTF-8")
+            val url = URL(
+                "https://pt.wikipedia.org/w/api.php?action=query&format=json&origin=*&generator=search" +
+                    "&gsrsearch=" + encoded + "&gsrlimit=3&prop=extracts&exintro=1&explaintext=1&exchars=1000"
+            )
+            connection = (url.openConnection() as HttpURLConnection).apply {
+                connectTimeout = WEB_TIMEOUT_MS
+                readTimeout = WEB_TIMEOUT_MS
+                requestMethod = "GET"
+                setRequestProperty("User-Agent", "KellvynIA-Android/1.1 (local on-device assistant)")
+            }
+            if (connection.responseCode != HttpURLConnection.HTTP_OK) return ""
+            val body = connection.inputStream.use { readLimitedText(it, MAX_WEB_RESPONSE_CHARS) }
+            val pages = JSONObject(body).optJSONObject("query")?.optJSONObject("pages") ?: return ""
+            val keys = pages.keys()
+            val excerpts = ArrayList<Pair<Int, String>>()
+            while (keys.hasNext()) {
+                val page = pages.optJSONObject(keys.next()) ?: continue
+                val extract = page.optString("extract", "").trim()
+                if (extract.isEmpty()) continue
+                val title = page.optString("title", "Wikipédia")
+                excerpts.add(page.optInt("index", 99) to "[$title] $extract")
+            }
+            excerpts.sortedBy { it.first }.take(3).joinToString("\n\n") { it.second }
+        } catch (error: Exception) {
+            Log.w(TAG, "Consulta à Wikipédia não disponível; seguindo sem contexto Web", error)
+            ""
+        } finally {
+            connection?.disconnect()
+        }
     }
 
     private suspend fun ensureModel(listener: Listener): File = withContext(Dispatchers.IO) {
@@ -545,6 +615,8 @@ class LocalBrain(context: Context) {
         private const val MAX_PDF_HEIGHT = 1800
         private const val MAX_IMAGE_BYTES = 20_000_000L
         private const val MAX_ATTACHMENT_CHARS = 120_000
+        private const val WEB_TIMEOUT_MS = 6_000
+        private const val MAX_WEB_RESPONSE_CHARS = 90_000
         private val IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif")
         private val TEXT_EXTENSIONS = setOf(
             "txt", "md", "json", "csv", "xml", "html", "css", "java", "kt", "ts", "tsx",
@@ -553,7 +625,7 @@ class LocalBrain(context: Context) {
 
         private const val SYSTEM_PROMPT = """Você é Kellvyn IA, uma única assistente de inteligência artificial. Responda em português brasileiro, de forma direta e natural, a menos que peçam outro idioma.
 
-Seja útil em conversa, raciocínio, explicações e programação. Para pedidos de código, dê soluções completas e explique limitações importantes. Não diga que criou, instalou, compilou, pesquisou na Web ou executou algo se isso não ocorreu por uma função real do aplicativo. Não invente acesso a arquivos: use apenas o conteúdo efetivamente recebido no contexto. Se um arquivo não puder ser lido, diga isso claramente. Você não tem ferramentas de execução de terminal, criação de APK, publicação em GitHub nem acesso à Web integrado nesta versão; não finja executar essas ações. O acesso ao navegador externo do Android não significa que você pesquisou na Web.
+Seja útil em conversa, raciocínio, explicações e programação. Para pedidos de código, dê soluções completas e explique limitações importantes. Não diga que criou, instalou, compilou, pesquisou na Web ou executou algo se isso não ocorreu por uma função real do aplicativo. Não invente acesso a arquivos: use apenas o conteúdo efetivamente recebido no contexto. Se um arquivo não puder ser lido, diga isso claramente. O acesso à Web do cérebro local só consulta trechos públicos da Wikipédia em português quando o usuário o habilita nas configurações; essa busca é limitada e não equivale a pesquisar toda a Internet. Só diga que consultou essa fonte se o contexto correspondente tiver sido realmente anexado ao pedido. O navegador externo e a geração local de texto não significam, por si só, que ferramentas externas foram executadas.
 
 Sua identidade é Kellvyn IA; não se identifique como Google, Google DeepMind, OpenAI ou outra empresa. Mantenha o foco no pedido atual e não despeje listas de suas próprias funções sem necessidade."""
     }
