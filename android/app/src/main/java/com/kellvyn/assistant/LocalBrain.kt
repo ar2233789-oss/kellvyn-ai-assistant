@@ -1,0 +1,539 @@
+package com.kellvyn.assistant
+
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.pdf.PdfRenderer
+import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.os.ParcelFileDescriptor
+import android.os.StatFs
+import android.text.Html
+import android.util.Log
+import com.google.ai.edge.litertlm.Backend
+import com.google.ai.edge.litertlm.Content
+import com.google.ai.edge.litertlm.Contents
+import com.google.ai.edge.litertlm.Conversation
+import com.google.ai.edge.litertlm.ConversationConfig
+import com.google.ai.edge.litertlm.Engine
+import com.google.ai.edge.litertlm.EngineConfig
+import com.google.ai.edge.litertlm.SamplerConfig
+import java.io.BufferedInputStream
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+import java.util.Locale
+import java.util.zip.ZipInputStream
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+
+/**
+ * Motor de IA local da Kellvyn. O modelo é baixado somente depois de o usuário autorizar.
+ * Após o download, o processamento de texto e das imagens suportadas ocorre no aparelho.
+ */
+class LocalBrain(context: Context) {
+    interface Listener {
+        fun onStatus(message: String)
+        fun onPartial(text: String)
+        fun onComplete(text: String, backend: String)
+        fun onError(message: String)
+    }
+
+    private data class PreparedInput(val contents: Contents, val containsImages: Boolean)
+
+    private val app = context.applicationContext
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val engineLock = Any()
+    @Volatile private var engine: Engine? = null
+    @Volatile private var conversation: Conversation? = null
+    @Volatile private var backendName = "GPU"
+    @Volatile private var supportsVision = false
+    private var activeJob: Job? = null
+
+    private val modelFile = File(app.filesDir, MODEL_NAME)
+    private val partialFile = File(app.filesDir, MODEL_NAME + ".download")
+    private val readyFile = File(app.filesDir, MODEL_NAME + ".verified")
+
+    fun hasModel(): Boolean =
+        readyFile.isFile && modelFile.isFile && modelFile.length() >= MIN_MODEL_BYTES
+
+    fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
+        if (activeJob?.isActive == true) {
+            listener.onError("A Kellvyn já está processando outra mensagem. Aguarde a resposta atual.")
+            return
+        }
+        activeJob = scope.launch {
+            try {
+                ensureModel(listener)
+                val input = prepareInput(prompt, attachmentUri, attachmentName, listener)
+                val activeConversation = getConversation(listener)
+                if (input.containsImages && !supportsVision) {
+                    throw IllegalStateException("O motor deste aparelho iniciou em modo somente texto. Não foi possível analisar essa imagem/PDF; envie uma mensagem de texto ou tente novamente após reiniciar o app.")
+                }
+                reportStatus(listener, "GERANDO RESPOSTA LOCAL")
+                val output = StringBuilder()
+                activeConversation.sendMessageAsync(input.contents, maxOutputToken = MAX_OUTPUT_TOKENS).collect { message ->
+                    val chunk = message.toString()
+                    if (chunk.isNotEmpty()) {
+                        output.append(chunk)
+                        withContext(Dispatchers.Main.immediate) {
+                            listener.onPartial(output.toString())
+                        }
+                    }
+                }
+                val finalText = output.toString().trim()
+                if (finalText.isEmpty()) {
+                    throw IllegalStateException("O modelo local terminou sem produzir uma resposta. Tente novamente.")
+                }
+                withContext(Dispatchers.Main.immediate) {
+                    listener.onComplete(finalText, backendName)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                Log.e(TAG, "Falha no motor local da Kellvyn", error)
+                val message = error.message?.takeIf { it.isNotBlank() }
+                    ?: "Falha desconhecida ao iniciar o modelo local."
+                withContext(Dispatchers.Main.immediate) {
+                    listener.onError(message)
+                }
+            }
+        }
+    }
+
+    private fun reportStatus(listener: Listener, message: String) {
+        mainHandler.post { listener.onStatus(message) }
+    }
+
+    private suspend fun ensureModel(listener: Listener): File = withContext(Dispatchers.IO) {
+        if (modelFile.isFile && modelFile.length() >= MIN_MODEL_BYTES) {
+            if (readyFile.isFile && readyFile.readText().trim() == MODEL_SHA256) {
+                return@withContext modelFile
+            }
+            reportStatus(listener, "VERIFICANDO MODELO LOCAL")
+            val currentHash = sha256(modelFile)
+            if (currentHash == MODEL_SHA256) {
+                readyFile.writeText(MODEL_SHA256)
+                return@withContext modelFile
+            }
+            modelFile.delete()
+            readyFile.delete()
+        }
+
+        val storage = StatFs(app.filesDir.absolutePath)
+        val resumeAt = partialFile.length()
+        val requiredBytes = (MIN_MODEL_BYTES - resumeAt).coerceAtLeast(0L) + STORAGE_MARGIN_BYTES
+        if (storage.availableBytes < requiredBytes) {
+            throw IOException("Há pouco espaço livre para baixar o modelo de IA de aproximadamente 2,01 GB. Libere espaço e tente novamente.")
+        }
+
+        reportStatus(listener, "CONECTANDO PARA BAIXAR O MODELO")
+        val connection = (URL(MODEL_URL).openConnection() as HttpURLConnection).apply {
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            instanceFollowRedirects = true
+            setRequestProperty("User-Agent", "KellvynIA-Android/1.0")
+            if (resumeAt > 0L) setRequestProperty("Range", "bytes=" + resumeAt + "-")
+        }
+
+        try {
+            val response = connection.responseCode
+            var append = resumeAt > 0L && response == HttpURLConnection.HTTP_PARTIAL
+            var actualOffset = resumeAt
+            if (response == HttpURLConnection.HTTP_OK && resumeAt > 0L) {
+                // Server ignored Range; replace the partial file with the full response.
+                partialFile.delete()
+                actualOffset = 0L
+                append = false
+            } else if (response == 416 && resumeAt >= MIN_MODEL_BYTES) {
+                if (sha256(partialFile) == MODEL_SHA256) {
+                    finishModelDownload()
+                    return@withContext modelFile
+                }
+                partialFile.delete()
+                throw IOException("O download parcial do modelo não passou na verificação. Tente baixar novamente.")
+            } else if (response != HttpURLConnection.HTTP_OK && response != HttpURLConnection.HTTP_PARTIAL) {
+                throw IOException("O servidor do modelo respondeu HTTP " + response + ". Verifique sua internet e tente novamente.")
+            }
+
+            val contentRange = connection.getHeaderField("Content-Range")
+            val totalFromRange = contentRange?.substringAfterLast("/")?.toLongOrNull()
+            val contentLength = connection.contentLengthLong
+            val totalBytes = totalFromRange ?: if (contentLength > 0L) contentLength + if (append) actualOffset else 0L else 0L
+
+            val digest = MessageDigest.getInstance("SHA-256")
+            if (append && actualOffset > 0L) {
+                partialFile.inputStream().buffered().use { input ->
+                    val buf = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val read = input.read(buf)
+                        if (read < 0) break
+                        digest.update(buf, 0, read)
+                    }
+                }
+            }
+
+            var downloaded = actualOffset
+            var lastPercent = -1
+            FileOutputStream(partialFile, append).use { output ->
+                connection.inputStream.buffered().use { input ->
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    while (true) {
+                        currentCoroutineContext().ensureActive()
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        output.write(buffer, 0, read)
+                        digest.update(buffer, 0, read)
+                        downloaded += read
+                        if (totalBytes > 0L) {
+                            val percent = ((downloaded * 100L) / totalBytes).toInt().coerceIn(0, 99)
+                            if (percent != lastPercent && (percent % 2 == 0 || percent == 1)) {
+                                lastPercent = percent
+                                reportStatus(listener, "BAIXANDO MODELO LOCAL: " + percent + "%")
+                            }
+                        } else if (downloaded % PROGRESS_CHUNK_BYTES < read) {
+                            reportStatus(listener, "BAIXANDO MODELO LOCAL: " + (downloaded / 1_000_000L) + " MB")
+                        }
+                    }
+                }
+            }
+
+            if (partialFile.length() < MIN_MODEL_BYTES) {
+                throw IOException("O download do modelo foi interrompido. Envie a mensagem novamente para continuar de onde parou.")
+            }
+            if (totalBytes > 0L && partialFile.length() != totalBytes) {
+                throw IOException("O tamanho do modelo baixado não corresponde ao arquivo esperado. Envie a mensagem novamente para retomar o download.")
+            }
+
+            val downloadedHash = digest.digest().toHexString()
+            if (downloadedHash != MODEL_SHA256) {
+                partialFile.delete()
+                throw IOException("A verificação de integridade do modelo falhou. O arquivo parcial foi descartado; tente novamente.")
+            }
+
+            finishModelDownload()
+            reportStatus(listener, "MODELO LOCAL BAIXADO E VERIFICADO")
+            modelFile
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun finishModelDownload() {
+        if (modelFile.exists()) modelFile.delete()
+        if (!partialFile.renameTo(modelFile)) {
+            partialFile.copyTo(modelFile, overwrite = true)
+            partialFile.delete()
+        }
+        readyFile.writeText(MODEL_SHA256)
+    }
+
+    private fun getConversation(listener: Listener): Conversation {
+        conversation?.let { return it }
+        synchronized(engineLock) {
+            conversation?.let { return it }
+            reportStatus(listener, "INICIANDO MOTOR LOCAL")
+            var selectedEngine: Engine? = null
+            var vision = false
+            var backend = "GPU"
+
+            try {
+                selectedEngine = createEngine(Backend.GPU(), enableVision = true)
+                vision = true
+                backend = "GPU"
+            } catch (gpuError: Exception) {
+                Log.w(TAG, "Inicialização multimodal GPU falhou; tentando CPU multimodal", gpuError)
+                safeClose(selectedEngine)
+                selectedEngine = null
+                try {
+                    selectedEngine = createEngine(Backend.CPU(threadCount = 4), enableVision = true)
+                    vision = true
+                    backend = "CPU"
+                } catch (cpuVisionError: Exception) {
+                    Log.w(TAG, "Inicialização multimodal CPU falhou; tentando texto no CPU", cpuVisionError)
+                    safeClose(selectedEngine)
+                    selectedEngine = null
+                    selectedEngine = try {
+                        createEngine(Backend.CPU(threadCount = 4), enableVision = false)
+                    } catch (textError: Exception) {
+                        safeClose(selectedEngine)
+                        throw IOException("Não foi possível iniciar o Gemma no GPU nem no CPU deste aparelho. Detalhe: " + (textError.message ?: "erro de inicialização"), textError)
+                    }
+                    vision = false
+                    backend = "CPU"
+                }
+            }
+
+            engine = selectedEngine
+            backendName = backend
+            supportsVision = vision
+            reportStatus(listener, if (vision) "MOTOR LOCAL " + backend + " PRONTO" else "MOTOR LOCAL CPU PRONTO (SOMENTE TEXTO)")
+            val config = ConversationConfig(
+                systemInstruction = Contents.of(SYSTEM_PROMPT),
+                samplerConfig = SamplerConfig(topK = 40, topP = 0.9, temperature = 0.65),
+                prefillPrefaceOnInit = true,
+                maxOutputToken = MAX_OUTPUT_TOKENS
+            )
+            val created = try {
+                selectedEngine!!.createConversation(config)
+            } catch (error: Exception) {
+                safeClose(selectedEngine)
+                engine = null
+                throw IOException("O motor iniciou, mas não conseguiu criar a conversa. " + (error.message ?: ""), error)
+            }
+            conversation = created
+            return created
+        }
+    }
+
+    private fun createEngine(backend: Backend, enableVision: Boolean): Engine {
+        val created = Engine(
+            EngineConfig(
+                modelPath = modelFile.absolutePath,
+                backend = backend,
+                visionBackend = if (enableVision) backend else null,
+                maxNumTokens = MAX_CONTEXT_TOKENS,
+                maxNumImages = if (enableVision) MAX_IMAGES else null,
+                cacheDir = app.cacheDir.absolutePath
+            )
+        )
+        try {
+            created.initialize()
+            return created
+        } catch (error: Exception) {
+            safeClose(created)
+            throw error
+        }
+    }
+
+    private fun safeClose(candidate: Engine?) {
+        if (candidate != null) {
+            try {
+                if (candidate.isInitialized()) candidate.close()
+            } catch (_: Exception) {
+                // Initialization failure may leave the native engine partially unavailable.
+            }
+        }
+    }
+
+    private suspend fun prepareInput(
+        prompt: String,
+        uri: Uri?,
+        name: String?,
+        listener: Listener
+    ): PreparedInput = withContext(Dispatchers.IO) {
+        if (uri == null) return@withContext PreparedInput(Contents.of(prompt), false)
+        reportStatus(listener, "LENDO ANEXO LOCAL")
+        val mime = app.contentResolver.getType(uri)?.lowercase(Locale.ROOT) ?: ""
+        val ext = name?.substringAfterLast('.', "")?.lowercase(Locale.ROOT) ?: ""
+
+        if (mime.startsWith("image/") || ext in IMAGE_EXTENSIONS) {
+            val file = copyAttachmentToCache(uri, ext.ifBlank { "img" })
+            return@withContext PreparedInput(Contents.of(listOf(Content.Text(prompt), Content.ImageFile(file.absolutePath))), true)
+        }
+
+        if (mime == "application/pdf" || ext == "pdf") {
+            val pages = renderPdfPages(uri)
+            if (pages.isEmpty()) throw IOException("Não foi possível renderizar páginas legíveis desse PDF.")
+            val notice = if (pages.size == MAX_PDF_PAGES) {
+                prompt + "\n\nNota: foram incluídas apenas as primeiras " + MAX_PDF_PAGES + " páginas do PDF para respeitar os limites de memória do celular."
+            } else prompt
+            val content = ArrayList<Content>()
+            content.add(Content.Text(notice))
+            pages.forEach { content.add(Content.ImageFile(it.absolutePath)) }
+            return@withContext PreparedInput(Contents.of(content), true)
+        }
+
+        if (ext == "docx") {
+            val extracted = readDocx(uri)
+            val contextText = prompt + "\n\nConteúdo extraído do DOCX (pode estar limitado):\n" + extracted
+            return@withContext PreparedInput(Contents.of(contextText), false)
+        }
+
+        if (mime.startsWith("text/") || ext in TEXT_EXTENSIONS || mime == "application/json") {
+            val extracted = app.contentResolver.openInputStream(uri)?.use { readLimitedText(it, MAX_ATTACHMENT_CHARS) }
+                ?: throw IOException("Não foi possível abrir o texto do anexo.")
+            if (extracted.isBlank()) throw IOException("O arquivo de texto está vazio ou não contém texto legível.")
+            return@withContext PreparedInput(
+                Contents.of(prompt + "\n\nConteúdo do arquivo " + (name ?: "anexado") + ":\n" + extracted),
+                false
+            )
+        }
+
+        throw IOException("O arquivo " + (name ?: "selecionado") + " foi selecionado, mas este app ainda não consegue extrair seu conteúdo. Não foi enviado conteúdo desse arquivo à IA.")
+    }
+
+    private fun copyAttachmentToCache(uri: Uri, extension: String): File {
+        val safeExtension = extension.filter { it.isLetterOrDigit() }.take(8).ifBlank { "img" }
+        val destination = File(app.cacheDir, "kellvyn-image-" + System.nanoTime() + "." + safeExtension)
+        app.contentResolver.openInputStream(uri).use { input ->
+            if (input == null) throw IOException("Não foi possível abrir a imagem anexada.")
+            FileOutputStream(destination).use { output ->
+                val buffer = ByteArray(BUFFER_SIZE)
+                var total = 0L
+                while (true) {
+                    val read = input.read(buffer)
+                    if (read < 0) break
+                    total += read
+                    if (total > MAX_IMAGE_BYTES) {
+                        destination.delete()
+                        throw IOException("Esta imagem excede o limite de " + (MAX_IMAGE_BYTES / 1_000_000L) + " MB para análise local.")
+                    }
+                    output.write(buffer, 0, read)
+                }
+            }
+        }
+        return destination
+    }
+
+    private fun renderPdfPages(uri: Uri): List<File> {
+        val descriptor: ParcelFileDescriptor = app.contentResolver.openFileDescriptor(uri, "r")
+            ?: throw IOException("Não foi possível abrir o PDF.")
+        val rendered = ArrayList<File>()
+        try {
+            PdfRenderer(descriptor).use { pdf ->
+                val pageCount = minOf(pdf.pageCount, MAX_PDF_PAGES)
+                for (index in 0 until pageCount) {
+                    pdf.openPage(index).use { page ->
+                        val scale = minOf(1f, MAX_PDF_WIDTH.toFloat() / page.width, MAX_PDF_HEIGHT.toFloat() / page.height)
+                        val width = (page.width * scale).toInt().coerceAtLeast(1)
+                        val height = (page.height * scale).toInt().coerceAtLeast(1)
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        try {
+                            page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            val output = File(app.cacheDir, "kellvyn-pdf-" + System.nanoTime() + "-" + index + ".png")
+                            FileOutputStream(output).use { stream ->
+                                if (!bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)) {
+                                    throw IOException("Falha ao preparar uma página do PDF.")
+                                }
+                            }
+                            rendered.add(output)
+                        } finally {
+                            bitmap.recycle()
+                        }
+                    }
+                }
+                if (pdf.pageCount > MAX_PDF_PAGES) {
+                    Log.i(TAG, "PDF tem " + pdf.pageCount + " páginas; apenas " + MAX_PDF_PAGES + " serão analisadas.")
+                }
+            }
+        } finally {
+            try { descriptor.close() } catch (_: Exception) {}
+        }
+        return rendered
+    }
+
+    private fun readDocx(uri: Uri): String {
+        app.contentResolver.openInputStream(uri).use { raw ->
+            if (raw == null) throw IOException("Não foi possível abrir o documento DOCX.")
+            ZipInputStream(BufferedInputStream(raw)).use { zip ->
+                while (true) {
+                    val entry = zip.nextEntry ?: break
+                    if (entry.name == "word/document.xml") {
+                        val xml = readLimitedText(zip, MAX_ATTACHMENT_CHARS * 4)
+                        val text = Regex("<w:t(?:\\s[^>]*)?>(.*?)</w:t>", setOf(RegexOption.DOT_MATCHES_ALL))
+                            .findAll(xml)
+                            .joinToString(" ") { decodeXml(it.groupValues[1]) }
+                        if (text.isNotBlank()) return text.take(MAX_ATTACHMENT_CHARS)
+                    }
+                    zip.closeEntry()
+                }
+            }
+        }
+        throw IOException("Não encontrei texto legível no documento DOCX.")
+    }
+
+    private fun decodeXml(value: String): String =
+        value.replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">")
+            .replace("&quot;", "\"").replace("&apos;", "'")
+
+    private fun readLimitedText(input: InputStream, limit: Int): String {
+        val reader = InputStreamReader(input, Charsets.UTF_8)
+        val output = StringBuilder()
+        val buffer = CharArray(8192)
+        while (output.length < limit) {
+            val wanted = minOf(buffer.size, limit - output.length)
+            val read = reader.read(buffer, 0, wanted)
+            if (read < 0) break
+            output.append(buffer, 0, read)
+        }
+        return output.toString()
+    }
+
+    private fun sha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        file.inputStream().buffered(BUFFER_SIZE).use { input ->
+            val buffer = ByteArray(BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().toHexString()
+    }
+
+    private fun ByteArray.toHexString(): String = joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+
+    fun close() {
+        val currentConversation = conversation
+        val currentEngine = engine
+        conversation = null
+        engine = null
+        scope.cancel()
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            try { currentConversation?.close() } catch (_: Exception) {}
+            try {
+                if (currentEngine?.isInitialized() == true) currentEngine.close()
+            } catch (_: Exception) {}
+        }
+    }
+
+    companion object {
+        private const val TAG = "KellvynLocalBrain"
+        private const val MODEL_NAME = "gemma-4-E2B-it-gpu.litertlm"
+        private const val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-gpu.litertlm"
+        private const val MODEL_SHA256 = "a53a59001894c58e6bdb5b9b227709f91a2e3e556baa7d85acf9c55402ba5cf5"
+        private const val MIN_MODEL_BYTES = 1_900_000_000L
+        private const val STORAGE_MARGIN_BYTES = 150_000_000L
+        private const val CONNECT_TIMEOUT_MS = 30_000
+        private const val READ_TIMEOUT_MS = 90_000
+        private const val BUFFER_SIZE = 64 * 1024
+        private const val PROGRESS_CHUNK_BYTES = 25_000_000L
+        private const val MAX_CONTEXT_TOKENS = 4096
+        private const val MAX_OUTPUT_TOKENS = 768
+        private const val MAX_IMAGES = 3
+        private const val MAX_PDF_PAGES = 3
+        private const val MAX_PDF_WIDTH = 1280
+        private const val MAX_PDF_HEIGHT = 1800
+        private const val MAX_IMAGE_BYTES = 20_000_000L
+        private const val MAX_ATTACHMENT_CHARS = 120_000
+        private val IMAGE_EXTENSIONS = setOf("png", "jpg", "jpeg", "webp", "bmp", "gif")
+        private val TEXT_EXTENSIONS = setOf(
+            "txt", "md", "json", "csv", "xml", "html", "css", "java", "kt", "ts", "tsx",
+            "js", "jsx", "py", "log", "yaml", "yml", "toml"
+        )
+
+        private const val SYSTEM_PROMPT = """Você é Kellvyn IA, uma única assistente de inteligência artificial. Responda em português brasileiro, de forma direta e natural, a menos que peçam outro idioma.
+
+Seja útil em conversa, raciocínio, explicações e programação. Para pedidos de código, dê soluções completas e explique limitações importantes. Não diga que criou, instalou, compilou, pesquisou na Web ou executou algo se isso não ocorreu por uma função real do aplicativo. Não invente acesso a arquivos: use apenas o conteúdo efetivamente recebido no contexto. Se um arquivo não puder ser lido, diga isso claramente. Você não tem ferramentas de execução de terminal, criação de APK, publicação em GitHub nem acesso à Web integrado nesta versão; não finja executar essas ações. O acesso ao navegador externo do Android não significa que você pesquisou na Web.
+
+Sua identidade é Kellvyn IA; não se identifique como Google, Google DeepMind, OpenAI ou outra empresa. Mantenha o foco no pedido atual e não despeje listas de suas próprias funções sem necessidade."""
+    }
+}
