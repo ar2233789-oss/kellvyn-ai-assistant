@@ -69,13 +69,18 @@ class LocalBrain(context: Context) {
     @Volatile private var backendName = "GPU"
     @Volatile private var supportsVision = false
     private var activeJob: Job? = null
+    private var conversationCloseJob: Job? = null
 
     private val modelFile = File(app.filesDir, MODEL_NAME)
     private val partialFile = File(app.filesDir, MODEL_NAME + ".download")
     private val readyFile = File(app.filesDir, MODEL_NAME + ".verified")
 
-    fun hasModel(): Boolean =
-        readyFile.isFile && modelFile.isFile && modelFile.length() >= MIN_MODEL_BYTES
+    fun hasModel(): Boolean = try {
+        readyFile.isFile && modelFile.isFile &&
+            NativeModelPolicy.isVerified(modelFile.length(), readyFile.readText())
+    } catch (_: IOException) {
+        false
+    }
 
     /** True when this process still holds the active in-memory conversation. */
     fun hasActiveConversation(): Boolean = conversation != null
@@ -88,7 +93,7 @@ class LocalBrain(context: Context) {
             current
         }
         if (previous != null) {
-            scope.launch(Dispatchers.IO) {
+            conversationCloseJob = scope.launch(Dispatchers.IO) {
                 try {
                     previous.close()
                 } catch (error: Exception) {
@@ -101,20 +106,8 @@ class LocalBrain(context: Context) {
     /** Bot runtime helper: wait until the previous reply and conversation are safely closed. */
     suspend fun resetConversationAndWait() {
         activeJob?.join()
-        val previous = synchronized(engineLock) {
-            val current = conversation
-            conversation = null
-            current
-        }
-        if (previous != null) {
-            withContext(Dispatchers.IO) {
-                try {
-                    previous.close()
-                } catch (error: Exception) {
-                    Log.w(TAG, "Não foi possível encerrar a conversa anterior", error)
-                }
-            }
-        }
+        resetConversation()
+        conversationCloseJob?.join()
     }
 
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
@@ -124,6 +117,7 @@ class LocalBrain(context: Context) {
         }
         activeJob = scope.launch {
             try {
+                conversationCloseJob?.join()
                 ensureModel(listener)
                 val promptWithWebContext = attachWebContextWhenEnabled(prompt, attachmentUri, listener)
                 val input = prepareInput(promptWithWebContext, attachmentUri, attachmentName, listener)
@@ -152,6 +146,8 @@ class LocalBrain(context: Context) {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
+                // Failed prefill/generation must not leave a poisoned native session for the next turn.
+                resetConversation()
                 Log.e(TAG, "Falha no motor local da Kellvyn", error)
                 val message = error.message?.takeIf { it.isNotBlank() }
                     ?: "Falha desconhecida ao iniciar o modelo local."
@@ -335,7 +331,7 @@ class LocalBrain(context: Context) {
     }
 
     private suspend fun ensureModel(listener: Listener): File = withContext(Dispatchers.IO) {
-        if (modelFile.isFile && modelFile.length() >= MIN_MODEL_BYTES) {
+        if (modelFile.isFile && modelFile.length() == MIN_MODEL_BYTES) {
             if (readyFile.isFile && readyFile.readText().trim() == MODEL_SHA256) {
                 return@withContext modelFile
             }
@@ -350,6 +346,7 @@ class LocalBrain(context: Context) {
         }
 
         val storage = StatFs(app.filesDir.absolutePath)
+        if (partialFile.length() > MIN_MODEL_BYTES) partialFile.delete()
         val resumeAt = partialFile.length()
         val requiredBytes = (MIN_MODEL_BYTES - resumeAt).coerceAtLeast(0L) + STORAGE_MARGIN_BYTES
         if (storage.availableBytes < requiredBytes) {
@@ -367,7 +364,7 @@ class LocalBrain(context: Context) {
 
         try {
             val response = connection.responseCode
-            var append = resumeAt > 0L && response == HttpURLConnection.HTTP_PARTIAL
+            var append = NativeModelPolicy.canAppend(resumeAt, response, connection.getHeaderField("Content-Range"))
             var actualOffset = resumeAt
             if (response == HttpURLConnection.HTTP_OK && resumeAt > 0L) {
                 // Server ignored Range; replace the partial file with the full response.
@@ -383,6 +380,10 @@ class LocalBrain(context: Context) {
                 throw IOException("O download parcial do modelo não passou na verificação. Tente baixar novamente.")
             } else if (response != HttpURLConnection.HTTP_OK && response != HttpURLConnection.HTTP_PARTIAL) {
                 throw IOException("O servidor do modelo respondeu HTTP " + response + ". Verifique sua internet e tente novamente.")
+            }
+            if (response == HttpURLConnection.HTTP_PARTIAL && !append) {
+                partialFile.delete()
+                throw IOException("O servidor retornou um trecho incompatível com o download salvo. Tente novamente para baixar o arquivo completo.")
             }
 
             val contentRange = connection.getHeaderField("Content-Range")
@@ -428,7 +429,7 @@ class LocalBrain(context: Context) {
                 }
             }
 
-            if (partialFile.length() < MIN_MODEL_BYTES) {
+            if (partialFile.length() != MIN_MODEL_BYTES) {
                 throw IOException("O download do modelo foi interrompido. Envie a mensagem novamente para continuar de onde parou.")
             }
             if (totalBytes > 0L && partialFile.length() != totalBytes) {
@@ -463,10 +464,11 @@ class LocalBrain(context: Context) {
         synchronized(engineLock) {
             conversation?.let { return it }
             reportStatus(listener, "INICIANDO MOTOR LOCAL")
-            var selectedEngine: Engine? = null
-            var vision = false
-            var backend = "GPU"
+            var selectedEngine: Engine? = engine
+            var vision = supportsVision
+            var backend = backendName
 
+            if (selectedEngine == null) {
             try {
                 selectedEngine = createEngine(Backend.GPU(), enableVision = true)
                 vision = true
@@ -493,11 +495,11 @@ class LocalBrain(context: Context) {
                     backend = "CPU"
                 }
             }
+            }
 
             engine = selectedEngine
             backendName = backend
             supportsVision = vision
-            reportStatus(listener, if (vision) "MOTOR LOCAL " + backend + " PRONTO" else "MOTOR LOCAL CPU PRONTO (SOMENTE TEXTO)")
             val config = ConversationConfig(
                 systemInstruction = Contents.of(SYSTEM_PROMPT),
                 samplerConfig = SamplerConfig(topK = 40, topP = 0.9, temperature = 0.65),
@@ -505,13 +507,15 @@ class LocalBrain(context: Context) {
                 maxOutputToken = MAX_OUTPUT_TOKENS
             )
             val created = try {
-                selectedEngine!!.createConversation(config)
+                val readyEngine = selectedEngine ?: throw IOException("O motor local não foi inicializado.")
+                readyEngine.createConversation(config)
             } catch (error: Exception) {
                 safeClose(selectedEngine)
                 engine = null
                 throw IOException("O motor iniciou, mas não conseguiu criar a conversa. " + (error.message ?: ""), error)
             }
             conversation = created
+            reportStatus(listener, if (vision) "MOTOR LOCAL " + backend + " PRONTO" else "MOTOR LOCAL CPU PRONTO (SOMENTE TEXTO)")
             return created
         }
     }
@@ -706,12 +710,16 @@ class LocalBrain(context: Context) {
     private fun ByteArray.toHexString(): String = joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
 
     fun close() {
+        val pendingReply = activeJob
+        val pendingClose = conversationCloseJob
         val currentConversation = conversation
         val currentEngine = engine
         conversation = null
         engine = null
         scope.cancel()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            pendingReply?.join()
+            pendingClose?.join()
             try { currentConversation?.close() } catch (_: Exception) {}
             try {
                 if (currentEngine?.isInitialized() == true) currentEngine.close()
@@ -722,9 +730,9 @@ class LocalBrain(context: Context) {
     companion object {
         private const val TAG = "KellvynLocalBrain"
         private const val MODEL_NAME = "gemma-4-E2B-it-gpu.litertlm"
-        private const val MODEL_URL = "https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/main/gemma-4-E2B-it-gpu.litertlm"
-        private const val MODEL_SHA256 = "a53a59001894c58e6bdb5b9b227709f91a2e3e556baa7d85acf9c55402ba5cf5"
-        private const val MIN_MODEL_BYTES = 1_900_000_000L
+        private const val MODEL_URL = NativeModelPolicy.MODEL_URL
+        private const val MODEL_SHA256 = NativeModelPolicy.MODEL_SHA256
+        private const val MIN_MODEL_BYTES = NativeModelPolicy.MODEL_BYTES
         private const val STORAGE_MARGIN_BYTES = 150_000_000L
         private const val CONNECT_TIMEOUT_MS = 30_000
         private const val READ_TIMEOUT_MS = 90_000

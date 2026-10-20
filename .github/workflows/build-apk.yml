@@ -50,7 +50,7 @@ jobs:
 
       - name: Compile native Android APK
         working-directory: android
-        run: gradle assembleDebug --no-daemon
+        run: gradle testDebugUnitTest assembleDebug --no-daemon
 
       - name: Verify APK package and signature
         shell: bash
