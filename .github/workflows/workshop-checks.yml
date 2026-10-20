@@ -83,6 +83,31 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+  blender-toolchain:
+    name: Testar modelagem e animação 3D via Blender
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Blender no runner
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Criar e exportar uma cena 3D animada de teste
+        run: |
+          mkdir -p out
+          blender --background --factory-startup --python workshop/blender/smoke_test.py -- --output-dir out
+
+      - name: Guardar GLB e manifesto do teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: kellvyn-3d-animation-smoke
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
   release-apk:
     name: Publicar APK direto em GitHub Releases (somente tags v*)
     runs-on: ubuntu-latest
