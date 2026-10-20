@@ -26,19 +26,25 @@ internal class LocalProjectBuilder(context: Context) {
     fun addCompilerContract(prompt: String): String =
         if (isNativeApkRequest(prompt)) prompt + "\n\n" + GeneratedProjectOutputParser.nativeBuildInstruction() else prompt
 
+    fun hasPendingLicenseAcceptance(prompt: String): Boolean =
+        GeneratedProjectOutputParser.isExactSdkLicenseAcceptance(prompt) &&
+            !preferences.getString(PENDING_PROJECT_ID, null).isNullOrBlank()
+
     suspend fun handleSdkLicenseAcceptance(
         prompt: String,
+        onBeforeBuild: suspend () -> Unit,
         onProgress: (String) -> Unit
     ): String? {
         if (!GeneratedProjectOutputParser.isExactSdkLicenseAcceptance(prompt)) return null
         val projectId = preferences.getString(PENDING_PROJECT_ID, null)?.takeIf { it.isNotBlank() } ?: return null
         compiler.acceptSdkLicense()
-        return buildProject(projectId, onProgress)
+        return buildProject(projectId, onBeforeBuild, onProgress)
     }
 
     suspend fun compileGeneratedProject(
         prompt: String,
         response: String,
+        onBeforeBuild: suspend () -> Unit,
         onProgress: (String) -> Unit
     ): String? {
         if (!isNativeApkRequest(prompt)) return null
@@ -86,10 +92,15 @@ internal class LocalProjectBuilder(context: Context) {
                 "Leia os termos oficiais do Android SDK antes de aceitar. Se concordar, responda exatamente: " +
                 "ACEITO A LICENÇA DO ANDROID SDK"
         }
-        return buildProject(project.id, onProgress)
+        return buildProject(project.id, onBeforeBuild, onProgress)
     }
 
-    private suspend fun buildProject(projectId: String, onProgress: (String) -> Unit): String {
+    private suspend fun buildProject(
+        projectId: String,
+        onBeforeBuild: suspend () -> Unit,
+        onProgress: (String) -> Unit
+    ): String {
+        onBeforeBuild()
         return when (val result = compiler.build(projectId, onProgress)) {
             is LocalApkBuildResult.Success -> {
                 val project = workspace.getProject(projectId)
