@@ -67,7 +67,7 @@ export const storage = {
     return {
       ...DEFAULT_SETTINGS,
       ...(saved as Partial<Settings>),
-      effect: normalizeEffects(saved.effect ?? DEFAULT_SETTINGS.effect),
+      effect: normalizeEffects(saved["effect"] ?? DEFAULT_SETTINGS.effect),
     };
   },
   saveSettings: (s: Settings) => write("kv.settings", s),
