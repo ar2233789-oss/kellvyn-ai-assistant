@@ -16,6 +16,6 @@ class ProtectionPolicyTest {
         assertTrue(effective.startsWith(base))
         assertTrue(effective.contains("dados não confiáveis"))
         assertTrue(effective.contains("tokens"))
-        assertTrue(effective.contains("não simular sucesso"))
+        assertTrue(effective.contains("em vez de simular sucesso"))
     }
 }
