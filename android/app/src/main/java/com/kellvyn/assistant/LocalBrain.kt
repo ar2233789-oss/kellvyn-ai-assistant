@@ -70,6 +70,7 @@ class LocalBrain(context: Context) {
     @Volatile private var supportsVision = false
     private var activeJob: Job? = null
     private var conversationCloseJob: Job? = null
+    @Volatile private var activeProtectionEnabled: Boolean? = null
 
     private val modelFile = File(app.filesDir, MODEL_NAME)
     private val partialFile = File(app.filesDir, MODEL_NAME + ".download")
@@ -90,6 +91,7 @@ class LocalBrain(context: Context) {
         val previous = synchronized(engineLock) {
             val current = conversation
             conversation = null
+            activeProtectionEnabled = null
             current
         }
         if (previous != null) {
@@ -118,6 +120,12 @@ class LocalBrain(context: Context) {
         activeJob = scope.launch {
             try {
                 conversationCloseJob?.join()
+                val protectionEnabled = app.getSharedPreferences("kellvyn_native", Context.MODE_PRIVATE)
+                    .getBoolean("protection", false)
+                if (conversation != null && activeProtectionEnabled != protectionEnabled) {
+                    resetConversation()
+                    conversationCloseJob?.join()
+                }
                 ensureModel(listener)
                 val promptWithWebContext = attachWebContextWhenEnabled(prompt, attachmentUri, listener)
                 val input = prepareInput(promptWithWebContext, attachmentUri, attachmentName, listener)
@@ -489,8 +497,10 @@ class LocalBrain(context: Context) {
             engine = selectedEngine
             backendName = backend
             supportsVision = vision
+            val protectionEnabled = app.getSharedPreferences("kellvyn_native", Context.MODE_PRIVATE)
+                .getBoolean("protection", false)
             val config = ConversationConfig(
-                systemInstruction = Contents.of(SYSTEM_PROMPT),
+                systemInstruction = Contents.of(ProtectionPolicy.systemInstruction(SYSTEM_PROMPT, protectionEnabled)),
                 samplerConfig = SamplerConfig(topK = 40, topP = 0.9, temperature = 0.65),
                 prefillPrefaceOnInit = true,
                 maxOutputToken = MAX_OUTPUT_TOKENS
@@ -504,6 +514,7 @@ class LocalBrain(context: Context) {
                 throw IOException("O motor iniciou, mas não conseguiu criar a conversa. " + (error.message ?: ""), error)
             }
             conversation = created
+            activeProtectionEnabled = protectionEnabled
             reportStatus(listener, if (vision) "MOTOR LOCAL " + backend + " PRONTO" else "MOTOR LOCAL CPU PRONTO (SOMENTE TEXTO)")
             return created
         }
