@@ -84,14 +84,14 @@ Esse artefato é um **APK de diagnóstico/debug**, não uma declaração de vers
 
 Observações de build:
 - O projeto usa `android/settings.gradle` e `android/app/build.gradle` Groovy. Não há Gradle Wrapper; o CI instala Gradle 8.13.
-- A branch de oficina contém também `android/settings.gradle.kts` e `android/build.gradle.kts` duplicados. O workflow APK que passou usou os arquivos Groovy. Revisar a necessidade dos arquivos KTS duplicados antes de depender deles.
+- Foram removidos da branch da oficina os arquivos `android/settings.gradle.kts` e `android/build.gradle.kts` duplicados, para manter uma única configuração Gradle coerente com o build verificado.
 - Uma release direta `.apk` só deve ser criada em versão intencional depois das validações em aparelho e com identidade/assinatura de distribuição decididas. Não publicar automaticamente um build de diagnóstico como final.
 
 ## 5. Próximas etapas, em ordem
 
 - [x] Localizar e catalogar a camada Android já existente.
 - [x] Confirmar que o CI compilou os testes e o APK debug, validou o pacote e verificou a assinatura.
-- [ ] Executar e revisar o workflow `workshop-checks.yml` (build/lint/testes web e teste Blender/GLB).
+- [ ] Corrigir o workflow `workshop-checks.yml`: as execuções de 20/10 terminaram em falha imediata sem criar jobs, mesmo após normalizar as versões das Actions e simplificar os gatilhos. O workflow APK separado segue compilando com sucesso.
 - [ ] Identificar sem ambiguidade o projeto Lovable e a captura que Kellvyn definiu como original; não tocar no layout antes disso.
 - [ ] Instalar e abrir o APK de diagnóstico em um Poco F6; guardar logs de inicialização/erros.
 - [ ] Baixar e verificar o modelo no telefone e executar prompts curtos em modo avião após o download.
