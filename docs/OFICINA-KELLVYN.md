@@ -88,3 +88,29 @@ Capacidades a implementar/testar em camadas:
 ## Definição de pronto
 
 A oficina só estará validada quando houver: build reproduzível, CI verde, APK nativo baixável, teste de instalação no Poco F6, regressão visual aprovada, teste de inferência local sem Internet e relatório de cada ferramenta com capacidade/limitações. A compilação mínima de infraestrutura, isoladamente, não satisfaz essa definição.
+
+
+## Entrega direta e ferramenta 3D
+
+O workflow também tem dois caminhos condicionais adicionais:
+
+- **GitHub Release:** ao publicar uma tag de versão `v*`, o job tenta anexar o APK como arquivo `.apk` direto. A publicação falha de forma explícita se o módulo Android ou o artefato não existirem; não será publicado um APK falso nem um ZIP de projeto.
+- **Blender em CI:** `workshop/blender/smoke_test.py` cria uma cena com animação por keyframes e exporta GLB. O workflow salva o GLB e um manifesto como artefatos de teste. Isso comprova o caminho de criação/exportação 3D por script quando o runner executar o teste; ainda não é um editor 3D dentro do APK.
+
+Para o app nativo, a candidata para **visualizar** modelos e animações GLB é [SceneView](https://github.com/sceneview/sceneview), uma biblioteca Android/Jetpack Compose baseada em Filament. Ela é um renderizador/visualizador, não substitui Blender como ferramenta de criação.
+
+Para não confundir os escopos:
+- **Criar e animar ativos 3D:** scripts Python do Blender no runner de CI.
+- **Exibir ativos 3D no Android:** SceneView após o módulo Compose existir.
+- **Animações da interface:** Compose/Lottie conforme apropriado, sem substituir a chuva/raios nem a animação original já pronta.
+- **Reproduzir a interface de uma imagem:** inspeção visual do screenshot e implementação Compose com comparação de regressão (candidata: [Roborazzi](https://github.com/takahirom/roborazzi)); essa etapa espera a captura exata da tela original e o módulo nativo.
+- **Imagem/PDF/voz e geração de imagem:** não contar como implementados até haver integração Android e teste offline/online conforme cada capacidade.
+
+## Entrega direta pelo GitHub
+
+Quando houver uma versão nativa realmente compilável, a sequência prevista é:
+1. o módulo Android `android/` passa pelo `assembleDebug`;
+2. o CI anexa o APK como artefato temporário para inspeção;
+3. somente uma tag intencional `vX.Y.Z` inicia a publicação em GitHub Releases, com o arquivo `.apk` direto.
+
+O workflow está preparado; não há release de APK enquanto o módulo nativo estiver ausente.
