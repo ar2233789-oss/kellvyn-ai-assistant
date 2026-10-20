@@ -31,6 +31,7 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import org.jsoup.Jsoup
 import org.json.JSONObject
+import com.kellvyn.assistant.workspace.LocalProjectBuilder
 import java.security.MessageDigest
 import java.util.Locale
 import java.util.zip.ZipInputStream
@@ -61,6 +62,7 @@ class LocalBrain(context: Context) {
     private data class PreparedInput(val contents: Contents, val containsImages: Boolean)
 
     private val app = context.applicationContext
+    private val localProjectBuilder = LocalProjectBuilder(app)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val engineLock = Any()
@@ -120,6 +122,25 @@ class LocalBrain(context: Context) {
         activeJob = scope.launch {
             try {
                 conversationCloseJob?.join()
+
+                // A user-confirmed SDK license can resume a saved local build without needing
+                // another model inference or sending the confirmation phrase to the model.
+                if (attachmentUri == null && localProjectBuilder.hasPendingLicenseAcceptance(prompt)) {
+                    val buildAnswer = localProjectBuilder.handleSdkLicenseAcceptance(
+                        prompt = prompt,
+                        onBeforeBuild = { releaseModelMemoryForLocalBuild() },
+                        onProgress = { message -> reportStatus(listener, message) }
+                    )
+                    if (buildAnswer != null) {
+                        withContext(Dispatchers.Main.immediate) {
+                            listener.onComplete(buildAnswer, "COMPILADOR ANDROID LOCAL")
+                        }
+                        return@launch
+                    }
+                }
+
+                val nativeBuildRequest = localProjectBuilder.isNativeApkRequest(prompt)
+                val promptForModel = localProjectBuilder.addCompilerContract(prompt)
                 val protectionEnabled = app.getSharedPreferences("kellvyn_native", Context.MODE_PRIVATE)
                     .getBoolean("protection", false)
                 if (conversation != null && activeProtectionEnabled != protectionEnabled) {
@@ -127,7 +148,7 @@ class LocalBrain(context: Context) {
                     conversationCloseJob?.join()
                 }
                 ensureModel(listener)
-                val promptWithWebContext = attachWebContextWhenEnabled(prompt, attachmentUri, listener)
+                val promptWithWebContext = attachWebContextWhenEnabled(promptForModel, attachmentUri, listener)
                 val input = prepareInput(promptWithWebContext, attachmentUri, attachmentName, listener)
                 val activeConversation = withContext(Dispatchers.IO) { getConversation(listener) }
                 if (input.containsImages && !supportsVision) {
@@ -135,12 +156,19 @@ class LocalBrain(context: Context) {
                 }
                 reportStatus(listener, "GERANDO RESPOSTA LOCAL")
                 val output = StringBuilder()
-                activeConversation.sendMessageAsync(input.contents, maxOutputToken = MAX_OUTPUT_TOKENS).collect { message ->
+                activeConversation.sendMessageAsync(
+                    input.contents,
+                    maxOutputToken = if (nativeBuildRequest) MAX_PROJECT_OUTPUT_TOKENS else MAX_OUTPUT_TOKENS
+                ).collect { message ->
                     val chunk = message.toString()
                     if (chunk.isNotEmpty()) {
                         output.append(chunk)
-                        withContext(Dispatchers.Main.immediate) {
-                            listener.onPartial(output.toString())
+                        // Source blocks are kept off the chat stream while the native builder
+                        // validates and compiles. The same existing chat bubble reports real status.
+                        if (!nativeBuildRequest) {
+                            withContext(Dispatchers.Main.immediate) {
+                                listener.onPartial(output.toString())
+                            }
                         }
                     }
                 }
@@ -148,8 +176,20 @@ class LocalBrain(context: Context) {
                 if (finalText.isEmpty()) {
                     throw IllegalStateException("O modelo local terminou sem produzir uma resposta. Tente novamente.")
                 }
+                val buildAnswer = if (nativeBuildRequest) {
+                    localProjectBuilder.compileGeneratedProject(
+                        prompt = prompt,
+                        response = finalText,
+                        onBeforeBuild = { releaseModelMemoryForLocalBuild() },
+                        onProgress = { message -> reportStatus(listener, message) }
+                    )
+                } else null
+                val finalAnswer = buildAnswer ?: finalText
                 withContext(Dispatchers.Main.immediate) {
-                    listener.onComplete(finalText, backendName)
+                    listener.onComplete(
+                        finalAnswer,
+                        if (buildAnswer != null) "COMPILADOR ANDROID LOCAL" else backendName
+                    )
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -162,6 +202,34 @@ class LocalBrain(context: Context) {
                 withContext(Dispatchers.Main.immediate) {
                     listener.onError(message)
                 }
+            }
+        }
+    }
+
+    /**
+     * Release the inference session/model before local DEX packaging to reduce RAM pressure.
+     * The verified model file remains on disk and the next chat turn can initialize it again.
+     */
+    private suspend fun releaseModelMemoryForLocalBuild() {
+        val previous = synchronized(engineLock) {
+            val current = conversation to engine
+            conversation = null
+            engine = null
+            supportsVision = false
+            activeProtectionEnabled = null
+            current
+        }
+        withContext(Dispatchers.IO) {
+            try {
+                previous.first?.close()
+            } catch (error: Exception) {
+                Log.w(TAG, "Não foi possível fechar a conversa antes da compilação local", error)
+            }
+            try {
+                val previousEngine = previous.second
+                if (previousEngine?.isInitialized() == true) previousEngine.close()
+            } catch (error: Exception) {
+                Log.w(TAG, "Não foi possível liberar todo o motor local antes da compilação", error)
             }
         }
     }
@@ -740,6 +808,7 @@ class LocalBrain(context: Context) {
         private const val PROGRESS_CHUNK_BYTES = 25_000_000L
         private const val MAX_CONTEXT_TOKENS = 4096
         private const val MAX_OUTPUT_TOKENS = 768
+        private const val MAX_PROJECT_OUTPUT_TOKENS = 2048
         private const val MAX_IMAGES = 3
         private const val MAX_PDF_PAGES = 3
         private const val MAX_PDF_WIDTH = 1280
