@@ -1,0 +1,78 @@
+name: Oficina Kellvyn — validação e APK nativo
+
+on:
+  push:
+    branches:
+      - main
+      - "workshop/**"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workshop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-quality:
+    name: Validar a base visual atual
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependências usando o lockfile existente
+        run: bun install --frozen-lockfile
+
+      - name: Compilar a base atual
+        run: bun run build
+
+      - name: Verificar lint
+        run: bun run lint
+
+      - name: Executar testes existentes
+        run: bun run test --passWithNoTests
+
+  native-android:
+    name: Compilar APK Android nativo (quando o módulo existir)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Avisar se o módulo nativo ainda não existe
+        if: ${{ hashFiles('android/gradlew') == '' }}
+        run: |
+          echo "::warning::Este repositório ainda não contém android/gradlew. Nenhum APK nativo foi gerado por este job."
+
+      - name: Preparar Java para Gradle
+        if: ${{ hashFiles('android/gradlew') != '' }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Preparar Android SDK
+        if: ${{ hashFiles('android/gradlew') != '' }}
+        uses: android-actions/setup-android@v3
+
+      - name: Compilar APK de depuração
+        if: ${{ hashFiles('android/gradlew') != '' }}
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew --no-daemon --stacktrace assembleDebug
+
+      - name: Publicar APK como artefato baixável
+        if: ${{ hashFiles('android/gradlew') != '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: kellvyn-native-debug-apk
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
