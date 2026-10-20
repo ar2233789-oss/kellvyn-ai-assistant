@@ -48,12 +48,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
-    private static final int BG = Color.rgb(8, 13, 13);
-    private static final int PANEL = Color.rgb(13, 21, 20);
-    private static final int PANEL_ALT = Color.rgb(17, 29, 27);
-    private static final int EMERALD = Color.rgb(32, 205, 143);
-    private static final int TEXT = Color.rgb(235, 242, 239);
-    private static final int MUTED = Color.rgb(133, 155, 147);
+    private static final int BG = Color.rgb(11, 20, 19);
+    private static final int PANEL = Color.rgb(26, 35, 33);
+    private static final int PANEL_ALT = Color.rgb(23, 36, 33);
+    private static final int EMERALD = Color.rgb(56, 230, 188);
+    private static final int TEXT = Color.rgb(227, 238, 236);
+    private static final int MUTED = Color.rgb(145, 155, 154);
     private static final String PREFS = "kellvyn_native";
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
@@ -131,7 +131,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -2, 1);
         brandLp.leftMargin = dp(5);
         header.addView(brand, brandLp);
-        brand.addView(text("Kellvyn Assistente", 18, TEXT, true));
+        brand.addView(text("Kellvyn Assistente", 18, accent, false));
         status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
@@ -162,7 +162,7 @@ public class MainActivity extends Activity {
         composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
         composer = new EditText(this);
-        composer.setHint("Converse ou peça para criar um aplicativo…");
+        composer.setHint("Pergunte qualquer coisa...");
         composer.setHintTextColor(MUTED);
         composer.setTextColor(TEXT);
         composer.setTextSize(14);
@@ -249,26 +249,14 @@ public class MainActivity extends Activity {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
-        welcome.setPadding(dp(8), dp(28), dp(8), dp(24));
-        welcome.addView(new OrbitMark(), new LinearLayout.LayoutParams(dp(112), dp(112)));
-        TextView headline = text("Kellvyn IA", 24, TEXT, true);
-        headline.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(-1, -2);
-        hlp.topMargin = dp(9);
-        welcome.addView(headline, hlp);
-        TextView sub = text("Seu espaço de conversa e criação", 13, MUTED, false);
+        welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
+        welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
+        TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 14, MUTED, false);
         sub.setGravity(Gravity.CENTER);
+        sub.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
-        slp.topMargin = dp(6);
+        slp.topMargin = dp(12);
         welcome.addView(sub, slp);
-        TextView note = text("A interface nativa está pronta para receber o motor de IA. O motor ainda não está instalado; não vou fingir que uma resposta automática é inteligência.", 13, TEXT, false);
-        note.setGravity(Gravity.CENTER);
-        note.setLineSpacing(dp(4), 1f);
-        note.setPadding(dp(10), dp(14), dp(10), dp(14));
-        note.setBackground(roundRect(0xCC0C1714, dp(13), 0x5533C995, dp(1)));
-        LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(-1, -2);
-        nlp.topMargin = dp(22);
-        welcome.addView(note, nlp);
         messages.addView(welcome, new LinearLayout.LayoutParams(-1, -2));
     }
 
@@ -775,13 +763,23 @@ public class MainActivity extends Activity {
     }
 
     private void addNavItem(LinearLayout parent, String glyph, String label, Runnable action) {
-        TextView item = text(glyph + "\n" + label, 10, MUTED, false);
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setIncludeFontPadding(false);
-        item.setMaxLines(2);
-        item.setLineSpacing(dp(1), 1f);
+        item.setPadding(0, dp(3), 0, dp(2));
         item.setContentDescription(label);
         item.setBackground(roundRect(0x00000000, dp(8), 0, 0));
+
+        TextView symbol = text(glyph, 21, accent, false);
+        symbol.setGravity(Gravity.CENTER);
+        symbol.setIncludeFontPadding(false);
+        item.addView(symbol, new LinearLayout.LayoutParams(-1, dp(25)));
+
+        TextView caption = text(label, 10, "AI".equals(label) ? accent : MUTED, false);
+        caption.setGravity(Gravity.CENTER);
+        caption.setIncludeFontPadding(false);
+        item.addView(caption, new LinearLayout.LayoutParams(-1, dp(15)));
+
         item.setOnClickListener(v -> action.run());
         parent.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
     }
@@ -1293,20 +1291,45 @@ public class MainActivity extends Activity {
         super.onDestroy();
     }
 
-    private class OrbitMark extends View {
+    /** Native vector equivalent of the approved Lovable hexagon/K mark. */
+    private class KellvynLogoView extends View {
         private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        OrbitMark() { super(MainActivity.this); }
+        KellvynLogoView() { super(MainActivity.this); setLayerType(View.LAYER_TYPE_SOFTWARE, null); }
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
-            float x = getWidth()/2f, y = getHeight()/2f, r = Math.min(getWidth(), getHeight())*0.34f;
-            p.setColor(accent); p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(dp(1));
-            c.drawCircle(x, y, r, p);
-            c.save(); c.rotate(-35, x, y); c.drawOval(x-r*1.32f,y-r*.46f,x+r*1.32f,y+r*.46f,p); c.restore();
-            c.save(); c.rotate(42, x, y); c.drawOval(x-r*1.28f,y-r*.52f,x+r*1.28f,y+r*.52f,p); c.restore();
-            c.save(); c.rotate(22, x, y); c.drawOval(x-r*.53f,y-r*1.25f,x+r*.53f,y+r*1.25f,p); c.restore();
-            p.setStyle(Paint.Style.FILL); p.setAlpha(220); c.drawCircle(x,y,dp(3),p);
-            p.setAlpha(95); p.setStyle(Paint.Style.STROKE); c.drawCircle(x,y,r*1.43f,p);
-            p.setStyle(Paint.Style.FILL); p.setAlpha(255);
+            float scale = Math.min(getWidth(), getHeight()) / 32f;
+            if (scale <= 0f) return;
+            c.save();
+            c.translate((getWidth() - 32f * scale) / 2f, (getHeight() - 32f * scale) / 2f);
+            c.scale(scale, scale);
+            p.setColor(accent);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(1.8f);
+            p.setStrokeCap(Paint.Cap.ROUND);
+            p.setStrokeJoin(Paint.Join.ROUND);
+            p.setShadowLayer(3.5f, 0f, 0f, accent);
+
+            Path hexagon = new Path();
+            hexagon.moveTo(16f, 2f);
+            hexagon.lineTo(28f, 9f);
+            hexagon.lineTo(28f, 23f);
+            hexagon.lineTo(16f, 30f);
+            hexagon.lineTo(4f, 23f);
+            hexagon.lineTo(4f, 9f);
+            hexagon.close();
+            c.drawPath(hexagon, p);
+
+            p.setStrokeWidth(2.2f);
+            Path k = new Path();
+            k.moveTo(12f, 9f); k.lineTo(12f, 23f);
+            k.moveTo(12f, 16f); k.lineTo(19f, 9f);
+            k.moveTo(12f, 16f); k.lineTo(19f, 23f);
+            c.drawPath(k, p);
+            p.clearShadowLayer();
+
+            p.setStyle(Paint.Style.FILL);
+            c.drawCircle(16f, 16f, 1.4f, p);
+            c.restore();
         }
     }
 
@@ -1316,7 +1339,7 @@ public class MainActivity extends Activity {
         private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
-        private final int count = 48;
+        private final int count = 64;
         private final int particleCount = 42;
         private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count];
         private final float[] px = new float[particleCount], py = new float[particleCount];
@@ -1345,8 +1368,8 @@ public class MainActivity extends Activity {
             for (int i=0;i<count;i++) {
                 x[i] = (float)Math.random()*Math.max(1,getWidth());
                 y[i] = (float)Math.random()*Math.max(1,getHeight());
-                speed[i] = dp(2) + (float)Math.random()*dp(4);
-                len[i] = dp(7) + (float)Math.random()*dp(15);
+                speed[i] = dp(5) + (float)Math.random()*dp(10);
+                len[i] = dp(14) + (float)Math.random()*dp(36);
             }
             for (int i=0;i<particleCount;i++) {
                 px[i] = (float)Math.random()*Math.max(1,getWidth());
@@ -1362,7 +1385,7 @@ public class MainActivity extends Activity {
         private void drawRain(Canvas c) {
             p.setStrokeWidth(dp(1));
             for (int i=0;i<count;i++) {
-                p.setColor(i%5==0 ? 0x3B5BC3A2 : 0x1D90A89C);
+                p.setColor(i%5==0 ? 0x3BDCEBF8 : 0x1DAAC6DC);
                 c.drawLine(x[i], y[i], x[i]-dp(1), y[i]+len[i], p);
                 if (running) {
                     y[i] += speed[i];
@@ -1393,7 +1416,7 @@ public class MainActivity extends Activity {
             for (int i=0;i<particleCount/2;i++) {
                 c.save();
                 c.rotate(prot[i], px[i], py[i]);
-                leafPaint.setColor(new int[]{0xCCB66C36, 0xCC8E5B28, 0xCC8F9A45, 0xCCCB924D}[i%4]);
+                leafPaint.setColor(new int[]{0xCCC9682B, 0xCCD9A441, 0xCC8E3B1F, 0xCCA8B04A}[i%4]);
                 c.drawOval(px[i]-psize[i]*2.5f, py[i]-psize[i], px[i]+psize[i]*2.5f, py[i]+psize[i], leafPaint);
                 c.restore();
                 if (running) {
