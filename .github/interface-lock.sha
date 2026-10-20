@@ -1,0 +1,7 @@
+# Git blob object IDs for the approved Lovable interface.
+# Deliberately update this lock only when the user explicitly approves a UI change.
+799f46b8e431a5c374d4137b62205081b1f93c78 src/components/kellvyn/KellvynApp.tsx
+8e1b01d0f3e77a95f920e5a52048770f9b2aaf40 src/components/kellvyn/DigitalRain.tsx
+6d4a46b6b9462078a97efdf505bfc7e9f4c276b3 src/components/kellvyn/ColorStudio.tsx
+a04d2bffae951ffb221184a08c436af879d098d5 src/components/kellvyn/store.ts
+04ee72845e2ebda8543e874417aa87417ef14f74 src/styles.css
