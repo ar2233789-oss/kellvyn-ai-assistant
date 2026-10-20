@@ -13,10 +13,12 @@ Atualizado em 2026-10-20. Este documento descreve a infraestrutura de construç�
 
 ## O que foi verificado no repositório
 
-- A raiz atual contém uma app React 19 + TypeScript + Vite/TanStack Start e usa `bun.lock`.
-- Há scripts de build, lint e teste no `package.json`.
-- Não foram encontrados `android/gradlew`, módulos Gradle, `AndroidManifest.xml` nativo, configuração Capacitor nem pipeline Android preexistente na raiz pesquisada.
-- Portanto, o repositório de hoje não prova a existência de um APK nativo nem de inferência local de IA.
+- O repositório contém duas camadas: a aplicação web React/TanStack na raiz e um projeto Android nativo em `android/`.
+- A camada nativa inclui `android/settings.gradle`, `android/app/build.gradle`, `MainActivity.java`, `LocalBrain.kt`, `NativeModelPolicy.java` e `BotRuntimeService.kt`.
+- O app nativo declara LiteRT-LM `0.18.0` e prepara o modelo `gemma-4-E2B-it-gpu.litertlm`, com download autorizado pelo usuário, verificação SHA-256 e processamento local depois do download. O arquivo de modelo é aproximadamente 2,01 GB; a performance e a estabilidade ainda precisam ser medidas no Poco F6.
+- Não existe `android/gradlew` nem pasta `android/gradle/wrapper`. Por isso o CI instala Gradle 8.13 diretamente e compila pelo projeto já existente.
+- A interface nativa encontrada é construída por código Java com Android Views e desenho manual. Ela não prova fidelidade visual à interface do Lovable. Não editar a interface até confirmar a captura original e fazer comparação visual.
+- O projeto de referência Lovable acessível pela integração é a versão de ID `05d1c6e7-ffe3-40aa-ab6e-707f6f29f5fb`; o ID `53c2bba5-162c-46c1-baaf-0d5fea3a6c19` fornecido anteriormente não foi localizado nessa conexão. A identidade exata do arquivo de referência continua sendo uma verificação obrigatória.
 - O workspace acessível do Lovable lista um projeto recente chamado **Kellvyn: Assistente IA** (ID `05d1c6e7-ffe3-40aa-ab6e-707f6f29f5fb`). O endereço fornecido anteriormente com ID `53c2bba5-162c-46c1-baaf-0d5fea3a6c19` não foi localizado pela integração; confirmar a fonte exata da interface antes de ligar ou portar componentes.
 
 ## Ferramentas da oficina
@@ -31,7 +33,7 @@ Workflow: [`.github/workflows/workshop-checks.yml`](../.github/workflows/worksho
 
 ### 2. Camada Android nativa
 
-Alvo: Kotlin + Jetpack Compose + Gradle. O código nativo deverá ficar isolado em `android/`, sem reconstruir a interface no branch de produção até a captura visual de referência estar validada.
+A pasta `android/` já contém uma implementação Java/Android Views, um motor Kotlin LiteRT-LM e um serviço para bots. O pipeline compila essa camada sem mudanças visuais. Compose é uma opção para um futuro port controlado caso seja necessário reproduzir com maior fidelidade o layout do Lovable; não se deve trocar a interface existente às cegas. Gradle 8.13 é instalado pelo CI, já que não há Gradle Wrapper no repositório.
 
 Critérios mínimos:
 - instalação em um dispositivo Android real;
@@ -78,16 +80,16 @@ Capacidades a implementar/testar em camadas:
 
 1. Fazer os checks de build/lint/teste passarem na branch isolada.
 2. Confirmar e arquivar a captura correta da interface de referência, sem alterá-la.
-3. Adicionar o projeto Kotlin/Compose e provar que o CI produz um APK nativo mínimo.
-4. Portar a interface para Compose somente com testes visuais comparativos.
-5. Integrar as capacidades internas uma por uma através do despachante único.
-6. Integrar LiteRT-LM e comparar modelos diretamente no Poco F6; manter Web opcional.
-7. Provar recursos de imagem/documentos, geração de imagem, 3D/animação e automações com testes reais.
+3. Compilar a camada Android que já existe e guardar o APK de CI para diagnóstico (não é ainda a versão final).
+4. Comparar a tela nativa atual com a captura Lovable; planejar qualquer ajuste visual em separado, com regressão visual aprovada.
+5. Rodar testes locais com o modelo LiteRT-LM no Poco F6: memória, tempo, temperatura, bateria, português e visão.
+6. Integrar ou reparar capacidades uma por uma através do chat principal, sem controles extras.
+7. Validar o pipeline de Blender/GLB e os testes de UI por captura.
 8. Só então chamar o resultado de APK do Kellvyn pronto.
 
 ## Definição de pronto
 
-A oficina só estará validada quando houver: build reproduzível, CI verde, APK nativo baixável, teste de instalação no Poco F6, regressão visual aprovada, teste de inferência local sem Internet e relatório de cada ferramenta com capacidade/limitações. A compilação mínima de infraestrutura, isoladamente, não satisfaz essa definição.
+A oficina só estará validada quando houver: build web e Android reproduzível, CI verde, APK de diagnóstico baixável em CI, teste de instalação no Poco F6, regressão visual comparando a fonte exata do Lovable, teste de inferência local sem Internet e teste real de exportação Blender/GLB. O APK final só será publicado como arquivo `.apk` direto num GitHub Release após autorização de versão e validações. Um workflow configurado, uma biblioteca adicionada ou um APK de diagnóstico não provam que o app final está pronto.
 
 
 ## Entrega direta e ferramenta 3D
