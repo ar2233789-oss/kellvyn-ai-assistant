@@ -1,4 +1,4 @@
-name: Oficina Kellvyn — validação e APK nativo
+name: Oficina Kellvyn — validação, Android nativo e 3D
 
 on:
   push:
@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   web-quality:
-    name: Validar a base visual atual
+    name: Validar a base web sem reformatar a interface
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
@@ -31,13 +31,13 @@ jobs:
       - name: Instalar dependências usando o lockfile existente
         run: bun install --frozen-lockfile
 
-      - name: Compilar a base atual
+      - name: Compilar a base web
         run: bun run build
 
-      - name: Verificar lint funcional sem bloquear por formatação antiga
+      - name: Verificar lint sem bloquear por formatação antiga
         run: bun run lint --rule 'prettier/prettier: off'
 
-      - name: Relatar divergências de formatação existentes (não bloqueante)
+      - name: Relatar problemas de formatação preexistentes
         continue-on-error: true
         run: bun run lint
 
@@ -45,37 +45,40 @@ jobs:
         run: bun run test --passWithNoTests
 
   native-android:
-    name: Compilar APK Android nativo (quando o módulo existir)
+    name: Compilar o módulo Android existente
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
         uses: actions/checkout@v7
 
-      - name: Avisar se o módulo nativo ainda não existe
-        if: ${{ hashFiles('android/gradlew') == '' }}
+      - name: Confirmar que há projeto Android
+        if: ${{ hashFiles('android/settings.gradle') == '' || hashFiles('android/app/build.gradle') == '' }}
         run: |
-          echo "::warning::Este repositório ainda não contém android/gradlew. Nenhum APK nativo foi gerado por este job."
+          echo "::error::Não foi encontrado android/settings.gradle e android/app/build.gradle; não há projeto Android compilável."
+          exit 1
 
-      - name: Preparar Java para Gradle
-        if: ${{ hashFiles('android/gradlew') != '' }}
-        uses: actions/setup-java@v4
+      - name: Preparar Java
+        uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '17'
 
       - name: Preparar Android SDK
-        if: ${{ hashFiles('android/gradlew') != '' }}
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
 
-      - name: Compilar APK de depuração
-        if: ${{ hashFiles('android/gradlew') != '' }}
+      - name: Instalar SDK e Build Tools exigidos pelo projeto
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Instalar e configurar Gradle sem inventar um wrapper
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '8.13'
+
+      - name: Compilar APK nativo
         working-directory: android
-        run: |
-          chmod +x ./gradlew
-          ./gradlew --no-daemon --stacktrace assembleDebug
+        run: gradle --no-daemon --stacktrace assembleDebug
 
-      - name: Publicar APK como artefato baixável
-        if: ${{ hashFiles('android/gradlew') != '' }}
+      - name: Publicar APK como artefato direto
         uses: actions/upload-artifact@v7
         with:
           name: kellvyn-native-debug-apk
@@ -84,18 +87,18 @@ jobs:
           retention-days: 14
 
   blender-toolchain:
-    name: Testar modelagem e animação 3D via Blender
+    name: Validar criação e exportação de animação 3D
     runs-on: ubuntu-24.04
     steps:
       - name: Baixar o código
         uses: actions/checkout@v7
 
-      - name: Instalar Blender no runner
+      - name: Instalar Blender
         run: |
           sudo apt-get update
           sudo apt-get install -y blender
 
-      - name: Criar e exportar uma cena 3D animada de teste
+      - name: Criar e exportar cena 3D animada de teste
         run: |
           mkdir -p out
           blender --background --factory-startup --python workshop/blender/smoke_test.py -- --output-dir out
@@ -109,7 +112,7 @@ jobs:
           retention-days: 14
 
   release-apk:
-    name: Publicar APK direto em GitHub Releases (somente tags v*)
+    name: Publicar APK direto no GitHub Releases (tags v*)
     runs-on: ubuntu-latest
     needs: native-android
     if: ${{ startsWith(github.ref, 'refs/tags/v') }}
@@ -119,10 +122,10 @@ jobs:
       - name: Baixar o código
         uses: actions/checkout@v7
 
-      - name: Exigir módulo Android nativo real
+      - name: Exigir projeto Android real
         run: |
-          if [ ! -f android/gradlew ]; then
-            echo "::error::Release cancelado: não existe android/gradlew. Nenhum APK nativo foi produzido."
+          if [ ! -f android/settings.gradle ] || [ ! -f android/app/build.gradle ]; then
+            echo "::error::Release cancelado: não há módulo Android compilável."
             exit 1
           fi
 
@@ -132,7 +135,7 @@ jobs:
           name: kellvyn-native-debug-apk
           path: release
 
-      - name: Publicar o APK como arquivo direto do GitHub Release
+      - name: Publicar o arquivo APK direto
         uses: softprops/action-gh-release@v2
         with:
           files: release/*.apk
