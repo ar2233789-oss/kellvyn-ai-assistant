@@ -185,18 +185,7 @@ class LocalBrain(context: Context) {
             context + "\n\nPergunta do usuário:\n" + prompt
     }
 
-    private fun isLookupRequest(prompt: String): Boolean {
-        val query = prompt.trim()
-        if (query.isEmpty() || query.length > 300) return false
-        if (Regex("(?i)\\b(crie|criar|faça|fazer|gere|gerar|desenvolva|construa)\\b.{0,80}\\b(app|aplicativo|bot|jogo|site|programa|script|api)\\b")
-                .containsMatchIn(query)) return false
-        return query.contains("?") ||
-            Regex("(?i)https?://\\\\S+").containsMatchIn(query) ||
-            Regex(
-                "(?i)^(quem|o que|oque|quando|onde|qual|quais|como|por que|porque|quanto|quantos|quantas|me (fale|explique|diga|pesquise|resuma|conte)|pesquise|pesquisa|busque|procure|leia|analise|analisa|not[ií]cia|not[ií]cias|fale sobre|explique|resuma|atualiza[cç][aã]o)\\\\b"
-            ).containsMatchIn(query) ||
-            Regex("(?i)\\\\b(pesquise na internet|pesquise na web|busca na internet|procure na web|leia esta página|resuma este site|notícias de hoje)\\\\b").containsMatchIn(query)
-    }
+    private fun isLookupRequest(prompt: String): Boolean = WebLookupPolicy.isLookupRequest(prompt)
 
     private fun normalizeSearchResultUrl(raw: String): String {
         if (raw.isBlank()) return ""
