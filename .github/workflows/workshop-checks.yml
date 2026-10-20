@@ -1,14 +1,6 @@
 name: Oficina Kellvyn — validação, Android nativo e 3D
 
-on:
-  push:
-    branches:
-      - main
-      - "workshop/**"
-    tags:
-      - "v*"
-  pull_request:
-  workflow_dispatch:
+on: [push, pull_request, workflow_dispatch]
 
 permissions:
   contents: read
