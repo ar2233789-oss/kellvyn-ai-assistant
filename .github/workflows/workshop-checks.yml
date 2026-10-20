@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Preparar Bun
         uses: oven-sh/setup-bun@v2
@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Baixar o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Avisar se o módulo nativo ainda não existe
         if: ${{ hashFiles('android/gradlew') == '' }}
@@ -76,7 +76,7 @@ jobs:
 
       - name: Publicar APK como artefato baixável
         if: ${{ hashFiles('android/gradlew') != '' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kellvyn-native-debug-apk
           path: android/app/build/outputs/apk/debug/*.apk
@@ -88,7 +88,7 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - name: Baixar o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Instalar Blender no runner
         run: |
@@ -101,7 +101,7 @@ jobs:
           blender --background --factory-startup --python workshop/blender/smoke_test.py -- --output-dir out
 
       - name: Guardar GLB e manifesto do teste
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kellvyn-3d-animation-smoke
           path: out/*
@@ -117,7 +117,7 @@ jobs:
       contents: write
     steps:
       - name: Baixar o código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Exigir módulo Android nativo real
         run: |
@@ -127,7 +127,7 @@ jobs:
           fi
 
       - name: Baixar o APK compilado nesta execução
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: kellvyn-native-debug-apk
           path: release
