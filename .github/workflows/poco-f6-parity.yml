@@ -268,27 +268,6 @@ jobs:
           adb shell screencap -p /sdcard/native-screen.png
           adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
           grep -q "Kellvyn Assistente" out/native-ui.xml
-          python3 - out/native-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          labels = " ".join((n.attrib.get("text", "") + " " + n.attrib.get("content-desc", "")) for n in root.iter("node"))
-          required = ["Histórico de conversas", "Configurações", "Anexos e Web", "Ditado por voz", "Enviar", "Navegador", "Editor", "Terminal", "Bots", "Apps"]
-          missing = [label for label in required if label not in labels]
-          if missing:
-              raise SystemExit("Missing native UI controls (text/content-desc): " + ", ".join(missing))
-          bounds = None
-          for node in root.iter("node"):
-              if node.attrib.get("content-desc") == "Configurações":
-                  bounds = node.attrib.get("bounds", "")
-                  break
-          if not bounds:
-              raise SystemExit("Could not locate the header settings three-dot control")
-          nums = bounds.replace("][", ",").strip("[]").split(",")
-          if len(nums) != 4:
-              raise SystemExit("Invalid settings button bounds: " + bounds)
-          x1, y1, x2, y2 = map(int, nums)
-          print((x1+x2)//2, (y1+y2)//2)
-          PY
           SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
