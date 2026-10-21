@@ -13,6 +13,8 @@ on:
     paths:
       - 'android/**'
       - '.github/workflows/build-apk.yml'
+      - '.github/interface-lock.sha'
+      - 'scripts/check-interface-lock.sh'
 
 permissions:
   contents: write
