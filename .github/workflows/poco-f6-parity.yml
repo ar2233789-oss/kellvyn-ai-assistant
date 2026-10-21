@@ -230,12 +230,17 @@ jobs:
             fi
             if grep -q "Pixel Launcher isn't responding" out/native-ui.xml; then
               WAIT_BOUNDS="$(python3 - out/native-ui.xml <<'PY'
-import re, sys
-data = open(sys.argv[1], encoding="utf-8").read()
-m = re.search(r'resource-id="android:id/aerr_wait".*?bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', data)
-if m:
-    x1, y1, x2, y2 = map(int, m.groups())
-    print((x1+x2)//2, (y1+y2)//2)
+import sys
+import xml.etree.ElementTree as ET
+root = ET.parse(sys.argv[1]).getroot()
+for node in root.iter("node"):
+    if node.attrib.get("resource-id") == "android:id/aerr_wait":
+        bounds = node.attrib.get("bounds", "")
+        nums = bounds.replace("][", ",").strip("[]").split(",")
+        if len(nums) == 4 and all(v.isdigit() for v in nums):
+            x1, y1, x2, y2 = map(int, nums)
+            print((x1+x2)//2, (y1+y2)//2)
+        break
 PY
 )"
               if [ -n "$WAIT_BOUNDS" ]; then
