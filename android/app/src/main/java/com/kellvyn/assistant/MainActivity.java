@@ -489,7 +489,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPlusMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor);
+        PopupMenu popup = new PopupMenu(this, anchor, Gravity.END);
         popup.getMenu().add("Imagem ou arquivo");
         popup.getMenu().add("Plugins");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
