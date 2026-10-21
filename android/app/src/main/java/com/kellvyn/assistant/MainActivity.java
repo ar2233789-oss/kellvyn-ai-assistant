@@ -1681,8 +1681,8 @@ public class MainActivity extends Activity {
                     particle = replacement;
                 }
                 if ("neve".equals(particle.kind)) {
-                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
                     rainPaint.setColor(Color.WHITE);
+                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
                     c.drawCircle(particle.x, particle.y, particle.size, rainPaint);
                 } else if ("folhas".equals(particle.kind)) {
                     c.save();
@@ -1693,8 +1693,8 @@ public class MainActivity extends Activity {
                     c.drawOval(-particle.size, -particle.size * 0.45f, particle.size, particle.size * 0.45f, leafPaint);
                     c.restore();
                 } else {
-                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
                     rainPaint.setColor(Color.WHITE);
+                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
                     android.graphics.RectF target = new android.graphics.RectF(
                             particle.x, particle.y - particle.size,
                             particle.x + density * particle.vr * 2f, particle.y);
