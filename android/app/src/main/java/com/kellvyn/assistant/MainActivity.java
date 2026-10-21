@@ -551,7 +551,7 @@ public class MainActivity extends Activity {
 
             @Override public void onPartial(String text) {
                 runOnUiThread(() -> {
-                    hideThinkingIndicator();
+                    // Keep the thinking brain visible while streamed tokens are arriving, as on the web UI.
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
                 });
