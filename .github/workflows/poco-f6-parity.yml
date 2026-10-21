@@ -125,14 +125,19 @@ jobs:
           test -n "$SDKMANAGER"
           export ANDROID_HOME="$SDK_ROOT"
           export ANDROID_SDK_ROOT="$SDK_ROOT"
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           set -o pipefail
           "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
-          echo "no" | "$SDK_ROOT/cmdline-tools/$(ls "$SDK_ROOT/cmdline-tools" | sort -V | tail -n 1)/bin/avdmanager" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device "pixel_7"
-          AVD_CONFIG="$HOME/.android/avd/PocoF6Virtual.avd/config.ini"
+          AVDMANAGER="$(dirname "$SDKMANAGER")/avdmanager"
+          echo "no" | "$AVDMANAGER" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device "pixel_7"
+          AVD_CONFIG="$ANDROID_AVD_HOME/PocoF6Virtual.avd/config.ini"
+          test -f "$AVD_CONFIG"
           cat >> "$AVD_CONFIG" <<'AVD'
           hw.lcd.width=1220
           hw.lcd.height=2712
