@@ -149,6 +149,8 @@ jobs:
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           mkdir -p out
           trap 'cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true' EXIT
+          # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; fi
           "$ANDROID_HOME/emulator/emulator" -avd PocoF6Virtual -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > /tmp/poco-f6-emulator.log 2>&1 &
           EMULATOR_PID=$!
           echo "$EMULATOR_PID" > /tmp/poco-f6-emulator.pid
