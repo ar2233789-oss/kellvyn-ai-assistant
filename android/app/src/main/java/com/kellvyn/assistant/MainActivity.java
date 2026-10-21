@@ -914,7 +914,8 @@ public class MainActivity extends Activity {
             c.save();
             c.translate((getWidth() - 24f * scale) / 2f, (getHeight() - 24f * scale) / 2f);
             c.scale(scale, scale);
-            boolean solid = active || "menu".equals(kind) || "more".equals(kind) || "mic".equals(kind) || "send".equals(kind) || "brain".equals(kind);\n            stroke.setColor(solid ? accent : Color.argb(204, Color.red(accent), Color.green(accent), Color.blue(accent)));
+            boolean solid = active || "menu".equals(kind) || "more".equals(kind) || "mic".equals(kind) || "send".equals(kind) || "brain".equals(kind);
+            stroke.setColor(solid ? accent : Color.argb(204, Color.red(accent), Color.green(accent), Color.blue(accent)));
             stroke.setStyle(Paint.Style.STROKE);
             stroke.setStrokeWidth(1.65f);
             stroke.setStrokeCap(Paint.Cap.ROUND);
