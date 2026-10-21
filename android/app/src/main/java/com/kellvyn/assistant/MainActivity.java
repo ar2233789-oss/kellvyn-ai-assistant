@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         header.setBackgroundColor(0xEE0B1211);
         shell.addView(header, new LinearLayout.LayoutParams(-1, dp(66)));
 
-        TextView menu = iconButton("☰", "Histórico de conversas");
+        TextView menu = iconButton("☰", "Histórico");
         header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
         menu.setOnClickListener(v -> showHistory());
         LinearLayout brand = new LinearLayout(this);
@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
         status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
-        settings.setOnClickListener(v -> showSettingsPanel());
+        settings.setOnClickListener(v -> showSettings(v));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x5533C995);
@@ -489,7 +489,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPlusMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor, Gravity.END);
+        PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Imagem ou arquivo");
         popup.getMenu().add("Plugins");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
@@ -1077,95 +1077,32 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Entendi", null).show();
     }
 
-    private void showSettingsPanel() {
-        // Match the Lovable three-dot action: open the settings sheet directly,
-        // instead of inserting an extra native popup menu before the real settings.
-        android.app.Dialog dialog = new android.app.Dialog(this);
-        LinearLayout sheet = new LinearLayout(this);
-        sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setPadding(dp(18), dp(12), dp(18), dp(18));
-        sheet.setBackground(roundRect(BG, dp(22), 0x6645A989, dp(1)));
-
-        LinearLayout heading = new LinearLayout(this);
-        heading.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = text("CONFIGURAÇÕES DO KELLVYN", 15, TEXT, true);
-        heading.addView(title, new LinearLayout.LayoutParams(0, dp(44), 1));
-        TextView close = iconButton("×", "Fechar configurações");
-        heading.addView(close, new LinearLayout.LayoutParams(dp(42), dp(42)));
-        close.setOnClickListener(v -> dialog.dismiss());
-        sheet.addView(heading);
-
-        ScrollView scroll = new ScrollView(this);
-        scroll.setFillViewport(false);
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
-
-        addSettingsHeading(content, "CORES");
-        addSettingsRow(content, "Cor da interface", "Escolher a cor de destaque", this::showPalette);
-        addSettingsHeading(content, "EFEITO NA TELA");
-        addSettingsRow(content, "Efeitos visuais", "Chuva, neve, folhas e raios", this::showEffectSettings);
-        addSettingsHeading(content, "ATALHOS");
-        addSettingsRow(content, "Histórico de conversas", "Abrir conversas salvas", this::showHistory);
-        addSettingsRow(content, "Acesso à Web", isWebAccessEnabled() ? "Ativado · toque para desativar" : "Desativado · toque para ativar", this::toggleWebAccess);
-        addSettingsHeading(content, "SEGURANÇA");
-        addSettingsRow(content, "Proteção da IA", "Controles de proteção disponíveis", () ->
-                new AlertDialog.Builder(this).setTitle("Proteção da IA")
-                        .setMessage("A proteção visual está disponível. Controles avançados dependem da integração do cérebro.")
-                        .setPositiveButton("Ativar proteção visual", (d, w) -> {
-                            prefs.edit().putBoolean("protection", true).apply();
-                            toast("Proteção visual ativada.");
-                        }).setNegativeButton("Fechar", null).show());
-        sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-
-        dialog.setContentView(sheet);
-        dialog.setCancelable(true);
-        android.view.Window window = dialog.getWindow();
-        if (window != null) {
-            window.setBackgroundDrawableResource(android.R.color.transparent);
-            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
-            WindowManager.LayoutParams params = window.getAttributes();
-            params.gravity = Gravity.BOTTOM;
-            params.width = -1;
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.82f);
-            params.dimAmount = 0.45f;
-            window.setAttributes(params);
-        }
-        dialog.show();
-        if (window != null) {
-            window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * 0.82f));
-            window.setGravity(Gravity.BOTTOM);
-        }
-    }
-
-    private void addSettingsHeading(LinearLayout parent, String label) {
-        TextView heading = text(label, 11, EMERALD, true);
-        heading.setPadding(dp(2), dp(15), dp(2), dp(6));
-        parent.addView(heading, new LinearLayout.LayoutParams(-1, -2));
-    }
-
-    private void addSettingsRow(LinearLayout parent, String label, String description, Runnable action) {
-        LinearLayout row = new LinearLayout(this);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(13), dp(10), dp(13), dp(10));
-        row.setBackground(roundRect(PANEL_ALT, dp(12), 0x5545A989, dp(1)));
-        row.setClickable(true);
-        row.setFocusable(true);
-        LinearLayout labels = new LinearLayout(this);
-        labels.setOrientation(LinearLayout.VERTICAL);
-        labels.addView(text(label, 14, TEXT, true));
-        TextView sub = text(description, 11, MUTED, false);
-        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(-1, -2);
-        subLp.topMargin = dp(3);
-        labels.addView(sub, subLp);
-        row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
-        TextView chevron = text("›", 24, accent, false);
-        chevron.setGravity(Gravity.CENTER);
-        row.addView(chevron, new LinearLayout.LayoutParams(dp(28), dp(34)));
-        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-        rowLp.bottomMargin = dp(7);
-        parent.addView(row, rowLp);
-        row.setOnClickListener(v -> action.run());
+    private void showSettings(View anchor) {
+        PopupMenu popup = new PopupMenu(this, anchor, Gravity.END);
+        popup.getMenu().add("Configurações");
+        popup.getMenu().add("Cor da interface");
+        popup.getMenu().add("Efeito na tela");
+        android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
+        webAccess.setCheckable(true);
+        webAccess.setChecked(isWebAccessEnabled());
+        popup.getMenu().add("Proteção da IA");
+        popup.setOnMenuItemClickListener(item -> {
+            String label = item.getTitle().toString();
+            if (label.equals("Cor da interface")) showPalette();
+            else if (label.equals("Efeito na tela")) showEffectSettings();
+            else if (label.equals("Acesso à Web")) toggleWebAccess();
+            else if (label.equals("Proteção da IA")) new AlertDialog.Builder(this).setTitle("Proteção da IA")
+                    .setMessage("A proteção visual está disponível. Controles avançados de proteção do motor de IA dependem da integração do cérebro.")
+                    .setPositiveButton("Ativar proteção visual", (d, w) -> {
+                        prefs.edit().putBoolean("protection", true).apply();
+                        toast("Proteção visual ativada.");
+                    }).setNegativeButton("Fechar", null).show();
+            else new AlertDialog.Builder(this).setTitle("Configurações")
+                    .setMessage("Kellvyn IA nativa\nTema escuro · cor esmeralda\nHistórico salvo neste aparelho\nMotor local: baixa e inicia sob solicitação\nAcesso à Web: " + (isWebAccessEnabled() ? "ativado (Wikipédia PT)" : "desativado"))
+                    .setPositiveButton("OK", null).show();
+            return true;
+        });
+        popup.show();
     }
 
     private boolean isWebAccessEnabled() {
