@@ -224,11 +224,11 @@ jobs:
             rm -f out/native-ui.xml
             adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
             adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
-            if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -q "Pixel Launcher isn't responding" out/native-ui.xml; then
+            if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -qi "isn't responding" out/native-ui.xml; then
               UI_READY=1
               break
             fi
-            if grep -q "Pixel Launcher isn't responding" out/native-ui.xml; then
+            if grep -qi "isn't responding" out/native-ui.xml; then
               WAIT_BOUNDS="$(python3 - out/native-ui.xml <<'PY'
           import sys
           import xml.etree.ElementTree as ET
