@@ -1,0 +1,196 @@
+name: Poco F6 virtual comparison lab
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "src/components/kellvyn/**"
+      - "src/styles.css"
+      - ".github/workflows/poco-f6-parity.yml"
+  push:
+    branches:
+      - "workshop/infra-review-final-2026-10-20"
+    paths:
+      - "android/**"
+      - "src/components/kellvyn/**"
+      - "src/styles.css"
+      - ".github/workflows/poco-f6-parity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-build-and-capture:
+    name: Web reference build and screenshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Run web tests
+        run: bun run test
+      - name: Build web reference
+        run: bun run build
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Capture web UI at Poco F6 logical viewport
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          bun run dev -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/kellvyn-web.log 2>&1 &
+          echo $! > /tmp/kellvyn-web.pid
+          for n in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:4173/ >/dev/null
+          node --input-type=module <<'NODE'
+          import { chromium } from "playwright";
+          import fs from "node:fs";
+          const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+          const page = await browser.newPage({
+            viewport: { width: 444, height: 986 },
+            deviceScaleFactor: 2.75,
+            isMobile: true,
+            hasTouch: true,
+          });
+          const errors = [];
+          page.on("pageerror", (error) => errors.push(String(error)));
+          await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle", timeout: 60000 });
+          await page.screenshot({ path: "out/web-reference.png", fullPage: false });
+          const metrics = await page.evaluate(() => {
+            const box = (selector) => {
+              const element = document.querySelector(selector);
+              if (!element) return null;
+              const r = element.getBoundingClientRect();
+              return { x: r.x, y: r.y, width: r.width, height: r.height };
+            };
+            const label = (element) =>
+              element.getAttribute("aria-label") ||
+              element.getAttribute("title") ||
+              (element.innerText || "").trim().replace(/\\s+/g, " ").slice(0, 80);
+            return {
+              title: document.title,
+              viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+              header: box("header"),
+              main: box("main"),
+              composer: box("footer"),
+              bottomNav: box("nav"),
+              controls: [...document.querySelectorAll("header button, footer button, nav button")].map((e) => ({
+                label: label(e),
+                rect: (() => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })(),
+              })),
+            };
+          });
+          fs.writeFileSync("out/web-metrics.json", JSON.stringify({ ...metrics, pageErrors: errors }, null, 2));
+          console.log(JSON.stringify({ title: metrics.title, controls: metrics.controls.map((c) => c.label), pageErrors: errors }));
+          await browser.close();
+          NODE
+      - name: Upload web reference capture
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-web-reference
+          path: |
+            out/web-reference.png
+            out/web-metrics.json
+            /tmp/kellvyn-web.log
+          if-no-files-found: error
+          retention-days: 14
+
+  native-emulator-test:
+    name: Android emulator boot, launch, and UI capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Install Android SDK and Poco-like virtual display
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          export ANDROID_HOME="$SDK_ROOT"
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          set -o pipefail
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+          echo "no" | "$SDK_ROOT/cmdline-tools/$(ls "$SDK_ROOT/cmdline-tools" | sort -V | tail -n 1)/bin/avdmanager" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device "pixel_7"
+          AVD_CONFIG="$HOME/.android/avd/PocoF6Virtual.avd/config.ini"
+          cat >> "$AVD_CONFIG" <<'AVD'
+          hw.lcd.width=1220
+          hw.lcd.height=2712
+          hw.lcd.density=440
+          hw.ramSize=8192
+          hw.cpu.ncore=4
+          hw.gpu.enabled=yes
+          hw.gpu.mode=swiftshader_indirect
+          AVD
+      - name: Compile unit tests and native APK
+        working-directory: android
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+      - name: Boot Poco F6-like Android 15 emulator and smoke-test APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          "$ANDROID_HOME/emulator/emulator" -avd PocoF6Virtual -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > /tmp/poco-f6-emulator.log 2>&1 &
+          echo $! > /tmp/poco-f6-emulator.pid
+          adb wait-for-device
+          for n in $(seq 1 120); do
+            BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$BOOTED" = "1" ]; then break; fi
+            sleep 5
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          adb shell wm size 1220x2712
+          adb shell wm density 440
+          adb shell input keyevent 82 || true
+          adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          adb shell am start -W -n com.kellvyn.assistant/.MainActivity
+          sleep 8
+          if adb logcat -d | grep -E "FATAL EXCEPTION|Process: com.kellvyn.assistant" > out/native-crashes.txt; then
+            cat out/native-crashes.txt
+            exit 1
+          fi
+          adb shell uiautomator dump /sdcard/window.xml >/dev/null
+          adb pull /sdcard/window.xml out/native-ui.xml >/dev/null
+          adb shell screencap -p /sdcard/native.png
+          adb pull /sdcard/native.png out/native-screen.png >/dev/null
+          grep -q "Kellvyn Assistente" out/native-ui.xml
+          for label in "Histórico" "Configurações" "Anexos e Web" "Ditado por voz" "Enviar mensagem" "Navegador" "Editor" "Terminal" "Bots" "Apps"; do
+            grep -q "$label" out/native-ui.xml || { echo "Missing native UI control: $label"; exit 1; }
+          done
+          adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          adb shell dumpsys activity activities > out/native-activity.txt
+          echo "PASS: Android 15 AVD configured at 1220x2712 / 440 dpi booted, installed APK, launched MainActivity, captured screenshot/UI hierarchy, checked controls, and found no startup crash."
+      - name: Upload native emulator capture and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: |
+            out/native-screen.png
+            out/native-ui.xml
+            out/native-crashes.txt
+            out/native-meminfo.txt
+            out/native-activity.txt
+            /tmp/poco-f6-emulator.log
+          if-no-files-found: warn
+          retention-days: 14
