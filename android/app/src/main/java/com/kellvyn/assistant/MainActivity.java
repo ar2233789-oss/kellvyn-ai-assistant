@@ -219,7 +219,7 @@ public class MainActivity extends Activity {
         controls.addView(mic, new LinearLayout.LayoutParams(dp(36), dp(36)));
         mic.setOnClickListener(v -> startSpeech());
 
-        FrameLayout send = headerIconButton("send", "Enviar", true);
+        FrameLayout send = headerIconButton("send", "Enviar mensagem", true);
         LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(dp(32), dp(32));
         sendLp.leftMargin = dp(4);
         controls.addView(send, sendLp);
@@ -1478,6 +1478,8 @@ public class MainActivity extends Activity {
         private final Paint leafPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private android.graphics.Shader backgroundTopGlow;
+        private android.graphics.Shader backgroundBottomGlow;
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
         private final int count = 64;
@@ -1602,20 +1604,27 @@ public class MainActivity extends Activity {
 
         void start() { if (!running) { running = true; h.post(frame); } }
         void stop() { running = false; h.removeCallbacks(frame); }
+        @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
+            super.onSizeChanged(w, h, oldw, oldh);
+            if (w <= 0 || h <= 0) return;
+            backgroundTopGlow = new android.graphics.RadialGradient(
+                    w * 0.10f, 0f, h * 0.62f,
+                    new int[]{0x2538E6BC, 0x0038E6BC}, null,
+                    android.graphics.Shader.TileMode.CLAMP);
+            backgroundBottomGlow = new android.graphics.RadialGradient(
+                    w * 0.98f, h, h * 0.55f,
+                    new int[]{0x1A38E6BC, 0x0038E6BC}, null,
+                    android.graphics.Shader.TileMode.CLAMP);
+        }
+
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
             if (getWidth() == 0 || getHeight() == 0) return;
             if (!initialized) init();
 
-            backgroundPaint.setShader(new android.graphics.RadialGradient(
-                    getWidth() * 0.10f, 0f, getHeight() * 0.62f,
-                    new int[]{0x2538E6BC, 0x0038E6BC}, null,
-                    android.graphics.Shader.TileMode.CLAMP));
+            backgroundPaint.setShader(backgroundTopGlow);
             c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
-            backgroundPaint.setShader(new android.graphics.RadialGradient(
-                    getWidth() * 0.98f, getHeight(), getHeight() * 0.55f,
-                    new int[]{0x1A38E6BC, 0x0038E6BC}, null,
-                    android.graphics.Shader.TileMode.CLAMP));
+            backgroundPaint.setShader(backgroundBottomGlow);
             c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
             backgroundPaint.setShader(null);
 
