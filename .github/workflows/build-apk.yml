@@ -55,7 +55,7 @@ jobs:
 
       - name: Compile native Android APK
         working-directory: android
-        run: gradle testDebugUnitTest assembleDebug --no-daemon
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
 
       - name: Verify APK package and signature
         shell: bash
