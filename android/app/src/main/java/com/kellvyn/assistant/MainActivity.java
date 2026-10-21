@@ -73,24 +73,9 @@ public class MainActivity extends Activity {
     private String selectedAttachment = null;
     private Uri selectedAttachmentUri = null;
     private TextView footerStatus;
-    private View footerStatusDot;
     private TextView activeReplyBubble;
-    private View thinkingIndicator;
-    private TextView thinkingLabel;
-    private View thinkingPulse;
+    private TextView thinkingIndicator;
     private ObjectAnimator thinkingAnimator;
-    private ObjectAnimator thinkingTextAnimator;
-    private final Handler thinkingStepHandler = new Handler(android.os.Looper.getMainLooper());
-    private final String[] thinkingSteps = {"Analisando", "Pensando", "Organizando a resposta"};
-    private int thinkingStepIndex = 0;
-    private final Runnable thinkingStepTicker = new Runnable() {
-        @Override public void run() {
-            if (thinkingIndicator == null || thinkingLabel == null) return;
-            thinkingStepIndex = (thinkingStepIndex + 1) % thinkingSteps.length;
-            thinkingLabel.setText(thinkingSteps[thinkingStepIndex] + "…");
-            thinkingStepHandler.postDelayed(this, 900L);
-        }
-    };
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
     private LocalBrain brain;
@@ -131,28 +116,26 @@ public class MainActivity extends Activity {
         shell.setOrientation(LinearLayout.VERTICAL);
         root.addView(shell, new FrameLayout.LayoutParams(-1, -1));
 
-        // Keep the native content measurements aligned with the approved web layout.
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(12), 0, dp(12), dp(10));
-        header.setBackgroundColor(0xEE1A2321);
-        shell.addView(header, new LinearLayout.LayoutParams(-1, dp(46)));
+        header.setPadding(dp(10), dp(7), dp(9), dp(7));
+        header.setBackgroundColor(0xEE0B1211);
+        shell.addView(header, new LinearLayout.LayoutParams(-1, dp(66)));
 
-        FrameLayout menu = headerIconButton("menu", "Histórico de conversas", false);
-        header.addView(menu, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        TextView menu = iconButton("☰", "Histórico");
+        header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
         menu.setOnClickListener(v -> showHistory());
-
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -1, 1);
-        brandLp.leftMargin = dp(12);
+        LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -2, 1);
+        brandLp.leftMargin = dp(5);
         header.addView(brand, brandLp);
         brand.addView(text("Kellvyn Assistente", 18, accent, false));
-
-        FrameLayout settings = headerIconButton("more", "Configurações", false);
-        header.addView(settings, new LinearLayout.LayoutParams(dp(36), dp(36)));
-        settings.setOnClickListener(v -> showSettings());
+        status = null;
+        TextView settings = iconButton("⋮", "Configurações");
+        header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
+        settings.setOnClickListener(v -> showSettingsPanel());
 
         View divider = new View(this);
         divider.setBackgroundColor(0x5533C995);
@@ -161,118 +144,75 @@ public class MainActivity extends Activity {
         chatScroll = new ScrollView(this);
         chatScroll.setFillViewport(true);
         chatScroll.setClipToPadding(false);
-        chatScroll.setPadding(dp(12), dp(16), dp(12), dp(16));
+        chatScroll.setPadding(dp(13), dp(14), dp(13), dp(14));
         shell.addView(chatScroll, new LinearLayout.LayoutParams(-1, 0, 1));
         messages = new LinearLayout(this);
         messages.setOrientation(LinearLayout.VERTICAL);
         chatScroll.addView(messages, new ScrollView.LayoutParams(-1, -2));
 
-        // Web equivalent: one outlined composer containing both the input and its controls.
         LinearLayout composerPanel = new LinearLayout(this);
         composerPanel.setOrientation(LinearLayout.VERTICAL);
-        composerPanel.setPadding(dp(12), dp(4), dp(12), dp(9));
-        composerPanel.setBackgroundColor(Color.TRANSPARENT);
+        composerPanel.setPadding(dp(12), dp(9), dp(12), dp(10));
+        composerPanel.setBackgroundColor(0xF20A1110);
         shell.addView(composerPanel, new LinearLayout.LayoutParams(-1, -2));
 
-        LinearLayout composerCard = new LinearLayout(this);
-        composerCard.setOrientation(LinearLayout.VERTICAL);
-        composerCard.setPadding(dp(8), dp(8), dp(8), dp(8));
-        composerCard.setBackground(roundRect(PANEL, dp(16), 0x8845A989, dp(1)));
-        composerPanel.addView(composerCard, new LinearLayout.LayoutParams(-1, -2));
+        LinearLayout entry = new LinearLayout(this);
+        entry.setGravity(Gravity.CENTER_VERTICAL);
+        entry.setBackground(roundRect(PANEL_ALT, dp(15), 0x8845A989, dp(1)));
+        composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
         composer = new EditText(this);
         composer.setHint("Pergunte qualquer coisa...");
         composer.setHintTextColor(MUTED);
         composer.setTextColor(TEXT);
-        composer.setTextSize(15);
+        composer.setTextSize(14);
         composer.setSingleLine(false);
         composer.setMinLines(1);
         composer.setMaxLines(4);
-        composer.setMinHeight(dp(48));
         composer.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES | InputType.TYPE_TEXT_FLAG_MULTI_LINE);
         composer.setBackgroundColor(Color.TRANSPARENT);
-        composer.setPadding(dp(8), dp(8), dp(8), dp(8));
-        composerCard.addView(composer, new LinearLayout.LayoutParams(-1, -2));
+        composer.setPadding(dp(8), dp(10), dp(8), dp(10));
+        entry.addView(composer, new LinearLayout.LayoutParams(-1, -2));
 
         LinearLayout controls = new LinearLayout(this);
         controls.setGravity(Gravity.CENTER_VERTICAL);
-        composerCard.addView(controls, new LinearLayout.LayoutParams(-1, dp(36)));
+        controls.setPadding(0, dp(4), 0, 0);
+        composerPanel.addView(controls, new LinearLayout.LayoutParams(-1, dp(42)));
 
         TextView plus = iconButton("+", "Anexos e Web");
         plus.setTextSize(25);
-        plus.setIncludeFontPadding(false);
-        controls.addView(plus, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        controls.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(38)));
         plus.setOnClickListener(v -> showPlusMenu(v));
 
-        LinearLayout statusChip = new LinearLayout(this);
-        statusChip.setGravity(Gravity.CENTER_VERTICAL);
-        statusChip.setPadding(dp(8), dp(4), dp(7), dp(4));
-        statusChip.setBackground(roundRect(0x00000000, dp(9), 0x8845A989, dp(1)));
-        LinearLayout.LayoutParams statusChipLp = new LinearLayout.LayoutParams(-2, dp(30));
-        statusChipLp.leftMargin = dp(4);
-        controls.addView(statusChip, statusChipLp);
-        footerStatusDot = new View(this);
-        footerStatusDot.setBackground(roundRect(accent, dp(99), 0, 0));
-        statusChip.addView(footerStatusDot, new LinearLayout.LayoutParams(dp(6), dp(6)));
-        footerStatus = text("Kellvyn", 12, TEXT, false);
+        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, MUTED, false);
         footerStatus.setSingleLine(true);
         footerStatus.setGravity(Gravity.CENTER_VERTICAL);
-        LinearLayout.LayoutParams statusTextLp = new LinearLayout.LayoutParams(-2, -1);
-        statusTextLp.leftMargin = dp(4);
-        statusChip.addView(footerStatus, statusTextLp);
-        TextView chevron = text("⌄", 14, MUTED, false);
-        chevron.setGravity(Gravity.CENTER);
-        LinearLayout.LayoutParams chevronLp = new LinearLayout.LayoutParams(dp(14), -1);
-        chevronLp.leftMargin = dp(2);
-        statusChip.addView(chevron, chevronLp);
+        controls.addView(footerStatus, new LinearLayout.LayoutParams(0, dp(34), 1));
 
-        View flexibleSpace = new View(this);
-        controls.addView(flexibleSpace, new LinearLayout.LayoutParams(0, 1, 1));
-
-        FrameLayout mic = headerIconButton("mic", "Ditado por voz", false);
-        controls.addView(mic, new LinearLayout.LayoutParams(dp(36), dp(36)));
+        TextView mic = iconButton("♩", "Ditado por voz");
+        controls.addView(mic, new LinearLayout.LayoutParams(dp(38), dp(38)));
         mic.setOnClickListener(v -> startSpeech());
 
-        FrameLayout send = headerIconButton("send", "Enviar", true);
-        LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(dp(32), dp(32));
-        sendLp.leftMargin = dp(4);
-        controls.addView(send, sendLp);
+        TextView send = iconButton("↑", "Enviar mensagem");
+        send.setTextSize(23);
+        controls.addView(send, new LinearLayout.LayoutParams(dp(38), dp(38)));
         send.setOnClickListener(v -> sendMessage());
 
         View navDivider = new View(this);
         navDivider.setBackgroundColor(0x4433C995);
         shell.addView(navDivider, new LinearLayout.LayoutParams(-1, dp(1)));
-
         LinearLayout bottomNav = new LinearLayout(this);
         bottomNav.setGravity(Gravity.CENTER_VERTICAL);
-        bottomNav.setBackgroundColor(0xEE1A2321);
-        bottomNav.setPadding(0, 0, 0, 0);
-        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(67)));
-        addNavItem(bottomNav, "sparkles", "AI", () -> { composer.requestFocus(); });
-        addNavItem(bottomNav, "globe", "Navegador", this::askWebAddress);
-        addNavItem(bottomNav, "code", "Editor", this::showEditor);
-        addNavItem(bottomNav, "terminal", "Terminal", this::openTermux);
-        addNavItem(bottomNav, "bot", "Bots", this::showBots);
-        addNavItem(bottomNav, "apps", "Apps", this::openPhoneApps);
+        bottomNav.setBackgroundColor(0xF20A1110);
+        bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
+        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(58)));
+        addNavItem(bottomNav, "✦", "AI", () -> { composer.requestFocus(); });
+        addNavItem(bottomNav, "⌕", "Navegador", this::askWebAddress);
+        addNavItem(bottomNav, "</>", "Editor", this::showEditor);
+        addNavItem(bottomNav, ">_", "Terminal", this::openTermux);
+        addNavItem(bottomNav, "♧", "Bots", this::showBots);
+        addNavItem(bottomNav, "▦", "Apps", this::openPhoneApps);
         setContentView(root);
-    }
-
-    private FrameLayout headerIconButton(String icon, String description, boolean outlined) {
-        FrameLayout surface = new FrameLayout(this);
-        surface.setContentDescription(description);
-        surface.setFocusable(true);
-        surface.setBackground(outlined
-                ? roundRect(0x00000000, dp(99), 0x8845A989, dp(1))
-                : roundRect(0x00000000, dp(10), 0, 0));
-        LineIconView graphic = new LineIconView(icon, false);
-        FrameLayout.LayoutParams graphicLp = new FrameLayout.LayoutParams(dp(22), dp(22), Gravity.CENTER);
-        surface.addView(graphic, graphicLp);
-        surface.setOnTouchListener((v, event) -> {
-            if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) v.setAlpha(0.65f);
-            if (event.getAction() == android.view.MotionEvent.ACTION_UP || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) v.setAlpha(1f);
-            return false;
-        });
-        return surface;
     }
 
     private android.graphics.drawable.GradientDrawable roundRect(int color, int radius, int stroke, int strokeWidth) {
@@ -309,13 +249,12 @@ public class MainActivity extends Activity {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
-        welcome.setPadding(dp(8), dp(96), dp(8), dp(24));
+        welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
         welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
         TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 14, MUTED, false);
         sub.setGravity(Gravity.CENTER);
-        sub.setMaxWidth(dp(320));
         sub.setLineSpacing(dp(2), 1f);
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(dp(320), -2);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
         slp.topMargin = dp(12);
         welcome.addView(sub, slp);
         messages.addView(welcome, new LinearLayout.LayoutParams(-1, -2));
@@ -407,62 +346,21 @@ public class MainActivity extends Activity {
 
     private void showThinkingIndicator() {
         hideThinkingIndicator();
-
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(0, dp(8), 0, dp(8));
-        row.setContentDescription("Kellvyn pensando");
-        thinkingIndicator = row;
-
-        FrameLayout brainHolder = new FrameLayout(this);
-        row.addView(brainHolder, new LinearLayout.LayoutParams(dp(28), dp(28)));
-        thinkingPulse = new View(this);
-        thinkingPulse.setBackground(roundRect(
-                Color.argb(64, Color.red(accent), Color.green(accent), Color.blue(accent)),
-                dp(99), 0, 0));
-        brainHolder.addView(thinkingPulse, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
-
-        LineIconView brainIcon = new LineIconView("brain", true);
-        brainHolder.addView(brainIcon, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
-
-        thinkingLabel = text(thinkingSteps[0] + "…", 13, MUTED, false);
-        thinkingLabel.setSingleLine(true);
-        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(-2, -2);
-        labelLp.leftMargin = dp(8);
-        row.addView(thinkingLabel, labelLp);
-        messages.addView(row, new LinearLayout.LayoutParams(-2, -2));
-
-        thinkingAnimator = ObjectAnimator.ofPropertyValuesHolder(thinkingPulse,
-                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 0.72f, 1.28f),
-                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.72f, 1.28f),
-                android.animation.PropertyValuesHolder.ofFloat(View.ALPHA, 0.42f, 0.08f));
-        thinkingAnimator.setDuration(900);
+        thinkingIndicator = text("🧠  Pensando…", 12, MUTED, false);
+        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
+        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
+        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
+        thinkingAnimator.setDuration(850);
         thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        thinkingAnimator.setRepeatMode(ValueAnimator.RESTART);
+        thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
         thinkingAnimator.start();
-
-        thinkingTextAnimator = ObjectAnimator.ofInt(thinkingLabel, "textColor", MUTED, accent);
-        thinkingTextAnimator.setEvaluator(new android.animation.ArgbEvaluator());
-        thinkingTextAnimator.setDuration(1600);
-        thinkingTextAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        thinkingTextAnimator.setRepeatMode(ValueAnimator.REVERSE);
-        thinkingTextAnimator.start();
-
-        thinkingStepIndex = 0;
-        thinkingStepHandler.postDelayed(thinkingStepTicker, 900L);
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void hideThinkingIndicator() {
-        thinkingStepHandler.removeCallbacks(thinkingStepTicker);
         if (thinkingAnimator != null) {
             thinkingAnimator.cancel();
             thinkingAnimator = null;
-        }
-        if (thinkingTextAnimator != null) {
-            thinkingTextAnimator.cancel();
-            thinkingTextAnimator = null;
         }
         if (thinkingIndicator != null) {
             if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
@@ -470,8 +368,6 @@ public class MainActivity extends Activity {
             }
             thinkingIndicator = null;
         }
-        thinkingLabel = null;
-        thinkingPulse = null;
     }
 
     private void sendMessage() {
@@ -551,7 +447,7 @@ public class MainActivity extends Activity {
 
             @Override public void onPartial(String text) {
                 runOnUiThread(() -> {
-                    // Keep the thinking brain visible while streamed tokens are arriving, as on the web UI.
+                    hideThinkingIndicator();
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
                 });
@@ -593,7 +489,7 @@ public class MainActivity extends Activity {
     }
 
     private void showPlusMenu(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor);
+        PopupMenu popup = new PopupMenu(this, anchor, Gravity.END);
         popup.getMenu().add("Imagem ou arquivo");
         popup.getMenu().add("Plugins");
         android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
@@ -866,140 +762,26 @@ public class MainActivity extends Activity {
         prefs.edit().putString("editor:" + label, contents).putString("editor_files", array.toString()).apply();
     }
 
-    private void addNavItem(LinearLayout parent, String icon, String label, Runnable action) {
+    private void addNavItem(LinearLayout parent, String glyph, String label, Runnable action) {
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
         item.setGravity(Gravity.CENTER);
-        item.setPadding(0, dp(5), 0, dp(3));
+        item.setPadding(0, dp(3), 0, dp(2));
         item.setContentDescription(label);
         item.setBackground(roundRect(0x00000000, dp(8), 0, 0));
 
-        LineIconView symbol = new LineIconView(icon, "AI".equals(label));
-        symbol.setContentDescription(label);
-        item.addView(symbol, new LinearLayout.LayoutParams(dp(26), dp(26)));
+        TextView symbol = text(glyph, 21, accent, false);
+        symbol.setGravity(Gravity.CENTER);
+        symbol.setIncludeFontPadding(false);
+        item.addView(symbol, new LinearLayout.LayoutParams(-1, dp(25)));
 
-        TextView caption = text(label, 11, "AI".equals(label) ? accent : MUTED, false);
+        TextView caption = text(label, 10, "AI".equals(label) ? accent : MUTED, false);
         caption.setGravity(Gravity.CENTER);
         caption.setIncludeFontPadding(false);
-        item.addView(caption, new LinearLayout.LayoutParams(-1, dp(16)));
+        item.addView(caption, new LinearLayout.LayoutParams(-1, dp(15)));
 
         item.setOnClickListener(v -> action.run());
         parent.addView(item, new LinearLayout.LayoutParams(0, -1, 1));
-    }
-
-    /** Small native vector icons mirror the Lucide symbols in the web reference. */
-    private class LineIconView extends View {
-        private final Paint stroke = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final String kind;
-        private final boolean active;
-        LineIconView(String kind, boolean active) {
-            super(MainActivity.this);
-            this.kind = kind;
-            this.active = active;
-            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-        }
-        private void line(Canvas c, float x1, float y1, float x2, float y2) {
-            c.drawLine(x1, y1, x2, y2, stroke);
-        }
-        private void path(Canvas c, float... pts) {
-            Path pth = new Path();
-            pth.moveTo(pts[0], pts[1]);
-            for (int i=2;i<pts.length;i+=2) pth.lineTo(pts[i], pts[i+1]);
-            c.drawPath(pth, stroke);
-        }
-        @Override protected void onDraw(Canvas c) {
-            super.onDraw(c);
-            float scale = Math.min(getWidth(), getHeight()) / 24f;
-            if (scale <= 0f) return;
-            c.save();
-            c.translate((getWidth() - 24f * scale) / 2f, (getHeight() - 24f * scale) / 2f);
-            c.scale(scale, scale);
-            boolean solid = active || "menu".equals(kind) || "more".equals(kind) || "mic".equals(kind) || "send".equals(kind) || "brain".equals(kind);
-            stroke.setColor(solid ? accent : Color.argb(204, Color.red(accent), Color.green(accent), Color.blue(accent)));
-            stroke.setStyle(Paint.Style.STROKE);
-            stroke.setStrokeWidth(1.65f);
-            stroke.setStrokeCap(Paint.Cap.ROUND);
-            stroke.setStrokeJoin(Paint.Join.ROUND);
-            if (active) stroke.setShadowLayer(dp(4), 0, 0, accent);
-            switch (kind) {
-                case "menu":
-                    line(c, 4, 6, 20, 6); line(c, 4, 12, 20, 12); line(c, 4, 18, 20, 18);
-                    break;
-                case "more":
-                    stroke.setStyle(Paint.Style.FILL);
-                    c.drawCircle(12, 5, 1.4f, stroke); c.drawCircle(12, 12, 1.4f, stroke); c.drawCircle(12, 19, 1.4f, stroke);
-                    break;
-                case "plus":
-                    line(c, 12, 4, 12, 20); line(c, 4, 12, 20, 12);
-                    break;
-                case "mic":
-                    c.drawRoundRect(9, 3, 15, 15, 3, 3, stroke);
-                    Path micCurve = new Path(); micCurve.moveTo(5, 10); micCurve.cubicTo(5, 19, 19, 19, 19, 10); c.drawPath(micCurve, stroke);
-                    line(c, 12, 18, 12, 21); line(c, 8, 21, 16, 21);
-                    break;
-                case "send":
-                    line(c, 12, 19, 12, 5); path(c, 6, 11, 12, 5, 18, 11);
-                    break;
-                case "sparkles":
-                    path(c, 12, 3, 14.2f, 9.8f, 21, 12, 14.2f, 14.2f, 12, 21, 9.8f, 14.2f, 3, 12, 9.8f, 9.8f, 12, 3);
-                    path(c, 19, 3, 19.7f, 5.3f, 22, 6, 19.7f, 6.7f, 19, 9, 18.3f, 6.7f, 16, 6, 18.3f, 5.3f, 19, 3);
-                    break;
-                case "globe":
-                    c.drawCircle(12, 12, 9, stroke);
-                    c.drawOval(7, 3, 17, 21, stroke);
-                    line(c, 3, 12, 21, 12); line(c, 4.3f, 8, 19.7f, 8); line(c, 4.3f, 16, 19.7f, 16);
-                    break;
-                case "code":
-                    path(c, 8, 7, 3, 12, 8, 17);
-                    path(c, 16, 7, 21, 12, 16, 17);
-                    line(c, 14, 4, 10, 20);
-                    break;
-                case "terminal":
-                    c.drawRoundRect(3, 3, 21, 21, 2, 2, stroke);
-                    path(c, 7, 9, 11, 12, 7, 15);
-                    line(c, 13, 16, 17, 16);
-                    break;
-                case "brain":
-                    Path brainLeft = new Path();
-                    brainLeft.moveTo(12, 4);
-                    brainLeft.cubicTo(9, 2, 6, 4, 7, 7);
-                    brainLeft.cubicTo(4, 7, 3, 10, 5, 12);
-                    brainLeft.cubicTo(2, 14, 4, 17, 7, 17);
-                    brainLeft.cubicTo(7, 20, 10, 21, 12, 19);
-                    brainLeft.close();
-                    c.drawPath(brainLeft, stroke);
-                    Path brainRight = new Path();
-                    brainRight.moveTo(12, 4);
-                    brainRight.cubicTo(15, 2, 18, 4, 17, 7);
-                    brainRight.cubicTo(20, 7, 21, 10, 19, 12);
-                    brainRight.cubicTo(22, 14, 20, 17, 17, 17);
-                    brainRight.cubicTo(17, 20, 14, 21, 12, 19);
-                    brainRight.close();
-                    c.drawPath(brainRight, stroke);
-                    line(c, 12, 4, 12, 20);
-                    Path brainFold = new Path();
-                    brainFold.moveTo(7, 8); brainFold.cubicTo(10, 8, 10, 10, 9, 11);
-                    brainFold.moveTo(6, 13); brainFold.cubicTo(9, 12, 10, 15, 9, 17);
-                    brainFold.moveTo(17, 8); brainFold.cubicTo(14, 8, 14, 10, 15, 11);
-                    brainFold.moveTo(18, 13); brainFold.cubicTo(15, 12, 14, 15, 15, 17);
-                    c.drawPath(brainFold, stroke);
-                    break;
-                case "bot":
-                    line(c, 12, 3, 12, 5); stroke.setStyle(Paint.Style.FILL); c.drawCircle(12, 2.5f, 1.5f, stroke); stroke.setStyle(Paint.Style.STROKE);
-                    c.drawRoundRect(4, 6, 20, 18, 3, 3, stroke);
-                    c.drawCircle(9, 11, 1, stroke); c.drawCircle(15, 11, 1, stroke);
-                    line(c, 8, 15, 16, 15); line(c, 2, 10, 4, 10); line(c, 20, 10, 22, 10); line(c, 8, 18, 8, 21); line(c, 16, 18, 16, 21);
-                    break;
-                case "apps":
-                    c.drawRoundRect(3, 3, 10, 10, 1, 1, stroke);
-                    c.drawRoundRect(14, 3, 21, 10, 1, 1, stroke);
-                    c.drawRoundRect(3, 14, 10, 21, 1, 1, stroke);
-                    c.drawRoundRect(14, 14, 21, 21, 1, 1, stroke);
-                    break;
-            }
-            stroke.clearShadowLayer();
-            c.restore();
-        }
     }
 
     /** Launch Termux only after the user taps the existing Terminal navigation item. */
@@ -1295,32 +1077,95 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Entendi", null).show();
     }
 
-    private void showSettings() {
-        PopupMenu popup = new PopupMenu(this, findViewById(android.R.id.content));
-        popup.getMenu().add("Configurações");
-        popup.getMenu().add("Cor da interface");
-        popup.getMenu().add("Efeito na tela");
-        android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
-        webAccess.setCheckable(true);
-        webAccess.setChecked(isWebAccessEnabled());
-        popup.getMenu().add("Proteção da IA");
-        popup.setOnMenuItemClickListener(item -> {
-            String label = item.getTitle().toString();
-            if (label.equals("Cor da interface")) showPalette();
-            else if (label.equals("Efeito na tela")) showEffectSettings();
-            else if (label.equals("Acesso à Web")) toggleWebAccess();
-            else if (label.equals("Proteção da IA")) new AlertDialog.Builder(this).setTitle("Proteção da IA")
-                    .setMessage("A proteção visual está disponível. Controles avançados de proteção do motor de IA dependem da integração do cérebro.")
-                    .setPositiveButton("Ativar proteção visual", (d, w) -> {
-                        prefs.edit().putBoolean("protection", true).apply();
-                        toast("Proteção visual ativada.");
-                    }).setNegativeButton("Fechar", null).show();
-            else new AlertDialog.Builder(this).setTitle("Configurações")
-                    .setMessage("Kellvyn IA nativa\nTema escuro · cor esmeralda\nHistórico salvo neste aparelho\nMotor local: baixa e inicia sob solicitação\nAcesso à Web: " + (isWebAccessEnabled() ? "ativado (Wikipédia PT)" : "desativado"))
-                    .setPositiveButton("OK", null).show();
-            return true;
-        });
-        popup.show();
+    private void showSettingsPanel() {
+        // Match the Lovable three-dot action: open the settings sheet directly,
+        // instead of inserting an extra native popup menu before the real settings.
+        android.app.Dialog dialog = new android.app.Dialog(this);
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setPadding(dp(18), dp(12), dp(18), dp(18));
+        sheet.setBackground(roundRect(BG, dp(22), 0x6645A989, dp(1)));
+
+        LinearLayout heading = new LinearLayout(this);
+        heading.setGravity(Gravity.CENTER_VERTICAL);
+        TextView title = text("CONFIGURAÇÕES DO KELLVYN", 15, TEXT, true);
+        heading.addView(title, new LinearLayout.LayoutParams(0, dp(44), 1));
+        TextView close = iconButton("×", "Fechar configurações");
+        heading.addView(close, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        close.setOnClickListener(v -> dialog.dismiss());
+        sheet.addView(heading);
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+
+        addSettingsHeading(content, "CORES");
+        addSettingsRow(content, "Cor da interface", "Escolher a cor de destaque", this::showPalette);
+        addSettingsHeading(content, "EFEITO NA TELA");
+        addSettingsRow(content, "Efeitos visuais", "Chuva, neve, folhas e raios", this::showEffectSettings);
+        addSettingsHeading(content, "ATALHOS");
+        addSettingsRow(content, "Histórico de conversas", "Abrir conversas salvas", this::showHistory);
+        addSettingsRow(content, "Acesso à Web", isWebAccessEnabled() ? "Ativado · toque para desativar" : "Desativado · toque para ativar", this::toggleWebAccess);
+        addSettingsHeading(content, "SEGURANÇA");
+        addSettingsRow(content, "Proteção da IA", "Controles de proteção disponíveis", () ->
+                new AlertDialog.Builder(this).setTitle("Proteção da IA")
+                        .setMessage("A proteção visual está disponível. Controles avançados dependem da integração do cérebro.")
+                        .setPositiveButton("Ativar proteção visual", (d, w) -> {
+                            prefs.edit().putBoolean("protection", true).apply();
+                            toast("Proteção visual ativada.");
+                        }).setNegativeButton("Fechar", null).show());
+        sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        dialog.setContentView(sheet);
+        dialog.setCancelable(true);
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.gravity = Gravity.BOTTOM;
+            params.width = -1;
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.82f);
+            params.dimAmount = 0.45f;
+            window.setAttributes(params);
+        }
+        dialog.show();
+        if (window != null) {
+            window.setLayout(-1, (int) (getResources().getDisplayMetrics().heightPixels * 0.82f));
+            window.setGravity(Gravity.BOTTOM);
+        }
+    }
+
+    private void addSettingsHeading(LinearLayout parent, String label) {
+        TextView heading = text(label, 11, EMERALD, true);
+        heading.setPadding(dp(2), dp(15), dp(2), dp(6));
+        parent.addView(heading, new LinearLayout.LayoutParams(-1, -2));
+    }
+
+    private void addSettingsRow(LinearLayout parent, String label, String description, Runnable action) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(13), dp(10), dp(13), dp(10));
+        row.setBackground(roundRect(PANEL_ALT, dp(12), 0x5545A989, dp(1)));
+        row.setClickable(true);
+        row.setFocusable(true);
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(label, 14, TEXT, true));
+        TextView sub = text(description, 11, MUTED, false);
+        LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(-1, -2);
+        subLp.topMargin = dp(3);
+        labels.addView(sub, subLp);
+        row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+        TextView chevron = text("›", 24, accent, false);
+        chevron.setGravity(Gravity.CENTER);
+        row.addView(chevron, new LinearLayout.LayoutParams(dp(28), dp(34)));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
+        rowLp.bottomMargin = dp(7);
+        parent.addView(row, rowLp);
+        row.setOnClickListener(v -> action.run());
     }
 
     private boolean isWebAccessEnabled() {
@@ -1425,12 +1270,7 @@ public class MainActivity extends Activity {
     private void updateStatus() {
         if (status != null) status.setText("KELLVYN IA  •  " + engineLabel);
         if (footerStatus != null) {
-            footerStatus.setText("Kellvyn");
-            footerStatus.setContentDescription("Kellvyn IA · " + engineLabel);
-        }
-        if (footerStatusDot != null) {
-            int dotColor = engineLabel.toLowerCase(Locale.ROOT).contains("erro") ? Color.rgb(240, 85, 85) : accent;
-            footerStatusDot.setBackground(roundRect(dotColor, dp(99), 0, 0));
+            footerStatus.setText("KELLVYN IA  ·  CONVERSA LOCAL  ·  " + engineLabel);
         }
     }
 
@@ -1557,252 +1397,142 @@ public class MainActivity extends Activity {
     }
 
     private class RainView extends View {
-        private final Paint rainPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint leafPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private android.graphics.Shader backgroundTopGlow;
-        private android.graphics.Shader backgroundBottomGlow;
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
-        private final ArrayList<EffectParticle> particles = new ArrayList<>();
-        private final int[] leafColors = new int[]{0xFFC9682B, 0xFFD9A441, 0xFF8E3B1F, 0xFFA8B04A};
-        private android.graphics.Bitmap rainSprite;
+        private final int count = 64;
+        private final int particleCount = 42;
+        private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count];
+        private final float[] px = new float[particleCount], py = new float[particleCount];
+        private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
+        private final float[] boltX = new float[15], boltY = new float[15];
         private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
-        private long lastFrameAt = 0L;
+        private int flashFrames = 0;
         private long nextLightningAt = 0L;
-        private float lightningFlash = 0f;
-        private final float[] boltX = new float[64], boltY = new float[64];
-        private int boltCount = 0;
-
-        private class EffectParticle {
-            String kind;
-            float x, y, vx, vy, size, alpha, rot, vr, phase;
-        }
 
         RainView() {
             super(MainActivity.this);
+            flashPaint.setColor(0x18DDE8FF);
             activeEffects = renderEffectSet();
-            buildRainSprite();
-            flashPaint.setColor(0xFFDDE8FF);
-        }
-
-        private void buildRainSprite() {
-            rainSprite = android.graphics.Bitmap.createBitmap(4, 64, android.graphics.Bitmap.Config.ARGB_8888);
-            Canvas spriteCanvas = new Canvas(rainSprite);
-            Paint spritePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-            spritePaint.setShader(new android.graphics.LinearGradient(
-                    0f, 0f, 0f, 64f,
-                    new int[]{0x00CFE3F2, 0xFFDCEBF8},
-                    null, android.graphics.Shader.TileMode.CLAMP));
-            spriteCanvas.drawRect(1f, 0f, 3f, 64f, spritePaint);
-            spritePaint.setShader(null);
         }
 
         void setEffects(Set<String> effects) {
             activeEffects = new HashSet<>(effects);
-            initialized = false;
-            lastFrameAt = 0L;
-            nextLightningAt = 0L;
+            if (activeEffects.contains("raios") && nextLightningAt == 0L) {
+                nextLightningAt = System.currentTimeMillis() + 1200L;
+            }
             invalidate();
         }
 
-        private EffectParticle spawn(String kind, boolean randomY) {
-            float d = (float) Math.random();
-            float density = getResources().getDisplayMetrics().density;
-            EffectParticle particle = new EffectParticle();
-            particle.kind = kind;
-            particle.x = (float) Math.random() * Math.max(1, getWidth());
-            particle.y = randomY
-                    ? (float) Math.random() * Math.max(1, getHeight())
-                    : -density * (20f + (float) Math.random() * 60f);
-            particle.rot = (float) Math.random() * 6.2831855f;
-            particle.phase = (float) Math.random() * 6.2831855f;
-            if ("neve".equals(kind)) {
-                particle.vx = 0f;
-                particle.vy = density * (25f + d * 55f);
-                particle.size = density * (1f + d * 2.6f);
-                particle.alpha = 0.4f + d * 0.5f;
-                particle.vr = 0f;
-            } else if ("folhas".equals(kind)) {
-                particle.vx = 0f;
-                particle.vy = density * (30f + d * 45f);
-                particle.size = density * (5f + d * 6f);
-                particle.alpha = 0.55f + d * 0.4f;
-                particle.vr = ((float) Math.random() - 0.5f) * 2.5f;
-            } else {
-                particle.vx = 0f;
-                particle.vy = density * (140f + d * 380f);
-                particle.size = density * (18f + d * 50f);
-                particle.alpha = 0.15f + d * 0.4f;
-                particle.vr = d > 0.8f ? 1.6f : 1f;
+        private void init() {
+            for (int i=0;i<count;i++) {
+                x[i] = (float)Math.random()*Math.max(1,getWidth());
+                y[i] = (float)Math.random()*Math.max(1,getHeight());
+                speed[i] = dp(5) + (float)Math.random()*dp(10);
+                len[i] = dp(14) + (float)Math.random()*dp(36);
             }
-            return particle;
-        }
-
-        private void initializeParticles() {
-            particles.clear();
-            if (getWidth() <= 0 || getHeight() <= 0) return;
-            float density = getResources().getDisplayMetrics().density;
-            float logicalWidth = getWidth() / density;
-            float logicalHeight = getHeight() / density;
-            for (String kind : new String[]{"chuva", "neve", "folhas"}) {
-                if (!activeEffects.contains(kind)) continue;
-                int divisor = "folhas".equals(kind) ? 22000 : ("neve".equals(kind) ? 5000 : 6000);
-                int count = Math.min(160, Math.round((logicalWidth * logicalHeight) / divisor));
-                for (int i = 0; i < count; i++) particles.add(spawn(kind, true));
+            for (int i=0;i<particleCount;i++) {
+                px[i] = (float)Math.random()*Math.max(1,getWidth());
+                py[i] = (float)Math.random()*Math.max(1,getHeight());
+                pspeed[i] = dp(1) + (float)Math.random()*dp(2.4f);
+                psize[i] = dp(1) + (float)Math.random()*dp(2.3f);
+                prot[i] = (float)Math.random()*360f;
+                protSpeed[i] = -2.5f + (float)Math.random()*5f;
             }
-            long now = android.os.SystemClock.uptimeMillis();
-            if (activeEffects.contains("raios")) {
-                nextLightningAt = now + 2000L + (long) (Math.random() * 4000L);
-            } else {
-                nextLightningAt = 0L;
-            }
-            lightningFlash = 0f;
-            lastFrameAt = 0L;
             initialized = true;
         }
 
-        private void drawParticles(Canvas c, float dt, float timeSeconds) {
-            float density = getResources().getDisplayMetrics().density;
-            for (int i = 0; i < particles.size(); i++) {
-                EffectParticle particle = particles.get(i);
-                if ("neve".equals(particle.kind)) {
-                    particle.x += (float) Math.sin(timeSeconds * 0.8f + particle.phase) * density * 18f * dt;
-                } else if ("folhas".equals(particle.kind)) {
-                    particle.x += (float) Math.sin(timeSeconds * 1.2f + particle.phase) * density * 40f * dt;
-                    particle.rot += particle.vr * dt;
+        private void drawRain(Canvas c) {
+            p.setStrokeWidth(dp(1));
+            for (int i=0;i<count;i++) {
+                p.setColor(i%5==0 ? 0x3BDCEBF8 : 0x1DAAC6DC);
+                c.drawLine(x[i], y[i], x[i]-dp(1), y[i]+len[i], p);
+                if (running) {
+                    y[i] += speed[i];
+                    if (y[i] > getHeight()) {
+                        y[i] = -len[i];
+                        x[i] = (float)Math.random()*getWidth();
+                    }
                 }
-                particle.y += particle.vy * dt;
-                if (particle.y - density * 60f > getHeight()) {
-                    EffectParticle replacement = spawn(particle.kind, false);
-                    particles.set(i, replacement);
-                    particle = replacement;
-                }
-                if ("neve".equals(particle.kind)) {
-                    rainPaint.setColor(Color.WHITE);
-                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
-                    c.drawCircle(particle.x, particle.y, particle.size, rainPaint);
-                } else if ("folhas".equals(particle.kind)) {
-                    c.save();
-                    c.translate(particle.x, particle.y);
-                    c.rotate((float) Math.toDegrees(particle.rot));
-                    leafPaint.setColor(leafColors[Math.floorMod((int) particle.phase, leafColors.length)]);
-                    leafPaint.setAlpha(Math.round(particle.alpha * 255f));
-                    c.drawOval(-particle.size, -particle.size * 0.45f, particle.size, particle.size * 0.45f, leafPaint);
-                    c.restore();
-                } else {
-                    rainPaint.setColor(Color.WHITE);
-                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
-                    android.graphics.RectF target = new android.graphics.RectF(
-                            particle.x, particle.y - particle.size,
-                            particle.x + density * particle.vr * 2f, particle.y);
-                    c.drawBitmap(rainSprite, null, target, rainPaint);
-                }
-            }
-            rainPaint.setAlpha(255);
-        }
-
-        private void makeLightningBolt() {
-            float density = getResources().getDisplayMetrics().density;
-            float x = getWidth() * (0.15f + (float) Math.random() * 0.7f);
-            float y = 0f;
-            float end = getHeight() * (0.45f + (float) Math.random() * 0.3f);
-            boltCount = 0;
-            while (y < end && boltCount < boltX.length) {
-                boltX[boltCount] = x;
-                boltY[boltCount] = y;
-                boltCount++;
-                x += ((float) Math.random() - 0.5f) * density * 50f;
-                y += density * (15f + (float) Math.random() * 30f);
-            }
-            if (boltCount < boltX.length) {
-                boltX[boltCount] = x;
-                boltY[boltCount] = Math.min(end, getHeight());
-                boltCount++;
             }
         }
 
-        private void drawLightning(Canvas c, float dt, long now) {
-            if (!activeEffects.contains("raios")) return;
-            if (nextLightningAt == 0L) nextLightningAt = now + 2000L + (long) (Math.random() * 4000L);
-            if (lightningFlash <= 0f && now >= nextLightningAt) {
-                makeLightningBolt();
-                lightningFlash = 1f;
-                nextLightningAt = now + 3000L + (long) (Math.random() * 6000L);
+        private void drawSnow(Canvas c) {
+            p.setColor(0xBBDDEEFF);
+            for (int i=0;i<particleCount;i++) {
+                c.drawCircle(px[i], py[i], psize[i], p);
+                if (running) {
+                    py[i] += pspeed[i];
+                    px[i] += (float)Math.sin((py[i] + i) * 0.015f) * dp(0.4f);
+                    if (py[i] > getHeight() + psize[i]) {
+                        py[i] = -psize[i];
+                        px[i] = (float)Math.random()*getWidth();
+                    }
+                }
             }
-            if (lightningFlash > 0f) {
-                flashPaint.setAlpha(Math.round(lightningFlash * 0.12f * 255f));
+        }
+
+        private void drawLeaves(Canvas c) {
+            for (int i=0;i<particleCount/2;i++) {
+                c.save();
+                c.rotate(prot[i], px[i], py[i]);
+                leafPaint.setColor(new int[]{0xCCC9682B, 0xCCD9A441, 0xCC8E3B1F, 0xCCA8B04A}[i%4]);
+                c.drawOval(px[i]-psize[i]*2.5f, py[i]-psize[i], px[i]+psize[i]*2.5f, py[i]+psize[i], leafPaint);
+                c.restore();
+                if (running) {
+                    py[i] += pspeed[i] * 1.15f;
+                    px[i] += (float)Math.sin(py[i] * 0.012f) * dp(0.8f);
+                    prot[i] += protSpeed[i];
+                    if (py[i] > getHeight() + dp(12)) {
+                        py[i] = -dp(12);
+                        px[i] = (float)Math.random()*getWidth();
+                    }
+                }
+            }
+        }
+
+        private void drawLightning(Canvas c) {
+            long now = System.currentTimeMillis();
+            if (flashFrames <= 0 && now >= nextLightningAt) {
+                float bx = getWidth() * (0.2f + (float)Math.random()*0.6f);
+                float by = 0f;
+                for (int i=0;i<boltX.length;i++) {
+                    boltX[i] = bx;
+                    boltY[i] = by;
+                    bx += (-getWidth()*0.055f + (float)Math.random()*getWidth()*0.11f);
+                    by += getHeight() / (float)(boltX.length - 1);
+                }
+                flashFrames = 3;
+                nextLightningAt = now + 3500L + (long)(Math.random()*5500L);
+            }
+            if (flashFrames > 0) {
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
-                if (boltCount > 1) {
-                    Path path = new Path();
-                    path.moveTo(boltX[0], boltY[0]);
-                    for (int i = 1; i < boltCount; i++) path.lineTo(boltX[i], boltY[i]);
-                    rainPaint.setColor(0xFFEAF1FF);
-                    rainPaint.setAlpha(Math.round(lightningFlash * 0.85f * 255f));
-                    rainPaint.setStyle(Paint.Style.STROKE);
-                    rainPaint.setStrokeWidth(getResources().getDisplayMetrics().density * 1.6f);
-                    rainPaint.setShadowLayer(getResources().getDisplayMetrics().density * 14f, 0, 0, 0xFF9DB8FF);
-                    c.drawPath(path, rainPaint);
-                    rainPaint.clearShadowLayer();
-                    rainPaint.setStyle(Paint.Style.FILL);
-                    rainPaint.setAlpha(255);
-                }
-                lightningFlash = Math.max(0f, lightningFlash - dt * 2.2f);
-            }
-            flashPaint.setAlpha(255);
-        }
-
-        void start() {
-            if (!running) {
-                running = true;
-                lastFrameAt = 0L;
-                h.post(frame);
+                p.setColor(0xFFEAF1FF);
+                p.setStrokeWidth(dp(1.8f));
+                p.setShadowLayer(dp(12), 0, 0, 0xFF9DB8FF);
+                Path path = new Path();
+                path.moveTo(boltX[0], boltY[0]);
+                for (int i=1;i<boltX.length;i++) path.lineTo(boltX[i], boltY[i]);
+                c.drawPath(path, p);
+                p.clearShadowLayer();
+                flashFrames--;
             }
         }
 
-        void stop() {
-            running = false;
-            h.removeCallbacks(frame);
-            lastFrameAt = 0L;
-        }
-
-        @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-            super.onSizeChanged(w, h, oldw, oldh);
-            if (w <= 0 || h <= 0) return;
-            backgroundTopGlow = new android.graphics.RadialGradient(
-                    w * 0.10f, 0f, h * 0.36f,
-                    new int[]{0x2538E6BC, 0x0038E6BC}, null,
-                    android.graphics.Shader.TileMode.CLAMP);
-            backgroundBottomGlow = new android.graphics.RadialGradient(
-                    w * 0.98f, h, h * 0.325f,
-                    new int[]{0x1A38E6BC, 0x0038E6BC}, null,
-                    android.graphics.Shader.TileMode.CLAMP);
-            initialized = false;
-            invalidate();
-        }
-
+        void start() { if (!running) { running = true; h.post(frame); } }
+        void stop() { running = false; h.removeCallbacks(frame); }
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
             if (getWidth() == 0 || getHeight() == 0) return;
-            if (!initialized) initializeParticles();
-
-            long now = android.os.SystemClock.uptimeMillis();
-            float dt = lastFrameAt == 0L ? (1f / 60f) : Math.min((now - lastFrameAt) / 1000f, 1f / 30f);
-            lastFrameAt = now;
-            float timeSeconds = now / 1000f;
-
-            backgroundPaint.setShader(backgroundTopGlow);
-            c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
-            backgroundPaint.setShader(backgroundBottomGlow);
-            c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
-            backgroundPaint.setShader(null);
-
-            drawParticles(c, dt, timeSeconds);
-            drawLightning(c, dt, now);
-
-            if (running && !activeEffects.isEmpty()) h.postDelayed(frame, 16L);
+            if (!initialized) init();
+            if (activeEffects.contains("chuva")) drawRain(c);
+            if (activeEffects.contains("neve")) drawSnow(c);
+            if (activeEffects.contains("folhas")) drawLeaves(c);
+            if (activeEffects.contains("raios")) drawLightning(c);
+            if (running && !activeEffects.isEmpty()) h.postDelayed(frame, 45);
         }
     }
 }
