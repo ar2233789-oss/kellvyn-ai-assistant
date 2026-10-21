@@ -8,8 +8,6 @@ on:
       - '.github/workflows/build-apk.yml'
       - '.github/interface-lock.sha'
       - 'scripts/check-interface-lock.sh'
-      - '.github/interface-lock.sha'
-      - 'scripts/check-interface-lock.sh'
   push:
     branches: [main]
     paths:
