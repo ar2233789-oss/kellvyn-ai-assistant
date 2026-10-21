@@ -1,0 +1,323 @@
+name: Poco F6 virtual comparison lab
+
+on:
+  pull_request:
+    paths:
+      - "android/**"
+      - "src/components/kellvyn/**"
+      - "src/styles.css"
+      - ".github/workflows/poco-f6-parity.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  web-build-and-capture:
+    name: Web reference build and screenshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - name: Install project dependencies
+        run: bun install --frozen-lockfile
+      - name: Run web tests
+        run: bun run test
+      - name: Build web reference
+        run: bun run build
+      - name: Install Playwright Chromium
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Capture web UI at Poco F6 logical viewport
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          bun run dev -- --host 127.0.0.1 --port 4173 --strictPort > /tmp/kellvyn-web.log 2>&1 &
+          echo $! > /tmp/kellvyn-web.pid
+          READY=0
+          for n in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:4173/ >/dev/null; then READY=1; break; fi
+            sleep 2
+          done
+          if [ "$READY" != "1" ]; then cat /tmp/kellvyn-web.log; exit 1; fi
+          node --input-type=module <<'NODE'
+          import { chromium } from "playwright";
+          import fs from "node:fs";
+          const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
+          const page = await browser.newPage({
+            // 913dp models the Android app content area after system bars; compare like-for-like.
+            viewport: { width: 444, height: 913 },
+            deviceScaleFactor: 2.75,
+            isMobile: true,
+            hasTouch: true,
+          });
+          const errors = [];
+          page.on("pageerror", (error) => errors.push(String(error)));
+          await page.goto("http://127.0.0.1:4173/", { waitUntil: "networkidle", timeout: 60000 });
+          await page.screenshot({ path: "out/web-reference.png", fullPage: false });
+          const settingsButton = page.getByRole("button", { name: "Configurações" });
+          if (await settingsButton.count()) {
+            await settingsButton.click();
+            await page.waitForTimeout(500);
+            await page.screenshot({ path: "out/web-settings.png", fullPage: false });
+          } else {
+            throw new Error("Lovable reference: settings three-dot button not found");
+          }
+          const metrics = await page.evaluate(() => {
+            const box = (selector) => {
+              const element = document.querySelector(selector);
+              if (!element) return null;
+              const r = element.getBoundingClientRect();
+              return { x: r.x, y: r.y, width: r.width, height: r.height };
+            };
+            const label = (element) =>
+              element.getAttribute("aria-label") ||
+              element.getAttribute("title") ||
+              (element.innerText || "").trim().replace(/\\s+/g, " ").slice(0, 80);
+            return {
+              title: document.title,
+              viewport: { width: innerWidth, height: innerHeight, dpr: devicePixelRatio },
+              header: box("header"),
+              main: box("main"),
+              composer: box("footer"),
+              bottomNav: box("nav"),
+              controls: [...document.querySelectorAll("header button, footer button, nav button")].map((e) => ({
+                label: label(e),
+                rect: (() => { const r = e.getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; })(),
+              })),
+            };
+          });
+          fs.writeFileSync("out/web-metrics.json", JSON.stringify({ ...metrics, pageErrors: errors }, null, 2));
+          console.log(JSON.stringify({ title: metrics.title, controls: metrics.controls.map((c) => c.label), pageErrors: errors }));
+          await browser.close();
+          NODE
+      - name: Upload web reference capture
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-web-reference
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  native-emulator-test:
+    name: Android emulator boot, launch, and UI capture
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.13"
+      - name: Install Android SDK and Poco-like virtual display
+        shell: bash
+        run: |
+          set -euo pipefail
+          # GitHub-hosted Ubuntu runners can be short by ~600 MB for the default Pixel data image.
+          # Remove SDKs unused by this Android-only job before creating the virtual device.
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/share/powershell || true
+          df -h /
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          export ANDROID_HOME="$SDK_ROOT"
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          export ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/emulator" >> "$GITHUB_PATH"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          set -o pipefail
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
+          AVDMANAGER="$(dirname "$SDKMANAGER")/avdmanager"
+          echo "no" | "$AVDMANAGER" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device "pixel_7"
+          AVD_CONFIG="$ANDROID_AVD_HOME/PocoF6Virtual.avd/config.ini"
+          test -f "$AVD_CONFIG"
+          # Replace existing AVD properties instead of appending duplicates (the emulator
+          # may otherwise keep the default 2 CPU cores). Bound userdata to fit the hosted runner.
+          set_avd_prop() {
+            local key="$1" value="$2"
+            if grep -q "^$key=" "$AVD_CONFIG"; then
+              sed -i "s|^$key=.*|$key=$value|" "$AVD_CONFIG"
+            else
+              printf '%s=%s\n' "$key" "$value" >> "$AVD_CONFIG"
+            fi
+          }
+          set_avd_prop hw.lcd.width 1220
+          set_avd_prop hw.lcd.height 2712
+          set_avd_prop hw.lcd.density 440
+          set_avd_prop hw.ramSize 8192
+          set_avd_prop hw.cpu.ncore 4
+          set_avd_prop hw.gpu.enabled yes
+          set_avd_prop hw.gpu.mode swiftshader_indirect
+          set_avd_prop disk.dataPartition.size 4096M
+      - name: Compile unit tests and native APK
+        working-directory: android
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+      - name: Boot Android 15 virtual display, install APK and capture native UI
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
+          mkdir -p out
+          trap 'cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true' EXIT
+          # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
+          if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; fi
+          "$ANDROID_HOME/emulator/emulator" -avd PocoF6Virtual -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > /tmp/poco-f6-emulator.log 2>&1 &
+          EMULATOR_PID=$!
+          echo "$EMULATOR_PID" > /tmp/poco-f6-emulator.pid
+          DEVICE_READY=0
+          for n in $(seq 1 90); do
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "Emulator process exited before ADB became ready."
+              cat /tmp/poco-f6-emulator.log || true
+              exit 1
+            fi
+            if adb devices | grep -Eq '^emulator-[0-9]+[[:space:]]+device$'; then
+              DEVICE_READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$DEVICE_READY" != "1" ]; then
+            echo "Timed out waiting 180 seconds for the emulator to appear in ADB."
+            adb devices -l || true
+            cat /tmp/poco-f6-emulator.log || true
+            exit 1
+          fi
+          BOOTED=0
+          for n in $(seq 1 120); do
+            BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$BOOTED" = "1" ]; then break; fi
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "Emulator process exited during Android boot."
+              cat /tmp/poco-f6-emulator.log || true
+              exit 1
+            fi
+            sleep 5
+          done
+          if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" != "1" ]; then
+            echo "Timed out waiting 600 seconds for Android boot completion."
+            adb devices -l || true
+            cat /tmp/poco-f6-emulator.log || true
+            exit 1
+          fi
+          adb shell wm size 1220x2712
+          adb shell wm density 440
+          adb shell input keyevent 82 || true
+          adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          adb shell am start -W -n com.kellvyn.assistant/.MainActivity
+          sleep 8
+          if adb logcat -d -b crash | grep -B 3 -A 12 "Process: com.kellvyn.assistant" > out/native-crashes.txt; then
+            cat out/native-crashes.txt
+            exit 1
+          else
+            echo "No crash for com.kellvyn.assistant during startup." > out/native-crashes.txt
+          fi
+          # The stock emulator launcher may show its own ANR dialog after boot.
+          # Dismiss that system dialog and re-check the actual foreground UI; never
+          # turn a Kellvyn process crash into a pass.
+          UI_READY=0
+          for attempt in $(seq 1 12); do
+            rm -f out/native-ui.xml
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -qi "isn't responding" out/native-ui.xml; then
+              UI_READY=1
+              break
+            fi
+            if grep -qi "isn't responding" out/native-ui.xml; then
+              WAIT_BOUNDS="$(python3 - out/native-ui.xml <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter("node"):
+              if node.attrib.get("resource-id") == "android:id/aerr_wait":
+                  bounds = node.attrib.get("bounds", "")
+                  nums = bounds.replace("][", ",").strip("[]").split(",")
+                  if len(nums) == 4 and all(v.isdigit() for v in nums):
+                      x1, y1, x2, y2 = map(int, nums)
+                      print((x1+x2)//2, (y1+y2)//2)
+                  break
+          PY
+              )"
+              if [ -n "$WAIT_BOUNDS" ]; then
+                read -r WAIT_X WAIT_Y <<< "$WAIT_BOUNDS"
+                adb shell input tap "$WAIT_X" "$WAIT_Y" || true
+              else
+                adb shell input keyevent 4 || true
+              fi
+            fi
+            sleep 3
+          done
+          if [ "$UI_READY" != "1" ]; then
+            echo "Kellvyn UI was not visible after clearing transient system dialogs."
+            cat out/native-ui.xml || true
+            exit 1
+          fi
+          adb shell screencap -p /sdcard/native-screen.png
+          adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
+          grep -q "Kellvyn Assistente" out/native-ui.xml
+          python3 - out/native-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          labels = " ".join((n.attrib.get("text", "") + " " + n.attrib.get("content-desc", "")) for n in root.iter("node"))
+          required = ["Histórico de conversas", "Configurações", "Anexos e Web", "Ditado por voz", "Enviar", "Navegador", "Editor", "Terminal", "Bots", "Apps"]
+          missing = [label for label in required if label not in labels]
+          if missing:
+              raise SystemExit("Missing native UI controls (text/content-desc): " + ", ".join(missing))
+          bounds = None
+          for node in root.iter("node"):
+              if node.attrib.get("content-desc") == "Configurações":
+                  bounds = node.attrib.get("bounds", "")
+                  break
+          if not bounds:
+              raise SystemExit("Could not locate the header settings three-dot control")
+          nums = bounds.replace("][", ",").strip("[]").split(",")
+          if len(nums) != 4:
+              raise SystemExit("Invalid settings button bounds: " + bounds)
+          x1, y1, x2, y2 = map(int, nums)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+          SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter("node"):
+              if node.attrib.get("content-desc") == "Configurações":
+                  b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                  if len(b) == 4:
+                      x1,y1,x2,y2 = map(int,b); print((x1+x2)//2, (y1+y2)//2)
+                  break
+          PY
+          )"
+          read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
+          adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
+          sleep 2
+          adb shell uiautomator dump /sdcard/settings-window.xml >/dev/null 2>&1
+          adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null
+          adb shell screencap -p /sdcard/native-settings.png
+          adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "SEGURANÇA"; do
+            grep -q "$label" out/native-settings-ui.xml || { echo "Missing settings-sheet content: $label"; exit 1; }
+          done
+          adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          adb shell dumpsys activity activities > out/native-activity.txt
+          echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
+      - name: Upload native emulator capture and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: out/*
+          if-no-files-found: warn
+          retention-days: 14
