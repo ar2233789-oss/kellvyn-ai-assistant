@@ -135,7 +135,7 @@ public class MainActivity extends Activity {
         status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
-        settings.setOnClickListener(v -> showSettings());
+        settings.setOnClickListener(v -> showSettings(v));
 
         View divider = new View(this);
         divider.setBackgroundColor(0x5533C995);
@@ -1077,8 +1077,10 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Entendi", null).show();
     }
 
-    private void showSettings() {
-        PopupMenu popup = new PopupMenu(this, findViewById(android.R.id.content));
+    private void showSettings(View anchor) {
+        // Anchor the native settings menu to the original three-dot control in the header.
+        // Using android.R.id.content placed the popup away from the control and made it feel like a separate, broken menu.
+        PopupMenu popup = new PopupMenu(this, anchor);
         popup.getMenu().add("Configurações");
         popup.getMenu().add("Cor da interface");
         popup.getMenu().add("Efeito na tela");
