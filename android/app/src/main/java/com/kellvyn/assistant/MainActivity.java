@@ -75,8 +75,22 @@ public class MainActivity extends Activity {
     private TextView footerStatus;
     private View footerStatusDot;
     private TextView activeReplyBubble;
-    private TextView thinkingIndicator;
+    private View thinkingIndicator;
+    private TextView thinkingLabel;
+    private View thinkingPulse;
     private ObjectAnimator thinkingAnimator;
+    private ObjectAnimator thinkingTextAnimator;
+    private final Handler thinkingStepHandler = new Handler(android.os.Looper.getMainLooper());
+    private final String[] thinkingSteps = {"Analisando", "Pensando", "Organizando a resposta"};
+    private int thinkingStepIndex = 0;
+    private final Runnable thinkingStepTicker = new Runnable() {
+        @Override public void run() {
+            if (thinkingIndicator == null || thinkingLabel == null) return;
+            thinkingStepIndex = (thinkingStepIndex + 1) % thinkingSteps.length;
+            thinkingLabel.setText(thinkingSteps[thinkingStepIndex] + "…");
+            thinkingStepHandler.postDelayed(this, 900L);
+        }
+    };
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
     private LocalBrain brain;
@@ -393,21 +407,62 @@ public class MainActivity extends Activity {
 
     private void showThinkingIndicator() {
         hideThinkingIndicator();
-        thinkingIndicator = text("🧠  Pensando…", 12, MUTED, false);
-        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
-        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
-        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
-        thinkingAnimator.setDuration(850);
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+        row.setContentDescription("Kellvyn pensando");
+        thinkingIndicator = row;
+
+        FrameLayout brainHolder = new FrameLayout(this);
+        row.addView(brainHolder, new LinearLayout.LayoutParams(dp(28), dp(28)));
+        thinkingPulse = new View(this);
+        thinkingPulse.setBackground(roundRect(
+                Color.argb(64, Color.red(accent), Color.green(accent), Color.blue(accent)),
+                dp(99), 0, 0));
+        brainHolder.addView(thinkingPulse, new FrameLayout.LayoutParams(-1, -1, Gravity.CENTER));
+
+        LineIconView brainIcon = new LineIconView("brain", true);
+        brainHolder.addView(brainIcon, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+
+        thinkingLabel = text(thinkingSteps[0] + "…", 13, MUTED, false);
+        thinkingLabel.setSingleLine(true);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(-2, -2);
+        labelLp.leftMargin = dp(8);
+        row.addView(thinkingLabel, labelLp);
+        messages.addView(row, new LinearLayout.LayoutParams(-2, -2));
+
+        thinkingAnimator = ObjectAnimator.ofPropertyValuesHolder(thinkingPulse,
+                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_X, 0.72f, 1.28f),
+                android.animation.PropertyValuesHolder.ofFloat(View.SCALE_Y, 0.72f, 1.28f),
+                android.animation.PropertyValuesHolder.ofFloat(View.ALPHA, 0.42f, 0.08f));
+        thinkingAnimator.setDuration(900);
         thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
-        thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        thinkingAnimator.setRepeatMode(ValueAnimator.RESTART);
         thinkingAnimator.start();
+
+        thinkingTextAnimator = ObjectAnimator.ofInt(thinkingLabel, "textColor", MUTED, accent);
+        thinkingTextAnimator.setEvaluator(new android.animation.ArgbEvaluator());
+        thinkingTextAnimator.setDuration(1600);
+        thinkingTextAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingTextAnimator.setRepeatMode(ValueAnimator.REVERSE);
+        thinkingTextAnimator.start();
+
+        thinkingStepIndex = 0;
+        thinkingStepHandler.postDelayed(thinkingStepTicker, 900L);
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void hideThinkingIndicator() {
+        thinkingStepHandler.removeCallbacks(thinkingStepTicker);
         if (thinkingAnimator != null) {
             thinkingAnimator.cancel();
             thinkingAnimator = null;
+        }
+        if (thinkingTextAnimator != null) {
+            thinkingTextAnimator.cancel();
+            thinkingTextAnimator = null;
         }
         if (thinkingIndicator != null) {
             if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
@@ -415,6 +470,8 @@ public class MainActivity extends Activity {
             }
             thinkingIndicator = null;
         }
+        thinkingLabel = null;
+        thinkingPulse = null;
     }
 
     private void sendMessage() {
@@ -857,7 +914,7 @@ public class MainActivity extends Activity {
             c.save();
             c.translate((getWidth() - 24f * scale) / 2f, (getHeight() - 24f * scale) / 2f);
             c.scale(scale, scale);
-            stroke.setColor(active ? accent : Color.argb(204, Color.red(accent), Color.green(accent), Color.blue(accent)));
+            boolean solid = active || "menu".equals(kind) || "more".equals(kind) || "mic".equals(kind) || "send".equals(kind) || "brain".equals(kind);\n            stroke.setColor(solid ? accent : Color.argb(204, Color.red(accent), Color.green(accent), Color.blue(accent)));
             stroke.setStyle(Paint.Style.STROKE);
             stroke.setStrokeWidth(1.65f);
             stroke.setStrokeCap(Paint.Cap.ROUND);
@@ -900,6 +957,31 @@ public class MainActivity extends Activity {
                     c.drawRoundRect(3, 3, 21, 21, 2, 2, stroke);
                     path(c, 7, 9, 11, 12, 7, 15);
                     line(c, 13, 16, 17, 16);
+                    break;
+                case "brain":
+                    Path brainLeft = new Path();
+                    brainLeft.moveTo(12, 4);
+                    brainLeft.cubicTo(9, 2, 6, 4, 7, 7);
+                    brainLeft.cubicTo(4, 7, 3, 10, 5, 12);
+                    brainLeft.cubicTo(2, 14, 4, 17, 7, 17);
+                    brainLeft.cubicTo(7, 20, 10, 21, 12, 19);
+                    brainLeft.close();
+                    c.drawPath(brainLeft, stroke);
+                    Path brainRight = new Path();
+                    brainRight.moveTo(12, 4);
+                    brainRight.cubicTo(15, 2, 18, 4, 17, 7);
+                    brainRight.cubicTo(20, 7, 21, 10, 19, 12);
+                    brainRight.cubicTo(22, 14, 20, 17, 17, 17);
+                    brainRight.cubicTo(17, 20, 14, 21, 12, 19);
+                    brainRight.close();
+                    c.drawPath(brainRight, stroke);
+                    line(c, 12, 4, 12, 20);
+                    Path brainFold = new Path();
+                    brainFold.moveTo(7, 8); brainFold.cubicTo(10, 8, 10, 10, 9, 11);
+                    brainFold.moveTo(6, 13); brainFold.cubicTo(9, 12, 10, 15, 9, 17);
+                    brainFold.moveTo(17, 8); brainFold.cubicTo(14, 8, 14, 10, 15, 11);
+                    brainFold.moveTo(18, 13); brainFold.cubicTo(15, 12, 14, 15, 15, 17);
+                    c.drawPath(brainFold, stroke);
                     break;
                 case "bot":
                     line(c, 12, 3, 12, 5); stroke.setStyle(Paint.Style.FILL); c.drawCircle(12, 2.5f, 1.5f, stroke); stroke.setStyle(Paint.Style.STROKE);
