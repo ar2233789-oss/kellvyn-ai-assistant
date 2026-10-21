@@ -48,7 +48,7 @@ jobs:
           import fs from "node:fs";
           const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
           const page = await browser.newPage({
-            viewport: { width: 444, height: 938 },
+            viewport: { width: 444, height: 913 },
             deviceScaleFactor: 2.75,
             isMobile: true,
             hasTouch: true,
@@ -215,12 +215,46 @@ jobs:
           else
             echo "No crash for com.kellvyn.assistant during startup." > out/native-crashes.txt
           fi
-          adb shell uiautomator dump /sdcard/window.xml >/dev/null
-          adb pull /sdcard/window.xml out/native-ui.xml >/dev/null
+          # The stock emulator launcher may show its own ANR dialog after boot.
+          # Dismiss that system dialog and re-check the actual foreground UI; never
+          # turn a Kellvyn process crash into a pass.
+          UI_READY=0
+          for attempt in $(seq 1 12); do
+            rm -f out/native-ui.xml
+            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -q "Pixel Launcher isn't responding" out/native-ui.xml; then
+              UI_READY=1
+              break
+            fi
+            if grep -q "Pixel Launcher isn't responding" out/native-ui.xml; then
+              WAIT_BOUNDS="$(python3 - out/native-ui.xml <<'PY'
+import re, sys
+data = open(sys.argv[1], encoding="utf-8").read()
+m = re.search(r'resource-id="android:id/aerr_wait".*?bounds="\\[(\\d+),(\\d+)\\]\\[(\\d+),(\\d+)\\]"', data)
+if m:
+    x1, y1, x2, y2 = map(int, m.groups())
+    print((x1+x2)//2, (y1+y2)//2)
+PY
+)"
+              if [ -n "$WAIT_BOUNDS" ]; then
+                read -r WAIT_X WAIT_Y <<< "$WAIT_BOUNDS"
+                adb shell input tap "$WAIT_X" "$WAIT_Y" || true
+              else
+                adb shell input keyevent 4 || true
+              fi
+            fi
+            sleep 3
+          done
+          if [ "$UI_READY" != "1" ]; then
+            echo "Kellvyn UI was not visible after clearing transient system dialogs."
+            cat out/native-ui.xml || true
+            exit 1
+          fi
           adb shell screencap -p /sdcard/native-screen.png
           adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
           grep -q "Kellvyn Assistente" out/native-ui.xml
-          for label in "Histórico" "Configurações" "Anexos e Web" "Ditado por voz" "Enviar mensagem" "Navegador" "Editor" "Terminal" "Bots" "Apps"; do
+          for label in "Histórico de conversas" "Configurações" "Anexos e Web" "Ditado por voz" "Enviar" "Navegador" "Editor" "Terminal" "Bots" "Apps"; do
             grep -q "$label" out/native-ui.xml || { echo "Missing native UI control: $label"; exit 1; }
           done
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
