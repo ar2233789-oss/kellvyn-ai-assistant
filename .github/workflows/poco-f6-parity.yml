@@ -130,15 +130,24 @@ jobs:
           echo "no" | "$AVDMANAGER" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device "pixel_7"
           AVD_CONFIG="$ANDROID_AVD_HOME/PocoF6Virtual.avd/config.ini"
           test -f "$AVD_CONFIG"
-          cat >> "$AVD_CONFIG" <<'AVD'
-          hw.lcd.width=1220
-          hw.lcd.height=2712
-          hw.lcd.density=440
-          hw.ramSize=8192
-          hw.cpu.ncore=4
-          hw.gpu.enabled=yes
-          hw.gpu.mode=swiftshader_indirect
-          AVD
+          # Replace existing AVD properties instead of appending duplicates (the emulator
+          # may otherwise keep the default 2 CPU cores). Bound userdata to fit the hosted runner.
+          set_avd_prop() {
+            local key="$1" value="$2"
+            if grep -q "^$key=" "$AVD_CONFIG"; then
+              sed -i "s|^$key=.*|$key=$value|" "$AVD_CONFIG"
+            else
+              printf '%s=%s\n' "$key" "$value" >> "$AVD_CONFIG"
+            fi
+          }
+          set_avd_prop hw.lcd.width 1220
+          set_avd_prop hw.lcd.height 2712
+          set_avd_prop hw.lcd.density 440
+          set_avd_prop hw.ramSize 8192
+          set_avd_prop hw.cpu.ncore 4
+          set_avd_prop hw.gpu.enabled yes
+          set_avd_prop hw.gpu.mode swiftshader_indirect
+          set_avd_prop disk.dataPartition.size 4096M
       - name: Compile unit tests and native APK
         working-directory: android
         run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
