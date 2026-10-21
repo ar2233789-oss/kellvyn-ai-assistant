@@ -48,6 +48,7 @@ jobs:
           import fs from "node:fs";
           const browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
           const page = await browser.newPage({
+            // 913dp models the Android app content area after system bars; compare like-for-like.
             viewport: { width: 444, height: 913 },
             deviceScaleFactor: 2.75,
             isMobile: true,
