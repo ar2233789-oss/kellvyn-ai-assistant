@@ -110,6 +110,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # GitHub-hosted Ubuntu runners can be short by ~600 MB for the default Pixel data image.
+          # Remove SDKs unused by this Android-only job before creating the virtual device.
+          sudo rm -rf /usr/share/dotnet /opt/hostedtoolcache/CodeQL /usr/local/share/powershell || true
+          df -h /
           SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
           SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$SDKMANAGER"
