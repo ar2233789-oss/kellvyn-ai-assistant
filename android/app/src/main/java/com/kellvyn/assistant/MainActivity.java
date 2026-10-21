@@ -1772,11 +1772,11 @@ public class MainActivity extends Activity {
             super.onSizeChanged(w, h, oldw, oldh);
             if (w <= 0 || h <= 0) return;
             backgroundTopGlow = new android.graphics.RadialGradient(
-                    w * 0.10f, 0f, h * 0.62f,
+                    w * 0.10f, 0f, h * 0.36f,
                     new int[]{0x2538E6BC, 0x0038E6BC}, null,
                     android.graphics.Shader.TileMode.CLAMP);
             backgroundBottomGlow = new android.graphics.RadialGradient(
-                    w * 0.98f, h, h * 0.55f,
+                    w * 0.98f, h, h * 0.325f,
                     new int[]{0x1A38E6BC, 0x0038E6BC}, null,
                     android.graphics.Shader.TileMode.CLAMP);
             initialized = false;
