@@ -1,4 +1,5 @@
 name: Poco F6 virtual comparison lab
+# Capture the restored native baseline and validate only the three-dot settings action.
 
 on:
   pull_request:
