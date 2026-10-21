@@ -173,7 +173,7 @@ jobs:
           fi
           BOOTED=0
           for n in $(seq 1 120); do
-            BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)"
+            BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
             if [ "$BOOTED" = "1" ]; then break; fi
             if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
               echo "Emulator process exited during Android boot."
@@ -182,7 +182,7 @@ jobs:
             fi
             sleep 5
           done
-          if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\\r' || true)" != "1" ]; then
+          if [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" != "1" ]; then
             echo "Timed out waiting 600 seconds for Android boot completion."
             adb devices -l || true
             cat /tmp/poco-f6-emulator.log || true
