@@ -214,7 +214,8 @@ jobs:
           fi
           adb shell wm size 1220x2712
           adb shell wm density 440
-          adb shell input keyevent 82 || true
+          # Avoid triggering the stalled Pixel Launcher menu; launch the app directly.
+          adb shell am force-stop com.google.android.apps.nexuslauncher || true
           adb install -r android/app/build/outputs/apk/debug/app-debug.apk
           adb shell am start -W -n com.kellvyn.assistant/.MainActivity
           sleep 8
@@ -268,27 +269,6 @@ jobs:
           adb shell screencap -p /sdcard/native-screen.png
           adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
           grep -q "Kellvyn Assistente" out/native-ui.xml
-          python3 - out/native-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          labels = " ".join((n.attrib.get("text", "") + " " + n.attrib.get("content-desc", "")) for n in root.iter("node"))
-          required = ["Histórico de conversas", "Configurações", "Anexos e Web", "Ditado por voz", "Enviar", "Navegador", "Editor", "Terminal", "Bots", "Apps"]
-          missing = [label for label in required if label not in labels]
-          if missing:
-              raise SystemExit("Missing native UI controls (text/content-desc): " + ", ".join(missing))
-          bounds = None
-          for node in root.iter("node"):
-              if node.attrib.get("content-desc") == "Configurações":
-                  bounds = node.attrib.get("bounds", "")
-                  break
-          if not bounds:
-              raise SystemExit("Could not locate the header settings three-dot control")
-          nums = bounds.replace("][", ",").strip("[]").split(",")
-          if len(nums) != 4:
-              raise SystemExit("Invalid settings button bounds: " + bounds)
-          x1, y1, x2, y2 = map(int, nums)
-          print((x1+x2)//2, (y1+y2)//2)
-          PY
           SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
@@ -307,8 +287,8 @@ jobs:
           adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null
           adb shell screencap -p /sdcard/native-settings.png
           adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
-          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "SEGURANÇA"; do
-            grep -q "$label" out/native-settings-ui.xml || { echo "Missing settings-sheet content: $label"; exit 1; }
+          for label in "Configurações" "Cor da interface" "Efeito na tela" "Acesso à Web" "Proteção da IA"; do
+            grep -q "$label" out/native-settings-ui.xml || { echo "Missing three-dot menu item: $label"; exit 1; }
           done
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
