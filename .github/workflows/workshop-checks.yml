@@ -1,0 +1,141 @@
+name: Oficina Kellvyn — validação, Android nativo e 3D
+
+on: [push, pull_request, workflow_dispatch]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: workshop-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-quality:
+    name: Validar a base web sem reformatar a interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Instalar dependências usando o lockfile existente
+        run: bun install --frozen-lockfile
+
+      - name: Compilar a base web
+        run: bun run build
+
+      - name: Verificar lint sem bloquear por formatação antiga
+        run: bun run lint --rule 'prettier/prettier: off'
+
+      - name: Relatar problemas de formatação preexistentes
+        continue-on-error: true
+        run: bun run lint
+
+      - name: Executar testes existentes
+        run: bun run test --passWithNoTests
+
+  native-android:
+    name: Compilar e testar o módulo Android existente
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Preparar Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Instalar Android SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          test -d "$SDK_ROOT/cmdline-tools"
+          SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          test -n "$SDKMANAGER"
+          export ANDROID_HOME="$SDK_ROOT"
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses >/dev/null
+          set -o pipefail
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+
+      - name: Instalar Gradle 8.13
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Executar testes unitários e compilar APK
+        working-directory: android
+        run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+
+      - name: Verificar o pacote APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          unzip -t "$APK" >/dev/null
+          "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.kellvyn.assistant'"
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
+          cp "$APK" Kellvyn-IA-debug.apk
+
+      - name: Guardar APK de diagnóstico
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kellvyn-IA-debug-APK
+          path: Kellvyn-IA-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
+  blender-toolchain:
+    name: Validar criação e exportação de animação 3D
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Baixar o código
+        uses: actions/checkout@v4
+
+      - name: Instalar Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender
+
+      - name: Criar e exportar cena 3D de teste
+        run: |
+          mkdir -p out
+          blender --background --factory-startup --python workshop/blender/smoke_test.py -- --output-dir out
+
+      - name: Guardar GLB e manifesto do teste
+        uses: actions/upload-artifact@v4
+        with:
+          name: kellvyn-3d-animation-smoke
+          path: out/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release-apk:
+    name: Publicar APK de diagnóstico em GitHub Releases (somente tag v*)
+    runs-on: ubuntu-latest
+    needs: native-android
+    if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+    permissions:
+      contents: write
+    steps:
+      - name: Baixar o APK desta execução
+        uses: actions/download-artifact@v4
+        with:
+          name: Kellvyn-IA-debug-APK
+          path: release
+
+      - name: Publicar o APK como arquivo direto
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/Kellvyn-IA-debug.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
