@@ -233,7 +233,7 @@ public class MainActivity extends Activity {
         controls.addView(mic, new LinearLayout.LayoutParams(dp(36), dp(36)));
         mic.setOnClickListener(v -> startSpeech());
 
-        FrameLayout send = headerIconButton("send", "Enviar mensagem", true);
+        FrameLayout send = headerIconButton("send", "Enviar", true);
         LinearLayout.LayoutParams sendLp = new LinearLayout.LayoutParams(dp(32), dp(32));
         sendLp.leftMargin = dp(4);
         controls.addView(send, sendLp);
@@ -1557,7 +1557,7 @@ public class MainActivity extends Activity {
     }
 
     private class RainView extends View {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint rainPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
         private final Paint leafPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Paint backgroundPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -1565,128 +1565,209 @@ public class MainActivity extends Activity {
         private android.graphics.Shader backgroundBottomGlow;
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
-        private final int count = 64;
-        private final int particleCount = 42;
-        private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count];
-        private final float[] px = new float[particleCount], py = new float[particleCount];
-        private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
-        private final float[] boltX = new float[15], boltY = new float[15];
+        private final ArrayList<EffectParticle> particles = new ArrayList<>();
+        private final int[] leafColors = new int[]{0xFFC9682B, 0xFFD9A441, 0xFF8E3B1F, 0xFFA8B04A};
+        private android.graphics.Bitmap rainSprite;
         private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
-        private int flashFrames = 0;
+        private long lastFrameAt = 0L;
         private long nextLightningAt = 0L;
+        private float lightningFlash = 0f;
+        private final float[] boltX = new float[64], boltY = new float[64];
+        private int boltCount = 0;
+
+        private class EffectParticle {
+            String kind;
+            float x, y, vx, vy, size, alpha, rot, vr, phase;
+        }
 
         RainView() {
             super(MainActivity.this);
-            flashPaint.setColor(0x18DDE8FF);
             activeEffects = renderEffectSet();
+            buildRainSprite();
+            flashPaint.setColor(0xFFDDE8FF);
+        }
+
+        private void buildRainSprite() {
+            rainSprite = android.graphics.Bitmap.createBitmap(4, 64, android.graphics.Bitmap.Config.ARGB_8888);
+            Canvas spriteCanvas = new Canvas(rainSprite);
+            Paint spritePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+            spritePaint.setShader(new android.graphics.LinearGradient(
+                    0f, 0f, 0f, 64f,
+                    new int[]{0x00CFE3F2, 0xFFDCEBF8},
+                    null, android.graphics.Shader.TileMode.CLAMP));
+            spriteCanvas.drawRect(1f, 0f, 3f, 64f, spritePaint);
+            spritePaint.setShader(null);
         }
 
         void setEffects(Set<String> effects) {
             activeEffects = new HashSet<>(effects);
-            if (activeEffects.contains("raios") && nextLightningAt == 0L) {
-                nextLightningAt = System.currentTimeMillis() + 1200L;
-            }
+            initialized = false;
+            lastFrameAt = 0L;
+            nextLightningAt = 0L;
             invalidate();
         }
 
-        private void init() {
-            for (int i=0;i<count;i++) {
-                x[i] = (float)Math.random()*Math.max(1,getWidth());
-                y[i] = (float)Math.random()*Math.max(1,getHeight());
-                speed[i] = dp(5) + (float)Math.random()*dp(10);
-                len[i] = dp(18) + (float)Math.random()*dp(50);
+        private EffectParticle spawn(String kind, boolean randomY) {
+            float d = (float) Math.random();
+            float density = getResources().getDisplayMetrics().density;
+            EffectParticle particle = new EffectParticle();
+            particle.kind = kind;
+            particle.x = (float) Math.random() * Math.max(1, getWidth());
+            particle.y = randomY
+                    ? (float) Math.random() * Math.max(1, getHeight())
+                    : -density * (20f + (float) Math.random() * 60f);
+            particle.rot = (float) Math.random() * 6.2831855f;
+            particle.phase = (float) Math.random() * 6.2831855f;
+            if ("neve".equals(kind)) {
+                particle.vx = 0f;
+                particle.vy = density * (25f + d * 55f);
+                particle.size = density * (1f + d * 2.6f);
+                particle.alpha = 0.4f + d * 0.5f;
+                particle.vr = 0f;
+            } else if ("folhas".equals(kind)) {
+                particle.vx = 0f;
+                particle.vy = density * (30f + d * 45f);
+                particle.size = density * (5f + d * 6f);
+                particle.alpha = 0.55f + d * 0.4f;
+                particle.vr = ((float) Math.random() - 0.5f) * 2.5f;
+            } else {
+                particle.vx = 0f;
+                particle.vy = density * (140f + d * 380f);
+                particle.size = density * (18f + d * 50f);
+                particle.alpha = 0.15f + d * 0.4f;
+                particle.vr = d > 0.8f ? 1.6f : 1f;
             }
-            for (int i=0;i<particleCount;i++) {
-                px[i] = (float)Math.random()*Math.max(1,getWidth());
-                py[i] = (float)Math.random()*Math.max(1,getHeight());
-                pspeed[i] = dp(1) + (float)Math.random()*dp(2.4f);
-                psize[i] = dp(1) + (float)Math.random()*dp(2.3f);
-                prot[i] = (float)Math.random()*360f;
-                protSpeed[i] = -2.5f + (float)Math.random()*5f;
+            return particle;
+        }
+
+        private void initializeParticles() {
+            particles.clear();
+            if (getWidth() <= 0 || getHeight() <= 0) return;
+            float density = getResources().getDisplayMetrics().density;
+            float logicalWidth = getWidth() / density;
+            float logicalHeight = getHeight() / density;
+            for (String kind : new String[]{"chuva", "neve", "folhas"}) {
+                if (!activeEffects.contains(kind)) continue;
+                int divisor = "folhas".equals(kind) ? 22000 : ("neve".equals(kind) ? 5000 : 6000);
+                int count = Math.min(160, Math.round((logicalWidth * logicalHeight) / divisor));
+                for (int i = 0; i < count; i++) particles.add(spawn(kind, true));
             }
+            long now = android.os.SystemClock.uptimeMillis();
+            if (activeEffects.contains("raios")) {
+                nextLightningAt = now + 2000L + (long) (Math.random() * 4000L);
+            } else {
+                nextLightningAt = 0L;
+            }
+            lightningFlash = 0f;
+            lastFrameAt = 0L;
             initialized = true;
         }
 
-        private void drawRain(Canvas c) {
-            p.setStrokeWidth(dp(1));
-            for (int i=0;i<count;i++) {
-                p.setColor(i%5==0 ? 0x3BDCEBF8 : 0x1DAAC6DC);
-                c.drawLine(x[i], y[i], x[i]-dp(1), y[i]+len[i], p);
-                if (running) {
-                    y[i] += speed[i];
-                    if (y[i] > getHeight()) {
-                        y[i] = -len[i];
-                        x[i] = (float)Math.random()*getWidth();
-                    }
+        private void drawParticles(Canvas c, float dt, float timeSeconds) {
+            float density = getResources().getDisplayMetrics().density;
+            for (int i = 0; i < particles.size(); i++) {
+                EffectParticle particle = particles.get(i);
+                if ("neve".equals(particle.kind)) {
+                    particle.x += (float) Math.sin(timeSeconds * 0.8f + particle.phase) * density * 18f * dt;
+                } else if ("folhas".equals(particle.kind)) {
+                    particle.x += (float) Math.sin(timeSeconds * 1.2f + particle.phase) * density * 40f * dt;
+                    particle.rot += particle.vr * dt;
                 }
+                particle.y += particle.vy * dt;
+                if (particle.y - density * 60f > getHeight()) {
+                    EffectParticle replacement = spawn(particle.kind, false);
+                    particles.set(i, replacement);
+                    particle = replacement;
+                }
+                if ("neve".equals(particle.kind)) {
+                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
+                    rainPaint.setColor(Color.WHITE);
+                    c.drawCircle(particle.x, particle.y, particle.size, rainPaint);
+                } else if ("folhas".equals(particle.kind)) {
+                    c.save();
+                    c.translate(particle.x, particle.y);
+                    c.rotate((float) Math.toDegrees(particle.rot));
+                    leafPaint.setColor(leafColors[Math.floorMod((int) particle.phase, leafColors.length)]);
+                    leafPaint.setAlpha(Math.round(particle.alpha * 255f));
+                    c.drawOval(-particle.size, -particle.size * 0.45f, particle.size, particle.size * 0.45f, leafPaint);
+                    c.restore();
+                } else {
+                    rainPaint.setAlpha(Math.round(particle.alpha * 255f));
+                    rainPaint.setColor(Color.WHITE);
+                    android.graphics.RectF target = new android.graphics.RectF(
+                            particle.x, particle.y - particle.size,
+                            particle.x + density * particle.vr * 2f, particle.y);
+                    c.drawBitmap(rainSprite, null, target, rainPaint);
+                }
+            }
+            rainPaint.setAlpha(255);
+        }
+
+        private void makeLightningBolt() {
+            float density = getResources().getDisplayMetrics().density;
+            float x = getWidth() * (0.15f + (float) Math.random() * 0.7f);
+            float y = 0f;
+            float end = getHeight() * (0.45f + (float) Math.random() * 0.3f);
+            boltCount = 0;
+            while (y < end && boltCount < boltX.length) {
+                boltX[boltCount] = x;
+                boltY[boltCount] = y;
+                boltCount++;
+                x += ((float) Math.random() - 0.5f) * density * 50f;
+                y += density * (15f + (float) Math.random() * 30f);
+            }
+            if (boltCount < boltX.length) {
+                boltX[boltCount] = x;
+                boltY[boltCount] = Math.min(end, getHeight());
+                boltCount++;
             }
         }
 
-        private void drawSnow(Canvas c) {
-            p.setColor(0xBBDDEEFF);
-            for (int i=0;i<particleCount;i++) {
-                c.drawCircle(px[i], py[i], psize[i], p);
-                if (running) {
-                    py[i] += pspeed[i];
-                    px[i] += (float)Math.sin((py[i] + i) * 0.015f) * dp(0.4f);
-                    if (py[i] > getHeight() + psize[i]) {
-                        py[i] = -psize[i];
-                        px[i] = (float)Math.random()*getWidth();
-                    }
-                }
+        private void drawLightning(Canvas c, float dt, long now) {
+            if (!activeEffects.contains("raios")) return;
+            if (nextLightningAt == 0L) nextLightningAt = now + 2000L + (long) (Math.random() * 4000L);
+            if (lightningFlash <= 0f && now >= nextLightningAt) {
+                makeLightningBolt();
+                lightningFlash = 1f;
+                nextLightningAt = now + 3000L + (long) (Math.random() * 6000L);
             }
-        }
-
-        private void drawLeaves(Canvas c) {
-            for (int i=0;i<particleCount/2;i++) {
-                c.save();
-                c.rotate(prot[i], px[i], py[i]);
-                leafPaint.setColor(new int[]{0xCCC9682B, 0xCCD9A441, 0xCC8E3B1F, 0xCCA8B04A}[i%4]);
-                c.drawOval(px[i]-psize[i]*2.5f, py[i]-psize[i], px[i]+psize[i]*2.5f, py[i]+psize[i], leafPaint);
-                c.restore();
-                if (running) {
-                    py[i] += pspeed[i] * 1.15f;
-                    px[i] += (float)Math.sin(py[i] * 0.012f) * dp(0.8f);
-                    prot[i] += protSpeed[i];
-                    if (py[i] > getHeight() + dp(12)) {
-                        py[i] = -dp(12);
-                        px[i] = (float)Math.random()*getWidth();
-                    }
-                }
-            }
-        }
-
-        private void drawLightning(Canvas c) {
-            long now = System.currentTimeMillis();
-            if (flashFrames <= 0 && now >= nextLightningAt) {
-                float bx = getWidth() * (0.2f + (float)Math.random()*0.6f);
-                float by = 0f;
-                for (int i=0;i<boltX.length;i++) {
-                    boltX[i] = bx;
-                    boltY[i] = by;
-                    bx += (-getWidth()*0.055f + (float)Math.random()*getWidth()*0.11f);
-                    by += getHeight() / (float)(boltX.length - 1);
-                }
-                flashFrames = 3;
-                nextLightningAt = now + 3500L + (long)(Math.random()*5500L);
-            }
-            if (flashFrames > 0) {
+            if (lightningFlash > 0f) {
+                flashPaint.setAlpha(Math.round(lightningFlash * 0.12f * 255f));
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
-                p.setColor(0xFFEAF1FF);
-                p.setStrokeWidth(dp(1.8f));
-                p.setShadowLayer(dp(12), 0, 0, 0xFF9DB8FF);
-                Path path = new Path();
-                path.moveTo(boltX[0], boltY[0]);
-                for (int i=1;i<boltX.length;i++) path.lineTo(boltX[i], boltY[i]);
-                c.drawPath(path, p);
-                p.clearShadowLayer();
-                flashFrames--;
+                if (boltCount > 1) {
+                    Path path = new Path();
+                    path.moveTo(boltX[0], boltY[0]);
+                    for (int i = 1; i < boltCount; i++) path.lineTo(boltX[i], boltY[i]);
+                    rainPaint.setColor(0xFFEAF1FF);
+                    rainPaint.setAlpha(Math.round(lightningFlash * 0.85f * 255f));
+                    rainPaint.setStyle(Paint.Style.STROKE);
+                    rainPaint.setStrokeWidth(getResources().getDisplayMetrics().density * 1.6f);
+                    rainPaint.setShadowLayer(getResources().getDisplayMetrics().density * 14f, 0, 0, 0xFF9DB8FF);
+                    c.drawPath(path, rainPaint);
+                    rainPaint.clearShadowLayer();
+                    rainPaint.setStyle(Paint.Style.FILL);
+                    rainPaint.setAlpha(255);
+                }
+                lightningFlash = Math.max(0f, lightningFlash - dt * 2.2f);
+            }
+            flashPaint.setAlpha(255);
+        }
+
+        void start() {
+            if (!running) {
+                running = true;
+                lastFrameAt = 0L;
+                h.post(frame);
             }
         }
 
-        void start() { if (!running) { running = true; h.post(frame); } }
-        void stop() { running = false; h.removeCallbacks(frame); }
+        void stop() {
+            running = false;
+            h.removeCallbacks(frame);
+            lastFrameAt = 0L;
+        }
+
         @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
             super.onSizeChanged(w, h, oldw, oldh);
             if (w <= 0 || h <= 0) return;
@@ -1698,12 +1779,19 @@ public class MainActivity extends Activity {
                     w * 0.98f, h, h * 0.55f,
                     new int[]{0x1A38E6BC, 0x0038E6BC}, null,
                     android.graphics.Shader.TileMode.CLAMP);
+            initialized = false;
+            invalidate();
         }
 
         @Override protected void onDraw(Canvas c) {
             super.onDraw(c);
             if (getWidth() == 0 || getHeight() == 0) return;
-            if (!initialized) init();
+            if (!initialized) initializeParticles();
+
+            long now = android.os.SystemClock.uptimeMillis();
+            float dt = lastFrameAt == 0L ? (1f / 60f) : Math.min((now - lastFrameAt) / 1000f, 1f / 30f);
+            lastFrameAt = now;
+            float timeSeconds = now / 1000f;
 
             backgroundPaint.setShader(backgroundTopGlow);
             c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
@@ -1711,11 +1799,10 @@ public class MainActivity extends Activity {
             c.drawRect(0, 0, getWidth(), getHeight(), backgroundPaint);
             backgroundPaint.setShader(null);
 
-            if (activeEffects.contains("chuva")) drawRain(c);
-            if (activeEffects.contains("neve")) drawSnow(c);
-            if (activeEffects.contains("folhas")) drawLeaves(c);
-            if (activeEffects.contains("raios")) drawLightning(c);
-            if (running && !activeEffects.isEmpty()) h.postDelayed(frame, 33);
+            drawParticles(c, dt, timeSeconds);
+            drawLightning(c, dt, now);
+
+            if (running && !activeEffects.isEmpty()) h.postDelayed(frame, 16L);
         }
     }
 }
