@@ -64,7 +64,7 @@ jobs:
           set +o pipefail
           yes | "$SDKMANAGER" --licenses >/dev/null
           set -o pipefail
-          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
 
       - name: Instalar Gradle 8.13
         uses: gradle/actions/setup-gradle@v4
@@ -85,6 +85,45 @@ jobs:
           "$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | grep -F "package: name='com.kellvyn.assistant'"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify "$APK"
           cp "$APK" Kellvyn-IA-debug.apk
+
+      - name: Criar o dispositivo virtual Poco F6 e instalar o APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          export ANDROID_HOME="$SDK_ROOT"
+          export ANDROID_SDK_ROOT="$SDK_ROOT"
+          echo "no" | "$SDK_ROOT/cmdline-tools/latest/bin/avdmanager" create avd -n PocoF6 -k "system-images;android-35;google_apis;x86_64" -d pixel_6 --force
+          AVD_DIR="$HOME/.android/avd/PocoF6.avd"
+          if [ -f "$AVD_DIR/config.ini" ]; then
+            printf '\nhw.lcd.width=1220\nhw.lcd.height=2712\nhw.lcd.density=480\nhw.ramSize=4096\nhw.cpu.ncore=4\n' >> "$AVD_DIR/config.ini"
+          fi
+          "$SDK_ROOT/emulator/emulator" -avd PocoF6 -no-window -no-audio -no-boot-anim -gpu swiftshader_indirect -no-snapshot -wipe-data > /tmp/pocof6-emulator.log 2>&1 &
+          adb wait-for-device
+          for i in $(seq 1 90); do
+            BOOTED="$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            [ "$BOOTED" = "1" ] && break
+            sleep 5
+          done
+          test "$(adb shell getprop sys.boot_completed | tr -d '\r')" = "1"
+          adb install Kellvyn-IA-debug.apk
+          adb shell monkey -p com.kellvyn.assistant 1
+          sleep 15
+          adb shell dumpsys activity activities | grep -F "com.kellvyn.assistant"
+          if adb logcat -d -t 500 | grep -E "FATAL EXCEPTION|Process: com.kellvyn.assistant" ; then
+            echo "Falha fatal detectada durante a inicialização do Kellvyn IA."
+            exit 1
+          fi
+          adb shell screencap -p /sdcard/kellvyn-pocof6.png
+          adb pull /sdcard/kellvyn-pocof6.png Kellvyn-PocoF6-boot.png
+
+      - name: Guardar captura do teste no dispositivo virtual
+        uses: actions/upload-artifact@v4
+        with:
+          name: Kellvyn-PocoF6-virtual-smoke-test
+          path: Kellvyn-PocoF6-boot.png
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Guardar APK de diagnóstico
         uses: actions/upload-artifact@v4
