@@ -122,7 +122,7 @@ public class MainActivity extends Activity {
         header.setBackgroundColor(0xEE0B1211);
         shell.addView(header, new LinearLayout.LayoutParams(-1, dp(66)));
 
-        TextView menu = iconButton("☰", "Histórico");
+        TextView menu = iconButton("☰", "Histórico de conversas");
         header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
         menu.setOnClickListener(v -> showHistory());
         LinearLayout brand = new LinearLayout(this);
