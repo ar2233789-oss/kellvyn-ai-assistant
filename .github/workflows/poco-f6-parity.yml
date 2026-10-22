@@ -333,6 +333,196 @@ jobs:
               exit 1
             fi
           done
+          # Exercise existing UI paths in the virtual device without touching saved user data.
+          dump_current_ui() {
+            adb shell uiautomator dump /sdcard/kell-current.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/kell-current.xml out/current-ui.xml >/dev/null 2>&1 || true
+            test -s out/current-ui.xml
+          }
+          tap_node() {
+            local mode="$1" value="$2" occurrence="$3"
+            if [ -z "$occurrence" ]; then occurrence=0; fi
+            local point
+            point="$(python3 - "$mode" "$value" "$occurrence" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          mode, value, occurrence, path = sys.argv[1:]
+          attr = {"text":"text", "desc":"content-desc", "class":"class"}[mode]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "") == value and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"]
+          if not nodes:
+              sys.exit(2)
+          i = int(occurrence)
+          if i < 0: i += len(nodes)
+          if i < 0 or i >= len(nodes): sys.exit(3)
+          b = nodes[i].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(b) != 4: sys.exit(4)
+          x1,y1,x2,y2 = map(int,b)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+          )" || { echo "Missing tappable node: $mode=$value occurrence=$occurrence"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            adb shell input tap "$tx" "$ty"
+            sleep 1
+            dump_current_ui
+          }
+          assert_ui() {
+            grep -Fq "$1" out/current-ui.xml || { echo "Expected UI text not found: $1"; cat out/current-ui.xml; exit 1; }
+          }
+          tap_text() { tap_node text "$1" "$2"; }
+          tap_desc() { tap_node desc "$1" "$2"; }
+
+          # 1) Color chooser opens and can be dismissed without changing the selected theme.
+          dump_current_ui
+          tap_text "Abrir" 0
+          assert_ui "Cor da interface"
+          assert_ui "Verde-esmeralda"
+          assert_ui "Turquesa"
+          tap_text "Cancelar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 2) Visual effects chooser exposes the original effects and cancels cleanly.
+          tap_desc "Configurações" 0
+          tap_text "Configurar" 0
+          assert_ui "Efeito na tela"
+          assert_ui "Chuva"
+          assert_ui "Neve"
+          assert_ui "Raios"
+          tap_text "Cancelar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 3) Web access switch must toggle and then return to its original state.
+          tap_desc "Configurações" 0
+          python3 - out/current-ui.xml > out/web-switch-before.txt <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
+          if len(nodes) != 1: sys.exit("Expected exactly one web access switch")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          BEFORE="$(cat out/web-switch-before.txt)"
+          tap_node class "android.widget.Switch" 0
+          AFTER="$(python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
+          if len(nodes) != 1: sys.exit("Web access switch disappeared")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          )"
+          [ "$AFTER" != "$BEFORE" ] || { echo "Web access switch did not change state"; exit 1; }
+          tap_node class "android.widget.Switch" 0
+          RESTORED="$(python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
+          if len(nodes) != 1: sys.exit("Web access switch disappeared on restore")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          )"
+          [ "$RESTORED" = "$BEFORE" ] || { echo "Web access preference failed to restore"; exit 1; }
+
+          # 4) Protection action opens the existing confirmation and can be dismissed safely.
+          tap_text "Configurar" -1
+          assert_ui "Proteção da IA"
+          assert_ui "Ativar proteção visual"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 5) Bots panel opens; verify Telegram/Discord/WhatsApp rows and their honest unavailable status.
+          tap_desc "Bots" 0
+          assert_ui "BOTS ATIVOS"
+          assert_ui "Telegram"
+          assert_ui "Discord"
+          assert_ui "WhatsApp"
+          assert_ui "webhook público"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 6) Editor opens with save/list controls, then closes.
+          tap_desc "Editor" 0
+          assert_ui "EDITOR DE CÓDIGO"
+          assert_ui "Arquivos salvos"
+          assert_ui "Salvar"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 7) Browser address form opens, then cancels without navigating externally.
+          tap_desc "Navegador" 0
+          assert_ui "Abrir Web"
+          assert_ui "https://"
+          assert_ui "Cancelar"
+          tap_text "Cancelar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 8) Conversation history opens and offers current/new conversation actions.
+          tap_desc "Histórico" 0
+          assert_ui "Histórico de conversas"
+          assert_ui "Conversa atual"
+          assert_ui "Nova conversa"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 9) Plus menu and Plugins dialog work; also exercise the system file-picker handoff.
+          tap_desc "Anexos e Web" 0
+          assert_ui "Imagem ou arquivo"
+          assert_ui "Plugins"
+          assert_ui "Acesso à Web"
+          tap_text "Plugins" 0
+          assert_ui "PLUGINS"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+          tap_desc "Anexos e Web" 0
+          tap_text "Imagem ou arquivo" 0
+          sleep 2
+          adb shell dumpsys activity activities > out/file-picker-activity.txt
+          if adb shell pm list packages | tr -d '\r' | grep -q '^package:com.google.android.documentsui
+          adb shell dumpsys activity activities > out/native-activity.txt
+          echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
+      - name: Upload native emulator capture and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: out/*
+          if-no-files-found: warn
+          retention-days: 14
+; then
+            grep -qi "documentsui" out/file-picker-activity.txt || { echo "Document picker was not brought to foreground"; cat out/file-picker-activity.txt; exit 1; }
+          fi
+          adb shell input keyevent 4
+          sleep 1
+          dump_current_ui
+          assert_ui "Kellvyn Assistente"
+
+          # 10) Chat submit reaches the local-model preparation gate. Cancel it to avoid downloading a model.
+          tap_text "Pergunte qualquer coisa..." 0
+          adb shell input text "ola"
+          dump_current_ui
+          tap_desc "Enviar mensagem" 0
+          assert_ui "Preparar o cérebro local"
+          assert_ui "Baixar e enviar"
+          tap_text "Agora não" 0
+          assert_ui "Kellvyn Assistente"
+
+          # 11) Terminal hand-off's no-Termux path must not crash or replace the chat.
+          if ! adb shell pm list packages | tr -d '\r' | grep -q '^package:com.termux
+          adb shell dumpsys activity activities > out/native-activity.txt
+          echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
+      - name: Upload native emulator capture and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: out/*
+          if-no-files-found: warn
+          retention-days: 14
+; then
+            tap_desc "Terminal" 0
+            assert_ui "Kellvyn Assistente"
+          else
+            echo "Termux is installed in this runner; terminal UI left to avoid opening an external app."
+          fi
+
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
           echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
