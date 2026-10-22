@@ -388,65 +388,84 @@ jobs:
           tap_desc() { tap_node desc "$1" "$2"; }
 
           dump_current_ui
-          for label in "CONFIGURAÇÕES DO KELLVYN" "Cor da interface" "Efeitos visuais" "Acesso à Web" "Proteção da IA" "Fechar configurações"; do
+          # Full settings sheet from the previously downloaded build. The panel is scrollable.
+          for label in "CONFIGURAÇÕES DO KELLVYN" "Cores" "Destaque" "Fundo" "Texto" "Intensidade do brilho" "Temas prontos" "Esmeralda" "Preto e Dourado" "Efeito na tela" "Chuva" "Raios"; do
             assert_ui "$label"
           done
 
-          # Color selector opens and cancels without changing the existing accent.
-          tap_text "Abrir" 0
-          assert_ui "Cor da interface"
-          assert_ui "Verde-esmeralda"
-          assert_ui "Turquesa"
+          # Custom color edit can be opened and cancelled without closing the settings sheet.
+          tap_parent_of_text "Destaque"
+          assert_ui "Informe uma cor HEX de seis dígitos"
           tap_text "Cancelar" 0
-          assert_ui "Kellvyn Assistente"
-
-          # Reopen the panel after closing the native color picker.
-          tap_desc "Configurações" 0
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
 
-          # Effect selector exposes original choices and cancels without changing effects.
-          tap_text "Configurar" 0
-          assert_ui "Efeito na tela"
-          assert_ui "Chuva"
-          assert_ui "Neve"
-          assert_ui "Folhas"
-          assert_ui "Raios"
-          tap_text "Cancelar" 0
-          assert_ui "Kellvyn Assistente"
+          # Test a preset theme and restore the original Emerald palette immediately.
+          tap_parent_of_text "Preto e Dourado"
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          tap_parent_of_text "Esmeralda"
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-theme-restored.xml
+          grep -q 'name="accent" value="9533116"' out/prefs-theme-restored.xml || {
+            echo "Emerald accent was not restored after the palette interaction."
+            cat out/prefs-theme-restored.xml
+            exit 1
+          }
 
-          # Web switch toggles in the settings panel and returns to its initial state.
-          tap_desc "Configurações" 0
+          # Confirm that rain and lightning can be enabled together, then restore rain-only default.
+          tap_text "Raios" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-both-effects.xml
+          grep -q "chuva" out/prefs-both-effects.xml && grep -q "raios" out/prefs-both-effects.xml || {
+            echo "Rain and lightning were not stored together."
+            cat out/prefs-both-effects.xml
+            exit 1
+          }
+          tap_text "Raios" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-rain-restored.xml
+          grep -q "chuva" out/prefs-rain-restored.xml || { echo "Rain effect was lost while restoring defaults."; exit 1; }
+          if grep -q "raios" out/prefs-rain-restored.xml; then
+            echo "Lightning remained active after restoring rain-only default."
+            cat out/prefs-rain-restored.xml
+            exit 1
+          fi
+
+          # Scroll to settings sections lower than the initial viewport.
+          adb shell input swipe 610 2200 610 700 600
+          sleep 1
           dump_current_ui
-          web_before="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Expected one Web access switch")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
+          for label in "Atalhos" "Memória local" "Assistente virtual" "Leitura de tela" "Modo de jogo" "Segurança" "Proteção reforçada da IA" "Fechar"; do
+            assert_ui "$label"
+          done
+
+          # Security preference toggle must work and be restored to the original ON value.
           tap_node class "android.widget.Switch" 0
-          web_after="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Web access switch disappeared")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
-          [ "$web_after" != "$web_before" ] || { echo "Web access switch did not toggle"; exit 1; }
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-off.xml
+          grep -q 'name="protection" value="false"' out/prefs-protection-off.xml || {
+            echo "Security switch did not turn protection off."
+            cat out/prefs-protection-off.xml
+            exit 1
+          }
           tap_node class "android.widget.Switch" 0
-          web_restored="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Web access switch disappeared on restore")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
-          [ "$web_restored" = "$web_before" ] || { echo "Web access did not return to initial state"; exit 1; }
-          tap_text "Configurar" 1
-          assert_ui "Ativar proteção visual"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-restored.xml
+          grep -q 'name="protection" value="true"' out/prefs-protection-restored.xml || {
+            echo "Security switch did not restore protection."
+            cat out/prefs-protection-restored.xml
+            exit 1
+          }
+
+          # Local memory row opens, saves a harmless lab-only test value and closes cleanly.
+          tap_parent_of_text "Memória local"
+          assert_ui "MEMÓRIA LOCAL"
+          assert_ui "Nova informação"
+          tap_node class "android.widget.EditText" 0
+          adb shell input text "lab_memoria_funcionou"
+          dump_current_ui
+          tap_text "Salvar" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-local-memory.xml
+          grep -q "lab_memoria_funcionou" out/prefs-local-memory.xml || {
+            echo "Local memory did not persist its test value."
+            cat out/prefs-local-memory.xml
+            exit 1
+          }
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
@@ -479,11 +498,28 @@ jobs:
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
-          # Plus menu, Plugins and system file-picker handoff.
+          # Plus menu: test Web access toggle both ways, Plugins and system file picker.
           tap_desc "Anexos e Web" 0
           assert_ui "Imagem ou arquivo"
           assert_ui "Plugins"
           assert_ui "Acesso à Web"
+          tap_text "Acesso à Web" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-on.xml
+          grep -q 'name="web_access" value="true"' out/prefs-web-on.xml || {
+            echo "Web-access item did not enable the preference."
+            cat out/prefs-web-on.xml
+            exit 1
+          }
+          tap_desc "Anexos e Web" 0
+          tap_text "Acesso à Web" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-restored.xml
+          grep -q 'name="web_access" value="false"' out/prefs-web-restored.xml || {
+            echo "Web-access item did not restore the preference to OFF."
+            cat out/prefs-web-restored.xml
+            exit 1
+          }
+
+          tap_desc "Anexos e Web" 0
           tap_text "Plugins" 0
           assert_ui "PLUGINS"
           tap_text "Fechar" 0
@@ -517,6 +553,27 @@ jobs:
           assert_ui "Baixar e enviar"
           tap_text "Agora não" 0
           assert_ui "Kellvyn Assistente"
+
+          # Voice entry should launch speech recognition when available and never crash the app.
+          tap_desc "Ditado por voz" 0
+          sleep 2
+          adb shell dumpsys activity activities > out/speech-activity.txt
+          if ! grep -q "com.kellvyn.assistant/.MainActivity" out/speech-activity.txt; then
+            adb shell input keyevent 4
+            sleep 1
+          fi
+          dump_current_ui
+          assert_ui "Kellvyn Assistente"
+
+          # Apps shortcut intentionally opens the Android launcher; check handoff, then end UI interaction.
+          tap_desc "Apps" 0
+          sleep 2
+          adb shell dumpsys activity activities > out/apps-activity.txt
+          if grep -E "mResumedActivity|topResumedActivity" out/apps-activity.txt | grep -q "com.kellvyn.assistant"; then
+            echo "Apps shortcut did not leave Kellvyn for the Android launcher."
+            cat out/apps-activity.txt
+            exit 1
+          fi
 
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
