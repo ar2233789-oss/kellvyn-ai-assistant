@@ -391,6 +391,10 @@ jobs:
           assert_ui "Verde-esmeralda"
           assert_ui "Turquesa"
           tap_text "Cancelar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # Reopen the panel after closing the native color picker.
+          tap_desc "Configurações" 0
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
 
           # Effect selector exposes original choices and cancels without changing effects.
