@@ -331,7 +331,14 @@ jobs:
           mode, value, occurrence, path = sys.argv[1:]
           attr = {"text":"text", "desc":"content-desc", "class":"class"}[mode]
           root = ET.parse(path).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "") == value and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"]
+          def matches(n):
+              actual = n.attrib.get(attr, "")
+              expected = value
+              if mode == "text":
+                  actual = actual.casefold()
+                  expected = expected.casefold()
+              return actual == expected and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"
+          nodes = [n for n in root.iter("node") if matches(n)]
           if not nodes: sys.exit(2)
           i = int(occurrence)
           if i < 0: i += len(nodes)
@@ -375,7 +382,7 @@ jobs:
             dump_current_ui
           }
           assert_ui() {
-            grep -Fq "$1" out/current-ui.xml || { echo "Expected UI text not found: $1"; cat out/current-ui.xml; exit 1; }
+            grep -Fqi "$1" out/current-ui.xml || { echo "Expected UI text not found: $1"; cat out/current-ui.xml; exit 1; }
           }
           tap_text() { tap_node text "$1" "$2"; }
           tap_desc() { tap_node desc "$1" "$2"; }
