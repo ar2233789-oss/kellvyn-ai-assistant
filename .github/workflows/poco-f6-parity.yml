@@ -276,20 +276,43 @@ jobs:
           for node in root.iter("node"):
               if node.attrib.get("content-desc") == "Configurações":
                   b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
-                  if len(b) == 4:
-                      x1,y1,x2,y2 = map(int,b); print((x1+x2)//2, (y1+y2)//2)
+                  if len(b) == 4 and all(v.isdigit() for v in b):
+                      x1,y1,x2,y2 = map(int,b)
+                      print((x1+x2)//2, (y1+y2)//2)
                   break
           PY
           )"
+          if [ -z "$SETTINGS_TAP" ]; then
+            echo "Could not find the native three-dot settings button in the accessibility tree."
+            cat out/native-ui.xml || true
+            exit 1
+          fi
           read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
           adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
           sleep 2
-          adb shell uiautomator dump /sdcard/settings-window.xml >/dev/null 2>&1
-          adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null
+          SETTINGS_READY=0
+          for attempt in $(seq 1 8); do
+            rm -f out/native-settings-ui.xml
+            adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
+            if adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
+              adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
+            fi
+            if grep -q "CONFIGURAÇÕES DO KELLVYN" out/native-settings-ui.xml 2>/dev/null; then
+              SETTINGS_READY=1
+              break
+            fi
+            sleep 1
+          done
           adb shell screencap -p /sdcard/native-settings.png
           adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
-          for label in "Configurações" "Cor da interface" "Efeito na tela" "Acesso à Web" "Proteção da IA"; do
-            grep -q "$label" out/native-settings-ui.xml || { echo "Missing three-dot menu item: $label"; exit 1; }
+          if [ "$SETTINGS_READY" != "1" ]; then
+            echo "The settings sheet did not expose its expected title. Dump output:"
+            cat /tmp/settings-dump.log || true
+            cat out/native-settings-ui.xml || true
+            exit 1
+          fi
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "MODO DE JOGO" "SEGURANÇA"; do
+            grep -q "$label" out/native-settings-ui.xml || { echo "Missing settings-sheet section: $label"; exit 1; }
           done
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
