@@ -316,8 +316,21 @@ jobs:
             cat out/native-settings-ui.xml || true
             exit 1
           fi
+          # Some settings sections are below the initial viewport of the scrollable sheet.
+          # Preserve the first capture, scroll the sheet, and inspect the lower sections too.
+          if ! grep -q "MODO DE JOGO" out/native-settings-ui.xml || ! grep -q "SEGURANÇA" out/native-settings-ui.xml; then
+            adb shell input swipe 610 2220 610 700 600
+            sleep 1
+            adb shell uiautomator dump /sdcard/settings-window-scrolled.xml >/tmp/settings-scrolled-dump.log 2>&1 || true
+            adb pull /sdcard/settings-window-scrolled.xml out/native-settings-ui-scrolled.xml >/dev/null 2>&1 || true
+            adb shell screencap -p /sdcard/native-settings-scrolled.png
+            adb pull /sdcard/native-settings-scrolled.png out/native-settings-scrolled.png >/dev/null
+          fi
           for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "MODO DE JOGO" "SEGURANÇA"; do
-            grep -q "$label" out/native-settings-ui.xml || { echo "Missing settings-sheet section: $label"; exit 1; }
+            if ! grep -q "$label" out/native-settings-ui.xml && ! grep -q "$label" out/native-settings-ui-scrolled.xml 2>/dev/null; then
+              echo "Missing settings-sheet section after inspecting initial and scrolled views: $label"
+              exit 1
+            fi
           done
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
