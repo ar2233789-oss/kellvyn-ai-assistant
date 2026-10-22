@@ -558,7 +558,7 @@ jobs:
           tap_desc "Ditado por voz" 0
           sleep 2
           adb shell dumpsys activity activities > out/speech-activity.txt
-          if ! grep -q "com.kellvyn.assistant/.MainActivity" out/speech-activity.txt; then
+          if ! grep -E "mResumedActivity|topResumedActivity" out/speech-activity.txt | grep -q "com.kellvyn.assistant"; then
             adb shell input keyevent 4
             sleep 1
           fi
