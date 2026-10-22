@@ -403,7 +403,7 @@ jobs:
           tap_text "Turquesa" 0
           assert_ui "Kellvyn Assistente"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-accent-selected.xml
-          grep -q 'name="accent" value="-13771841"' out/prefs-accent-selected.xml || {
+          grep -q 'name="accent" value="-13773633"' out/prefs-accent-selected.xml || {
             echo "Color palette did not persist the selected accent color."
             cat out/prefs-accent-selected.xml
             exit 1
