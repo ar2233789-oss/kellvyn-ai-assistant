@@ -29,6 +29,7 @@ import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.PopupMenu;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -48,12 +49,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MainActivity extends Activity {
-    private static final int BG = Color.rgb(11, 20, 19);
-    private static final int PANEL = Color.rgb(26, 35, 33);
-    private static final int PANEL_ALT = Color.rgb(23, 36, 33);
+    private static final int DEFAULT_BG = Color.rgb(11, 20, 19);
+    private static final int DEFAULT_PANEL = Color.rgb(26, 35, 33);
+    private static final int DEFAULT_PANEL_ALT = Color.rgb(23, 36, 33);
     private static final int EMERALD = Color.rgb(56, 230, 188);
-    private static final int TEXT = Color.rgb(227, 238, 236);
-    private static final int MUTED = Color.rgb(145, 155, 154);
+    private static final int DEFAULT_TEXT = Color.rgb(227, 238, 236);
+    private static final int DEFAULT_MUTED = Color.rgb(145, 155, 154);
     private static final String PREFS = "kellvyn_native";
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
@@ -85,8 +86,8 @@ public class MainActivity extends Activity {
 
     @Override public void onCreate(Bundle state) {
         super.onCreate(state);
-        getWindow().setStatusBarColor(BG);
-        getWindow().setNavigationBarColor(BG);
+        getWindow().setStatusBarColor(uiBackground());
+        getWindow().setNavigationBarColor(uiBackground());
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         activeHistoryId = prefs.getString("active_history_id", "current");
@@ -108,7 +109,7 @@ public class MainActivity extends Activity {
 
     private void buildScreen() {
         FrameLayout root = new FrameLayout(this);
-        root.setBackgroundColor(BG);
+        root.setBackgroundColor(uiBackground());
         rain = new RainView();
         root.addView(rain, new FrameLayout.LayoutParams(-1, -1));
 
@@ -135,7 +136,7 @@ public class MainActivity extends Activity {
         status = null;
         TextView settings = iconButton("⋮", "Configurações");
         header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
-        settings.setOnClickListener(v -> showSettings(v));
+        settings.setOnClickListener(v -> showSettingsPanel());
 
         View divider = new View(this);
         divider.setBackgroundColor(0x5533C995);
@@ -158,13 +159,13 @@ public class MainActivity extends Activity {
 
         LinearLayout entry = new LinearLayout(this);
         entry.setGravity(Gravity.CENTER_VERTICAL);
-        entry.setBackground(roundRect(PANEL_ALT, dp(15), 0x8845A989, dp(1)));
+        entry.setBackground(roundRect(uiPanelAltColor(), dp(15), 0x8845A989, dp(1)));
         composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
         composer = new EditText(this);
         composer.setHint("Pergunte qualquer coisa...");
-        composer.setHintTextColor(MUTED);
-        composer.setTextColor(TEXT);
+        composer.setHintTextColor(uiMutedColor());
+        composer.setTextColor(uiTextColor());
         composer.setTextSize(14);
         composer.setSingleLine(false);
         composer.setMinLines(1);
@@ -184,7 +185,7 @@ public class MainActivity extends Activity {
         controls.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(38)));
         plus.setOnClickListener(v -> showPlusMenu(v));
 
-        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, MUTED, false);
+        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, uiMutedColor(), false);
         footerStatus.setSingleLine(true);
         footerStatus.setGravity(Gravity.CENTER_VERTICAL);
         controls.addView(footerStatus, new LinearLayout.LayoutParams(0, dp(34), 1));
@@ -251,7 +252,7 @@ public class MainActivity extends Activity {
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
         welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
         welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
-        TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 14, MUTED, false);
+        TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 14, uiMutedColor(), false);
         sub.setGravity(Gravity.CENTER);
         sub.setLineSpacing(dp(2), 1f);
         LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
@@ -265,7 +266,7 @@ public class MainActivity extends Activity {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(user ? Gravity.END : Gravity.START);
         row.setPadding(dp(1), dp(4), dp(1), dp(4));
-        TextView bubble = text(value, 14, TEXT, false);
+        TextView bubble = text(value, 14, uiTextColor(), false);
         bubble.setLineSpacing(dp(3), 1f);
         bubble.setPadding(dp(13), dp(10), dp(13), dp(10));
         bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.84f));
@@ -298,7 +299,7 @@ public class MainActivity extends Activity {
     }
 
     private void addMessageAction(LinearLayout parent, String glyph, String description, Runnable action) {
-        TextView button = text(glyph, 17, MUTED, false);
+        TextView button = text(glyph, 17, uiMutedColor(), false);
         button.setGravity(Gravity.CENTER);
         button.setContentDescription(description);
         button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
@@ -346,7 +347,7 @@ public class MainActivity extends Activity {
 
     private void showThinkingIndicator() {
         hideThinkingIndicator();
-        thinkingIndicator = text("🧠  Pensando…", 12, MUTED, false);
+        thinkingIndicator = text("🧠  Pensando…", 12, uiMutedColor(), false);
         thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
         messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
         thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
@@ -775,7 +776,7 @@ public class MainActivity extends Activity {
         symbol.setIncludeFontPadding(false);
         item.addView(symbol, new LinearLayout.LayoutParams(-1, dp(25)));
 
-        TextView caption = text(label, 10, "AI".equals(label) ? accent : MUTED, false);
+        TextView caption = text(label, 10, "AI".equals(label) ? accent : uiMutedColor(), false);
         caption.setGravity(Gravity.CENTER);
         caption.setIncludeFontPadding(false);
         item.addView(caption, new LinearLayout.LayoutParams(-1, dp(15)));
@@ -831,7 +832,7 @@ public class MainActivity extends Activity {
                 "Configure os tokens pelo chat principal. Telegram: /bot telegram token SEU_TOKEN. " +
                 "Discord: /bot discord token SEU_TOKEN (ative Message Content Intent no portal do Discord). " +
                 "O modelo local precisa estar baixado antes de ativar um bot. O WhatsApp exige uma integração pública de webhook e permanece indisponível neste APK.",
-                12, MUTED, false);
+                12, uiMutedColor(), false);
         instructions.setLineSpacing(dp(3), 1f);
         layout.addView(instructions, new LinearLayout.LayoutParams(-1, -2));
 
@@ -858,9 +859,9 @@ public class MainActivity extends Activity {
                 LinearLayout labels = new LinearLayout(MainActivity.this);
                 labels.setOrientation(LinearLayout.VERTICAL);
                 labels.setGravity(Gravity.CENTER_VERTICAL);
-                labels.addView(text(title, 14, TEXT, true));
+                labels.addView(text(title, 14, uiTextColor(), true));
                 status = text(botStatusText(platform, prefs.getBoolean("bot_enabled_" + platform, false), tokenPresent),
-                        11, MUTED, false);
+                        11, uiMutedColor(), false);
                 status.setPadding(0, dp(2), dp(8), 0);
                 labels.addView(status, new LinearLayout.LayoutParams(-1, -2));
                 row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
@@ -982,21 +983,21 @@ public class MainActivity extends Activity {
         EditText fileName = new EditText(this);
         fileName.setSingleLine(true);
         fileName.setHint("Nome do arquivo");
-        fileName.setTextColor(TEXT);
-        fileName.setHintTextColor(MUTED);
+        fileName.setTextColor(uiTextColor());
+        fileName.setHintTextColor(uiMutedColor());
         fileName.setTextSize(14);
 
         EditText source = new EditText(this);
         source.setHint("Escreva seu código ou nota aqui…");
-        source.setTextColor(TEXT);
-        source.setHintTextColor(MUTED);
+        source.setTextColor(uiTextColor());
+        source.setHintTextColor(uiMutedColor());
         source.setTextSize(13);
         source.setGravity(Gravity.TOP | Gravity.START);
         source.setMinLines(9);
         source.setMaxLines(16);
         source.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         source.setTypeface(Typeface.MONOSPACE);
-        source.setBackground(roundRect(PANEL_ALT, dp(10), 0x5545A989, dp(1)));
+        source.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x5545A989, dp(1)));
         source.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         LinearLayout form = new LinearLayout(this);
@@ -1077,32 +1078,498 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Entendi", null).show();
     }
 
-    private void showSettings(View anchor) {
-        PopupMenu popup = new PopupMenu(this, anchor, Gravity.END);
-        popup.getMenu().add("Configurações");
-        popup.getMenu().add("Cor da interface");
-        popup.getMenu().add("Efeito na tela");
-        android.view.MenuItem webAccess = popup.getMenu().add("Acesso à Web");
-        webAccess.setCheckable(true);
-        webAccess.setChecked(isWebAccessEnabled());
-        popup.getMenu().add("Proteção da IA");
-        popup.setOnMenuItemClickListener(item -> {
-            String label = item.getTitle().toString();
-            if (label.equals("Cor da interface")) showPalette();
-            else if (label.equals("Efeito na tela")) showEffectSettings();
-            else if (label.equals("Acesso à Web")) toggleWebAccess();
-            else if (label.equals("Proteção da IA")) new AlertDialog.Builder(this).setTitle("Proteção da IA")
-                    .setMessage("A proteção visual está disponível. Controles avançados de proteção do motor de IA dependem da integração do cérebro.")
-                    .setPositiveButton("Ativar proteção visual", (d, w) -> {
-                        prefs.edit().putBoolean("protection", true).apply();
-                        toast("Proteção visual ativada.");
-                    }).setNegativeButton("Fechar", null).show();
-            else new AlertDialog.Builder(this).setTitle("Configurações")
-                    .setMessage("Kellvyn IA nativa\nTema escuro · cor esmeralda\nHistórico salvo neste aparelho\nMotor local: baixa e inicia sob solicitação\nAcesso à Web: " + (isWebAccessEnabled() ? "ativado (Wikipédia PT)" : "desativado"))
-                    .setPositiveButton("OK", null).show();
-            return true;
+    private int uiBackground() {
+        return prefs == null ? DEFAULT_BG : prefs.getInt("ui_bg", DEFAULT_BG);
+    }
+
+    private int uiTextColor() {
+        return prefs == null ? DEFAULT_TEXT : prefs.getInt("ui_text", DEFAULT_TEXT);
+    }
+
+    private int uiPanelColor() {
+        return uiBackground() == DEFAULT_BG ? DEFAULT_PANEL : blendColors(uiBackground(), Color.WHITE, 0.075f);
+    }
+
+    private int uiPanelAltColor() {
+        return uiBackground() == DEFAULT_BG ? DEFAULT_PANEL_ALT : blendColors(uiBackground(), Color.WHITE, 0.055f);
+    }
+
+    private int uiMutedColor() {
+        if (prefs == null || (uiBackground() == DEFAULT_BG && uiTextColor() == DEFAULT_TEXT)) return DEFAULT_MUTED;
+        return blendColors(uiBackground(), uiTextColor(), 0.58f);
+    }
+
+    private int blendColors(int from, int to, float amount) {
+        float a = Math.max(0f, Math.min(1f, amount));
+        return Color.rgb(
+                Math.round(Color.red(from) * (1f - a) + Color.red(to) * a),
+                Math.round(Color.green(from) * (1f - a) + Color.green(to) * a),
+                Math.round(Color.blue(from) * (1f - a) + Color.blue(to) * a));
+    }
+
+    private int uiGlow() {
+        return prefs == null ? 40 : Math.max(0, Math.min(60, prefs.getInt("glow", 40)));
+    }
+
+    private String hexColor(int color) {
+        return String.format(Locale.US, "#%06X", 0xFFFFFF & color);
+    }
+
+    private void applyVisualTheme() {
+        getWindow().setStatusBarColor(uiBackground());
+        getWindow().setNavigationBarColor(uiBackground());
+        buildScreen();
+        messages.removeAllViews();
+        for (String item : transcript) {
+            if (item != null && item.length() >= 2) addMessageView(!item.startsWith("S|"), item.substring(2));
+        }
+        if (transcript.isEmpty()) showWelcome();
+        updateStatus();
+    }
+
+    private LinearLayout settingsSection(LinearLayout parent, String label) {
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
+        card.setPadding(dp(13), dp(13), dp(13), dp(13));
+        card.setBackground(roundRect(uiPanelColor(), dp(17), 0x6638CFA5, dp(1)));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+        lp.bottomMargin = dp(12);
+        parent.addView(card, lp);
+
+        TextView heading = text(label.toUpperCase(Locale.ROOT), 11, accent, true);
+        heading.setLetterSpacing(0.17f);
+        heading.setShadowLayer(dp(Math.max(1f, uiGlow() / 7f)), 0, 0, accent);
+        LinearLayout.LayoutParams headingLp = new LinearLayout.LayoutParams(-1, -2);
+        headingLp.bottomMargin = dp(9);
+        card.addView(heading, headingLp);
+        return card;
+    }
+
+    private TextView colorSwatch(int color, int size) {
+        TextView swatch = new TextView(this);
+        android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
+        shape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        shape.setColor(color);
+        shape.setStroke(dp(1), 0x8845A989);
+        swatch.setBackground(shape);
+        swatch.setElevation(dp(1));
+        swatch.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        swatch.setLayoutParams(new LinearLayout.LayoutParams(dp(size), dp(size)));
+        return swatch;
+    }
+
+    private LinearLayout colorField(String title, String key, int color, android.app.Dialog parentDialog) {
+        LinearLayout field = new LinearLayout(this);
+        field.setOrientation(LinearLayout.VERTICAL);
+        field.setGravity(Gravity.CENTER);
+        field.setPadding(dp(7), dp(9), dp(7), dp(9));
+        field.setBackground(roundRect(uiPanelAltColor(), dp(14), 0x5545A989, dp(1)));
+        field.setClickable(true);
+        field.setFocusable(true);
+        field.addView(colorSwatch(color, 39));
+
+        TextView name = text(title, 12, uiTextColor(), false);
+        name.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(-1, -2);
+        nameLp.topMargin = dp(6);
+        field.addView(name, nameLp);
+
+        TextView value = text(hexColor(color), 10, uiMutedColor(), false);
+        value.setGravity(Gravity.CENTER);
+        LinearLayout.LayoutParams valueLp = new LinearLayout.LayoutParams(-1, -2);
+        valueLp.topMargin = dp(3);
+        field.addView(value, valueLp);
+        field.setOnClickListener(v -> editThemeColor(key, title, color, parentDialog));
+        return field;
+    }
+
+    private void editThemeColor(String key, String title, int currentColor, android.app.Dialog parentDialog) {
+        EditText input = new EditText(this);
+        input.setSingleLine(true);
+        input.setText(hexColor(currentColor));
+        input.setSelectAllOnFocus(true);
+        input.setTextColor(uiTextColor());
+        input.setHintTextColor(uiMutedColor());
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_CHARACTERS);
+        input.setPadding(dp(12), dp(10), dp(12), dp(10));
+
+        new AlertDialog.Builder(this)
+                .setTitle(title)
+                .setMessage("Informe uma cor HEX de seis dígitos.")
+                .setView(input)
+                .setNegativeButton("Cancelar", null)
+                .setPositiveButton("Aplicar", (d, which) -> {
+                    String raw = input.getText().toString().trim();
+                    if (!raw.startsWith("#")) raw = "#" + raw;
+                    try {
+                        int selected = Color.parseColor(raw);
+                        if (raw.length() != 7) throw new IllegalArgumentException("HEX length");
+                        if ("accent".equals(key)) {
+                            accent = selected;
+                            prefs.edit().putInt("accent", selected).apply();
+                        } else {
+                            prefs.edit().putInt(key, selected).apply();
+                        }
+                        parentDialog.dismiss();
+                        applyVisualTheme();
+                        showSettingsPanel();
+                    } catch (IllegalArgumentException invalid) {
+                        toast("HEX inválido. Use, por exemplo, #38E6BC.");
+                    }
+                }).show();
+    }
+
+    private static final String[][] UI_PALETTES = {
+        {"Esmeralda", "#38E6BC", "#0B1413", "#E3EEEC"},
+        {"Preto e Dourado", "#D4AF37", "#0A0907", "#EFE6D2"},
+        {"Preto e Vermelho", "#E5484D", "#0D0707", "#F1E4E4"},
+        {"Azul Noturno", "#4C9AFF", "#070D18", "#E2E9F5"},
+        {"Roxo Real", "#A78BFA", "#0E0A16", "#ECE6F7"},
+        {"Rosa Noite", "#F472B6", "#140A11", "#F5E6EE"},
+        {"Prata Grafite", "#C9CED6", "#111214", "#ECEEF1"},
+        {"Laranja Brasa", "#F08A4B", "#120A06", "#F4E9E1"},
+        {"Lima Escuro", "#9BCB5A", "#0A0F06", "#E8F0DE"},
+        {"Branco e Preto", "#F2F2F2", "#000000", "#FFFFFF"}
+    };
+
+    private LinearLayout paletteButton(String[] palette, android.app.Dialog parentDialog) {
+        int paletteAccent = Color.parseColor(palette[1]);
+        int paletteBackground = Color.parseColor(palette[2]);
+        int paletteText = Color.parseColor(palette[3]);
+        boolean selected = accent == paletteAccent && uiBackground() == paletteBackground && uiTextColor() == paletteText;
+
+        LinearLayout button = new LinearLayout(this);
+        button.setGravity(Gravity.CENTER_VERTICAL);
+        button.setPadding(dp(8), dp(9), dp(8), dp(9));
+        button.setBackground(roundRect(uiPanelAltColor(), dp(11), selected ? accent : 0x5545A989, dp(1)));
+        button.setClickable(true);
+        button.setFocusable(true);
+
+        LinearLayout swatches = new LinearLayout(this);
+        swatches.setGravity(Gravity.CENTER_VERTICAL);
+        swatches.addView(colorSwatch(paletteBackground, 21));
+        LinearLayout.LayoutParams overlap = new LinearLayout.LayoutParams(dp(21), dp(21));
+        overlap.leftMargin = -dp(7);
+        swatches.addView(colorSwatch(paletteAccent, 21), overlap);
+        swatches.addView(colorSwatch(paletteText, 21), overlap);
+        button.addView(swatches);
+
+        TextView name = text(palette[0], 11, uiTextColor(), false);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams nameLp = new LinearLayout.LayoutParams(0, -2, 1);
+        nameLp.leftMargin = dp(8);
+        button.addView(name, nameLp);
+
+        button.setOnClickListener(v -> {
+            accent = paletteAccent;
+            prefs.edit().putInt("accent", paletteAccent)
+                    .putInt("ui_bg", paletteBackground)
+                    .putInt("ui_text", paletteText)
+                    .apply();
+            parentDialog.dismiss();
+            applyVisualTheme();
+            showSettingsPanel();
         });
-        popup.show();
+        return button;
+    }
+
+    private void addSettingsRow(LinearLayout parent, String title, String description,
+                                String actionLabel, Runnable action, android.app.Dialog parentDialog) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(10), dp(10), dp(10));
+        row.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x4445A989, dp(1)));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
+        rowLp.bottomMargin = dp(7);
+        parent.addView(row, rowLp);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(title, 14, uiTextColor(), false));
+        if (description != null && !description.isEmpty()) {
+            TextView sub = text(description, 11, uiMutedColor(), false);
+            LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(-1, -2);
+            subLp.topMargin = dp(3);
+            labels.addView(sub, subLp);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+
+        if (actionLabel != null) {
+            TextView actionButton = text(actionLabel, 12, accent, false);
+            actionButton.setGravity(Gravity.CENTER);
+            actionButton.setPadding(dp(11), dp(7), dp(11), dp(7));
+            actionButton.setBackground(roundRect(uiPanelColor(), dp(10), 0x8845A989, dp(1)));
+            row.addView(actionButton);
+
+            row.setClickable(true);
+            row.setOnClickListener(v -> {
+                parentDialog.dismiss();
+                if (action != null) action.run();
+            });
+            actionButton.setOnClickListener(v -> {
+                parentDialog.dismiss();
+                if (action != null) action.run();
+            });
+        } else if (action != null) {
+            row.setClickable(true);
+            row.setOnClickListener(v -> {
+                parentDialog.dismiss();
+                action.run();
+            });
+        }
+    }
+
+    private void addSettingsToggleRow(LinearLayout parent, String title, String description,
+                                      boolean checked, boolean enabled,
+                                      android.widget.CompoundButton.OnCheckedChangeListener listener) {
+        LinearLayout row = new LinearLayout(this);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(10), dp(12), dp(10));
+        row.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x4445A989, dp(1)));
+        LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
+        rowLp.bottomMargin = dp(7);
+        parent.addView(row, rowLp);
+
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        labels.addView(text(title, 14, uiTextColor(), false));
+        if (description != null && !description.isEmpty()) {
+            TextView sub = text(description, 11, uiMutedColor(), false);
+            LinearLayout.LayoutParams subLp = new LinearLayout.LayoutParams(-1, -2);
+            subLp.topMargin = dp(3);
+            labels.addView(sub, subLp);
+        }
+        row.addView(labels, new LinearLayout.LayoutParams(0, -2, 1));
+
+        Switch toggle = new Switch(this);
+        toggle.setChecked(checked);
+        toggle.setEnabled(enabled);
+        if (listener != null) toggle.setOnCheckedChangeListener(listener);
+        row.addView(toggle);
+    }
+
+    private void showLocalMemory() {
+        JSONArray existing;
+        try { existing = new JSONArray(prefs.getString("memory_items", "[]")); }
+        catch (Exception ignored) { existing = new JSONArray(); }
+        final JSONArray[] data = new JSONArray[]{existing};
+
+        LinearLayout panel = new LinearLayout(this);
+        panel.setOrientation(LinearLayout.VERTICAL);
+        panel.setPadding(dp(15), dp(12), dp(15), dp(6));
+        TextView saved = text(data[0].length() + " informação(ões) salva(s) neste aparelho.", 12, uiMutedColor(), false);
+
+        EditText entry = new EditText(this);
+        entry.setSingleLine(false);
+        entry.setMinLines(1);
+        entry.setMaxLines(3);
+        entry.setHint("Nova informação…");
+        entry.setTextColor(uiTextColor());
+        entry.setHintTextColor(uiMutedColor());
+        entry.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+        entry.setPadding(dp(10), dp(9), dp(10), dp(9));
+
+        TextView add = text("Salvar", 13, accent, true);
+        add.setGravity(Gravity.CENTER);
+        add.setPadding(dp(12), dp(9), dp(12), dp(9));
+        add.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+
+        panel.addView(saved);
+        LinearLayout.LayoutParams entryLp = new LinearLayout.LayoutParams(-1, -2);
+        entryLp.topMargin = dp(12);
+        panel.addView(entry, entryLp);
+        LinearLayout.LayoutParams addLp = new LinearLayout.LayoutParams(-1, -2);
+        addLp.topMargin = dp(8);
+        panel.addView(add, addLp);
+
+        add.setOnClickListener(v -> {
+            String value = entry.getText().toString().trim();
+            if (value.isEmpty()) return;
+            data[0].put(value);
+            prefs.edit().putString("memory_items", data[0].toString()).apply();
+            entry.setText("");
+            saved.setText(data[0].length() + " informação(ões) salva(s) neste aparelho.");
+            toast("Informação salva na memória local.");
+        });
+        new AlertDialog.Builder(this).setTitle("MEMÓRIA LOCAL").setView(panel)
+                .setPositiveButton("Fechar", null).show();
+    }
+
+    private void showSettingsPanel() {
+        final android.app.Dialog dialog = new android.app.Dialog(this);
+        LinearLayout sheet = new LinearLayout(this);
+        sheet.setOrientation(LinearLayout.VERTICAL);
+        sheet.setBackground(roundRect(uiBackground(), dp(22), 0x6638CFA5, dp(1)));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        header.setPadding(dp(16), dp(10), dp(12), dp(10));
+        header.setBackgroundColor(uiPanelColor());
+        TextView title = text("CONFIGURAÇÕES DO KELLVYN", 15, accent, true);
+        title.setLetterSpacing(0.16f);
+        title.setSingleLine(true);
+        title.setShadowLayer(dp(Math.max(1f, uiGlow() / 6f)), 0, 0, accent);
+        header.addView(title, new LinearLayout.LayoutParams(0, dp(50), 1));
+
+        TextView close = iconButton("×", "Fechar configurações");
+        close.setTextSize(27);
+        close.setOnClickListener(v -> dialog.dismiss());
+        header.addView(close, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        sheet.addView(header);
+
+        View headerLine = new View(this);
+        headerLine.setBackgroundColor(0x5538CFA5);
+        sheet.addView(headerLine, new LinearLayout.LayoutParams(-1, dp(1)));
+
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.setClipToPadding(false);
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(16), dp(13), dp(16), dp(13));
+        scroll.addView(content, new ScrollView.LayoutParams(-1, -2));
+        sheet.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+
+        LinearLayout colors = settingsSection(content, "Cores");
+        LinearLayout colorRow = new LinearLayout(this);
+        colorRow.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams colorCell1 = new LinearLayout.LayoutParams(0, -2, 1);
+        colorCell1.rightMargin = dp(7);
+        LinearLayout.LayoutParams colorCell2 = new LinearLayout.LayoutParams(0, -2, 1);
+        colorCell2.rightMargin = dp(7);
+        LinearLayout.LayoutParams colorCell3 = new LinearLayout.LayoutParams(0, -2, 1);
+        colorRow.addView(colorField("Destaque", "accent", accent, dialog), colorCell1);
+        colorRow.addView(colorField("Fundo", "ui_bg", uiBackground(), dialog), colorCell2);
+        colorRow.addView(colorField("Texto", "ui_text", uiTextColor(), dialog), colorCell3);
+        colors.addView(colorRow);
+
+        LinearLayout glowHead = new LinearLayout(this);
+        glowHead.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout.LayoutParams glowHeadLp = new LinearLayout.LayoutParams(-1, -2);
+        glowHeadLp.topMargin = dp(12);
+        colors.addView(glowHead, glowHeadLp);
+        TextView glowLabel = text("Intensidade do brilho", 11, uiMutedColor(), false);
+        TextView glowValue = text(uiGlow() + "%", 11, uiMutedColor(), false);
+        glowValue.setGravity(Gravity.RIGHT | Gravity.CENTER_VERTICAL);
+        glowHead.addView(glowLabel, new LinearLayout.LayoutParams(0, -2, 1));
+        glowHead.addView(glowValue, new LinearLayout.LayoutParams(-2, -2));
+
+        SeekBar glow = new SeekBar(this);
+        glow.setMax(60);
+        glow.setProgress(uiGlow());
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            glow.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
+            glow.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
+        }
+        colors.addView(glow, new LinearLayout.LayoutParams(-1, dp(32)));
+        glow.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                prefs.edit().putInt("glow", progress).apply();
+                glowValue.setText(progress + "%");
+                title.setShadowLayer(dp(Math.max(1f, progress / 6f)), 0, 0, accent);
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        TextView presetsLabel = text("Temas prontos", 11, uiMutedColor(), false);
+        LinearLayout.LayoutParams presetsLabelLp = new LinearLayout.LayoutParams(-1, -2);
+        presetsLabelLp.topMargin = dp(7);
+        colors.addView(presetsLabel, presetsLabelLp);
+        for (int i = 0; i < UI_PALETTES.length; i += 2) {
+            LinearLayout paletteRow = new LinearLayout(this);
+            paletteRow.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
+            rowLp.topMargin = dp(6);
+            colors.addView(paletteRow, rowLp);
+            LinearLayout first = paletteButton(UI_PALETTES[i], dialog);
+            LinearLayout.LayoutParams firstLp = new LinearLayout.LayoutParams(0, -2, 1);
+            firstLp.rightMargin = dp(6);
+            paletteRow.addView(first, firstLp);
+            if (i + 1 < UI_PALETTES.length) {
+                paletteRow.addView(paletteButton(UI_PALETTES[i + 1], dialog), new LinearLayout.LayoutParams(0, -2, 1));
+            }
+        }
+
+        LinearLayout effects = settingsSection(content, "Efeito na tela");
+        LinearLayout firstEffectRow = new LinearLayout(this);
+        firstEffectRow.setOrientation(LinearLayout.HORIZONTAL);
+        effects.addView(firstEffectRow);
+        for (int i = 0; i < EFFECT_IDS.length; i++) {
+            final String effectId = EFFECT_IDS[i];
+            final String label = EFFECT_LABELS[i];
+            boolean on = readEffectOptions().contains(effectId);
+            TextView chip = text(label, 12, on ? uiBackground() : uiTextColor(), false);
+            chip.setGravity(Gravity.CENTER);
+            chip.setPadding(dp(9), dp(8), dp(9), dp(8));
+            chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : 0x6645A989, dp(1)));
+            LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(-2, -2);
+            chipLp.rightMargin = dp(5);
+            firstEffectRow.addView(chip, chipLp);
+            chip.setOnClickListener(v -> {
+                Set<String> selected = new HashSet<>(readEffectOptions());
+                if ("nenhum".equals(effectId)) {
+                    selected.clear();
+                    selected.add("nenhum");
+                } else {
+                    selected.remove("nenhum");
+                    if (selected.contains(effectId)) selected.remove(effectId);
+                    else selected.add(effectId);
+                    if (selected.isEmpty()) selected.add("nenhum");
+                }
+                saveEffectOptions(selected);
+                dialog.dismiss();
+                showSettingsPanel();
+            });
+        }
+
+        LinearLayout shortcuts = settingsSection(content, "Atalhos");
+        JSONArray memories;
+        try { memories = new JSONArray(prefs.getString("memory_items", "[]")); }
+        catch (Exception ignored) { memories = new JSONArray(); }
+        addSettingsRow(shortcuts, "Memória local", memories.length() + " informação(ões) salva(s).",
+                "Abrir", this::showLocalMemory, dialog);
+        addSettingsToggleRow(shortcuts, "Assistente virtual", "", false, false, null);
+        addSettingsRow(shortcuts, "Leitura de tela", "", null, null, dialog);
+
+        LinearLayout game = settingsSection(content, "Modo de jogo");
+        addSettingsToggleRow(game, "Modo de jogo", "", false, false, null);
+
+        LinearLayout security = settingsSection(content, "Segurança");
+        addSettingsToggleRow(security, "Proteção reforçada da IA", "",
+                prefs.getBoolean("protection", true), true, (button, checked) -> {
+                    prefs.edit().putBoolean("protection", checked).apply();
+                    toast(checked ? "Proteção reforçada ativada." : "Proteção reforçada desativada.");
+                });
+
+        View footerLine = new View(this);
+        footerLine.setBackgroundColor(0x5538CFA5);
+        sheet.addView(footerLine, new LinearLayout.LayoutParams(-1, dp(1)));
+        TextView footerClose = text("Fechar", 14, accent, false);
+        footerClose.setGravity(Gravity.CENTER);
+        footerClose.setBackground(roundRect(uiPanelAltColor(), dp(22), 0x8845A989, dp(1)));
+        LinearLayout.LayoutParams footerLp = new LinearLayout.LayoutParams(-1, dp(58));
+        footerLp.setMargins(dp(12), dp(10), dp(12), dp(7));
+        sheet.addView(footerClose, footerLp);
+        footerClose.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.setContentView(sheet);
+        dialog.setCancelable(true);
+        dialog.show();
+        android.view.Window window = dialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.addFlags(WindowManager.LayoutParams.FLAG_DIM_BEHIND);
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.gravity = Gravity.BOTTOM;
+            params.width = -1;
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.91f);
+            params.dimAmount = 0.45f;
+            window.setAttributes(params);
+            window.setLayout(-1, params.height);
+            window.setGravity(Gravity.BOTTOM);
+        }
     }
 
     private boolean isWebAccessEnabled() {
