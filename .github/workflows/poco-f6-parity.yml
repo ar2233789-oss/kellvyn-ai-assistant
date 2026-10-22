@@ -465,7 +465,7 @@ jobs:
           tap_text "Cancelar" 0
           assert_ui "Kellvyn Assistente"
 
-          tap_desc "Histórico de conversas" 0
+          tap_desc "Histórico" 0
           assert_ui "Histórico de conversas"
           assert_ui "Conversa atual"
           assert_ui "Nova conversa"
@@ -493,6 +493,14 @@ jobs:
           dump_current_ui
           assert_ui "Kellvyn Assistente"
 
+          # Terminal handoff must leave the chat intact when Termux is absent in the test AVD.
+          if ! adb shell pm list packages | grep -q 'com.termux'; then
+            tap_desc "Terminal" 0
+            assert_ui "Kellvyn Assistente"
+          else
+            echo "Termux exists in the runner; external terminal left unopened."
+          fi
+
           # Chat submission is verified to reach the local-model download gate. Do not download the model.
           tap_node class "android.widget.EditText" 0
           adb shell input text "ola"
@@ -502,14 +510,6 @@ jobs:
           assert_ui "Baixar e enviar"
           tap_text "Agora não" 0
           assert_ui "Kellvyn Assistente"
-
-          # Terminal handoff must leave the chat intact when Termux is absent in the test AVD.
-          if ! adb shell pm list packages | grep -q 'com.termux'; then
-            tap_desc "Terminal" 0
-            assert_ui "Kellvyn Assistente"
-          else
-            echo "Termux exists in the runner; external terminal left unopened."
-          fi
 
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
