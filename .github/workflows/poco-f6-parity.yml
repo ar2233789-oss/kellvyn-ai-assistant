@@ -411,6 +411,23 @@ jobs:
             exit 1
           }
 
+          # The glow slider must persist a changed value.
+          tap_node class "android.widget.SeekBar" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-glow-slider.xml
+          GLOW_VALUE="$(python3 - out/prefs-glow-slider.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          node = root.find("./int[@name='glow']")
+          if node is None: sys.exit("Glow slider did not persist a value")
+          print(int(node.attrib.get("value", "-1")))
+          PY
+          )"
+          [ "$GLOW_VALUE" -gt 0 ] && [ "$GLOW_VALUE" -lt 40 ] || {
+            echo "Tapping the middle of the glow slider did not update its saved value: $GLOW_VALUE"
+            cat out/prefs-glow-slider.xml
+            exit 1
+          }
+
           # Confirm that rain and lightning can be enabled together, then restore rain-only default.
           tap_text "Raios" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-both-effects.xml
@@ -482,6 +499,28 @@ jobs:
           tap_desc "Editor" 0
           assert_ui "EDITOR DE CÓDIGO"
           assert_ui "Arquivos salvos"
+          tap_node class "android.widget.EditText" 0
+          adb shell input text "lab-verificacao.txt"
+          tap_node class "android.widget.EditText" 1
+          adb shell input text "conteudo_de_teste"
+          dump_current_ui
+          tap_text "Salvar" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-editor-saved.xml
+          grep -q 'name="editor:lab-verificacao.txt"' out/prefs-editor-saved.xml || {
+            echo "Editor did not save the test file name."
+            cat out/prefs-editor-saved.xml
+            exit 1
+          }
+          grep -q "conteudo_de_teste" out/prefs-editor-saved.xml || {
+            echo "Editor did not persist the test file contents."
+            cat out/prefs-editor-saved.xml
+            exit 1
+          }
+          tap_text "Arquivos salvos" 0
+          assert_ui "Arquivos salvos"
+          assert_ui "lab-verificacao.txt"
+          tap_text "lab-verificacao.txt" 0
+          assert_ui "conteudo_de_teste"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
@@ -553,6 +592,71 @@ jobs:
           assert_ui "Baixar e enviar"
           tap_text "Agora não" 0
           assert_ui "Kellvyn Assistente"
+
+          # Local bot commands must work without the model, encrypt test tokens, and keep secrets out of chat/prefs.
+          tap_node class "android.widget.EditText" 0
+          adb shell input keyevent 123
+          for _ in 1 2 3; do adb shell input keyevent 67; done
+          adb shell input text "/bot%stelegram%stoken%slab_tg_token_12345678"
+          tap_desc "Enviar mensagem" 0
+          assert_ui "Credencial do telegram guardada criptografada neste aparelho"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_bot_tokens.xml > out/bot-token-storage.xml
+          grep -q 'name="telegram"' out/bot-token-storage.xml || {
+            echo "Telegram token was not stored in the dedicated encrypted-token preferences."
+            cat out/bot-token-storage.xml
+            exit 1
+          }
+          if grep -q "lab_tg_token_12345678" out/bot-token-storage.xml; then
+            echo "Telegram test token was stored in plaintext."
+            exit 1
+          fi
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-bot-chat-redaction.xml
+          if grep -q "lab_tg_token_12345678" out/prefs-bot-chat-redaction.xml; then
+            echo "Telegram test token leaked into local chat/preferences."
+            exit 1
+          fi
+
+          tap_node class "android.widget.EditText" 0
+          adb shell input text "/bot%sdiscord%stoken%slab_discord_token_123456"
+          tap_desc "Enviar mensagem" 0
+          assert_ui "Credencial do discord guardada criptografada neste aparelho"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_bot_tokens.xml > out/bot-token-storage-both.xml
+          grep -q 'name="discord"' out/bot-token-storage-both.xml || {
+            echo "Discord token was not stored in the dedicated encrypted-token preferences."
+            cat out/bot-token-storage-both.xml
+            exit 1
+          }
+          if grep -q "lab_discord_token_123456" out/bot-token-storage-both.xml; then
+            echo "Discord test token was stored in plaintext."
+            exit 1
+          fi
+
+          tap_node class "android.widget.EditText" 0
+          adb shell input text "/bot%stelegram%sinstrucoes%sresponda_em_portugues"
+          tap_desc "Enviar mensagem" 0
+          assert_ui "Instruções locais do bot telegram foram salvas"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-bot-behavior.xml
+          grep -q "responda_em_portugues" out/prefs-bot-behavior.xml || {
+            echo "Bot behavior instructions were not persisted."
+            cat out/prefs-bot-behavior.xml
+            exit 1
+          }
+
+          # After secure setup, Bots must report that local-model readiness is still required.
+          tap_desc "Bots" 0
+          assert_ui "BOTS ATIVOS"
+          assert_ui "Telegram"
+          assert_ui "Discord"
+          assert_ui "O cérebro local precisa ser preparado no chat principal"
+          tap_text "Fechar" 0
+          assert_ui "Kellvyn Assistente"
+
+          # Selecting Nova conversa archives the current local transcript and returns to the welcome screen.
+          tap_desc "Histórico" 0
+          assert_ui "Histórico de conversas"
+          tap_text "Nova conversa" 0
+          assert_ui "Kellvyn Assistente"
+          assert_ui "Converse com a Kellvyn IA"
 
           # Voice entry should launch speech recognition when available and never crash the app.
           tap_desc "Ditado por voz" 0
