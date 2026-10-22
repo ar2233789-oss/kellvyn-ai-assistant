@@ -316,24 +316,7 @@ jobs:
             cat out/native-settings-ui.xml || true
             exit 1
           fi
-          # Some settings sections are below the initial viewport of the scrollable sheet.
-          # Preserve the first capture, scroll the sheet, and inspect the lower sections too.
-          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "SEGURANÇA" "Cor da interface" "Efeitos visuais" "Acesso à Web" "Proteção da IA"; do
-            if ! grep -q "$label" out/native-settings-ui.xml; then
-              # Scroll only inside the content region, not the fixed footer.
-              adb shell input swipe 610 1580 610 520 500
-              sleep 1
-              adb shell uiautomator dump /sdcard/settings-window-scrolled.xml >/tmp/settings-scrolled-dump.log 2>&1 || true
-              adb pull /sdcard/settings-window-scrolled.xml out/native-settings-ui-scrolled.xml >/dev/null 2>&1 || true
-              adb shell screencap -p /sdcard/native-settings-scrolled.png
-              adb pull /sdcard/native-settings-scrolled.png out/native-settings-scrolled.png >/dev/null
-            fi
-            if ! grep -q "$label" out/native-settings-ui.xml && ! grep -q "$label" out/native-settings-ui-scrolled.xml 2>/dev/null; then
-              echo "Missing expected settings control: $label"
-              exit 1
-            fi
-          done
-          # Exercise key existing UI paths; do not modify settings or credentials.
+          # Verify the original v1.0.87 settings panel and interact with the existing native controls.
           dump_current_ui() {
             adb shell uiautomator dump /sdcard/kell-current.xml >/dev/null 2>&1 || true
             adb pull /sdcard/kell-current.xml out/current-ui.xml >/dev/null 2>&1 || true
@@ -358,7 +341,34 @@ jobs:
           x1,y1,x2,y2 = map(int,b)
           print((x1+x2)//2, (y1+y2)//2)
           PY
-          )" || { echo "Missing tappable node: $mode=$value occurrence=$occurrence"; cat out/current-ui.xml; exit 1; }
+          )" || { echo "Missing tappable node: $mode=$value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            adb shell input tap "$tx" "$ty"
+            sleep 1
+            dump_current_ui
+          }
+          tap_parent_of_text() {
+            local value="$1"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          parents = {child: parent for parent in root.iter() for child in parent}
+          targets = [n for n in root.iter("node") if n.attrib.get("text", "") == value]
+          for target in targets:
+              node = parents.get(target)
+              while node is not None:
+                  if node.tag == "node" and node.attrib.get("clickable") == "true" and node.attrib.get("enabled") == "true":
+                      b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                      if len(b) == 4:
+                          x1,y1,x2,y2 = map(int,b)
+                          print((x1+x2)//2, (y1+y2)//2)
+                          sys.exit(0)
+                  node = parents.get(node)
+          sys.exit(2)
+          PY
+          )" || { echo "Missing clickable parent for UI text: $value"; cat out/current-ui.xml; exit 1; }
             read -r tx ty <<< "$point"
             adb shell input tap "$tx" "$ty"
             sleep 1
@@ -370,63 +380,97 @@ jobs:
           tap_text() { tap_node text "$1" "$2"; }
           tap_desc() { tap_node desc "$1" "$2"; }
 
-          # Color chooser and effects chooser.
           dump_current_ui
+          # Confirm every section, scrolling only when the next part is not visible.
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "Destaque" "Fundo" "Texto" "Intensidade do brilho" "Temas prontos" "Esmeralda" "EFEITO NA TELA" "Chuva" "Neve" "Folhas" "Raios" "Nenhum" "ATALHOS" "Memória local" "Assistente virtual" "Leitura de tela" "MODO DE JOGO" "SEGURANÇA" "Proteção reforçada da IA"; do
+            if ! grep -Fq "$label" out/native-settings-ui.xml && ! grep -Fq "$label" out/current-ui.xml; then
+              adb shell input swipe 610 1900 610 650 450
+              sleep 1
+              dump_current_ui
+            fi
+            if ! grep -Fq "$label" out/native-settings-ui.xml && ! grep -Fq "$label" out/current-ui.xml; then
+              adb shell input swipe 610 1900 610 650 450
+              sleep 1
+              dump_current_ui
+            fi
+            if ! grep -Fq "$label" out/native-settings-ui.xml && ! grep -Fq "$label" out/current-ui.xml; then
+              echo "Missing settings section/control: $label"
+              cat out/current-ui.xml
+              exit 1
+            fi
+          done
+
+          # Return to the top of the sheet before tapping controls.
+          adb shell input swipe 610 600 610 2200 500
+          sleep 1
+          dump_current_ui
+
+          # Custom color editor opens and can cancel without changing any color.
+          tap_parent_of_text "Destaque"
+          assert_ui "Informe uma cor HEX de seis dígitos."
+          assert_ui "Cancelar"
+          assert_ui "Aplicar"
+          tap_text "Cancelar" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+
+          # Selecting the existing Esmeralda preset preserves the approved default theme.
+          tap_parent_of_text "Esmeralda"
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+
+          # Toggle Raios on and off so the test restores the original rain-only effect.
+          tap_text "Raios" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          tap_text "Raios" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+
+          # Toggle the enabled protection switch twice, restoring its original state.
+          for n in 1 2 3; do
+            if grep -Fq "Proteção reforçada da IA" out/current-ui.xml; then break; fi
+            adb shell input swipe 610 2000 610 650 450
+            sleep 1
+            dump_current_ui
+          done
+          assert_ui "Proteção reforçada da IA"
+          protection_before="$(python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"]
+          if len(nodes) != 1: sys.exit("Expected one enabled security switch")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          )"
+          tap_node class "android.widget.Switch" 0
+          protection_changed="$(python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"]
+          if len(nodes) != 1: sys.exit("Security switch disappeared")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          )"
+          [ "$protection_changed" != "$protection_before" ] || { echo "Security switch did not toggle"; exit 1; }
+          tap_node class "android.widget.Switch" 0
+          protection_restored="$(python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true" and n.attrib.get("enabled") == "true"]
+          if len(nodes) != 1: sys.exit("Security switch disappeared during restore")
+          print(nodes[0].attrib.get("checked", "false"))
+          PY
+          )"
+          [ "$protection_restored" = "$protection_before" ] || { echo "Security preference failed to restore"; exit 1; }
+          tap_desc "Fechar configurações" 0
+          assert_ui "Kellvyn Assistente"
+
+          # Memory shortcut opens its local editor without creating or saving an item.
+          tap_desc "Configurações" 0
           tap_text "Abrir" 0
-          assert_ui "Cor da interface"
-          assert_ui "Verde-esmeralda"
-          assert_ui "Turquesa"
-          tap_text "Cancelar" 0
-          assert_ui "Kellvyn Assistente"
-
-          tap_desc "Configurações" 0
-          tap_text "Configurar" 0
-          assert_ui "Efeito na tela"
-          assert_ui "Chuva"
-          assert_ui "Neve"
-          assert_ui "Raios"
-          tap_text "Cancelar" 0
-          assert_ui "Kellvyn Assistente"
-
-          # Flip Web access twice and ensure the preference ends where it started.
-          tap_desc "Configurações" 0
-          switch_state="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Expected exactly one Web switch")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
-          tap_node class "android.widget.Switch" 0
-          after_state="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Web switch disappeared")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
-          [ "$after_state" != "$switch_state" ] || { echo "Web switch did not change"; exit 1; }
-          tap_node class "android.widget.Switch" 0
-          restored_state="$(python3 - out/current-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.Switch" and n.attrib.get("clickable") == "true"]
-          if len(nodes) != 1: sys.exit("Web switch disappeared during restore")
-          print(nodes[0].attrib.get("checked", "false"))
-          PY
-          )"
-          [ "$restored_state" = "$switch_state" ] || { echo "Web preference did not restore"; exit 1; }
-
-          # Existing protection action: open then dismiss without changing it.
-          tap_text "Configurar" -1
-          assert_ui "Proteção da IA"
-          assert_ui "Ativar proteção visual"
+          assert_ui "MEMÓRIA LOCAL"
+          assert_ui "Fechar"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
-          # Bots screen must retain its three platform rows.
+          # Bots page retains the three platform rows and the explicit WhatsApp limitation.
           tap_desc "Bots" 0
           assert_ui "BOTS ATIVOS"
           assert_ui "Telegram"
@@ -436,7 +480,7 @@ jobs:
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
-          # Editor, browser and history dialogs.
+          # Editor, browser and conversation history dialogs.
           tap_desc "Editor" 0
           assert_ui "EDITOR DE CÓDIGO"
           assert_ui "Arquivos salvos"
@@ -456,17 +500,35 @@ jobs:
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
-          # Plus menu and Plugins dialog.
+          # Plus menu, Web access toggle twice (back to original state), Plugins and file picker.
           tap_desc "Anexos e Web" 0
           assert_ui "Imagem ou arquivo"
           assert_ui "Plugins"
           assert_ui "Acesso à Web"
+          tap_text "Acesso à Web" 0
+          assert_ui "Kellvyn Assistente"
+          tap_desc "Anexos e Web" 0
+          assert_ui "Acesso à Web"
+          tap_text "Acesso à Web" 0
+          assert_ui "Kellvyn Assistente"
+          tap_desc "Anexos e Web" 0
           tap_text "Plugins" 0
           assert_ui "PLUGINS"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
+          tap_desc "Anexos e Web" 0
+          tap_text "Imagem ou arquivo" 0
+          sleep 2
+          adb shell dumpsys activity activities > out/file-picker-activity.txt
+          if adb shell pm list packages | grep -q 'documentsui'; then
+            grep -qi "documentsui" out/file-picker-activity.txt || { echo "Document picker was not brought to foreground"; cat out/file-picker-activity.txt; exit 1; }
+          fi
+          adb shell input keyevent 4
+          sleep 1
+          dump_current_ui
+          assert_ui "Kellvyn Assistente"
 
-          # Chat send path reaches the local model preparation gate; cancel download.
+          # Chat send reaches the local-model preparation gate; cancel without downloading a model.
           tap_text "Pergunte qualquer coisa..." 0
           adb shell input text "ola"
           dump_current_ui
@@ -476,12 +538,12 @@ jobs:
           tap_text "Agora não" 0
           assert_ui "Kellvyn Assistente"
 
-          # Terminal's no-Termux path should keep the chat running.
+          # Terminal's no-Termux route must leave the main chat responsive.
           if ! adb shell pm list packages | grep -q 'com.termux'; then
             tap_desc "Terminal" 0
             assert_ui "Kellvyn Assistente"
           else
-            echo "Termux exists in runner; external terminal left unopened."
+            echo "Termux is present in the runner; external terminal left unopened."
           fi
 
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
