@@ -405,7 +405,7 @@ jobs:
           tap_parent_of_text "Esmeralda"
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-theme-restored.xml
-          grep -q 'name="accent" value="9533116"' out/prefs-theme-restored.xml || {
+          grep -q 'name="accent" value="3729084"' out/prefs-theme-restored.xml || {
             echo "Emerald accent was not restored after the palette interaction."
             cat out/prefs-theme-restored.xml
             exit 1
