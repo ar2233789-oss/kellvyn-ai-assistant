@@ -386,7 +386,7 @@ jobs:
           done
 
           # Color selector opens and cancels without changing the existing accent.
-          tap_parent_of_text "Cor da interface"
+          tap_text "Abrir" 0
           assert_ui "Cor da interface"
           assert_ui "Verde-esmeralda"
           assert_ui "Turquesa"
@@ -398,7 +398,7 @@ jobs:
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
 
           # Effect selector exposes original choices and cancels without changing effects.
-          tap_parent_of_text "Efeitos visuais"
+          tap_text "Configurar" 0
           assert_ui "Efeito na tela"
           assert_ui "Chuva"
           assert_ui "Neve"
@@ -438,7 +438,7 @@ jobs:
           PY
           )"
           [ "$web_restored" = "$web_before" ] || { echo "Web access did not return to initial state"; exit 1; }
-          tap_parent_of_text "Proteção da IA"
+          tap_text "Configurar" 1
           assert_ui "Ativar proteção visual"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
