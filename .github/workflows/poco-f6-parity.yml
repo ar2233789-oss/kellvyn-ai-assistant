@@ -603,6 +603,35 @@ jobs:
             dump_current_ui
           }
           tap_text() { tap_control text "$1"; }
+          # Some PopupMenu text leaves are reported as non-clickable by Android 15 UIAutomator
+          # even though a direct tap on the row is handled correctly by the native menu.
+          tap_visible_text() {
+            local value="$1"
+            echo "[LAB] tap visible text row: $value"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          wanted = value.casefold()
+          nodes = [n for n in root.iter("node")
+                   if n.attrib.get("text", "").strip().casefold() == wanted
+                   and n.attrib.get("enabled", "true") == "true"
+                   and n.attrib.get("bounds")]
+          if not nodes:
+              print(f"Visible text not found: {value}", file=sys.stderr)
+              sys.exit(2)
+          b = nodes[0].attrib["bounds"].replace("][", ",").strip("[]").split(",")
+          if len(b) != 4: sys.exit(3)
+          x1, y1, x2, y2 = map(int, b)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not locate visible text row: $value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping visible text row $value"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
           tap_desc() { tap_control desc "$1"; }
           # Dismiss native AlertDialogs by their stable Android button IDs instead of
           # matching theme-dependent labels such as "Fechar"/"FECHAR".
@@ -718,11 +747,11 @@ jobs:
           assert_text "Plugins"
           assert_text "Acesso à Web"
           WEB_BEFORE="$(read_web_pref)"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_AFTER="$(read_web_pref)"
           if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
           tap_desc "Anexos e Web"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_RESTORED="$(read_web_pref)"
           if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
 
