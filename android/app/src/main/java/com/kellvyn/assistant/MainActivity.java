@@ -243,6 +243,9 @@ public class MainActivity extends Activity {
         addNavItem(bottomNav, "♧", "Bots", this::showBots);
         addNavItem(bottomNav, "▦", "Apps", this::openPhoneApps);
         setContentView(root);
+        // Theme changes replace this view tree without invoking Activity.onResume().
+        // Start the replacement effect layer immediately; onPause() still stops it normally.
+        if (rain != null) rain.start();
     }
 
     private android.graphics.drawable.GradientDrawable roundRect(int color, int radius, int stroke, int strokeWidth) {
