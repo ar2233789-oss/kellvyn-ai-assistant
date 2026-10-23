@@ -510,12 +510,19 @@ jobs:
 
           # UIAutomator helpers: locate a real enabled control by its exact visible or accessibility label.
           dump_current_ui() {
-            adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || true
+            rm -f out/current-ui.xml
+            echo "[LAB] dumping current Android accessibility tree"
+            timeout 15s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
+              echo "[LAB] timed out while dumping Android UI tree"; return 1;
+            }
+            timeout 15s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
+              echo "[LAB] timed out while pulling Android UI tree"; return 1;
+            }
             test -s out/current-ui.xml
           }
           tap_control() {
             local mode="$1" value="$2"
+            echo "[LAB] tap $mode=$value"
             local point
             point="$(python3 - "$mode" "$value" out/current-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
@@ -535,14 +542,15 @@ jobs:
           PY
             )" || { echo "Could not locate clickable control: $mode=$value"; cat out/current-ui.xml; exit 1; }
             read -r tx ty <<< "$point"
-            adb shell input tap "$tx" "$ty"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping $mode=$value"; exit 1; }
             sleep 1
             dump_current_ui
           }
           tap_text() { tap_control text "$1"; }
           tap_desc() { tap_control desc "$1"; }
           assert_text() {
-            grep -Fq "text=\"$1\"" out/current-ui.xml || {
+            echo "[LAB] assert visible text: $1"
+            grep -Fqi "text=\"$1\"" out/current-ui.xml || {
               echo "Expected native UI text missing: $1"
               cat out/current-ui.xml
               exit 1
