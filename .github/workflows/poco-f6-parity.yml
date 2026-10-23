@@ -559,6 +559,32 @@ jobs:
               timeout 10s adb shell input swipe 610 700 610 2220 600
               sleep 0.5
             done
+
+            # Regression test: change palette to gold, ensure the app stays responsive, then
+            # restore the approved emerald palette before the remaining control checks.
+            timeout 10s adb shell input tap 875 1335
+            sleep 2
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            if ! grep -q 'name="accent" value="-2838729"' out/native-prefs.xml; then
+              echo "Gold palette failed to persist after the UI rebuild."
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
+            if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+              echo "Kellvyn left the foreground after applying the gold palette."
+              exit 1
+            fi
+            timeout 10s adb shell input tap 280 1335
+            sleep 2
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            if ! grep -q 'name="accent" value="-13048132"' out/native-prefs.xml; then
+              echo "Emerald palette could not be restored after the color-switch test."
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            timeout 10s adb shell screencap -p /sdcard/native-after-color-cycle.png
+            timeout 10s adb pull /sdcard/native-after-color-cycle.png out/native-after-color-cycle.png >/dev/null
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
@@ -674,7 +700,8 @@ jobs:
             sleep 1
             dump_current_ui
           else
-            timeout 10s adb shell input tap 610 2540
+            # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
+            timeout 10s adb shell input tap 1135 510
             sleep 1
             timeout 10s adb shell dumpsys activity activities > out/native-after-settings-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
@@ -802,7 +829,8 @@ jobs:
               cat out/native-prefs.xml
               exit 1
             fi
-            timeout 10s adb shell input tap 610 2540
+            # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
+            timeout 10s adb shell input tap 1135 510
             sleep 1
             timeout 10s adb shell dumpsys activity activities > out/native-after-effects-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-effects-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
