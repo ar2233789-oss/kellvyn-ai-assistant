@@ -1293,7 +1293,9 @@ public class MainActivity extends Activity {
         // The Lovable section labels use the accent color without a heavy glow.
         heading.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
         LinearLayout.LayoutParams headingLp = new LinearLayout.LayoutParams(-1, -2);
-        headingLp.bottomMargin = dp(9);
+        // The web Category heading is followed by a 10px top-padded content row.
+        // Keep that breathing room on Android instead of compressing the settings cards.
+        headingLp.bottomMargin = dp(14);
         card.addView(heading, headingLp);
         return card;
     }
@@ -1403,7 +1405,8 @@ public class MainActivity extends Activity {
         LinearLayout button = new LinearLayout(this);
         button.setGravity(Gravity.CENTER_VERTICAL);
         int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
-        button.setPadding(dp(8), dp(8), dp(8), dp(8));
+        // The web buttons use p-2 plus their border; allow the Android row to match the same height.
+        button.setPadding(dp(8), dp(10), dp(8), dp(10));
         button.setBackground(roundRect(uiPanelAltColor(), dp(8), selected ? accent : inputBorder, dp(1)));
         button.setClickable(true);
         button.setFocusable(true);
@@ -1660,7 +1663,7 @@ public class MainActivity extends Activity {
 
         TextView presetsLabel = text("Temas prontos", 11, uiMutedColor(), false);
         LinearLayout.LayoutParams presetsLabelLp = new LinearLayout.LayoutParams(-1, -2);
-        presetsLabelLp.topMargin = dp(7);
+        presetsLabelLp.topMargin = dp(12);
         colors.addView(presetsLabel, presetsLabelLp);
         for (int i = 0; i < UI_PALETTES.length; i += 2) {
             LinearLayout paletteRow = new LinearLayout(this);
