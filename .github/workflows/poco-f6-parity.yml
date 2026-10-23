@@ -562,7 +562,7 @@ jobs:
 
             # Regression test: change palette to gold, ensure the app stays responsive, then
             # restore the approved emerald palette before the remaining control checks.
-            timeout 10s adb shell input tap 875 1335
+            timeout 10s adb shell input tap 875 1390
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
             if ! grep -q 'name="accent" value="-2838729"' out/native-prefs.xml; then
@@ -575,7 +575,7 @@ jobs:
               echo "Kellvyn left the foreground after applying the gold palette."
               exit 1
             fi
-            timeout 10s adb shell input tap 280 1335
+            timeout 10s adb shell input tap 280 1390
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
             if ! grep -q 'name="accent" value="-13048132"' out/native-prefs.xml; then
@@ -701,7 +701,7 @@ jobs:
             dump_current_ui
           else
             # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
-            timeout 10s adb shell input tap 1135 510
+            timeout 10s adb shell input tap 1135 570
             sleep 1
             timeout 10s adb shell dumpsys activity activities > out/native-after-settings-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
@@ -830,7 +830,7 @@ jobs:
               exit 1
             fi
             # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
-            timeout 10s adb shell input tap 1135 510
+            timeout 10s adb shell input tap 1135 570
             sleep 1
             timeout 10s adb shell dumpsys activity activities > out/native-after-effects-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-effects-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
