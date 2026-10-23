@@ -1415,7 +1415,7 @@ public class MainActivity extends Activity {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
         int sectionBorder = ((int) (0.18f * 255) << 24) | (accent & 0x00FFFFFF);
-        card.setPadding(dp(13), dp(16), dp(13), dp(16));
+        card.setPadding(dp(13), dp(13), dp(13), dp(13));
         card.setBackground(roundRect(uiPanelColor(), dp(12), sectionBorder, dp(1)));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = dp(12);
@@ -1428,7 +1428,7 @@ public class MainActivity extends Activity {
         LinearLayout.LayoutParams headingLp = new LinearLayout.LayoutParams(-1, -2);
         // The web Category heading is followed by a 10px top-padded content row.
         // Keep that breathing room on Android instead of compressing the settings cards.
-        headingLp.bottomMargin = dp(17);
+        headingLp.bottomMargin = dp(14);
         card.addView(heading, headingLp);
         return card;
     }
@@ -1539,7 +1539,7 @@ public class MainActivity extends Activity {
         button.setGravity(Gravity.CENTER_VERTICAL);
         int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
         // The web buttons use p-2 plus their border; allow the Android row to match the same height.
-        button.setPadding(dp(8), dp(12), dp(8), dp(12));
+        button.setPadding(dp(8), dp(10), dp(8), dp(10));
         button.setBackground(roundRect(uiPanelAltColor(), dp(8), selected ? accent : inputBorder, dp(1)));
         button.setClickable(true);
         button.setFocusable(true);
@@ -1721,7 +1721,7 @@ public class MainActivity extends Activity {
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), dp(10), dp(12), dp(10));
+        header.setPadding(dp(16), dp(8), dp(12), dp(8));
         header.setBackgroundColor(uiPanelColor());
         TextView title = text("CONFIGURAÇÕES DO KELLVYN", 14, accent, true);
         title.setLetterSpacing(0.18f);
@@ -1802,7 +1802,7 @@ public class MainActivity extends Activity {
             LinearLayout paletteRow = new LinearLayout(this);
             paletteRow.setOrientation(LinearLayout.HORIZONTAL);
             LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-            rowLp.topMargin = dp(8);
+            rowLp.topMargin = dp(6);
             colors.addView(paletteRow, rowLp);
             LinearLayout first = paletteButton(UI_PALETTES[i], dialog);
             LinearLayout.LayoutParams firstLp = new LinearLayout.LayoutParams(0, -2, 1);
@@ -1886,9 +1886,9 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams params = window.getAttributes();
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
-            // Pixel comparison: the web settings sheet naturally occupies ~84% of its viewport.
-            // 85% aligns the native sheet's top edge while keeping its footer pinned to the bottom.
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.85f);
+            // Pixel-aligned comparison at 1220x2712: 88% placed the sheet top 62px too high,
+            // while 85% put it 81px too low after the system-inset crop. Interpolated height: 86.7%.
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.867f);
             // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
             // limited to the settings overlay so the underlying main-screen layout is untouched.
             params.dimAmount = 0.70f;
