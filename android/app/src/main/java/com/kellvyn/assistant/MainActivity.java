@@ -118,6 +118,9 @@ public class MainActivity extends Activity {
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 
     private void buildScreen() {
+        // Stop the previous full-screen animation before replacing the view tree.
+        // Without this, every color change leaves an unreachable RainView scheduling frames.
+        if (rain != null) rain.stop();
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(uiBackground());
         rain = new RainView();
@@ -272,12 +275,18 @@ public class MainActivity extends Activity {
     /** Crisp outline icons matching the Lucide set used by the web reference. */
     private final class LucideIconView extends View {
         private final String iconName;
+        private final float iconSizeDp;
         private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path iconPath = new Path();
 
         LucideIconView(String iconName, String description) {
+            this(iconName, description, 22f);
+        }
+
+        LucideIconView(String iconName, String description, float iconSizeDp) {
             super(MainActivity.this);
             this.iconName = iconName;
+            this.iconSizeDp = iconSizeDp;
             if (description != null) setContentDescription(description);
             else setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
@@ -291,7 +300,7 @@ public class MainActivity extends Activity {
 
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float size = dp(22);
+            float size = dp(iconSizeDp);
             canvas.save();
             canvas.translate((getWidth() - size) / 2f, (getHeight() - size) / 2f);
             canvas.scale(size / 24f, size / 24f);
@@ -390,6 +399,37 @@ public class MainActivity extends Activity {
                     canvas.drawLine(12, 20, 12, 22, iconPaint);
                     canvas.drawLine(8, 22, 16, 22, iconPaint);
                     break;
+                case "copy":
+                    canvas.drawRoundRect(8, 8, 20, 21, 1.5f, 1.5f, iconPaint);
+                    canvas.drawRoundRect(4, 3, 16, 16, 1.5f, 1.5f, iconPaint);
+                    break;
+                case "volume-2":
+                    iconPath.reset();
+                    iconPath.moveTo(3, 9); iconPath.lineTo(7, 9); iconPath.lineTo(12, 5);
+                    iconPath.lineTo(12, 19); iconPath.lineTo(7, 15); iconPath.lineTo(3, 15);
+                    iconPath.close();
+                    canvas.drawPath(iconPath, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(16, 9); iconPath.quadTo(20, 12, 16, 15);
+                    iconPath.moveTo(18, 6); iconPath.quadTo(24, 12, 18, 18);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "download":
+                    iconPath.reset();
+                    iconPath.moveTo(12, 3); iconPath.lineTo(12, 15);
+                    iconPath.moveTo(7, 10); iconPath.lineTo(12, 15); iconPath.lineTo(17, 10);
+                    iconPath.moveTo(4, 20); iconPath.lineTo(20, 20);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "share-2":
+                    iconPath.reset();
+                    iconPath.moveTo(8.5f, 11); iconPath.lineTo(15.5f, 6.5f);
+                    iconPath.moveTo(8.5f, 13); iconPath.lineTo(15.5f, 17.5f);
+                    canvas.drawPath(iconPath, iconPaint);
+                    canvas.drawCircle(6, 12, 2.5f, iconPaint);
+                    canvas.drawCircle(18, 5, 2.5f, iconPaint);
+                    canvas.drawCircle(18, 19, 2.5f, iconPaint);
+                    break;
                 case "send":
                     canvas.drawCircle(12, 12, 10, iconPaint);
                     iconPath.reset();
@@ -444,10 +484,10 @@ public class MainActivity extends Activity {
             LinearLayout actions = new LinearLayout(this);
             actions.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             actions.setPadding(dp(1), dp(1), 0, 0);
-            addMessageAction(actions, "▢", "Copiar", () -> copyText(bubble.getText().toString()));
-            addMessageAction(actions, "♫", "Ouvir", () -> speakText(bubble.getText().toString()));
-            addMessageAction(actions, "↓", "Baixar", () -> downloadText(bubble.getText().toString()));
-            addMessageAction(actions, "↗", "Compartilhar", () -> shareText(bubble.getText().toString()));
+            addMessageAction(actions, "copy", "Copiar", () -> copyText(bubble.getText().toString()));
+            addMessageAction(actions, "volume-2", "Ouvir", () -> speakText(bubble.getText().toString()));
+            addMessageAction(actions, "download", "Baixar", () -> downloadText(bubble.getText().toString()));
+            addMessageAction(actions, "share-2", "Compartilhar", () -> shareText(bubble.getText().toString()));
             column.addView(actions, new LinearLayout.LayoutParams(-2, dp(30)));
             row.addView(column, new LinearLayout.LayoutParams(-2, -2));
         }
@@ -458,11 +498,10 @@ public class MainActivity extends Activity {
         return bubble;
     }
 
-    private void addMessageAction(LinearLayout parent, String glyph, String description, Runnable action) {
-        TextView button = text(glyph, 17, uiMutedColor(), false);
-        button.setGravity(Gravity.CENTER);
-        button.setContentDescription(description);
+    private void addMessageAction(LinearLayout parent, String iconName, String description, Runnable action) {
+        LucideIconView button = new LucideIconView(iconName, description, 17f);
         button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
+        button.setFocusable(true);
         button.setOnClickListener(v -> action.run());
         parent.addView(button, new LinearLayout.LayoutParams(dp(34), dp(30)));
     }
@@ -757,6 +796,7 @@ public class MainActivity extends Activity {
                     engineLabel = "MOTOR LOCAL " + backend;
                     updateStatus();
                     activeReplyBubble = null;
+                    scrollToLatestMessage();
                 });
             }
 
@@ -771,6 +811,7 @@ public class MainActivity extends Activity {
                     engineLabel = "MOTOR LOCAL INDISPONÍVEL";
                     updateStatus();
                     activeReplyBubble = null;
+                    scrollToLatestMessage();
                 });
             }
         });
@@ -1401,6 +1442,14 @@ public class MainActivity extends Activity {
     }
 
     private void applyVisualTheme() {
+        // A theme change can happen while the local model is replying. Preserve its visible
+        // placeholder and restart only the existing indicator so the callback never targets
+        // a detached TextView and the animation does not leak from the previous screen.
+        boolean resumeThinking = waitingForReply;
+        String pendingReplyText = activeReplyBubble == null ? "" : activeReplyBubble.getText().toString();
+        hideThinkingIndicator();
+        activeReplyBubble = null;
+
         getWindow().setStatusBarColor(uiBackground());
         getWindow().setNavigationBarColor(uiBackground());
         buildScreen();
@@ -1409,7 +1458,23 @@ public class MainActivity extends Activity {
             if (item != null && item.length() >= 2) addMessageView(!item.startsWith("S|"), item.substring(2));
         }
         if (transcript.isEmpty()) showWelcome();
+        if (resumeThinking) {
+            activeReplyBubble = addMessageView(false, pendingReplyText);
+            showThinkingIndicator();
+        }
         updateStatus();
+        scrollToLatestMessage();
+    }
+
+    private void scrollToLatestMessage() {
+        if (chatScroll == null) return;
+        chatScroll.post(() -> {
+            if (chatScroll != null) {
+                chatScroll.post(() -> {
+                    if (chatScroll != null) chatScroll.fullScroll(View.FOCUS_DOWN);
+                });
+            }
+        });
     }
 
     private LinearLayout settingsSection(LinearLayout parent, String label) {
@@ -1995,10 +2060,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Cor da interface").setItems(colors, (d, which) -> {
             accent = values[which];
             prefs.edit().putInt("accent", accent).apply();
-            buildScreen();
-            messages.removeAllViews();
-            for (String item : transcript) addMessageView(!item.startsWith("S|"), item.substring(2));
-            if (transcript.isEmpty()) showWelcome();
+            applyVisualTheme();
         }).setNegativeButton("Cancelar", null).show();
     }
 
@@ -2146,19 +2208,28 @@ public class MainActivity extends Activity {
         private final float[] boltX = new float[15], boltY = new float[15];
         private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
-        private int flashFrames = 0;
+        private float flashIntensity = 0f;
         private long nextLightningAt = 0L;
 
         RainView() {
             super(MainActivity.this);
             flashPaint.setColor(0x18DDE8FF);
             activeEffects = renderEffectSet();
+            if (activeEffects.contains("raios")) {
+                nextLightningAt = System.currentTimeMillis() + 1200L;
+            }
         }
 
         void setEffects(Set<String> effects) {
+            boolean hadLightning = activeEffects.contains("raios");
+            boolean hasLightning = effects.contains("raios");
             activeEffects = new HashSet<>(effects);
-            if (activeEffects.contains("raios") && nextLightningAt == 0L) {
+            if (hasLightning && (!hadLightning || nextLightningAt == 0L)) {
                 nextLightningAt = System.currentTimeMillis() + 1200L;
+                flashIntensity = 0f;
+            } else if (!hasLightning) {
+                nextLightningAt = 0L;
+                flashIntensity = 0f;
             }
             invalidate();
         }
@@ -2244,29 +2315,32 @@ public class MainActivity extends Activity {
 
         private void drawLightning(Canvas c) {
             long now = System.currentTimeMillis();
-            if (flashFrames <= 0 && now >= nextLightningAt) {
-                float bx = getWidth() * (0.2f + (float)Math.random()*0.6f);
+            if (flashIntensity <= 0f && now >= nextLightningAt) {
+                float bx = getWidth() * (0.2f + (float)Math.random() * 0.6f);
                 float by = 0f;
-                for (int i=0;i<boltX.length;i++) {
+                float endY = getHeight() * (0.45f + (float)Math.random() * 0.30f);
+                float horizontalJitter = dp(25);
+                for (int i = 0; i < boltX.length; i++) {
                     boltX[i] = bx;
                     boltY[i] = by;
-                    bx += (-getWidth()*0.055f + (float)Math.random()*getWidth()*0.11f);
-                    by += getHeight() / (float)(boltX.length - 1);
+                    bx += -horizontalJitter + (float)Math.random() * horizontalJitter * 2f;
+                    by += endY / (float)(boltX.length - 1);
                 }
-                flashFrames = 3;
-                nextLightningAt = now + 3500L + (long)(Math.random()*5500L);
+                flashIntensity = 1f;
+                nextLightningAt = now + 3500L + (long)(Math.random() * 5500L);
             }
-            if (flashFrames > 0) {
+            if (flashIntensity > 0f) {
+                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.12f), 221, 232, 255));
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
-                p.setColor(0xFFEAF1FF);
-                p.setStrokeWidth(dp(1.8f));
-                p.setShadowLayer(dp(12), 0, 0, 0xFF9DB8FF);
+                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.85f), 234, 241, 255));
+                p.setStrokeWidth(dp(1.6f));
+                p.setShadowLayer(dp(14), 0, 0, 0xFF9DB8FF);
                 Path path = new Path();
                 path.moveTo(boltX[0], boltY[0]);
-                for (int i=1;i<boltX.length;i++) path.lineTo(boltX[i], boltY[i]);
+                for (int i = 1; i < boltX.length; i++) path.lineTo(boltX[i], boltY[i]);
                 c.drawPath(path, p);
                 p.clearShadowLayer();
-                flashFrames--;
+                flashIntensity = Math.max(0f, flashIntensity - 0.10f);
             }
         }
 
