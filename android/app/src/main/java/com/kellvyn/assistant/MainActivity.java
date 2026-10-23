@@ -1753,9 +1753,9 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams params = window.getAttributes();
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
-            // Pixel comparison: the web settings sheet naturally occupies ~84% of its viewport.
-            // 85% aligns the native sheet's top edge while keeping its footer pinned to the bottom.
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.85f);
+            // Pixel-aligned comparison at 1220x2712: 88% placed the sheet top 62px too high,
+            // while 85% put it 81px too low after the system-inset crop. Interpolated height: 86.7%.
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.867f);
             // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
             // limited to the settings overlay so the underlying main-screen layout is untouched.
             params.dimAmount = 0.70f;
