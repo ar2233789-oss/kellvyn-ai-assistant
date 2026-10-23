@@ -575,7 +575,7 @@ jobs:
           assert_ui "Telegram"
           assert_ui "Discord"
           assert_ui "WhatsApp"
-          assert_ui "webhook público"
+          assert_ui "pública de webhook"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
