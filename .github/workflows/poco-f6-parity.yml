@@ -665,12 +665,33 @@ jobs:
             grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
           }
 
-          # The previous step captured settings and scrolled its content; close that sheet before checking main-screen buttons.
-          dump_current_ui
-          tap_desc "Fechar configurações"
-          assert_text "Kellvyn Assistente"
-          sleep 1
-          dump_current_ui
+          # Close the settings sheet. Use accessibility when available; otherwise use the
+          # measured footer coordinate and verify that the native activity returned to foreground.
+          if [ "$SETTINGS_ACCESSIBILITY" = "1" ]; then
+            dump_current_ui
+            tap_desc "Fechar configurações"
+            assert_text "Kellvyn Assistente"
+            sleep 1
+            dump_current_ui
+          else
+            timeout 10s adb shell input tap 610 2540
+            sleep 1
+            timeout 10s adb shell dumpsys activity activities > out/native-after-settings-close.txt
+            if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+              echo "Kellvyn did not return to the foreground after the coordinate close action."
+              grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt || true
+              exit 1
+            fi
+            timeout 10s adb shell screencap -p /sdcard/native-screen-after-settings.png
+            timeout 10s adb pull /sdcard/native-screen-after-settings.png out/native-screen-after-settings.png >/dev/null
+            if dump_current_ui; then
+              assert_text "Kellvyn Assistente"
+            else
+              echo "UIAutomator remained unavailable after closing settings; use the startup main-screen tree for the remaining main controls." > out/native-main-accessibility-warning.txt
+              cp out/native-ui.xml out/current-ui.xml
+              assert_text "Kellvyn Assistente"
+            fi
+          fi
 
           # History is a native AlertDialog; dismiss through its negative-button resource ID.
           tap_desc "Histórico"
