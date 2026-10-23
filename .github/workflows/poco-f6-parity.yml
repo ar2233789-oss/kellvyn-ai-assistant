@@ -385,6 +385,26 @@ jobs:
             grep -Fqi "$1" out/current-ui.xml || { echo "Expected UI text not found: $1"; cat out/current-ui.xml; exit 1; }
           }
           tap_text() { tap_node text "$1" "$2"; }
+          tap_text_bounds() {
+            local value="$1"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("text", "") == value]
+          if not nodes: sys.exit(2)
+          b = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(b) != 4: sys.exit(3)
+          x1,y1,x2,y2 = map(int,b)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+          )" || { echo "Text bounds not found: $value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            adb shell input tap "$tx" "$ty"
+            sleep 1
+            dump_current_ui
+          }
           tap_desc() { tap_node desc "$1" "$2"; }
 
           dump_current_ui
@@ -400,7 +420,7 @@ jobs:
           assert_ui "Turquesa"
           assert_ui "Azul"
           assert_ui "Violeta"
-          tap_text "Turquesa" 0
+          tap_text_bounds "Turquesa"
           assert_ui "Kellvyn Assistente"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-accent-selected.xml
           grep -q 'name="accent" value="-13773633"' out/prefs-accent-selected.xml || {
