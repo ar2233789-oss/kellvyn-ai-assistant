@@ -575,6 +575,8 @@ jobs:
               echo "Kellvyn left the foreground after applying the gold palette."
               exit 1
             fi
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
             timeout 10s adb shell input tap 280 1330
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
@@ -691,8 +693,8 @@ jobs:
             grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
           }
 
-          # Close the settings sheet. Use accessibility when available; otherwise use the
-          # measured footer coordinate and verify that the native activity returned to foreground.
+          # Close any native HEX editor first, then the custom settings sheet. Reopening is
+          # posted after dismiss, so wait between Back actions and require a fresh main UI tree.
           if [ "$SETTINGS_ACCESSIBILITY" = "1" ]; then
             dump_current_ui
             tap_desc "Fechar configurações"
@@ -700,24 +702,29 @@ jobs:
             sleep 1
             dump_current_ui
           else
-            # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
-            timeout 10s adb shell input tap 1135 570
-            sleep 1
+            MAIN_UI_READY=0
+            for back_pass in 1 2 3 4; do
+              timeout 10s adb shell input keyevent 4
+              sleep 1
+              if dump_current_ui && grep -q 'text="Kellvyn Assistente"' out/current-ui.xml; then
+                MAIN_UI_READY=1
+                break
+              fi
+            done
             timeout 10s adb shell dumpsys activity activities > out/native-after-settings-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
-              echo "Kellvyn did not return to the foreground after the coordinate close action."
+              echo "Kellvyn did not return to the foreground after dismissing settings/editor dialogs."
               grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-close.txt || true
               exit 1
             fi
             timeout 10s adb shell screencap -p /sdcard/native-screen-after-settings.png
             timeout 10s adb pull /sdcard/native-screen-after-settings.png out/native-screen-after-settings.png >/dev/null
-            if dump_current_ui; then
-              assert_text "Kellvyn Assistente"
-            else
-              echo "UIAutomator remained unavailable after closing settings; use the startup main-screen tree for the remaining main controls." > out/native-main-accessibility-warning.txt
-              cp out/native-ui.xml out/current-ui.xml
-              assert_text "Kellvyn Assistente"
+            if [ "$MAIN_UI_READY" != "1" ]; then
+              echo "Settings/editor dialogs could not be dismissed into a readable main UI after four Back attempts."
+              cat out/current-ui.xml || true
+              exit 1
             fi
+            assert_text "Kellvyn Assistente"
           fi
 
           # History can open as a native AlertDialog that Android 15 UIAutomator does not
@@ -829,22 +836,29 @@ jobs:
               cat out/native-prefs.xml
               exit 1
             fi
-            # Use the visible X in the settings header; outside taps can hit a color card on this full-height AVD.
-            timeout 10s adb shell input tap 1135 570
-            sleep 1
+            # Dialogs may reopen settings after they finish dismissing; use Back with retries,
+            # not a guessed point that can land on the custom color fields.
+            MAIN_UI_READY=0
+            for back_pass in 1 2 3 4; do
+              timeout 10s adb shell input keyevent 4
+              sleep 1
+              if dump_current_ui && grep -q 'text="Kellvyn Assistente"' out/current-ui.xml; then
+                MAIN_UI_READY=1
+                break
+              fi
+            done
             timeout 10s adb shell dumpsys activity activities > out/native-after-effects-close.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-effects-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
               echo "Kellvyn did not return to the foreground after the effects chooser test."
               cat out/native-after-effects-close.txt
               exit 1
             fi
-            if dump_current_ui; then
-              assert_text "Kellvyn Assistente"
-            else
-              cp out/native-ui.xml out/current-ui.xml
-              assert_text "Kellvyn Assistente"
-              echo "Main-screen controls will continue from the startup accessibility tree after the coordinate settings test." > out/native-main-accessibility-warning.txt
+            if [ "$MAIN_UI_READY" != "1" ]; then
+              echo "Could not dismiss settings after toggling lightning; no fresh main UI tree."
+              cat out/current-ui.xml || true
+              exit 1
             fi
+            assert_text "Kellvyn Assistente"
           fi
 
           # Exercise the Android HOME action last: it intentionally leaves Kellvyn and invokes the launcher.
