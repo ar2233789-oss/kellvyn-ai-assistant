@@ -738,15 +738,13 @@ jobs:
           dump_current_ui
           assert_ui "Kellvyn Assistente"
 
-          # Apps shortcut intentionally opens the Android launcher; check handoff, then end UI interaction.
+          # Apps currently exposes an explicit builder-not-connected state; verify that honestly.
           tap_desc "Apps" 0
-          sleep 2
-          adb shell dumpsys activity activities > out/apps-activity.txt
-          if grep -E "mResumedActivity|topResumedActivity" out/apps-activity.txt | grep -q "com.kellvyn.assistant"; then
-            echo "Apps shortcut did not leave Kellvyn for the Android launcher."
-            cat out/apps-activity.txt
-            exit 1
-          fi
+          assert_ui "Apps / APKs"
+          assert_ui "Nenhum aplicativo ou APK criado está registrado neste aparelho ainda"
+          assert_ui "Entendi"
+          tap_text "Entendi" 0
+          assert_ui "Kellvyn Assistente"
 
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
