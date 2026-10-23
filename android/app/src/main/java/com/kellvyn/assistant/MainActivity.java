@@ -505,6 +505,7 @@ public class MainActivity extends Activity {
     }
 
     private void addMessageAction(LinearLayout parent, String iconName, String description, Runnable action) {
+        // Keep reply actions muted like the web reference; each click reads the same bubble's final text.
         LucideIconView button = new LucideIconView(iconName, description, 17f, uiMutedColor());
         button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
         button.setFocusable(true);
