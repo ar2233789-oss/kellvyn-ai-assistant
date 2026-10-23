@@ -1578,7 +1578,13 @@ public class MainActivity extends Activity {
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
             params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.91f);
-            params.dimAmount = 0.45f;
+            // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
+            // limited to the settings overlay so the underlying main-screen layout is untouched.
+            params.dimAmount = 0.70f;
+            if (android.os.Build.VERSION.SDK_INT >= 31) {
+                params.setBlurBehindRadius(dp(4));
+                window.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND);
+            }
             window.setAttributes(params);
             window.setLayout(-1, params.height);
             window.setGravity(Gravity.BOTTOM);
