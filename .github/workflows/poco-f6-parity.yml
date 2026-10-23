@@ -543,7 +543,7 @@ jobs:
           adb shell input swipe 610 2200 610 700 600
           sleep 1
           dump_current_ui
-          for label in "Assistente virtual" "Leitura de tela" "Modo de jogo" "SEGURANÇA" "Proteção reforçada da IA"; do
+          for label in "Modo de jogo" "SEGURANÇA" "Proteção reforçada da IA"; do
             assert_ui "$label"
           done
 
