@@ -1887,9 +1887,9 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams params = window.getAttributes();
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
-            // Pixel-aligned comparison at 1220x2712: 88% placed the sheet top 62px too high,
-            // while 85% put it 81px too low after the system-inset crop. Interpolated height: 86.7%.
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.867f);
+            // Actual side-by-side capture showed the top edge ~70px too low at 86.7%.
+            // Raise only the sheet top; keep the footer anchored and controls at their current size.
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.896f);
             // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
             // limited to the settings overlay so the underlying main-screen layout is untouched.
             params.dimAmount = 0.70f;
