@@ -484,12 +484,32 @@ jobs:
             sleep 1
             remote_xml="/sdcard/settings-window-scrolled-${scroll_pass}.xml"
             local_xml="out/native-settings-ui-scroll-${scroll_pass}.xml"
-            timeout 15s adb shell uiautomator dump "$remote_xml" >/tmp/settings-scrolled-dump.log 2>&1 || {
-              echo "[LAB] UI tree dump failed while scanning settings (pass $scroll_pass)"; exit 1;
+            timeout 20s adb shell uiautomator dump "$remote_xml" >/tmp/settings-scrolled-dump.log 2>&1 || {
+              echo "[LAB] UI tree dump failed while scanning settings (pass $scroll_pass)"
+              cat /tmp/settings-scrolled-dump.log
+              exit 1
             }
-            timeout 15s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 || {
-              echo "[LAB] UI tree pull failed while scanning settings (pass $scroll_pass)"; exit 1;
-            }
+            pulled=0
+            for pull_attempt in 1 2 3; do
+              if timeout 20s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 && test -s "$local_xml"; then
+                pulled=1
+                break
+              fi
+              # Some Android 15 emulator runs time out on adb pull after uiautomator finishes.
+              # Retry once through adb shell cat before treating it as a real lab failure.
+              rm -f "$local_xml"
+              if timeout 20s adb exec-out cat "$remote_xml" > "$local_xml" 2>/dev/null && test -s "$local_xml"; then
+                pulled=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$pulled" -ne 1 ]; then
+              echo "[LAB] UI tree pull failed after retries while scanning settings (pass $scroll_pass)"
+              cat /tmp/settings-scrolled-dump.log
+              timeout 10s adb shell ls -l "$remote_xml" || true
+              exit 1
+            fi
             cp "$local_xml" out/native-settings-ui-scrolled.xml
             timeout 10s adb shell screencap -p /sdcard/native-settings-scrolled.png
             timeout 10s adb pull /sdcard/native-settings-scrolled.png out/native-settings-scrolled.png >/dev/null
