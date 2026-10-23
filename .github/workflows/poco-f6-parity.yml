@@ -250,6 +250,7 @@ jobs:
           await browser.close();
           NODE
       - name: Upload web reference capture
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-web-reference
@@ -660,7 +661,7 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check pillow numpy
           mkdir -p out/parity
-          python scripts/compare_poco_f6_captures.py \\
+          python scripts/compare_poco_f6_captures.py \
             --web-dir artifacts/web \\
             --native-dir artifacts/native \\
             --output-dir out/parity \\
