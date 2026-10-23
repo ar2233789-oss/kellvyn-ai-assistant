@@ -564,10 +564,12 @@ jobs:
           sleep 1
           dump_current_ui
 
-          # History button: open and dismiss the real Android dialog.
+          # History is an item-list dialog without a Close button; dismiss it with Android Back.
           tap_desc "Histórico"
           assert_text "Histórico de conversas"
-          tap_text "Fechar"
+          adb shell input keyevent 4
+          sleep 1
+          dump_current_ui
           assert_text "Kellvyn Assistente"
 
           # The plus menu must expose file selection, plugins and the web-access control.
