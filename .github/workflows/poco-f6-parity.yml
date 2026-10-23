@@ -448,6 +448,19 @@ jobs:
             cat out/prefs-custom-accent.xml
             exit 1
           }
+          tap_parent_of_text "Texto"
+          assert_ui "Informe uma cor HEX de seis dígitos"
+          tap_node class "android.widget.EditText" 0
+          adb shell input keyevent 4
+          dump_current_ui
+          tap_text "Aplicar" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-custom-text.xml
+          grep -q 'name="ui_text" value="-1839380"' out/prefs-custom-text.xml || {
+            echo "Applying the default text HEX did not persist the exact current color."
+            cat out/prefs-custom-text.xml
+            exit 1
+          }
           tap_parent_of_text "Fundo"
           assert_ui "Informe uma cor HEX de seis dígitos"
           tap_text "Cancelar" 0
