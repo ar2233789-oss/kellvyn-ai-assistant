@@ -125,6 +125,9 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(uiBackground());
         rain = new RainView();
         root.addView(rain, new FrameLayout.LayoutParams(-1, -1));
+        // Theme changes rebuild this view tree without invoking Activity.onResume() again.
+        // Start the replacement so rain/lightning never freezes after a color switch.
+        rain.start();
 
         LinearLayout shell = new LinearLayout(this);
         shell.setOrientation(LinearLayout.VERTICAL);
