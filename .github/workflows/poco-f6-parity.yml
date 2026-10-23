@@ -866,8 +866,85 @@ jobs:
           fi
           timeout 15s adb shell screencap -p /sdcard/native-screen-after-home.png
           timeout 15s adb pull /sdcard/native-screen-after-home.png out/native-screen-after-home.png >/dev/null
+
+          # Render a deterministic saved exchange without invoking or modifying the AI core.
+          # This directly exercises the four response controls that were reported as broken.
+          timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs-before-response-controls.xml
+          python3 - out/native-prefs-before-response-controls.xml out/native-prefs-response-controls.xml <<'PY'
+          import json, sys, xml.etree.ElementTree as ET
+          source, destination = sys.argv[1:]
+          tree = ET.parse(source)
+          root = tree.getroot()
+          payload = json.dumps([
+              "U|Pergunta sintética do laboratório",
+              "S|Resposta sintética para verificar os botões"
+          ], ensure_ascii=False, separators=(",", ":"))
+          node = next((n for n in root if n.tag == "string" and n.attrib.get("name") == "transcript"), None)
+          if node is None:
+              node = ET.SubElement(root, "string", {"name": "transcript"})
+          node.text = payload
+          tree.write(destination, encoding="utf-8", xml_declaration=True)
+          PY
+          timeout 10s adb push out/native-prefs-response-controls.xml /sdcard/kellvyn-response-controls.xml >/dev/null
+          timeout 10s adb shell run-as com.kellvyn.assistant cp /sdcard/kellvyn-response-controls.xml shared_prefs/kellvyn_native.xml
+          timeout 10s adb shell am force-stop com.kellvyn.assistant
+          timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          sleep 3
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+          assert_text "Resposta sintética para verificar os botões"
+          python3 - out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          wanted = ("Copiar", "Ouvir", "Baixar", "Compartilhar")
+          found = {}
+          answer_bottom = None
+          for node in root.iter("node"):
+              if node.attrib.get("text") == "Resposta sintética para verificar os botões":
+                  bounds = [int(v) for v in node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")]
+                  if len(bounds) == 4:
+                      answer_bottom = bounds[3]
+              desc = node.attrib.get("content-desc", "")
+              if desc in wanted and node.attrib.get("clickable") == "true" and node.attrib.get("enabled", "true") == "true":
+                  bounds = [int(v) for v in node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")]
+                  if len(bounds) == 4:
+                      found[desc] = bounds
+          missing = [label for label in wanted if label not in found]
+          if missing:
+              raise SystemExit("Response action controls missing or not tappable: " + ", ".join(missing))
+          if answer_bottom is not None and min(b[1] for b in found.values()) < answer_bottom:
+              raise SystemExit("Response action buttons are not positioned below the assistant message.")
+          ys = [b[1] for b in found.values()]
+          if max(ys) - min(ys) > 8:
+              raise SystemExit("Response action buttons are not aligned on the same row: " + repr(found))
+          print("PASS: four enabled response controls are present and aligned below the assistant message: " + repr(found))
+          PY
+          timeout 10s adb shell screencap -p /sdcard/native-response-controls.png
+          timeout 10s adb pull /sdcard/native-response-controls.png out/native-response-controls.png >/dev/null
+
+          # Exercise each action. System pickers/choosers are dismissed with Back before continuing.
+          tap_desc "Copiar"
+          assert_text "Resposta sintética para verificar os botões"
+          tap_desc "Ouvir"
+          assert_text "Resposta sintética para verificar os botões"
+          tap_desc "Baixar"
+          timeout 10s adb shell input keyevent 4
+          sleep 1
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+          tap_desc "Compartilhar"
+          timeout 10s adb shell input keyevent 4
+          sleep 1
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+          assert_text "Resposta sintética para verificar os botões"
+          timeout 10s adb shell dumpsys activity activities > out/native-after-response-controls.txt
+          if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-response-controls.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+            echo "Kellvyn did not remain in the foreground after exercising response controls."
+            exit 1
+          fi
           timeout 15s adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
-          echo "PASS: Android 15 AVD booted, installed APK, checked app controls, returned from Apps launcher, captured UI and found no startup crash."
+          echo "PASS: Android 15 AVD booted, app controls checked, color palette round-trip validated, four response controls exercised, UI captured and no startup crash."
       - name: Upload native emulator capture and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
