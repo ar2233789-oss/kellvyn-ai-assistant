@@ -276,17 +276,23 @@ public class MainActivity extends Activity {
     private final class LucideIconView extends View {
         private final String iconName;
         private final float iconSizeDp;
+        private final int iconColor;
         private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path iconPath = new Path();
 
         LucideIconView(String iconName, String description) {
-            this(iconName, description, 22f);
+            this(iconName, description, 22f, accent);
         }
 
         LucideIconView(String iconName, String description, float iconSizeDp) {
+            this(iconName, description, iconSizeDp, accent);
+        }
+
+        LucideIconView(String iconName, String description, float iconSizeDp, int iconColor) {
             super(MainActivity.this);
             this.iconName = iconName;
             this.iconSizeDp = iconSizeDp;
+            this.iconColor = iconColor;
             if (description != null) setContentDescription(description);
             else setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
@@ -306,7 +312,7 @@ public class MainActivity extends Activity {
             canvas.scale(size / 24f, size / 24f);
             iconPaint.reset();
             iconPaint.setAntiAlias(true);
-            iconPaint.setColor(accent);
+            iconPaint.setColor(iconColor);
             iconPaint.setStrokeWidth(1.9f);
             iconPaint.setStyle(Paint.Style.STROKE);
             iconPaint.setStrokeCap(Paint.Cap.ROUND);
@@ -499,7 +505,7 @@ public class MainActivity extends Activity {
     }
 
     private void addMessageAction(LinearLayout parent, String iconName, String description, Runnable action) {
-        LucideIconView button = new LucideIconView(iconName, description, 17f);
+        LucideIconView button = new LucideIconView(iconName, description, 17f, uiMutedColor());
         button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
         button.setFocusable(true);
         button.setOnClickListener(v -> action.run());
