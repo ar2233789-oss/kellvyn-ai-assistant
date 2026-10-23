@@ -345,7 +345,424 @@ jobs:
               cat /tmp/poco-f6-emulator.log || true
               exit 1
             fi
-            if adb devices | grep -Eq '^emulator-[0-9]+[[:space:]]+device$'; then
+            if timeout 10s adb devices | grep -Eq '^emulator-[0-9]+[[:space:]]+device
+              DEVICE_READY=1
+              break
+            fi
+            sleep 2
+          done
+          if [ "$DEVICE_READY" != "1" ]; then
+            echo "Timed out waiting 180 seconds for the emulator to appear in ADB."
+            timeout 10s adb devices -l || true
+            cat /tmp/poco-f6-emulator.log || true
+            exit 1
+          fi
+          BOOTED=0
+          for n in $(seq 1 120); do
+            BOOTED="$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+            if [ "$BOOTED" = "1" ]; then break; fi
+            if ! kill -0 "$EMULATOR_PID" 2>/dev/null; then
+              echo "Emulator process exited during Android boot."
+              cat /tmp/poco-f6-emulator.log || true
+              exit 1
+            fi
+            sleep 5
+          done
+          if [ "$(timeout 10s adb shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" != "1" ]; then
+            echo "Timed out waiting 600 seconds for Android boot completion."
+            adb devices -l || true
+            cat /tmp/poco-f6-emulator.log || true
+            exit 1
+          fi
+          timeout 10s adb shell wm size 1220x2712
+          timeout 10s adb shell wm density 440
+          # Avoid triggering the stalled Pixel Launcher menu; launch the app directly.
+          timeout 10s adb shell am force-stop com.google.android.apps.nexuslauncher || true
+          timeout 120s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+          timeout 60s adb shell am start -W -n com.kellvyn.assistant/.MainActivity
+          sleep 8
+          if timeout 10s adb logcat -d -b crash | grep -B 3 -A 12 "Process: com.kellvyn.assistant" > out/native-crashes.txt; then
+            cat out/native-crashes.txt
+            exit 1
+          else
+            echo "No crash for com.kellvyn.assistant during startup." > out/native-crashes.txt
+          fi
+          # The stock emulator launcher may show its own ANR dialog after boot.
+          # Dismiss that system dialog and re-check the actual foreground UI; never
+          # turn a Kellvyn process crash into a pass.
+          UI_READY=0
+          for attempt in $(seq 1 12); do
+            rm -f out/native-ui.xml
+            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/startup-ui-dump.log 2>&1 || true
+            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -qi "isn't responding" out/native-ui.xml; then
+              UI_READY=1
+              break
+            fi
+            if grep -qi "isn't responding" out/native-ui.xml; then
+              WAIT_BOUNDS="$(python3 - out/native-ui.xml <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter("node"):
+              if node.attrib.get("resource-id") == "android:id/aerr_wait":
+                  bounds = node.attrib.get("bounds", "")
+                  nums = bounds.replace("][", ",").strip("[]").split(",")
+                  if len(nums) == 4 and all(v.isdigit() for v in nums):
+                      x1, y1, x2, y2 = map(int, nums)
+                      print((x1+x2)//2, (y1+y2)//2)
+                  break
+          PY
+              )"
+              if [ -n "$WAIT_BOUNDS" ]; then
+                read -r WAIT_X WAIT_Y <<< "$WAIT_BOUNDS"
+                timeout 10s adb shell input tap "$WAIT_X" "$WAIT_Y" || true
+              else
+                timeout 10s adb shell input keyevent 4 || true
+              fi
+            fi
+            sleep 3
+          done
+          if [ "$UI_READY" != "1" ]; then
+            echo "Kellvyn UI was not visible after clearing transient system dialogs."
+            cat out/native-ui.xml || true
+            exit 1
+          fi
+          timeout 10s adb shell screencap -p /sdcard/native-screen.png
+          timeout 10s adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
+          grep -q "Kellvyn Assistente" out/native-ui.xml
+          SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter("node"):
+              if node.attrib.get("content-desc") == "Configurações":
+                  b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                  if len(b) == 4 and all(v.isdigit() for v in b):
+                      x1,y1,x2,y2 = map(int,b)
+                      print((x1+x2)//2, (y1+y2)//2)
+                  break
+          PY
+          )"
+          if [ -z "$SETTINGS_TAP" ]; then
+            echo "Could not find the native three-dot settings button in the accessibility tree."
+            cat out/native-ui.xml || true
+            exit 1
+          fi
+          read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
+          timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
+          sleep 2
+          SETTINGS_READY=0
+          for attempt in $(seq 1 8); do
+            rm -f out/native-settings-ui.xml
+            timeout 10s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
+            if timeout 5s adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
+              timeout 10s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
+            fi
+            if grep -q "CONFIGURAÇÕES DO KELLVYN" out/native-settings-ui.xml 2>/dev/null; then
+              SETTINGS_READY=1
+              break
+            fi
+            sleep 1
+          done
+          timeout 10s adb shell screencap -p /sdcard/native-settings.png
+          timeout 10s adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
+          if [ "$SETTINGS_READY" != "1" ]; then
+            echo "The settings sheet did not expose its expected title. Dump output:"
+            cat /tmp/settings-dump.log || true
+            cat out/native-settings-ui.xml || true
+            exit 1
+          fi
+          # Scroll through the entire settings sheet. Extra palette rows can push the
+          # last categories below the first lower-screen capture.
+          for scroll_pass in 1 2 3 4; do
+            if grep -q "MODO DE JOGO" out/native-settings-ui.xml && grep -q "SEGURANÇA" out/native-settings-ui.xml; then
+              break
+            fi
+            timeout 10s adb shell input swipe 610 2220 610 700 600 || {
+              echo "[LAB] swipe failed while scanning settings (pass $scroll_pass)"; exit 1;
+            }
+            sleep 1
+            remote_xml="/sdcard/settings-window-scrolled-${scroll_pass}.xml"
+            local_xml="out/native-settings-ui-scroll-${scroll_pass}.xml"
+            timeout 20s adb shell uiautomator dump "$remote_xml" >/tmp/settings-scrolled-dump.log 2>&1 || {
+              echo "[LAB] UI tree dump failed while scanning settings (pass $scroll_pass)"
+              cat /tmp/settings-scrolled-dump.log
+              exit 1
+            }
+            pulled=0
+            for pull_attempt in 1 2 3; do
+              if timeout 20s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 && test -s "$local_xml"; then
+                pulled=1
+                break
+              fi
+              # Some Android 15 emulator runs time out on adb pull after uiautomator finishes.
+              # Retry once through adb shell cat before treating it as a real lab failure.
+              rm -f "$local_xml"
+              if timeout 20s adb exec-out cat "$remote_xml" > "$local_xml" 2>/dev/null && test -s "$local_xml"; then
+                pulled=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$pulled" -ne 1 ]; then
+              echo "[LAB] UI tree pull failed after retries while scanning settings (pass $scroll_pass)"
+              cat /tmp/settings-scrolled-dump.log
+              timeout 10s adb shell ls -l "$remote_xml" || true
+              exit 1
+            fi
+            cp "$local_xml" out/native-settings-ui-scrolled.xml
+            timeout 10s adb shell screencap -p /sdcard/native-settings-scrolled.png
+            timeout 10s adb pull /sdcard/native-settings-scrolled.png out/native-settings-scrolled.png >/dev/null
+          done
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "EFEITO NA TELA" "ATALHOS" "MODO DE JOGO" "SEGURANÇA"; do
+            found=0
+            for tree in out/native-settings-ui.xml out/native-settings-ui-scroll-*.xml; do
+              if [ -f "$tree" ] && grep -qi "$label" "$tree"; then found=1; break; fi
+            done
+            if [ "$found" -ne 1 ]; then
+              echo "Missing settings-sheet section after scanning all scroll positions: $label"
+              exit 1
+            fi
+          done
+
+          # Keep an inventory of all visible native controls at the same point as the web inventory.
+          python3 - out/native-ui.xml out/native-controls.json <<'PY'
+          import json, sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          controls = []
+          for node in root.iter("node"):
+              if node.attrib.get("clickable") == "true" and node.attrib.get("enabled") == "true":
+                  controls.append({
+                      "label": node.attrib.get("content-desc") or node.attrib.get("text") or "",
+                      "text": node.attrib.get("text", ""),
+                      "contentDescription": node.attrib.get("content-desc", ""),
+                      "bounds": node.attrib.get("bounds", ""),
+                      "class": node.attrib.get("class", ""),
+                  })
+          with open(sys.argv[2], "w", encoding="utf-8") as f:
+              json.dump(controls, f, ensure_ascii=False, indent=2)
+          print(json.dumps({"nativeClickableControlCount": len(controls), "labels": [c["label"] for c in controls]}, ensure_ascii=False))
+          PY
+
+          # UIAutomator helpers: locate a real enabled control by its exact visible or accessibility label.
+          dump_current_ui() {
+            rm -f out/current-ui.xml
+            echo "[LAB] dumping current Android accessibility tree"
+            timeout 15s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
+              echo "[LAB] timed out while dumping Android UI tree"; return 1;
+            }
+            timeout 15s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
+              echo "[LAB] timed out while pulling Android UI tree"; return 1;
+            }
+            test -s out/current-ui.xml
+          }
+          tap_control() {
+            local mode="$1" value="$2"
+            echo "[LAB] tap $mode=$value"
+            local point
+            point="$(python3 - "$mode" "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          mode, value, path = sys.argv[1:]
+          attr = {"text": "text", "desc": "content-desc"}[mode]
+          root = ET.parse(path).getroot()
+          expected = value.casefold()
+          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "").strip().casefold() == expected
+                   and n.attrib.get("clickable") == "true" and n.attrib.get("enabled", "true") == "true"]
+          if not nodes:
+              print(f"Missing tappable control {mode}={value}", file=sys.stderr)
+              sys.exit(2)
+          bounds = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4: sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not locate clickable control: $mode=$value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping $mode=$value"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
+          tap_text() { tap_control text "$1"; }
+          tap_desc() { tap_control desc "$1"; }
+          # Dismiss native AlertDialogs by their stable Android button IDs instead of
+          # matching theme-dependent labels such as "Fechar"/"FECHAR".
+          tap_android_dialog_button() {
+            local id="$1"
+            local point
+            dump_current_ui
+            point="$(python3 - "$id" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          resource_id, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node")
+                   if n.attrib.get("resource-id") == resource_id
+                   and n.attrib.get("clickable") == "true"
+                   and n.attrib.get("enabled", "true") == "true"]
+          if not nodes:
+              print(f"Missing native dialog control resource-id={resource_id}", file=sys.stderr)
+              sys.exit(2)
+          bounds = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4: sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not locate native dialog action: $id"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping native dialog action $id"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
+          assert_text() {
+            echo "[LAB] assert visible text: $1"
+            grep -Fqi "text=\"$1\"" out/current-ui.xml || {
+              echo "Expected native UI text missing: $1"
+              cat out/current-ui.xml
+              exit 1
+            }
+          }
+          read_web_pref() {
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            if grep -q 'name="web_access" value="true"' out/native-prefs.xml; then echo true; else echo false; fi
+          }
+          read_effect_pref() {
+            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
+          }
+
+          # The previous step captured settings and scrolled its content; close that sheet before checking main-screen buttons.
+          dump_current_ui
+          tap_desc "Fechar configurações"
+          assert_text "Kellvyn Assistente"
+          sleep 1
+          dump_current_ui
+
+          # History is a native AlertDialog; dismiss through its negative-button resource ID.
+          tap_desc "Histórico"
+          assert_text "Histórico de conversas"
+          tap_android_dialog_button "android:id/button2"
+          assert_text "Kellvyn Assistente"
+
+          # The plus menu must expose file selection, plugins and the web-access control.
+          tap_desc "Anexos e Web"
+          assert_text "Imagem ou arquivo"
+          assert_text "Plugins"
+          assert_text "Acesso à Web"
+          WEB_BEFORE="$(read_web_pref)"
+          tap_text "Acesso à Web"
+          WEB_AFTER="$(read_web_pref)"
+          if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
+          tap_desc "Anexos e Web"
+          tap_text "Acesso à Web"
+          WEB_RESTORED="$(read_web_pref)"
+          if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
+
+          # Check each navigation destination that stays inside Kellvyn; do not open external URLs.
+          tap_desc "Navegador"
+          assert_text "Abrir Web"
+          tap_android_dialog_button "android:id/button2"
+          tap_desc "Editor"
+          assert_text "EDITOR DE CÓDIGO"
+          tap_android_dialog_button "android:id/button2"
+          tap_desc "Bots"
+          assert_text "BOTS ATIVOS"
+          tap_android_dialog_button "android:id/button1"
+          tap_desc "Terminal"
+          sleep 1
+          timeout 10s adb shell am force-stop com.kellvyn.assistant
+          timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          sleep 2
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+
+          # Verify the visual effect chooser supports combined rain + lightning, then restore rain-only.
+          tap_desc "Configurações"
+          if ! grep -q 'text="Raios"' out/current-ui.xml; then
+            timeout 10s adb shell input swipe 610 700 610 2220 500
+            sleep 1
+            dump_current_ui
+          fi
+          tap_text "Raios"
+          EFFECTS_ON="$(read_effect_pref)"
+          if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
+            echo "Expected rain and lightning together, got: $EFFECTS_ON"
+            cat out/native-prefs.xml
+            exit 1
+          fi
+          tap_text "Raios"
+          EFFECTS_RESTORED="$(read_effect_pref)"
+          if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
+            echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
+            cat out/native-prefs.xml
+            exit 1
+          fi
+          tap_desc "Fechar configurações"
+          sleep 1
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+
+          # Exercise the Android HOME action last: it intentionally leaves Kellvyn and invokes the launcher.
+          tap_desc "Apps"
+          sleep 1
+          HOME_ACTIVITY="$(timeout 10s adb shell dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity' || true)"
+          echo "$HOME_ACTIVITY" > out/native-apps-navigation.txt
+          adb shell am force-stop com.google.android.apps.nexuslauncher || true
+          timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          sleep 3
+          # UIAutomator can hang after the launcher hand-off on the Android 15 AVD.
+          # We already exercised the app controls above; verify the return with the
+          # resumed-activity record and a fresh screenshot instead of another UIA dump.
+          timeout 10s adb shell dumpsys activity activities > out/native-activity.txt
+          if ! grep -E 'mResumedActivity|topResumedActivity' out/native-activity.txt | grep -q 'com\.kellvyn\.assistant/.MainActivity'; then
+            echo "Kellvyn did not return to the foreground after the Apps launcher test."
+            grep -E 'mResumedActivity|topResumedActivity' out/native-activity.txt || true
+            exit 1
+          fi
+          timeout 15s adb shell screencap -p /sdcard/native-screen-after-home.png
+          timeout 15s adb pull /sdcard/native-screen-after-home.png out/native-screen-after-home.png >/dev/null
+          timeout 15s adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          echo "PASS: Android 15 AVD booted, installed APK, checked app controls, returned from Apps launcher, captured UI and found no startup crash."
+      - name: Upload native emulator capture and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: out/*
+          if-no-files-found: warn
+          retention-days: 14
+
+
+  compare-web-and-native-captures:
+    name: Pixel-aligned web/native screenshot diff
+    needs: [web-build-and-capture, native-emulator-test]
+    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download web screenshot captures
+        uses: actions/download-artifact@v4
+        with:
+          name: poco-f6-web-reference
+          path: artifacts/web
+      - name: Download native emulator captures
+        uses: actions/download-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: artifacts/native
+      - name: Compare main screen and settings without scaling
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pillow numpy
+          mkdir -p out/parity
+          python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
+      - name: Upload comparison report, overlays and difference maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-visual-comparison
+          path: out/parity/*
+          if-no-files-found: error
+          retention-days: 14
+; then
               DEVICE_READY=1
               break
             fi
