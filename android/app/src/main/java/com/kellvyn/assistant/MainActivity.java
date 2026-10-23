@@ -1130,15 +1130,17 @@ public class MainActivity extends Activity {
     private LinearLayout settingsSection(LinearLayout parent, String label) {
         LinearLayout card = new LinearLayout(this);
         card.setOrientation(LinearLayout.VERTICAL);
+        int sectionBorder = ((int) (0.18f * 255) << 24) | (accent & 0x00FFFFFF);
         card.setPadding(dp(13), dp(13), dp(13), dp(13));
-        card.setBackground(roundRect(uiPanelColor(), dp(17), 0x6638CFA5, dp(1)));
+        card.setBackground(roundRect(uiPanelColor(), dp(12), sectionBorder, dp(1)));
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
         lp.bottomMargin = dp(12);
         parent.addView(card, lp);
 
         TextView heading = text(label.toUpperCase(Locale.ROOT), 11, accent, true);
-        heading.setLetterSpacing(0.17f);
-        heading.setShadowLayer(dp(Math.max(1f, uiGlow() / 7f)), 0, 0, accent);
+        heading.setLetterSpacing(0.16f);
+        // The Lovable section labels use the accent color without a heavy glow.
+        heading.setShadowLayer(0f, 0f, 0f, Color.TRANSPARENT);
         LinearLayout.LayoutParams headingLp = new LinearLayout.LayoutParams(-1, -2);
         headingLp.bottomMargin = dp(9);
         card.addView(heading, headingLp);
@@ -1150,7 +1152,8 @@ public class MainActivity extends Activity {
         android.graphics.drawable.GradientDrawable shape = new android.graphics.drawable.GradientDrawable();
         shape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
         shape.setColor(color);
-        shape.setStroke(dp(1), 0x8845A989);
+        int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
+        shape.setStroke(dp(1), inputBorder);
         swatch.setBackground(shape);
         swatch.setElevation(dp(1));
         swatch.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -1162,11 +1165,12 @@ public class MainActivity extends Activity {
         LinearLayout field = new LinearLayout(this);
         field.setOrientation(LinearLayout.VERTICAL);
         field.setGravity(Gravity.CENTER);
-        field.setPadding(dp(7), dp(9), dp(7), dp(9));
-        field.setBackground(roundRect(uiPanelAltColor(), dp(14), 0x5545A989, dp(1)));
+        int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
+        field.setPadding(dp(7), dp(12), dp(7), dp(12));
+        field.setBackground(roundRect(uiPanelAltColor(), dp(12), inputBorder, dp(1)));
         field.setClickable(true);
         field.setFocusable(true);
-        field.addView(colorSwatch(color, 39));
+        field.addView(colorSwatch(color, 40));
 
         TextView name = text(title, 12, uiTextColor(), false);
         name.setGravity(Gravity.CENTER);
@@ -1247,18 +1251,19 @@ public class MainActivity extends Activity {
 
         LinearLayout button = new LinearLayout(this);
         button.setGravity(Gravity.CENTER_VERTICAL);
-        button.setPadding(dp(8), dp(9), dp(8), dp(9));
-        button.setBackground(roundRect(uiPanelAltColor(), dp(11), selected ? accent : 0x5545A989, dp(1)));
+        int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
+        button.setPadding(dp(8), dp(8), dp(8), dp(8));
+        button.setBackground(roundRect(uiPanelAltColor(), dp(8), selected ? accent : inputBorder, dp(1)));
         button.setClickable(true);
         button.setFocusable(true);
 
         LinearLayout swatches = new LinearLayout(this);
         swatches.setGravity(Gravity.CENTER_VERTICAL);
-        swatches.addView(colorSwatch(paletteBackground, 21));
-        LinearLayout.LayoutParams overlap = new LinearLayout.LayoutParams(dp(21), dp(21));
-        overlap.leftMargin = -dp(7);
-        swatches.addView(colorSwatch(paletteAccent, 21), overlap);
-        swatches.addView(colorSwatch(paletteText, 21), overlap);
+        swatches.addView(colorSwatch(paletteBackground, 20));
+        LinearLayout.LayoutParams overlap = new LinearLayout.LayoutParams(dp(20), dp(20));
+        overlap.leftMargin = -dp(6);
+        swatches.addView(colorSwatch(paletteAccent, 20), overlap);
+        swatches.addView(colorSwatch(paletteText, 20), overlap);
         button.addView(swatches);
 
         TextView name = text(palette[0], 11, uiTextColor(), false);
@@ -1285,10 +1290,10 @@ public class MainActivity extends Activity {
                                 String actionLabel, Runnable action, android.app.Dialog parentDialog) {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(10), dp(10), dp(10));
-        row.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x4445A989, dp(1)));
+        row.setPadding(0, dp(10), 0, dp(10));
+        row.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-        rowLp.bottomMargin = dp(7);
+        rowLp.bottomMargin = 0;
         parent.addView(row, rowLp);
 
         LinearLayout labels = new LinearLayout(this);
@@ -1305,8 +1310,9 @@ public class MainActivity extends Activity {
         if (actionLabel != null) {
             TextView actionButton = text(actionLabel, 12, accent, false);
             actionButton.setGravity(Gravity.CENTER);
-            actionButton.setPadding(dp(11), dp(7), dp(11), dp(7));
-            actionButton.setBackground(roundRect(uiPanelColor(), dp(10), 0x8845A989, dp(1)));
+            int inputBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
+            actionButton.setPadding(dp(12), dp(6), dp(12), dp(6));
+            actionButton.setBackground(roundRect(uiPanelColor(), dp(8), inputBorder, dp(1)));
             row.addView(actionButton);
 
             row.setClickable(true);
@@ -1332,10 +1338,10 @@ public class MainActivity extends Activity {
                                       android.widget.CompoundButton.OnCheckedChangeListener listener) {
         LinearLayout row = new LinearLayout(this);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(10), dp(12), dp(10));
-        row.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x4445A989, dp(1)));
+        row.setPadding(0, dp(10), 0, dp(10));
+        row.setBackgroundColor(Color.TRANSPARENT);
         LinearLayout.LayoutParams rowLp = new LinearLayout.LayoutParams(-1, -2);
-        rowLp.bottomMargin = dp(7);
+        rowLp.bottomMargin = 0;
         parent.addView(row, rowLp);
 
         LinearLayout labels = new LinearLayout(this);
@@ -1413,26 +1419,37 @@ public class MainActivity extends Activity {
         final android.app.Dialog dialog = new android.app.Dialog(this);
         LinearLayout sheet = new LinearLayout(this);
         sheet.setOrientation(LinearLayout.VERTICAL);
-        sheet.setBackground(roundRect(uiBackground(), dp(22), 0x6638CFA5, dp(1)));
+        android.graphics.drawable.GradientDrawable sheetBackground = new android.graphics.drawable.GradientDrawable();
+        sheetBackground.setColor(uiBackground());
+        sheetBackground.setCornerRadii(new float[] {
+                dp(16), dp(16), dp(16), dp(16), 0f, 0f, 0f, 0f
+        });
+        sheet.setBackground(sheetBackground);
+        sheet.setClipChildren(true);
+        sheet.setClipToPadding(true);
+        if (android.os.Build.VERSION.SDK_INT >= 21) {
+            sheet.setOutlineProvider(android.view.ViewOutlineProvider.BACKGROUND);
+            sheet.setClipToOutline(true);
+        }
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(16), dp(10), dp(12), dp(10));
+        header.setPadding(dp(16), dp(8), dp(12), dp(8));
         header.setBackgroundColor(uiPanelColor());
-        TextView title = text("CONFIGURAÇÕES DO KELLVYN", 15, accent, true);
-        title.setLetterSpacing(0.16f);
+        TextView title = text("CONFIGURAÇÕES DO KELLVYN", 14, accent, true);
+        title.setLetterSpacing(0.18f);
         title.setSingleLine(true);
         title.setShadowLayer(dp(Math.max(1f, uiGlow() / 6f)), 0, 0, accent);
-        header.addView(title, new LinearLayout.LayoutParams(0, dp(50), 1));
+        header.addView(title, new LinearLayout.LayoutParams(0, dp(40), 1));
 
         TextView close = iconButton("×", "Fechar configurações");
-        close.setTextSize(27);
+        close.setTextSize(24);
         close.setOnClickListener(v -> dialog.dismiss());
-        header.addView(close, new LinearLayout.LayoutParams(dp(42), dp(42)));
+        header.addView(close, new LinearLayout.LayoutParams(dp(36), dp(36)));
         sheet.addView(header);
 
         View headerLine = new View(this);
-        headerLine.setBackgroundColor(0x5538CFA5);
+        headerLine.setBackgroundColor(((int) (0.18f * 255) << 24) | (accent & 0x00FFFFFF));
         sheet.addView(headerLine, new LinearLayout.LayoutParams(-1, dp(1)));
 
         ScrollView scroll = new ScrollView(this);
@@ -1472,8 +1489,12 @@ public class MainActivity extends Activity {
         glow.setMax(60);
         glow.setProgress(uiGlow());
         if (android.os.Build.VERSION.SDK_INT >= 21) {
-            glow.setProgressTintList(android.content.res.ColorStateList.valueOf(accent));
-            glow.setThumbTintList(android.content.res.ColorStateList.valueOf(accent));
+            // Lovable uses a neutral track and a foreground-colored thumb; the accent is
+            // reserved for the active theme, not the glow slider fill.
+            int sliderTrack = blendColors(uiBackground(), Color.WHITE, 0.16f);
+            glow.setProgressTintList(android.content.res.ColorStateList.valueOf(sliderTrack));
+            glow.setProgressBackgroundTintList(android.content.res.ColorStateList.valueOf(sliderTrack));
+            glow.setThumbTintList(android.content.res.ColorStateList.valueOf(uiTextColor()));
         }
         colors.addView(glow, new LinearLayout.LayoutParams(-1, dp(32)));
         glow.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
@@ -1515,7 +1536,7 @@ public class MainActivity extends Activity {
             boolean on = readEffectOptions().contains(effectId);
             TextView chip = text(label, 12, on ? uiBackground() : uiTextColor(), false);
             chip.setGravity(Gravity.CENTER);
-            chip.setPadding(dp(9), dp(8), dp(9), dp(8));
+            chip.setPadding(dp(12), dp(6), dp(12), dp(6));
             chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : 0x6645A989, dp(1)));
             LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(-2, -2);
             chipLp.rightMargin = dp(5);
@@ -1557,13 +1578,14 @@ public class MainActivity extends Activity {
                 });
 
         View footerLine = new View(this);
-        footerLine.setBackgroundColor(0x5538CFA5);
+        footerLine.setBackgroundColor(((int) (0.18f * 255) << 24) | (accent & 0x00FFFFFF));
         sheet.addView(footerLine, new LinearLayout.LayoutParams(-1, dp(1)));
+        int footerBorder = ((int) (0.35f * 255) << 24) | (accent & 0x00FFFFFF);
         TextView footerClose = text("Fechar", 14, accent, false);
         footerClose.setGravity(Gravity.CENTER);
-        footerClose.setBackground(roundRect(uiPanelAltColor(), dp(22), 0x8845A989, dp(1)));
-        LinearLayout.LayoutParams footerLp = new LinearLayout.LayoutParams(-1, dp(58));
-        footerLp.setMargins(dp(12), dp(10), dp(12), dp(7));
+        footerClose.setBackground(roundRect(uiPanelAltColor(), dp(12), footerBorder, dp(1)));
+        LinearLayout.LayoutParams footerLp = new LinearLayout.LayoutParams(-1, dp(40));
+        footerLp.setMargins(dp(12), dp(12), dp(12), dp(12));
         sheet.addView(footerClose, footerLp);
         footerClose.setOnClickListener(v -> dialog.dismiss());
 
@@ -1577,7 +1599,7 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams params = window.getAttributes();
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.91f);
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.88f);
             // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
             // limited to the settings overlay so the underlying main-screen layout is untouched.
             params.dimAmount = 0.70f;
