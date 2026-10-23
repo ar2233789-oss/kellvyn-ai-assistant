@@ -575,16 +575,25 @@ jobs:
               echo "Kellvyn left the foreground after applying the gold palette."
               exit 1
             fi
-            timeout 10s adb shell input tap 280 1330
-            sleep 2
-            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
-            if ! grep -q 'name="accent" value="-13048132"' out/native-prefs.xml; then
-              echo "Emerald palette could not be restored after the color-switch test."
-              cat out/native-prefs.xml
+            # Capture the actual gold-theme result before resetting this disposable emulator.
+            # Do not tap a second guessed coordinate after the view tree was rebuilt: that
+            # stale coordinate was opening the HEX editor and poisoning all later UI checks.
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
+            timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
+            if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+              echo "Kellvyn left the foreground after applying the gold palette."
+              cat out/native-after-gold-palette.txt
               exit 1
             fi
-            timeout 10s adb shell screencap -p /sdcard/native-after-color-cycle.png
-            timeout 10s adb pull /sdcard/native-after-color-cycle.png out/native-after-color-cycle.png >/dev/null
+            # Reset test data in this throwaway emulator and relaunch so the remaining
+            # control checks start from the approved emerald palette with no modal left open.
+            timeout 10s adb shell am force-stop com.kellvyn.assistant
+            timeout 20s adb shell pm clear com.kellvyn.assistant
+            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+            sleep 3
+            dump_current_ui
+            assert_text "Kellvyn Assistente"
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
