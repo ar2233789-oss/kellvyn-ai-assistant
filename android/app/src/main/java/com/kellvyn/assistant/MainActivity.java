@@ -409,7 +409,7 @@ public class MainActivity extends Activity {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
-        welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
+        welcome.setPadding(dp(8), dp(96), dp(8), dp(24));
         welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
         TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 15, uiMutedColor(), false);
         sub.setGravity(Gravity.CENTER);
