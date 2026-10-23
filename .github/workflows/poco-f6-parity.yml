@@ -528,6 +528,7 @@ jobs:
           assert_ui "Nova informação"
           tap_node class "android.widget.EditText" 0
           adb shell input text "lab_memoria_funcionou"
+          adb shell input keyevent 4
           dump_current_ui
           tap_text "Salvar" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-local-memory.xml
@@ -585,6 +586,7 @@ jobs:
           adb shell input text "lab-verificacao.txt"
           tap_node class "android.widget.EditText" 1
           adb shell input text "conteudo_de_teste"
+          adb shell input keyevent 4
           dump_current_ui
           tap_text "Salvar" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-editor-saved.xml
