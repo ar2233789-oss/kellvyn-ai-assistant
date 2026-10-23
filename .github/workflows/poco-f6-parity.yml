@@ -556,8 +556,14 @@ jobs:
             grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
           }
 
-          # History button: open and dismiss the real Android dialog.
+          # The previous step captured settings and scrolled its content; close that sheet before checking main-screen buttons.
           dump_current_ui
+          tap_desc "Fechar configurações"
+          assert_text "Kellvyn Assistente"
+          sleep 1
+          dump_current_ui
+
+          # History button: open and dismiss the real Android dialog.
           tap_desc "Histórico"
           assert_text "Histórico de conversas"
           tap_text "Fechar"
@@ -667,11 +673,7 @@ jobs:
           set -euo pipefail
           python -m pip install --disable-pip-version-check pillow numpy
           mkdir -p out/parity
-          python scripts/compare_poco_f6_captures.py \
-            --web-dir artifacts/web \\
-            --native-dir artifacts/native \\
-            --output-dir out/parity \\
-            --status-bar-top-px 66
+          python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
       - name: Upload comparison report, overlays and difference maps
         uses: actions/upload-artifact@v4
         with:
