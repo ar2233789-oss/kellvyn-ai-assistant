@@ -555,39 +555,39 @@ jobs:
               timeout 10s adb shell screencap -p "/sdcard/native-settings-fallback-${fallback_pass}.png"
               timeout 10s adb pull "/sdcard/native-settings-fallback-${fallback_pass}.png" "out/native-settings-fallback-${fallback_pass}.png" >/dev/null
             done
-            for restore_pass in 1 2 3; do
-              timeout 10s adb shell input swipe 610 700 610 2220 600
-              sleep 0.5
-            done
+            # Reset the disposable emulator instead of reusing a guessed scroll offset.
+            # The prior fallback left the settings sheet at a variable scroll position, so
+            # the old 875x1330 tap occasionally hit the "Fundo" HEX field instead of a palette.
+            timeout 10s adb shell am force-stop com.kellvyn.assistant
+            timeout 20s adb shell pm clear com.kellvyn.assistant
+            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+            sleep 3
+            dump_current_ui
+            assert_text "Kellvyn Assistente"
 
-            # Regression test: change palette to gold, ensure the app stays responsive, then
-            # restore the approved emerald palette before the remaining control checks.
+            # Reopen settings from a known main-screen state, then verify a real palette swap.
+            tap_desc "Configurações"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-settings-palette-test.png
+            timeout 10s adb pull /sdcard/native-settings-palette-test.png out/native-settings-palette-test.png >/dev/null
             timeout 10s adb shell input tap 875 1330
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
             if ! grep -q 'name="accent" value="-2838729"' out/native-prefs.xml; then
-              echo "Gold palette failed to persist after the UI rebuild."
+              echo "Gold palette was not applied from the known initial settings position."
               cat out/native-prefs.xml
               exit 1
             fi
             timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
               echo "Kellvyn left the foreground after applying the gold palette."
-              exit 1
-            fi
-            # Capture the actual gold-theme result before resetting this disposable emulator.
-            # Do not tap a second guessed coordinate after the view tree was rebuilt: that
-            # stale coordinate was opening the HEX editor and poisoning all later UI checks.
-            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
-            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
-            timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
-            if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
-              echo "Kellvyn left the foreground after applying the gold palette."
               cat out/native-after-gold-palette.txt
               exit 1
             fi
-            # Reset test data in this throwaway emulator and relaunch so the remaining
-            # control checks start from the approved emerald palette with no modal left open.
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
+
+            # Reset after verifying theme change so the remaining controls start in emerald.
             timeout 10s adb shell am force-stop com.kellvyn.assistant
             timeout 20s adb shell pm clear com.kellvyn.assistant
             timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
