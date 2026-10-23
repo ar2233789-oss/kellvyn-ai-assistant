@@ -439,7 +439,7 @@ jobs:
           assert_ui "Folhas"
           assert_ui "Raios"
           assert_ui "Nenhum"
-          tap_text "Raios" 0
+          tap_text_bounds "Raios"
           tap_text "Aplicar" 0
           assert_ui "Kellvyn Assistente"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-both-effects.xml
@@ -452,7 +452,7 @@ jobs:
           # Restore rain-only before proceeding with other routes.
           tap_desc "Configurações" 0
           tap_parent_of_text "Efeitos visuais"
-          tap_text "Raios" 0
+          tap_text_bounds "Raios"
           tap_text "Aplicar" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-rain-restored.xml
           grep -q "chuva" out/prefs-rain-restored.xml || { echo "Rain effect was lost while restoring test state."; exit 1; }
@@ -532,7 +532,7 @@ jobs:
           tap_text "Arquivos salvos" 0
           assert_ui "Arquivos salvos"
           assert_ui "lab-verificacao.txt"
-          tap_text "lab-verificacao.txt" 0
+          tap_text_bounds "lab-verificacao.txt"
           assert_ui "conteudo_de_teste"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
@@ -555,7 +555,7 @@ jobs:
           assert_ui "Imagem ou arquivo"
           assert_ui "Plugins"
           assert_ui "Acesso à Web"
-          tap_text "Acesso à Web" 0
+          tap_text_bounds "Acesso à Web"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-on.xml
           grep -q 'name="web_access" value="true"' out/prefs-web-on.xml || {
             echo "Web-access item did not enable the preference."
@@ -563,7 +563,7 @@ jobs:
             exit 1
           }
           tap_desc "Anexos e Web" 0
-          tap_text "Acesso à Web" 0
+          tap_text_bounds "Acesso à Web"
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-restored.xml
           grep -q 'name="web_access" value="false"' out/prefs-web-restored.xml || {
             echo "Web-access item did not restore the preference to OFF."
@@ -572,12 +572,12 @@ jobs:
           }
 
           tap_desc "Anexos e Web" 0
-          tap_text "Plugins" 0
+          tap_text_bounds "Plugins"
           assert_ui "PLUGINS"
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
           tap_desc "Anexos e Web" 0
-          tap_text "Imagem ou arquivo" 0
+          tap_text_bounds "Imagem ou arquivo"
           sleep 2
           adb shell dumpsys activity activities > out/file-picker-activity.txt
           if adb shell pm list packages | grep -q 'documentsui'; then
@@ -667,7 +667,7 @@ jobs:
           # Selecting Nova conversa archives the current local transcript and returns to the welcome screen.
           tap_desc "Histórico" 0
           assert_ui "Histórico de conversas"
-          tap_text "Nova conversa" 0
+          tap_text_bounds "Nova conversa"
           assert_ui "Kellvyn Assistente"
           assert_ui "Converse com a Kellvyn IA"
 
