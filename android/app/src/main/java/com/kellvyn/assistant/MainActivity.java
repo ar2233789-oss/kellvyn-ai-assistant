@@ -125,10 +125,6 @@ public class MainActivity extends Activity {
         root.setBackgroundColor(uiBackground());
         rain = new RainView();
         root.addView(rain, new FrameLayout.LayoutParams(-1, -1));
-        // Theme changes rebuild this view tree without invoking Activity.onResume() again.
-        // Start the replacement so rain/lightning never freezes after a color switch.
-        rain.start();
-
         LinearLayout shell = new LinearLayout(this);
         shell.setOrientation(LinearLayout.VERTICAL);
         root.addView(shell, new FrameLayout.LayoutParams(-1, -1));
@@ -136,7 +132,7 @@ public class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(12), dp(5), dp(12), dp(5));
-        header.setBackgroundColor(0xEE0B1211);
+        header.setBackgroundColor(themedSurfaceColor(0xEE, 0xEE0B1211));
         // 46dp header + 1dp divider reproduces the web reference's 47dp header.
         shell.addView(header, new LinearLayout.LayoutParams(-1, dp(46)));
 
@@ -156,7 +152,7 @@ public class MainActivity extends Activity {
         settings.setOnClickListener(v -> showSettingsPanel());
 
         View divider = new View(this);
-        divider.setBackgroundColor(0x5533C995);
+        divider.setBackgroundColor(themedAccentColor(0x55, 0x5533C995));
         shell.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
         chatScroll = new ScrollView(this);
@@ -172,7 +168,7 @@ public class MainActivity extends Activity {
         composerPanel.setOrientation(LinearLayout.VERTICAL);
         // The reference draws one rounded border around both the prompt and the action row.
         composerPanel.setPadding(dp(8), dp(8), dp(8), dp(8));
-        composerPanel.setBackground(roundRect(uiPanelAltColor(), dp(18), 0x8845A989, dp(1)));
+        composerPanel.setBackground(roundRect(uiPanelAltColor(), dp(18), themedAccentColor(0x88, 0x8845A989), dp(1)));
         LinearLayout.LayoutParams composerPanelLp = new LinearLayout.LayoutParams(-1, -2);
         composerPanelLp.setMargins(dp(12), dp(4), dp(12), dp(12));
         shell.addView(composerPanel, composerPanelLp);
@@ -212,7 +208,7 @@ public class MainActivity extends Activity {
         footerStatus.setIncludeFontPadding(false);
         footerStatus.setGravity(Gravity.CENTER);
         footerStatus.setPadding(dp(10), 0, dp(10), 0);
-        footerStatus.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x8845A989, dp(1)));
+        footerStatus.setBackground(roundRect(uiPanelAltColor(), dp(12), themedAccentColor(0x88, 0x8845A989), dp(1)));
         controls.addView(footerStatus, new LinearLayout.LayoutParams(-2, dp(34)));
 
         View spacer = new View(this);
@@ -223,16 +219,16 @@ public class MainActivity extends Activity {
         mic.setOnClickListener(v -> startSpeech());
 
         View send = new LucideIconView("send", "Enviar mensagem");
-        send.setBackground(roundRect(0x00000000, dp(18), 0x8845A989, dp(1)));
+        send.setBackground(roundRect(0x00000000, dp(18), themedAccentColor(0x88, 0x8845A989), dp(1)));
         controls.addView(send, new LinearLayout.LayoutParams(dp(36), dp(36)));
         send.setOnClickListener(v -> sendMessage());
 
         View navDivider = new View(this);
-        navDivider.setBackgroundColor(0x4433C995);
+        navDivider.setBackgroundColor(themedAccentColor(0x44, 0x4433C995));
         shell.addView(navDivider, new LinearLayout.LayoutParams(-1, dp(1)));
         LinearLayout bottomNav = new LinearLayout(this);
         bottomNav.setGravity(Gravity.CENTER_VERTICAL);
-        bottomNav.setBackgroundColor(0xF20A1110);
+        bottomNav.setBackgroundColor(themedSurfaceColor(0xF2, 0xF20A1110));
         bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
         // 67dp navigation + the divider matches the measured 67.5dp web navigation bar.
         shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(67)));
@@ -323,7 +319,7 @@ public class MainActivity extends Activity {
             iconPaint.setStyle(Paint.Style.STROKE);
             iconPaint.setStrokeCap(Paint.Cap.ROUND);
             iconPaint.setStrokeJoin(Paint.Join.ROUND);
-            if ("AI".equals(iconName)) iconPaint.setShadowLayer(1.0f, 0, 0, 0x9938E6BC);
+            if ("AI".equals(iconName)) iconPaint.setShadowLayer(1.0f, 0, 0, themedAccentColor(0x99, 0x9938E6BC));
 
             switch (iconName) {
                 case "AI":
@@ -482,8 +478,8 @@ public class MainActivity extends Activity {
         bubble.setLineSpacing(dp(3), 1f);
         bubble.setPadding(dp(13), dp(10), dp(13), dp(10));
         bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.84f));
-        bubble.setBackground(roundRect(user ? 0xE51B3D31 : 0xE5111B19, dp(14),
-                user ? 0xAA29C78D : 0x5544A58A, dp(1)));
+        bubble.setBackground(roundRect(messageBubbleFill(user), dp(14),
+                messageBubbleBorder(user), dp(1)));
 
         if (user) {
             row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
@@ -1213,7 +1209,7 @@ public class MainActivity extends Activity {
                 botsContainer.addView(row, new LinearLayout.LayoutParams(-1, -2));
 
                 View divider = new View(MainActivity.this);
-                divider.setBackgroundColor(0x2233C995);
+                divider.setBackgroundColor(themedAccentColor(0x22, 0x2233C995));
                 botsContainer.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
                 if (!supportsRuntime) {
@@ -1336,7 +1332,7 @@ public class MainActivity extends Activity {
         source.setMaxLines(16);
         source.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         source.setTypeface(Typeface.MONOSPACE);
-        source.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x5545A989, dp(1)));
+        source.setBackground(roundRect(uiPanelAltColor(), dp(10), themedAccentColor(0x55, 0x5545A989), dp(1)));
         source.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         LinearLayout form = new LinearLayout(this);
@@ -1436,6 +1432,34 @@ public class MainActivity extends Activity {
     private int uiMutedColor() {
         if (prefs == null || (uiBackground() == DEFAULT_BG && uiTextColor() == DEFAULT_TEXT)) return DEFAULT_MUTED;
         return blendColors(uiBackground(), uiTextColor(), 0.58f);
+    }
+
+    /** Keep the approved Emerald visuals pixel-identical; theme only surfaces when a new palette is chosen. */
+    private boolean isDefaultVisualTheme() {
+        return accent == EMERALD && uiBackground() == DEFAULT_BG && uiTextColor() == DEFAULT_TEXT;
+    }
+
+    private int themedAccentColor(int alpha, int defaultThemeColor) {
+        if (isDefaultVisualTheme()) return defaultThemeColor;
+        return Color.argb(alpha, Color.red(accent), Color.green(accent), Color.blue(accent));
+    }
+
+    private int themedSurfaceColor(int alpha, int defaultThemeColor) {
+        if (isDefaultVisualTheme()) return defaultThemeColor;
+        int bg = uiBackground();
+        return Color.argb(alpha, Color.red(bg), Color.green(bg), Color.blue(bg));
+    }
+
+    private int messageBubbleFill(boolean user) {
+        if (isDefaultVisualTheme()) return user ? 0xE51B3D31 : 0xE5111B19;
+        int bg = uiBackground();
+        int surface = user ? blendColors(bg, accent, 0.16f) : blendColors(bg, uiPanelColor(), 0.18f);
+        return Color.argb(0xE5, Color.red(surface), Color.green(surface), Color.blue(surface));
+    }
+
+    private int messageBubbleBorder(boolean user) {
+        if (isDefaultVisualTheme()) return user ? 0xAA29C78D : 0x5544A58A;
+        return themedAccentColor(user ? 0xAA : 0x55, user ? 0xAA29C78D : 0x5544A58A);
     }
 
     private int blendColors(int from, int to, float amount) {
@@ -1752,13 +1776,13 @@ public class MainActivity extends Activity {
         entry.setHint("Nova informação…");
         entry.setTextColor(uiTextColor());
         entry.setHintTextColor(uiMutedColor());
-        entry.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+        entry.setBackground(roundRect(uiPanelAltColor(), dp(10), themedAccentColor(0x88, 0x8845A989), dp(1)));
         entry.setPadding(dp(10), dp(9), dp(10), dp(9));
 
         TextView add = text("Salvar", 13, accent, true);
         add.setGravity(Gravity.CENTER);
         add.setPadding(dp(12), dp(9), dp(12), dp(9));
-        add.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+        add.setBackground(roundRect(uiPanelAltColor(), dp(10), themedAccentColor(0x88, 0x8845A989), dp(1)));
 
         panel.addView(saved);
         LinearLayout.LayoutParams entryLp = new LinearLayout.LayoutParams(-1, -2);
@@ -1909,7 +1933,7 @@ public class MainActivity extends Activity {
             TextView chip = text(label, 12, on ? uiBackground() : uiTextColor(), false);
             chip.setGravity(Gravity.CENTER);
             chip.setPadding(dp(12), dp(6), dp(12), dp(6));
-            chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : 0x6645A989, dp(1)));
+            chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : themedAccentColor(0x66, 0x6645A989), dp(1)));
             LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(-2, -2);
             chipLp.rightMargin = dp(5);
             firstEffectRow.addView(chip, chipLp);
@@ -2337,8 +2361,9 @@ public class MainActivity extends Activity {
             if (flashIntensity <= 0f && now >= nextLightningAt) {
                 float bx = getWidth() * (0.2f + (float)Math.random() * 0.6f);
                 float by = 0f;
-                float endY = getHeight() * (0.45f + (float)Math.random() * 0.30f);
-                float horizontalJitter = dp(25);
+                float endY = getHeight() * (0.34f + (float)Math.random() * 0.22f);
+                // Keep the strike narrow and natural instead of zig-zagging across the screen.
+                float horizontalJitter = Math.max(dp(5), Math.min(dp(11), getWidth() * 0.018f));
                 for (int i = 0; i < boltX.length; i++) {
                     boltX[i] = bx;
                     boltY[i] = by;
@@ -2346,20 +2371,21 @@ public class MainActivity extends Activity {
                     by += endY / (float)(boltX.length - 1);
                 }
                 flashIntensity = 1f;
-                nextLightningAt = now + 3500L + (long)(Math.random() * 5500L);
+                nextLightningAt = now + 4000L + (long)(Math.random() * 5000L);
             }
             if (flashIntensity > 0f) {
-                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.12f), 221, 232, 255));
+                // A very brief, faint ambient flash; keep the bolt itself as the focus.
+                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.035f), 221, 232, 255));
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
-                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.85f), 234, 241, 255));
-                p.setStrokeWidth(dp(1.6f));
-                p.setShadowLayer(dp(14), 0, 0, 0xFF9DB8FF);
+                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.90f), 234, 241, 255));
+                p.setStrokeWidth(dp(1.25f));
+                p.setShadowLayer(dp(6), 0, 0, 0xFF9DB8FF);
                 Path path = new Path();
                 path.moveTo(boltX[0], boltY[0]);
                 for (int i = 1; i < boltX.length; i++) path.lineTo(boltX[i], boltY[i]);
                 c.drawPath(path, p);
                 p.clearShadowLayer();
-                flashIntensity = Math.max(0f, flashIntensity - 0.10f);
+                flashIntensity = Math.max(0f, flashIntensity - 0.20f);
             }
         }
 
