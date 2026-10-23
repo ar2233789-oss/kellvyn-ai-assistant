@@ -565,8 +565,9 @@ jobs:
             dump_current_ui
             assert_text "Kellvyn Assistente"
 
-            # Reopen settings from a known main-screen state, then verify a real palette swap.
-            tap_desc "Configurações"
+            # Reopen settings from a known main-screen state; custom Dialogs do not expose
+            # their accessibility tree consistently on this Android 15 image.
+            timeout 10s adb shell input tap 1135 200
             sleep 2
             timeout 10s adb shell screencap -p /sdcard/native-settings-palette-test.png
             timeout 10s adb pull /sdcard/native-settings-palette-test.png out/native-settings-palette-test.png >/dev/null
