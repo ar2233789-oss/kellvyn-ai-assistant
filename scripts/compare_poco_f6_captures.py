@@ -20,20 +20,19 @@ def compare_pair(web_path: Path, native_path: Path, out: Path, name: str, status
     native_full = Image.open(native_path).convert("RGB")
 
     # 444 CSS px at DPR 2.75 rounds to 1221 px; Android is set to 1220 px wide.
-    target_width, target_height = web.size
-    if native_full.width < target_width or native_full.height < status_top_px + target_height:
+    web_width, target_height = web.size
+    if abs(native_full.width - web_width) > 1:
+        raise ValueError(f"{name}: widths differ by more than one pixel: web={web.size}, native={native_full.size}")
+    if native_full.height < status_top_px + target_height:
         raise ValueError(
-            f"{name}: cannot make equal-size crops without scaling; "
+            f"{name}: cannot make equal-height crops without scaling; "
             f"web={web.size}, native={native_full.size}, status_top={status_top_px}"
         )
-    if native_full.width - target_width > 1:
-        raise ValueError(f"{name}: widths differ by more than one pixel: web={web.size}, native={native_full.size}")
-    if target_width - native_full.width > 1:
-        raise ValueError(f"{name}: native is wider by more than one pixel: web={web.size}, native={native_full.size}")
+    target_width = min(web_width, native_full.width)
 
     # Never resize: trim only DPR-rounding pixels from the right edge and crop the OS status bar.
-    reference = web.crop((0, 0, min(target_width, native_full.width), target_height))
-    candidate = native_full.crop((0, status_top_px, min(target_width, native_full.width), status_top_px + target_height))
+    reference = web.crop((0, 0, target_width, target_height))
+    candidate = native_full.crop((0, status_top_px, target_width, status_top_px + target_height))
     if reference.size != candidate.size:
         raise ValueError(f"{name}: crop dimensions differ: web={reference.size}, native={candidate.size}")
 
