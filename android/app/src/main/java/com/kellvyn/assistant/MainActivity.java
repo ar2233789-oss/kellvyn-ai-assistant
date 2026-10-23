@@ -62,6 +62,7 @@ public class MainActivity extends Activity {
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
     private static final int SAVE_TEXT = 1003;
+    private static final String[] THINKING_STEPS = {"Analisando", "Pensando", "Organizando a resposta"};
     private static final Pattern GENERATED_PROJECT_FILE = Pattern.compile(
             "(?m)^Arquivo:\\s*([^\\r\\n]+)\\s*\\r?\\n\\s*(?:\\x60){3}[^\\r\\n]*\\r?\\n(.*?)\\r?\\n(?:\\x60){3}",
             Pattern.DOTALL);
@@ -78,8 +79,14 @@ public class MainActivity extends Activity {
     private Uri selectedAttachmentUri = null;
     private TextView footerStatus;
     private TextView activeReplyBubble;
-    private TextView thinkingIndicator;
+    private View thinkingIndicator;
+    private TextView thinkingLabel;
     private ObjectAnimator thinkingAnimator;
+    private ValueAnimator thinkingRingAnimator;
+    private ValueAnimator thinkingTextAnimator;
+    private final Handler thinkingHandler = new Handler(android.os.Looper.getMainLooper());
+    private Runnable thinkingStepRunnable;
+    private int thinkingStepIndex = 0;
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
     private LocalBrain brain;
@@ -500,27 +507,153 @@ public class MainActivity extends Activity {
 
     private void showThinkingIndicator() {
         hideThinkingIndicator();
-        thinkingIndicator = text("🧠  Pensando…", 12, uiMutedColor(), false);
-        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
-        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
-        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
-        thinkingAnimator.setDuration(850);
+
+        // Match the locked Lovable ThinkingBrain: 28dp halo, 18dp brain, 13sp shimmer
+        // text and three status phases that rotate every 900ms. Keep the brain deliberately small.
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+
+        FrameLayout brainFrame = new FrameLayout(this);
+        brainFrame.setClipChildren(false);
+        brainFrame.setClipToPadding(false);
+        View ring = new View(this);
+        android.graphics.drawable.GradientDrawable ringShape = new android.graphics.drawable.GradientDrawable();
+        ringShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        ringShape.setColor(Color.argb(64, Color.red(accent), Color.green(accent), Color.blue(accent)));
+        ring.setBackground(ringShape);
+        brainFrame.addView(ring, new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+
+        ThinkingBrainIconView brainIcon = new ThinkingBrainIconView();
+        brainFrame.addView(brainIcon, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+        row.addView(brainFrame, new LinearLayout.LayoutParams(dp(28), dp(28)));
+
+        thinkingLabel = text(THINKING_STEPS[0] + "…", 13, uiMutedColor(), false);
+        thinkingLabel.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(-2, -2);
+        labelLp.leftMargin = dp(8);
+        row.addView(thinkingLabel, labelLp);
+
+        thinkingIndicator = row;
+        messages.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+        thinkingRingAnimator = ValueAnimator.ofFloat(0f, 1f);
+        thinkingRingAnimator.setDuration(900);
+        thinkingRingAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingRingAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        thinkingRingAnimator.addUpdateListener(animation -> {
+            float phase = (float) animation.getAnimatedValue();
+            float scale = 1f + 0.8f * phase;
+            ring.setScaleX(scale);
+            ring.setScaleY(scale);
+            ring.setAlpha(1f - phase);
+        });
+        thinkingRingAnimator.start();
+
+        thinkingAnimator = ObjectAnimator.ofFloat(brainIcon, View.ALPHA, 0.65f, 1f);
+        thinkingAnimator.setDuration(900);
         thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
         thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
         thinkingAnimator.start();
+
+        thinkingTextAnimator = ValueAnimator.ofFloat(0f, 1f);
+        thinkingTextAnimator.setDuration(1600);
+        thinkingTextAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingTextAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        thinkingTextAnimator.addUpdateListener(animation -> {
+            if (thinkingLabel == null) return;
+            float t = (float) animation.getAnimatedValue();
+            float phase = t < 0.5f ? t * 2f : (1f - t) * 2f;
+            thinkingLabel.setTextColor(blendColors(uiMutedColor(), accent, 0.08f + phase * 0.38f));
+        });
+        thinkingTextAnimator.start();
+
+        thinkingStepIndex = 0;
+        thinkingStepRunnable = new Runnable() {
+            @Override public void run() {
+                if (thinkingLabel == null) return;
+                thinkingStepIndex = (thinkingStepIndex + 1) % THINKING_STEPS.length;
+                thinkingLabel.setText(THINKING_STEPS[thinkingStepIndex] + "…");
+                thinkingHandler.postDelayed(this, 900L);
+            }
+        };
+        thinkingHandler.postDelayed(thinkingStepRunnable, 900L);
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void hideThinkingIndicator() {
+        if (thinkingStepRunnable != null) {
+            thinkingHandler.removeCallbacks(thinkingStepRunnable);
+            thinkingStepRunnable = null;
+        }
         if (thinkingAnimator != null) {
             thinkingAnimator.cancel();
             thinkingAnimator = null;
+        }
+        if (thinkingRingAnimator != null) {
+            thinkingRingAnimator.cancel();
+            thinkingRingAnimator = null;
+        }
+        if (thinkingTextAnimator != null) {
+            thinkingTextAnimator.cancel();
+            thinkingTextAnimator = null;
         }
         if (thinkingIndicator != null) {
             if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
                 ((android.view.ViewGroup) thinkingIndicator.getParent()).removeView(thinkingIndicator);
             }
             thinkingIndicator = null;
+        }
+        thinkingLabel = null;
+        thinkingStepIndex = 0;
+    }
+
+    private final class ThinkingBrainIconView extends View {
+        private final Paint brainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        ThinkingBrainIconView() {
+            super(MainActivity.this);
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float scale = Math.min(getWidth(), getHeight()) / 24f;
+            if (scale <= 0f) return;
+            canvas.save();
+            canvas.translate((getWidth() - 24f * scale) / 2f, (getHeight() - 24f * scale) / 2f);
+            canvas.scale(scale, scale);
+            brainPaint.setColor(accent);
+            brainPaint.setStyle(Paint.Style.STROKE);
+            brainPaint.setStrokeWidth(1.7f);
+            brainPaint.setStrokeCap(Paint.Cap.ROUND);
+            brainPaint.setStrokeJoin(Paint.Join.ROUND);
+            brainPaint.setShadowLayer(3f, 0f, 0f, accent);
+
+            Path brain = new Path();
+            brain.moveTo(12f, 18f);
+            brain.lineTo(12f, 5f);
+            brain.moveTo(12f, 5f);
+            brain.cubicTo(10.4f, 2.4f, 7.4f, 2.0f, 5.8f, 4.1f);
+            brain.cubicTo(3.4f, 4.0f, 2.8f, 6.6f, 4.0f, 8.0f);
+            brain.cubicTo(2.7f, 9.7f, 3.4f, 11.3f, 4.2f, 12.0f);
+            brain.cubicTo(2.8f, 14.5f, 4.5f, 16.3f, 6.2f, 16.2f);
+            brain.cubicTo(6.3f, 18.8f, 9.1f, 20.0f, 12f, 18f);
+            brain.cubicTo(14.9f, 20.0f, 17.7f, 18.8f, 17.8f, 16.2f);
+            brain.cubicTo(20.5f, 16.1f, 21.3f, 13.8f, 19.9f, 12.0f);
+            brain.cubicTo(21.2f, 10.2f, 20.6f, 8.8f, 20.0f, 8.0f);
+            brain.cubicTo(21.1f, 5.6f, 19.4f, 3.8f, 17.8f, 4.2f);
+            brain.cubicTo(16.3f, 2.0f, 13.4f, 2.4f, 12f, 5f);
+            brain.moveTo(12f, 9f);
+            brain.cubicTo(11.6f, 11.0f, 9.7f, 12.5f, 8.2f, 12.5f);
+            brain.moveTo(12f, 9f);
+            brain.cubicTo(12.4f, 11.0f, 14.3f, 12.5f, 15.8f, 12.5f);
+            brain.moveTo(12f, 17.9f);
+            brain.cubicTo(10.8f, 16.1f, 9.9f, 15.4f, 8.2f, 15.3f);
+            canvas.drawPath(brain, brainPaint);
+            brainPaint.clearShadowLayer();
+            canvas.restore();
         }
     }
 
