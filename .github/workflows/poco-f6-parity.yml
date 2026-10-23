@@ -828,6 +828,22 @@ jobs:
               cat out/native-prefs.xml
               exit 1
             fi
+
+            # Capture the actual animation with the settings overlay dismissed.
+            # The native effect control intentionally closes/reopens the settings sheet.
+            timeout 10s adb shell input keyevent 4
+            sleep 0.5
+            for frame in $(seq 1 10); do
+              remote_png="/sdcard/native-lightning-frame-$frame.png"
+              local_png="out/native-lightning-frame-$frame.png"
+              timeout 10s adb shell screencap -p "$remote_png"
+              timeout 10s adb pull "$remote_png" "$local_png" >/dev/null
+              sleep 0.10
+            done
+
+            # Reopen settings and restore rain-only after capturing the combined effect.
+            timeout 10s adb shell input tap 1135 200
+            sleep 1
             timeout 10s adb shell input tap 660 2130
             sleep 1
             EFFECTS_RESTORED="$(read_effect_pref)"
