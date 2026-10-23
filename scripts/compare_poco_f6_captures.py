@@ -72,7 +72,7 @@ def main() -> int:
     parser.add_argument("--web-dir", type=Path, required=True)
     parser.add_argument("--native-dir", type=Path, required=True)
     parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--status-bar-top-px", type=int, default=66)
+    parser.add_argument("--status-bar-top-px", type=int, default=136)
     args = parser.parse_args()
 
     required = [
