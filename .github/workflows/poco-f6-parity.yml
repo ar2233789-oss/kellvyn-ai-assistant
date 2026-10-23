@@ -434,8 +434,21 @@ jobs:
             assert_ui "$label"
           done
 
-          # Custom color editor must appear above the sheet and Cancel must return to it.
+          # Custom color editor must appear above the sheet; Apply and Cancel both return to it.
           tap_parent_of_text "Destaque"
+          assert_ui "Informe uma cor HEX de seis dígitos"
+          tap_node class "android.widget.EditText" 0
+          adb shell input keyevent 4
+          dump_current_ui
+          tap_text "Aplicar" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-custom-accent.xml
+          grep -q 'name="accent" value="-13048132"' out/prefs-custom-accent.xml || {
+            echo "Applying the default accent HEX did not persist the exact current color."
+            cat out/prefs-custom-accent.xml
+            exit 1
+          }
+          tap_parent_of_text "Fundo"
           assert_ui "Informe uma cor HEX de seis dígitos"
           tap_text "Cancelar" 0
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
