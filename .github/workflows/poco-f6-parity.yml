@@ -390,6 +390,31 @@ jobs:
           # The stock emulator launcher may show its own ANR dialog after boot.
           # Dismiss that system dialog and re-check the actual foreground UI; never
           # turn a Kellvyn process crash into a pass.
+          # Clear stale UIAutomator output on every retry. Android 15 can take 12–20 seconds
+          # to become interactive after pm clear; never treat an old XML tree as a live screen.
+          wait_for_main_ui() {
+            local ready=0
+            for attempt in $(seq 1 12); do
+              rm -f out/native-ui.xml
+              timeout 10s adb shell rm -f /sdcard/window.xml >/dev/null 2>&1 || true
+              timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/wait-main-ui.log 2>&1 || true
+              timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+              if [ -s out/native-ui.xml ] &&
+                 grep -Fq 'text="Kellvyn Assistente"' out/native-ui.xml &&
+                 grep -Fq 'content-desc="Configurações"' out/native-ui.xml; then
+                ready=1
+                break
+              fi
+              sleep 2
+            done
+            if [ "$ready" != "1" ]; then
+              echo "Kellvyn main UI did not become accessible after retrying the Android 15 launch."
+              cat out/native-ui.xml || true
+              cat /tmp/wait-main-ui.log || true
+              return 1
+            fi
+          }
+
           UI_READY=0
           for attempt in $(seq 1 12); do
             rm -f out/native-ui.xml
@@ -560,24 +585,48 @@ jobs:
             # the old 875x1330 tap occasionally hit the "Fundo" HEX field instead of a palette.
             timeout 10s adb shell am force-stop com.kellvyn.assistant
             timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
-            sleep 3
-            # This fallback block precedes the helper definitions, so dump the UI tree directly.
-            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/theme-reset-ui.log 2>&1 || true
-            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
-            if ! grep -Fq 'text="Kellvyn Assistente"' out/native-ui.xml; then
-              echo "Kellvyn main UI was not visible after resetting the palette test."
-              cat out/native-ui.xml || true
-              cat /tmp/theme-reset-ui.log || true
+            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
+            wait_for_main_ui
+            timeout 10s adb shell screencap -p /sdcard/native-main-after-palette-reset.png
+            timeout 10s adb pull /sdcard/native-main-after-palette-reset.png out/native-main-after-palette-reset.png >/dev/null
+
+            # Find the actual settings icon bounds from the fresh main-screen tree instead
+            # of relying on fixed taps while the status/navigation bars settle.
+            SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          for node in root.iter("node"):
+              if node.attrib.get("content-desc") == "Configurações" and node.attrib.get("clickable") == "true":
+                  b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                  if len(b) == 4:
+                      x1, y1, x2, y2 = map(int, b)
+                      print((x1+x2)//2, (y1+y2)//2)
+                      break
+          PY
+            )"
+            if [ -z "$SETTINGS_TAP" ]; then
+              echo "Fresh main-screen UI tree has no clickable Configurações control."
+              cat out/native-ui.xml
               exit 1
             fi
-
-            # Reopen settings from a known main-screen state; custom Dialogs do not expose
-            # their accessibility tree consistently on this Android 15 image.
-            timeout 10s adb shell input tap 1135 200
+            read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
+            timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
             sleep 2
             timeout 10s adb shell screencap -p /sdcard/native-settings-palette-test.png
             timeout 10s adb pull /sdcard/native-settings-palette-test.png out/native-settings-palette-test.png >/dev/null
+            python3 -m pip install --quiet --disable-pip-version-check pillow
+            python3 - out/native-main-after-palette-reset.png out/native-settings-palette-test.png <<'PY'
+          import sys
+          from PIL import Image, ImageChops, ImageStat
+          main = Image.open(sys.argv[1]).convert("RGB")
+          settings = Image.open(sys.argv[2]).convert("RGB")
+          if main.size != settings.size:
+              raise SystemExit("Main/settings screenshots have different dimensions.")
+          delta = sum(ImageStat.Stat(ImageChops.difference(main, settings)).mean) / 3
+          print(f"Native settings sheet screenshot mean pixel delta: {delta:.2f}")
+          if delta < 5.0:
+              raise SystemExit("Settings tap did not open the sheet; refusing to test palette on the home screen.")
+          PY
             timeout 10s adb shell input tap 875 1330
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
@@ -598,16 +647,8 @@ jobs:
             # Reset after verifying theme change so the remaining controls start in emerald.
             timeout 10s adb shell am force-stop com.kellvyn.assistant
             timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
-            sleep 3
-            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/gold-reset-ui.log 2>&1 || true
-            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
-            if ! grep -Fq 'text="Kellvyn Assistente"' out/native-ui.xml; then
-              echo "Kellvyn main UI was not visible after resetting the gold-palette test."
-              cat out/native-ui.xml || true
-              cat /tmp/gold-reset-ui.log || true
-              exit 1
-            fi
+            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
+            wait_for_main_ui
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
