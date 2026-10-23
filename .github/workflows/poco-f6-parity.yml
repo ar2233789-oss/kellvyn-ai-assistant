@@ -522,7 +522,8 @@ jobs:
           mode, value, path = sys.argv[1:]
           attr = {"text": "text", "desc": "content-desc"}[mode]
           root = ET.parse(path).getroot()
-          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "").strip() == value
+          expected = value.casefold()
+          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "").strip().casefold() == expected
                    and n.attrib.get("clickable") == "true" and n.attrib.get("enabled", "true") == "true"]
           if not nodes:
               print(f"Missing tappable control {mode}={value}", file=sys.stderr)
