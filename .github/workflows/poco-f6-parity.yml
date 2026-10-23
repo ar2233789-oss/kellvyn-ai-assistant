@@ -1,5 +1,5 @@
 name: Poco F6 virtual comparison lab
-# Capture the restored native baseline and validate only the three-dot settings action.
+# Build, exercise, and compare the existing web layout and native Android screen without editing either UI.
 
 on:
   pull_request:
@@ -98,6 +98,155 @@ jobs:
           });
           fs.writeFileSync("out/web-metrics.json", JSON.stringify({ ...metrics, pageErrors: errors }, null, 2));
           console.log(JSON.stringify({ title: metrics.title, controls: metrics.controls.map((c) => c.label), pageErrors: errors }));
+
+          const checks = [];
+          const runCheck = async (name, fn) => {
+            await fn();
+            checks.push({ name, result: "PASS" });
+          };
+          const heading = (name) => page.getByRole("heading", { name, exact: true });
+          const textExact = (value) => page.getByText(value, { exact: true });
+          const visible = async (locator, name) => {
+            try { await locator.waitFor({ state: "visible", timeout: 6000 }); }
+            catch { throw new Error("Expected visible UI element: " + name); }
+          };
+          const closeSheet = async () => {
+            const closers = page.getByRole("button", { name: "Fechar", exact: true });
+            if (await closers.count() === 0) throw new Error("Sheet close control is missing");
+            await closers.last().click();
+          };
+          const storageSnapshot = await page.evaluate(() => Object.fromEntries(
+            ["kv.settings", "kv.memories", "kellvyn.bots", "kellvyn.snippets"].map((key) => [key, localStorage.getItem(key)])
+          ));
+
+          // We opened Settings for the screenshot above. Close it before walking the actual controls.
+          await closeSheet();
+          await runCheck("header history button opens conversations", async () => {
+            await page.getByRole("button", { name: "Histórico de conversas", exact: true }).click();
+            await visible(heading("CONVERSAS"), "CONVERSAS");
+            await closeSheet();
+          });
+
+          await runCheck("plus menu and web-access switch work and restore their state", async () => {
+            await page.getByRole("button", { name: "Anexos e Web", exact: true }).click();
+            await visible(textExact("Imagem ou arquivo"), "Imagem ou arquivo");
+            await visible(textExact("Plugins"), "Plugins");
+            const toggle = page.getByRole("checkbox", { name: "Acesso à Web" });
+            const before = await toggle.getAttribute("aria-checked");
+            if (before !== "true" && before !== "false") throw new Error("Web-access checkbox has no checked state");
+            await toggle.click();
+            const changed = await toggle.getAttribute("aria-checked");
+            if (changed === before) throw new Error("Web-access checkbox did not change state");
+            await toggle.click();
+            if (await toggle.getAttribute("aria-checked") !== before) throw new Error("Web-access switch did not restore its original state");
+            await page.getByRole("button", { name: "Anexos e Web", exact: true }).click();
+          });
+
+          await runCheck("browser panel opens and closes", async () => {
+            await page.getByRole("button", { name: "Navegador", exact: true }).click();
+            await visible(heading("NAVEGADOR"), "NAVEGADOR");
+            await visible(page.getByPlaceholder("Pesquise ou digite um site"), "browser address field");
+            await closeSheet();
+          });
+
+          await runCheck("code editor accepts a save and displays the saved entry", async () => {
+            await page.getByRole("button", { name: "Editor", exact: true }).click();
+            await visible(heading("EDITOR DE CÓDIGO"), "EDITOR DE CÓDIGO");
+            await page.getByPlaceholder("Nome do arquivo").fill("PocoF6-lab.txt");
+            await page.getByPlaceholder("Escreva seu código aqui…").fill("layout audit fixture");
+            await page.getByRole("button", { name: "Salvar", exact: true }).click();
+            await visible(page.getByRole("button", { name: "PocoF6-lab.txt", exact: true }), "saved editor entry");
+            await closeSheet();
+          });
+
+          await runCheck("terminal action explains its native-only requirement on web", async () => {
+            await page.getByRole("button", { name: "Terminal", exact: true }).click();
+            await visible(page.getByRole("status").filter({ hasText: "Terminal: requer o app Android nativo" }), "native-only terminal notice");
+          });
+
+          await runCheck("bot switches toggle and restore state", async () => {
+            await page.getByRole("button", { name: "Bots", exact: true }).click();
+            await visible(heading("BOTS ATIVOS"), "BOTS ATIVOS");
+            const toggle = page.getByRole("switch", { name: "Bot do Discord" });
+            const before = await toggle.getAttribute("aria-checked");
+            if (before !== "true" && before !== "false") throw new Error("Discord switch has no checked state");
+            await toggle.click();
+            if (await toggle.getAttribute("aria-checked") === before) throw new Error("Discord switch did not change state");
+            await toggle.click();
+            if (await toggle.getAttribute("aria-checked") !== before) throw new Error("Discord switch did not restore its original state");
+            await closeSheet();
+          });
+
+          await runCheck("phone-apps panel opens", async () => {
+            await page.getByRole("button", { name: "Apps", exact: true }).click();
+            await visible(heading("APPS DO CELULAR"), "APPS DO CELULAR");
+            await visible(textExact("Abrir apps do celular"), "Android apps action");
+            await closeSheet();
+          });
+
+          await runCheck("all visual-effect controls persist their selection, including rain plus lightning", async () => {
+            await page.getByRole("button", { name: "Configurações", exact: true }).click();
+            await visible(heading("CONFIGURAÇÕES DO KELLVYN"), "settings sheet");
+            for (const section of ["CORES", "EFEITO NA TELA", "ATALHOS", "MODO DE JOGO", "SEGURANÇA"]) {
+              await visible(textExact(section), section);
+            }
+            const effects = async () => page.evaluate(() => JSON.parse(localStorage.getItem("kv.settings") || "{}").effect || ["chuva"]);
+            const tapEffect = async (label) => page.getByRole("button", { name: label, exact: true }).click();
+            await tapEffect("Chuva");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["nenhum"])) throw new Error("Chuva-off selection was not saved");
+            await tapEffect("Chuva");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva"])) throw new Error("Chuva-on selection was not saved");
+            await tapEffect("Neve");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva", "neve"])) throw new Error("Snow could not run alongside rain");
+            await tapEffect("Neve");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva"])) throw new Error("Snow-off state was not saved");
+            await tapEffect("Folhas");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva", "folhas"])) throw new Error("Leaves could not run alongside rain");
+            await tapEffect("Folhas");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva"])) throw new Error("Leaves-off state was not saved");
+            await tapEffect("Raios");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva", "raios"])) throw new Error("Lightning could not run together with rain");
+            await tapEffect("Raios");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva"])) throw new Error("Lightning-off state was not saved");
+            await tapEffect("Nenhum");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["nenhum"])) throw new Error("Nenhum did not disable all visual effects");
+            await tapEffect("Chuva");
+            if (JSON.stringify(await effects()) !== JSON.stringify(["chuva"])) throw new Error("Rain could not be restored as the default");
+
+            const protection = page.getByRole("switch", { name: "Proteção reforçada" });
+            const protectionBefore = await protection.getAttribute("aria-checked");
+            if (protectionBefore !== "true" && protectionBefore !== "false") throw new Error("Protection switch has no checked state");
+            await protection.click();
+            if (await protection.getAttribute("aria-checked") === protectionBefore) throw new Error("Protection switch did not change state");
+            await protection.click();
+            if (await protection.getAttribute("aria-checked") !== protectionBefore) throw new Error("Protection switch did not restore its original state");
+            await page.getByRole("button", { name: "Preto e Dourado", exact: true }).click();
+            const palette = await page.evaluate(() => JSON.parse(localStorage.getItem("kv.settings") || "{}"));
+            if (palette.color !== "#D4AF37" || palette.bg !== "#0A0907") throw new Error("Palette button did not apply its colors");
+            await page.getByRole("button", { name: "Abrir", exact: true }).click();
+            await visible(heading("MEMÓRIA LOCAL"), "MEMÓRIA LOCAL");
+            await page.getByPlaceholder("Nova informação…").fill("poco-f6-lab-temporary");
+            await page.getByRole("button", { name: "Salvar", exact: true }).click();
+            await visible(textExact("poco-f6-lab-temporary"), "saved local memory");
+            await closeSheet();
+          });
+
+          // Restore all localStorage keys changed by this isolated browser run.
+          await page.evaluate((snapshot) => {
+            for (const [key, value] of Object.entries(snapshot)) {
+              if (value === null) localStorage.removeItem(key);
+              else localStorage.setItem(key, value);
+            }
+          }, storageSnapshot);
+          await page.reload({ waitUntil: "networkidle", timeout: 60000 });
+          fs.writeFileSync("out/web-interaction-audit.json", JSON.stringify({
+            status: "passed",
+            checks,
+            controls: metrics.controls.map((control) => control.label),
+            pageErrors: errors,
+          }, null, 2));
+          if (errors.length > 0) throw new Error("Web UI raised page errors: " + errors.join("; "));
+          console.log(JSON.stringify({ interactionChecks: checks, pageErrors: errors }));
           await browser.close();
           NODE
       - name: Upload web reference capture
@@ -332,6 +481,149 @@ jobs:
               exit 1
             fi
           done
+
+          # Keep an inventory of all visible native controls at the same point as the web inventory.
+          python3 - out/native-ui.xml out/native-controls.json <<'PY'
+          import json, sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          controls = []
+          for node in root.iter("node"):
+              if node.attrib.get("clickable") == "true" and node.attrib.get("enabled") == "true":
+                  controls.append({
+                      "label": node.attrib.get("content-desc") or node.attrib.get("text") or "",
+                      "text": node.attrib.get("text", ""),
+                      "contentDescription": node.attrib.get("content-desc", ""),
+                      "bounds": node.attrib.get("bounds", ""),
+                      "class": node.attrib.get("class", ""),
+                  })
+          with open(sys.argv[2], "w", encoding="utf-8") as f:
+              json.dump(controls, f, ensure_ascii=False, indent=2)
+          print(json.dumps({"nativeClickableControlCount": len(controls), "labels": [c["label"] for c in controls]}, ensure_ascii=False))
+          PY
+
+          # UIAutomator helpers: locate a real enabled control by its exact visible or accessibility label.
+          dump_current_ui() {
+            adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || true
+            adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || true
+            test -s out/current-ui.xml
+          }
+          tap_control() {
+            local mode="$1" value="$2"
+            local point
+            point="$(python3 - "$mode" "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          mode, value, path = sys.argv[1:]
+          attr = {"text": "text", "desc": "content-desc"}[mode]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get(attr, "").strip() == value
+                   and n.attrib.get("clickable") == "true" and n.attrib.get("enabled", "true") == "true"]
+          if not nodes:
+              print(f"Missing tappable control {mode}={value}", file=sys.stderr)
+              sys.exit(2)
+          bounds = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4: sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not locate clickable control: $mode=$value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            adb shell input tap "$tx" "$ty"
+            sleep 1
+            dump_current_ui
+          }
+          tap_text() { tap_control text "$1"; }
+          tap_desc() { tap_control desc "$1"; }
+          assert_text() {
+            grep -Fq "text=\"$1\"" out/current-ui.xml || {
+              echo "Expected native UI text missing: $1"
+              cat out/current-ui.xml
+              exit 1
+            }
+          }
+          read_web_pref() {
+            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            if grep -q 'name="web_access" value="true"' out/native-prefs.xml; then echo true; else echo false; fi
+          }
+          read_effect_pref() {
+            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
+          }
+
+          # History button: open and dismiss the real Android dialog.
+          dump_current_ui
+          tap_desc "Histórico"
+          assert_text "Histórico de conversas"
+          tap_text "Fechar"
+          assert_text "Kellvyn Assistente"
+
+          # The plus menu must expose file selection, plugins and the web-access control.
+          tap_desc "Anexos e Web"
+          assert_text "Imagem ou arquivo"
+          assert_text "Plugins"
+          assert_text "Acesso à Web"
+          WEB_BEFORE="$(read_web_pref)"
+          tap_text "Acesso à Web"
+          WEB_AFTER="$(read_web_pref)"
+          if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
+          tap_desc "Anexos e Web"
+          tap_text "Acesso à Web"
+          WEB_RESTORED="$(read_web_pref)"
+          if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
+
+          # Check each navigation destination that stays inside Kellvyn; do not open external URLs.
+          tap_desc "Navegador"
+          assert_text "Abrir Web"
+          tap_text "Cancelar"
+          tap_desc "Editor"
+          assert_text "EDITOR DE CÓDIGO"
+          tap_text "Fechar"
+          tap_desc "Bots"
+          assert_text "BOTS ATIVOS"
+          tap_text "Fechar"
+          tap_desc "Terminal"
+          sleep 1
+          adb shell am force-stop com.kellvyn.assistant
+          adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          sleep 2
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+
+          # Verify the visual effect chooser supports combined rain + lightning, then restore rain-only.
+          tap_desc "Configurações"
+          if ! grep -q 'text="Raios"' out/current-ui.xml; then
+            adb shell input swipe 610 700 610 2220 500
+            sleep 1
+            dump_current_ui
+          fi
+          tap_text "Raios"
+          EFFECTS_ON="$(read_effect_pref)"
+          if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
+            echo "Expected rain and lightning together, got: $EFFECTS_ON"
+            cat out/native-prefs.xml
+            exit 1
+          fi
+          tap_text "Raios"
+          EFFECTS_RESTORED="$(read_effect_pref)"
+          if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
+            echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
+            cat out/native-prefs.xml
+            exit 1
+          fi
+          tap_desc "Fechar configurações"
+          sleep 1
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
+
+          # Exercise the Android HOME action last: it intentionally leaves Kellvyn and invokes the launcher.
+          tap_desc "Apps"
+          sleep 1
+          HOME_ACTIVITY="$(adb shell dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity' || true)"
+          echo "$HOME_ACTIVITY" > out/native-apps-navigation.txt
+          adb shell am force-stop com.google.android.apps.nexuslauncher || true
+          adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          sleep 3
+          dump_current_ui
+          assert_text "Kellvyn Assistente"
           adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
           adb shell dumpsys activity activities > out/native-activity.txt
           echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
@@ -342,4 +634,41 @@ jobs:
           name: poco-f6-native-emulator
           path: out/*
           if-no-files-found: warn
+          retention-days: 14
+
+
+  compare-web-and-native-captures:
+    name: Pixel-aligned web/native screenshot diff
+    needs: [web-build-and-capture, native-emulator-test]
+    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download web screenshot captures
+        uses: actions/download-artifact@v4
+        with:
+          name: poco-f6-web-reference
+          path: artifacts/web
+      - name: Download native emulator captures
+        uses: actions/download-artifact@v4
+        with:
+          name: poco-f6-native-emulator
+          path: artifacts/native
+      - name: Compare main screen and settings without scaling
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check pillow numpy
+          mkdir -p out/parity
+          python scripts/compare_poco_f6_captures.py \\
+            --web-dir artifacts/web \\
+            --native-dir artifacts/native \\
+            --output-dir out/parity \\
+            --status-bar-top-px 66
+      - name: Upload comparison report, overlays and difference maps
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-visual-comparison
+          path: out/parity/*
+          if-no-files-found: error
           retention-days: 14
