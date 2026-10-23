@@ -12,6 +12,9 @@ on:
     branches: [main]
     paths:
       - "android/**"
+      - "src/components/kellvyn/**"
+      - "src/styles.css"
+      - "scripts/compare_poco_f6_captures.py"
       - ".github/workflows/poco-f6-parity.yml"
   workflow_dispatch:
 
@@ -227,7 +230,9 @@ jobs:
             await visible(heading("MEMÓRIA LOCAL"), "MEMÓRIA LOCAL");
             await page.getByPlaceholder("Nova informação…").fill("poco-f6-lab-temporary");
             await page.getByRole("button", { name: "Salvar", exact: true }).click();
-            await visible(textExact("poco-f6-lab-temporary"), "saved local memory");
+            const savedMemory = page.getByRole("textbox", { name: "Editar memória" });
+            await savedMemory.waitFor({ state: "visible", timeout: 6000 });
+            if (await savedMemory.inputValue() !== "poco-f6-lab-temporary") throw new Error("Saved memory text does not match the entered value");
             await closeSheet();
           });
 
@@ -326,6 +331,7 @@ jobs:
           set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/kellvyn-native-debug.apk
           trap 'cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true' EXIT
           # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; fi
