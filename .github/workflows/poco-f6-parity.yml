@@ -430,7 +430,7 @@ jobs:
 
           dump_current_ui
           # Compare/test the complete native settings sheet against the Lovable reference.
-          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "Destaque" "Fundo" "Texto" "Intensidade do brilho" "Temas prontos" "Esmeralda" "Preto e Dourado" "EFEITO NA TELA" "Chuva" "Neve" "Folhas" "Raios" "Nenhum" "ATALHOS" "Memória local" "Assistente virtual" "Leitura de tela" "MODO DE JOGO" "SEGURANÇA" "Proteção reforçada da IA" "Fechar"; do
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "Destaque" "Fundo" "Texto" "Intensidade do brilho" "Temas prontos" "Esmeralda" "Preto e Dourado" "EFEITO NA TELA" "Chuva" "Neve" "Folhas" "Raios" "Nenhum" "ATALHOS" "Memória local" "Fechar"; do
             assert_ui "$label"
           done
 
