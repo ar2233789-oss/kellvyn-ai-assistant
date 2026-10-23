@@ -393,8 +393,8 @@ jobs:
           UI_READY=0
           for attempt in $(seq 1 12); do
             rm -f out/native-ui.xml
-            adb shell uiautomator dump /sdcard/window.xml >/dev/null 2>&1 || true
-            adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/startup-ui-dump.log 2>&1 || true
+            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
             if grep -q 'text="Kellvyn Assistente"' out/native-ui.xml && ! grep -qi "isn't responding" out/native-ui.xml; then
               UI_READY=1
               break
@@ -428,8 +428,8 @@ jobs:
             cat out/native-ui.xml || true
             exit 1
           fi
-          adb shell screencap -p /sdcard/native-screen.png
-          adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
+          timeout 10s adb shell screencap -p /sdcard/native-screen.png
+          timeout 10s adb pull /sdcard/native-screen.png out/native-screen.png >/dev/null
           grep -q "Kellvyn Assistente" out/native-ui.xml
           SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
@@ -454,9 +454,9 @@ jobs:
           SETTINGS_READY=0
           for attempt in $(seq 1 8); do
             rm -f out/native-settings-ui.xml
-            adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
-            if adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
-              adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
+            timeout 10s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
+            if timeout 5s adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
+              timeout 10s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
             fi
             if grep -q "CONFIGURAÇÕES DO KELLVYN" out/native-settings-ui.xml 2>/dev/null; then
               SETTINGS_READY=1
@@ -464,8 +464,8 @@ jobs:
             fi
             sleep 1
           done
-          adb shell screencap -p /sdcard/native-settings.png
-          adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
+          timeout 10s adb shell screencap -p /sdcard/native-settings.png
+          timeout 10s adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
           if [ "$SETTINGS_READY" != "1" ]; then
             echo "The settings sheet did not expose its expected title. Dump output:"
             cat /tmp/settings-dump.log || true
