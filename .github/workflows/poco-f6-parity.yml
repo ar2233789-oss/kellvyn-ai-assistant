@@ -574,7 +574,7 @@ jobs:
             timeout 10s adb shell input tap 875 1330
             sleep 2
             timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
-            if ! grep -q 'name="accent" value="-2838729"' out/native-prefs.xml; then
+            if ! grep -q 'name="accent" value="-2830537"' out/native-prefs.xml; then
               echo "Gold palette was not applied from the known initial settings position."
               cat out/native-prefs.xml
               exit 1
@@ -831,6 +831,17 @@ jobs:
               cat out/native-prefs.xml
               exit 1
             fi
+            # Close the settings sheet with its fixed header X and record the real native lightning.
+            # The short capture makes the actual bolt shape/fade inspectable instead of guessing from code.
+            timeout 10s adb shell input tap 1135 570
+            sleep 1
+            timeout 25s adb shell screenrecord --bit-rate 3000000 --time-limit 10 /sdcard/native-lightning.mp4
+            timeout 20s adb pull /sdcard/native-lightning.mp4 out/native-lightning.mp4 >/dev/null
+            timeout 10s adb shell screencap -p /sdcard/native-lightning-final.png
+            timeout 10s adb pull /sdcard/native-lightning-final.png out/native-lightning-final.png >/dev/null
+            # Reopen settings and turn lightning off after the recording.
+            timeout 10s adb shell input tap 1135 200
+            sleep 2
             timeout 10s adb shell input tap 660 2130
             sleep 1
             EFFECTS_RESTORED="$(read_effect_pref)"
