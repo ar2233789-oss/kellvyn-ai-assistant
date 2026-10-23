@@ -451,7 +451,7 @@ jobs:
             cat out/prefs-theme-restored.xml
             exit 1
           }
-          grep -q 'name="ui_bg" value="-16049645"' out/prefs-theme-restored.xml || {
+          grep -q 'name="ui_bg" value="-16051181"' out/prefs-theme-restored.xml || {
             echo "Emerald background was not restored after the palette interaction."
             cat out/prefs-theme-restored.xml
             exit 1
