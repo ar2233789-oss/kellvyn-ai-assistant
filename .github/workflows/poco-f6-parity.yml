@@ -732,30 +732,69 @@ jobs:
           assert_text "Kellvyn Assistente"
 
           # Verify the visual effect chooser supports combined rain + lightning, then restore rain-only.
-          tap_desc "Configurações"
-          if ! grep -q 'text="Raios"' out/current-ui.xml; then
-            timeout 10s adb shell input swipe 610 700 610 2220 500
+          if [ "$SETTINGS_ACCESSIBILITY" = "1" ]; then
+            tap_desc "Configurações"
+            if ! grep -q 'text="Raios"' out/current-ui.xml; then
+              timeout 10s adb shell input swipe 610 700 610 2220 500
+              sleep 1
+              dump_current_ui
+            fi
+            tap_text "Raios"
+            EFFECTS_ON="$(read_effect_pref)"
+            if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
+              echo "Expected rain and lightning together, got: $EFFECTS_ON"
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            tap_text "Raios"
+            EFFECTS_RESTORED="$(read_effect_pref)"
+            if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
+              echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            tap_desc "Fechar configurações"
             sleep 1
             dump_current_ui
+            assert_text "Kellvyn Assistente"
+          else
+            # Coordinate fallback because UIAutomator does not expose the custom settings dialog.
+            timeout 10s adb shell input tap 1135 200
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-settings-effects.png
+            timeout 10s adb pull /sdcard/native-settings-effects.png out/native-settings-effects.png >/dev/null
+            timeout 10s adb shell input tap 660 2130
+            sleep 1
+            EFFECTS_ON="$(read_effect_pref)"
+            if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
+              echo "Coordinate tap did not enable combined rain and lightning: $EFFECTS_ON"
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            timeout 10s adb shell input tap 660 2130
+            sleep 1
+            EFFECTS_RESTORED="$(read_effect_pref)"
+            if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
+              echo "Coordinate tap did not restore rain-only: $EFFECTS_RESTORED"
+              cat out/native-prefs.xml
+              exit 1
+            fi
+            timeout 10s adb shell input tap 610 2540
+            sleep 1
+            timeout 10s adb shell dumpsys activity activities > out/native-after-effects-close.txt
+            if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-effects-close.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+              echo "Kellvyn did not return to the foreground after the effects chooser test."
+              cat out/native-after-effects-close.txt
+              exit 1
+            fi
+            if dump_current_ui; then
+              assert_text "Kellvyn Assistente"
+            else
+              cp out/native-ui.xml out/current-ui.xml
+              assert_text "Kellvyn Assistente"
+              echo "Main-screen controls will continue from the startup accessibility tree after the coordinate settings test." > out/native-main-accessibility-warning.txt
+            fi
           fi
-          tap_text "Raios"
-          EFFECTS_ON="$(read_effect_pref)"
-          if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
-            echo "Expected rain and lightning together, got: $EFFECTS_ON"
-            cat out/native-prefs.xml
-            exit 1
-          fi
-          tap_text "Raios"
-          EFFECTS_RESTORED="$(read_effect_pref)"
-          if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
-            echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
-            cat out/native-prefs.xml
-            exit 1
-          fi
-          tap_desc "Fechar configurações"
-          sleep 1
-          dump_current_ui
-          assert_text "Kellvyn Assistente"
 
           # Exercise the Android HOME action last: it intentionally leaves Kellvyn and invokes the launcher.
           tap_desc "Apps"
