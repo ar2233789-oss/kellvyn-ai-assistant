@@ -21,6 +21,9 @@ import android.provider.OpenableColumns;
 import android.speech.RecognizerIntent;
 import android.speech.tts.TextToSpeech;
 import android.text.InputType;
+import android.text.Spannable;
+import android.text.SpannableString;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.WindowManager;
@@ -119,23 +122,24 @@ public class MainActivity extends Activity {
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
-        header.setPadding(dp(10), dp(7), dp(9), dp(7));
+        header.setPadding(dp(12), dp(5), dp(12), dp(5));
         header.setBackgroundColor(0xEE0B1211);
-        shell.addView(header, new LinearLayout.LayoutParams(-1, dp(66)));
+        // 46dp header + 1dp divider reproduces the web reference's 47dp header.
+        shell.addView(header, new LinearLayout.LayoutParams(-1, dp(46)));
 
-        TextView menu = iconButton("☰", "Histórico");
-        header.addView(menu, new LinearLayout.LayoutParams(dp(38), dp(44)));
+        View menu = new LucideIconView("menu", "Histórico");
+        header.addView(menu, new LinearLayout.LayoutParams(dp(36), dp(36)));
         menu.setOnClickListener(v -> showHistory());
         LinearLayout brand = new LinearLayout(this);
         brand.setOrientation(LinearLayout.VERTICAL);
         brand.setGravity(Gravity.CENTER_VERTICAL);
         LinearLayout.LayoutParams brandLp = new LinearLayout.LayoutParams(0, -2, 1);
-        brandLp.leftMargin = dp(5);
+        brandLp.leftMargin = dp(12);
         header.addView(brand, brandLp);
         brand.addView(text("Kellvyn Assistente", 18, accent, false));
         status = null;
-        TextView settings = iconButton("⋮", "Configurações");
-        header.addView(settings, new LinearLayout.LayoutParams(dp(34), dp(44)));
+        View settings = new LucideIconView("more-vertical", "Configurações");
+        header.addView(settings, new LinearLayout.LayoutParams(dp(36), dp(36)));
         settings.setOnClickListener(v -> showSettingsPanel());
 
         View divider = new View(this);
@@ -145,7 +149,7 @@ public class MainActivity extends Activity {
         chatScroll = new ScrollView(this);
         chatScroll.setFillViewport(true);
         chatScroll.setClipToPadding(false);
-        chatScroll.setPadding(dp(13), dp(14), dp(13), dp(14));
+        chatScroll.setPadding(dp(12), dp(14), dp(12), dp(14));
         shell.addView(chatScroll, new LinearLayout.LayoutParams(-1, 0, 1));
         messages = new LinearLayout(this);
         messages.setOrientation(LinearLayout.VERTICAL);
@@ -153,20 +157,23 @@ public class MainActivity extends Activity {
 
         LinearLayout composerPanel = new LinearLayout(this);
         composerPanel.setOrientation(LinearLayout.VERTICAL);
-        composerPanel.setPadding(dp(12), dp(9), dp(12), dp(10));
-        composerPanel.setBackgroundColor(0xF20A1110);
-        shell.addView(composerPanel, new LinearLayout.LayoutParams(-1, -2));
+        // The reference draws one rounded border around both the prompt and the action row.
+        composerPanel.setPadding(dp(8), dp(8), dp(8), dp(8));
+        composerPanel.setBackground(roundRect(uiPanelAltColor(), dp(18), 0x8845A989, dp(1)));
+        LinearLayout.LayoutParams composerPanelLp = new LinearLayout.LayoutParams(-1, -2);
+        composerPanelLp.setMargins(dp(12), dp(4), dp(12), dp(12));
+        shell.addView(composerPanel, composerPanelLp);
 
         LinearLayout entry = new LinearLayout(this);
         entry.setGravity(Gravity.CENTER_VERTICAL);
-        entry.setBackground(roundRect(uiPanelAltColor(), dp(15), 0x8845A989, dp(1)));
+        entry.setBackgroundColor(Color.TRANSPARENT);
         composerPanel.addView(entry, new LinearLayout.LayoutParams(-1, -2));
 
         composer = new EditText(this);
         composer.setHint("Pergunte qualquer coisa...");
         composer.setHintTextColor(uiMutedColor());
         composer.setTextColor(uiTextColor());
-        composer.setTextSize(14);
+        composer.setTextSize(15);
         composer.setSingleLine(false);
         composer.setMinLines(1);
         composer.setMaxLines(4);
@@ -180,23 +187,31 @@ public class MainActivity extends Activity {
         controls.setPadding(0, dp(4), 0, 0);
         composerPanel.addView(controls, new LinearLayout.LayoutParams(-1, dp(42)));
 
-        TextView plus = iconButton("+", "Anexos e Web");
-        plus.setTextSize(25);
-        controls.addView(plus, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        View plus = new LucideIconView("plus", "Anexos e Web");
+        controls.addView(plus, new LinearLayout.LayoutParams(dp(36), dp(36)));
         plus.setOnClickListener(v -> showPlusMenu(v));
 
-        footerStatus = text("Kellvyn · MOTOR LOCAL PENDENTE", 10, uiMutedColor(), false);
+        footerStatus = text("●  Kellvyn  ⌄", 12, uiTextColor(), false);
+        SpannableString compactLabel = new SpannableString("●  Kellvyn  ⌄");
+        compactLabel.setSpan(new ForegroundColorSpan(accent), 0, 1, Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        footerStatus.setText(compactLabel);
         footerStatus.setSingleLine(true);
-        footerStatus.setGravity(Gravity.CENTER_VERTICAL);
-        controls.addView(footerStatus, new LinearLayout.LayoutParams(0, dp(34), 1));
+        footerStatus.setIncludeFontPadding(false);
+        footerStatus.setGravity(Gravity.CENTER);
+        footerStatus.setPadding(dp(10), 0, dp(10), 0);
+        footerStatus.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x8845A989, dp(1)));
+        controls.addView(footerStatus, new LinearLayout.LayoutParams(-2, dp(34)));
 
-        TextView mic = iconButton("♩", "Ditado por voz");
-        controls.addView(mic, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        View spacer = new View(this);
+        controls.addView(spacer, new LinearLayout.LayoutParams(0, 1, 1));
+
+        View mic = new LucideIconView("mic", "Ditado por voz");
+        controls.addView(mic, new LinearLayout.LayoutParams(dp(36), dp(36)));
         mic.setOnClickListener(v -> startSpeech());
 
-        TextView send = iconButton("↑", "Enviar mensagem");
-        send.setTextSize(23);
-        controls.addView(send, new LinearLayout.LayoutParams(dp(38), dp(38)));
+        View send = new LucideIconView("send", "Enviar mensagem");
+        send.setBackground(roundRect(0x00000000, dp(18), 0x8845A989, dp(1)));
+        controls.addView(send, new LinearLayout.LayoutParams(dp(36), dp(36)));
         send.setOnClickListener(v -> sendMessage());
 
         View navDivider = new View(this);
@@ -206,7 +221,8 @@ public class MainActivity extends Activity {
         bottomNav.setGravity(Gravity.CENTER_VERTICAL);
         bottomNav.setBackgroundColor(0xF20A1110);
         bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
-        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(58)));
+        // 67dp navigation + the divider matches the measured 67.5dp web navigation bar.
+        shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(67)));
         addNavItem(bottomNav, "✦", "AI", () -> { composer.requestFocus(); });
         addNavItem(bottomNav, "⌕", "Navegador", this::askWebAddress);
         addNavItem(bottomNav, "</>", "Editor", this::showEditor);
@@ -246,16 +262,153 @@ public class MainActivity extends Activity {
         return t;
     }
 
+    /** Crisp outline icons matching the Lucide set used by the web reference. */
+    private final class LucideIconView extends View {
+        private final String iconName;
+        private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Path iconPath = new Path();
+
+        LucideIconView(String iconName, String description) {
+            super(MainActivity.this);
+            this.iconName = iconName;
+            if (description != null) setContentDescription(description);
+            else setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+            setOnTouchListener((v, event) -> {
+                if (event.getAction() == android.view.MotionEvent.ACTION_DOWN) v.setAlpha(0.68f);
+                if (event.getAction() == android.view.MotionEvent.ACTION_UP
+                        || event.getAction() == android.view.MotionEvent.ACTION_CANCEL) v.setAlpha(1f);
+                return false;
+            });
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float size = dp(22);
+            canvas.save();
+            canvas.translate((getWidth() - size) / 2f, (getHeight() - size) / 2f);
+            canvas.scale(size / 24f, size / 24f);
+            iconPaint.reset();
+            iconPaint.setAntiAlias(true);
+            iconPaint.setColor(accent);
+            iconPaint.setStrokeWidth(1.9f);
+            iconPaint.setStyle(Paint.Style.STROKE);
+            iconPaint.setStrokeCap(Paint.Cap.ROUND);
+            iconPaint.setStrokeJoin(Paint.Join.ROUND);
+            if ("AI".equals(iconName)) iconPaint.setShadowLayer(1.0f, 0, 0, 0x9938E6BC);
+
+            switch (iconName) {
+                case "AI":
+                    iconPath.reset();
+                    iconPath.moveTo(10.0f, 2.5f);
+                    iconPath.lineTo(12.0f, 8.5f);
+                    iconPath.lineTo(18.0f, 10.5f);
+                    iconPath.lineTo(12.0f, 12.5f);
+                    iconPath.lineTo(10.0f, 18.5f);
+                    iconPath.lineTo(8.0f, 12.5f);
+                    iconPath.lineTo(2.0f, 10.5f);
+                    iconPath.lineTo(8.0f, 8.5f);
+                    iconPath.close();
+                    canvas.drawPath(iconPath, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(19.0f, 14.5f);
+                    iconPath.lineTo(20.0f, 17.0f);
+                    iconPath.lineTo(22.5f, 18.0f);
+                    iconPath.lineTo(20.0f, 19.0f);
+                    iconPath.lineTo(19.0f, 21.5f);
+                    iconPath.lineTo(18.0f, 19.0f);
+                    iconPath.lineTo(15.5f, 18.0f);
+                    iconPath.lineTo(18.0f, 17.0f);
+                    iconPath.close();
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "Navegador":
+                    canvas.drawCircle(12, 12, 9.2f, iconPaint);
+                    canvas.drawOval(7.4f, 2.8f, 16.6f, 21.2f, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(3.2f, 8.0f); iconPath.quadTo(12, 11.5f, 20.8f, 8.0f);
+                    iconPath.moveTo(3.2f, 16.0f); iconPath.quadTo(12, 12.5f, 20.8f, 16.0f);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "Editor":
+                    iconPath.reset();
+                    iconPath.moveTo(8, 6); iconPath.lineTo(2.5f, 12); iconPath.lineTo(8, 18);
+                    iconPath.moveTo(16, 6); iconPath.lineTo(21.5f, 12); iconPath.lineTo(16, 18);
+                    iconPath.moveTo(14.2f, 4); iconPath.lineTo(9.8f, 20);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "Terminal":
+                    canvas.drawRoundRect(3, 4, 21, 20, 2.8f, 2.8f, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(7, 9); iconPath.lineTo(10, 12); iconPath.lineTo(7, 15);
+                    iconPath.moveTo(12.5f, 16); iconPath.lineTo(17, 16);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "Bots":
+                    canvas.drawRoundRect(4, 7, 20, 21, 2.5f, 2.5f, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(12, 3); iconPath.lineTo(12, 7);
+                    iconPath.moveTo(2, 11); iconPath.lineTo(4, 11);
+                    iconPath.moveTo(20, 11); iconPath.lineTo(22, 11);
+                    canvas.drawPath(iconPath, iconPaint);
+                    iconPaint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(12, 3, 1.4f, iconPaint);
+                    canvas.drawCircle(8.5f, 13, 1.2f, iconPaint);
+                    canvas.drawCircle(15.5f, 13, 1.2f, iconPaint);
+                    break;
+                case "Apps":
+                    canvas.drawRoundRect(3.5f, 3.5f, 10, 10, 1.2f, 1.2f, iconPaint);
+                    canvas.drawRoundRect(14, 3.5f, 20.5f, 10, 1.2f, 1.2f, iconPaint);
+                    canvas.drawRoundRect(3.5f, 14, 10, 20.5f, 1.2f, 1.2f, iconPaint);
+                    canvas.drawRoundRect(14, 14, 20.5f, 20.5f, 1.2f, 1.2f, iconPaint);
+                    break;
+                case "menu":
+                    canvas.drawLine(4, 6, 20, 6, iconPaint);
+                    canvas.drawLine(4, 12, 20, 12, iconPaint);
+                    canvas.drawLine(4, 18, 20, 18, iconPaint);
+                    break;
+                case "more-vertical":
+                    iconPaint.setStyle(Paint.Style.FILL);
+                    canvas.drawCircle(12, 5, 1.25f, iconPaint);
+                    canvas.drawCircle(12, 12, 1.25f, iconPaint);
+                    canvas.drawCircle(12, 19, 1.25f, iconPaint);
+                    break;
+                case "plus":
+                    canvas.drawLine(12, 5, 12, 19, iconPaint);
+                    canvas.drawLine(5, 12, 19, 12, iconPaint);
+                    break;
+                case "mic":
+                    canvas.drawRoundRect(9, 3, 15, 15, 3, 3, iconPaint);
+                    canvas.drawArc(5, 7, 19, 20, 0, 180, false, iconPaint);
+                    canvas.drawLine(12, 20, 12, 22, iconPaint);
+                    canvas.drawLine(8, 22, 16, 22, iconPaint);
+                    break;
+                case "send":
+                    canvas.drawCircle(12, 12, 10, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(12, 16); iconPath.lineTo(12, 8);
+                    iconPath.moveTo(8.8f, 11.2f); iconPath.lineTo(12, 8); iconPath.lineTo(15.2f, 11.2f);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                default:
+                    canvas.drawCircle(12, 12, 8, iconPaint);
+                    break;
+            }
+            canvas.restore();
+        }
+    }
+
     private void showWelcome() {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
         welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
         welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
-        TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 14, uiMutedColor(), false);
+        TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 15, uiMutedColor(), false);
         sub.setGravity(Gravity.CENTER);
         sub.setLineSpacing(dp(2), 1f);
-        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(-1, -2);
+        int welcomeWidth = (int) (getResources().getDisplayMetrics().widthPixels * 0.82f);
+        LinearLayout.LayoutParams slp = new LinearLayout.LayoutParams(welcomeWidth, -2);
         slp.topMargin = dp(12);
         welcome.addView(sub, slp);
         messages.addView(welcome, new LinearLayout.LayoutParams(-1, -2));
@@ -771,12 +924,10 @@ public class MainActivity extends Activity {
         item.setContentDescription(label);
         item.setBackground(roundRect(0x00000000, dp(8), 0, 0));
 
-        TextView symbol = text(glyph, 21, accent, false);
-        symbol.setGravity(Gravity.CENTER);
-        symbol.setIncludeFontPadding(false);
+        View symbol = new LucideIconView(label, null);
         item.addView(symbol, new LinearLayout.LayoutParams(-1, dp(25)));
 
-        TextView caption = text(label, 10, "AI".equals(label) ? accent : uiMutedColor(), false);
+        TextView caption = text(label, 12, "AI".equals(label) ? accent : uiMutedColor(), false);
         caption.setGravity(Gravity.CENTER);
         caption.setIncludeFontPadding(false);
         item.addView(caption, new LinearLayout.LayoutParams(-1, dp(15)));
@@ -1714,9 +1865,8 @@ public class MainActivity extends Activity {
 
     private void updateStatus() {
         if (status != null) status.setText("KELLVYN IA  •  " + engineLabel);
-        if (footerStatus != null) {
-            footerStatus.setText("KELLVYN IA  ·  CONVERSA LOCAL  ·  " + engineLabel);
-        }
+        // footerStatus intentionally stays the compact "Kellvyn" pill shown in the web reference.
+        // Engine readiness is conveyed in chat/status feedback, not by expanding the composer row.
     }
 
     private void restoreTranscript() {
