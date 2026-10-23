@@ -1552,6 +1552,12 @@ public class MainActivity extends Activity {
         return field;
     }
 
+    private void reopenSettingsPanelAfterDismiss() {
+        // Avoid opening a new Window while Android is still dismissing the previous Dialog.
+        // The race could leave a HEX editor above the main chat after palette changes.
+        new Handler(android.os.Looper.getMainLooper()).postDelayed(this::showSettingsPanel, 250L);
+    }
+
     private void editThemeColor(String key, String title, int currentColor, android.app.Dialog parentDialog) {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -1566,7 +1572,7 @@ public class MainActivity extends Activity {
                 .setTitle(title)
                 .setMessage("Informe uma cor HEX de seis dígitos.")
                 .setView(input)
-                .setNegativeButton("Cancelar", (d, which) -> showSettingsPanel())
+                .setNegativeButton("Cancelar", (d, which) -> reopenSettingsPanelAfterDismiss())
                 .setPositiveButton("Aplicar", null)
                 .create();
         // A Dialog has its own window. Dismiss the sheet first so the color editor is
@@ -1586,12 +1592,12 @@ public class MainActivity extends Activity {
                 }
                 editor.dismiss();
                 applyVisualTheme();
-                showSettingsPanel();
+                reopenSettingsPanelAfterDismiss();
             } catch (IllegalArgumentException invalid) {
                 toast("HEX inválido. Use, por exemplo, #38E6BC.");
             }
         }));
-        editor.setOnCancelListener(d -> showSettingsPanel());
+        editor.setOnCancelListener(d -> reopenSettingsPanelAfterDismiss());
         editor.show();
     }
 
@@ -1647,7 +1653,7 @@ public class MainActivity extends Activity {
                     .apply();
             parentDialog.dismiss();
             applyVisualTheme();
-            showSettingsPanel();
+            reopenSettingsPanelAfterDismiss();
         });
         return button;
     }
@@ -1920,7 +1926,7 @@ public class MainActivity extends Activity {
                 }
                 saveEffectOptions(selected);
                 dialog.dismiss();
-                showSettingsPanel();
+                reopenSettingsPanelAfterDismiss();
             });
         }
 
