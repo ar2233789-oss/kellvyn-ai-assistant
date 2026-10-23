@@ -345,7 +345,7 @@ jobs:
               cat /tmp/poco-f6-emulator.log || true
               exit 1
             fi
-            if timeout 10s adb devices | grep -Eq '^emulator-[0-9]+[[:space:]]+device
+            if timeout 10s adb devices | grep -Eq "^emulator-[0-9]+[[:space:]]+device$"; then
               DEVICE_READY=1
               break
             fi
