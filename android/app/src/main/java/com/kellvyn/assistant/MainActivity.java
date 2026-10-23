@@ -1847,9 +1847,11 @@ public class MainActivity extends Activity {
         private final Paint flashPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Handler h = new Handler();
         private final Runnable frame = this::invalidate;
-        private final int count = 64;
+        // Match the web canvas density for a 444dp x 913dp Poco F6 viewport:
+        // about one streak per 6,000 square dp, capped here at the same mobile-scale count.
+        private final int count = 68;
         private final int particleCount = 42;
-        private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count];
+        private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count], opacity = new float[count];
         private final float[] px = new float[particleCount], py = new float[particleCount];
         private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
         private final float[] boltX = new float[15], boltY = new float[15];
@@ -1876,8 +1878,11 @@ public class MainActivity extends Activity {
             for (int i=0;i<count;i++) {
                 x[i] = (float)Math.random()*Math.max(1,getWidth());
                 y[i] = (float)Math.random()*Math.max(1,getHeight());
-                speed[i] = dp(5) + (float)Math.random()*dp(10);
-                len[i] = dp(14) + (float)Math.random()*dp(36);
+                // The web rain travels at roughly 140–520 CSS px/s, with 18–68px trails.
+                // Android dp values keep the same visual size on a high-density Poco display.
+                speed[i] = dp(6) + (float)Math.random()*dp(17);
+                len[i] = dp(18) + (float)Math.random()*dp(50);
+                opacity[i] = 0.15f + (float)Math.random()*0.40f;
             }
             for (int i=0;i<particleCount;i++) {
                 px[i] = (float)Math.random()*Math.max(1,getWidth());
@@ -1891,10 +1896,19 @@ public class MainActivity extends Activity {
         }
 
         private void drawRain(Canvas c) {
-            p.setStrokeWidth(dp(1));
+            p.setStrokeWidth(dp(1.25f));
             for (int i=0;i<count;i++) {
-                p.setColor(i%5==0 ? 0x3BDCEBF8 : 0x1DAAC6DC);
-                c.drawLine(x[i], y[i], x[i]-dp(1), y[i]+len[i], p);
+                // A three-step pale blue trail approximates DigitalRain's transparent-to-solid sprite.
+                // The previous fixed 11–23% alpha made most streaks almost invisible on the dark panel.
+                int alpha = Math.round(opacity[i] * 255f);
+                float mid = y[i] + len[i] * 0.34f;
+                float lower = y[i] + len[i] * 0.72f;
+                p.setColor(Color.argb(Math.round(alpha * 0.12f), 220, 235, 248));
+                c.drawLine(x[i], y[i], x[i] - dp(0.35f), mid, p);
+                p.setColor(Color.argb(Math.round(alpha * 0.45f), 220, 235, 248));
+                c.drawLine(x[i] - dp(0.35f), mid, x[i] - dp(0.70f), lower, p);
+                p.setColor(Color.argb(alpha, 220, 235, 248));
+                c.drawLine(x[i] - dp(0.70f), lower, x[i] - dp(1.0f), y[i] + len[i], p);
                 if (running) {
                     y[i] += speed[i];
                     if (y[i] > getHeight()) {
