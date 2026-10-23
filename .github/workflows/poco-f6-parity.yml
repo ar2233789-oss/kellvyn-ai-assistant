@@ -564,6 +564,34 @@ jobs:
           }
           tap_text() { tap_control text "$1"; }
           tap_desc() { tap_control desc "$1"; }
+          # Dismiss native AlertDialogs by their stable Android button IDs instead of
+          # matching theme-dependent labels such as "Fechar"/"FECHAR".
+          tap_android_dialog_button() {
+            local id="$1"
+            local point
+            dump_current_ui
+            point="$(python3 - "$id" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          resource_id, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node")
+                   if n.attrib.get("resource-id") == resource_id
+                   and n.attrib.get("clickable") == "true"
+                   and n.attrib.get("enabled", "true") == "true"]
+          if not nodes:
+              print(f"Missing native dialog control resource-id={resource_id}", file=sys.stderr)
+              sys.exit(2)
+          bounds = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4: sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not locate native dialog action: $id"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping native dialog action $id"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
           assert_text() {
             echo "[LAB] assert visible text: $1"
             grep -Fqi "text=\"$1\"" out/current-ui.xml || {
@@ -588,12 +616,10 @@ jobs:
           sleep 1
           dump_current_ui
 
-          # History is an item-list dialog without a Close button; dismiss it with Android Back.
+          # History is a native AlertDialog; dismiss through its negative-button resource ID.
           tap_desc "Histórico"
           assert_text "Histórico de conversas"
-          adb shell input keyevent 4
-          sleep 1
-          dump_current_ui
+          tap_android_dialog_button "android:id/button2"
           assert_text "Kellvyn Assistente"
 
           # The plus menu must expose file selection, plugins and the web-access control.
@@ -613,13 +639,13 @@ jobs:
           # Check each navigation destination that stays inside Kellvyn; do not open external URLs.
           tap_desc "Navegador"
           assert_text "Abrir Web"
-          tap_text "Cancelar"
+          tap_android_dialog_button "android:id/button2"
           tap_desc "Editor"
           assert_text "EDITOR DE CÓDIGO"
-          tap_text "Fechar"
+          tap_android_dialog_button "android:id/button2"
           tap_desc "Bots"
           assert_text "BOTS ATIVOS"
-          tap_text "Fechar"
+          tap_android_dialog_button "android:id/button1"
           tap_desc "Terminal"
           sleep 1
           adb shell am force-stop com.kellvyn.assistant
