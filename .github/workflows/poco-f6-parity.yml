@@ -706,13 +706,21 @@ jobs:
           HOME_ACTIVITY="$(adb shell dumpsys activity activities | grep -m1 -E 'mResumedActivity|topResumedActivity' || true)"
           echo "$HOME_ACTIVITY" > out/native-apps-navigation.txt
           adb shell am force-stop com.google.android.apps.nexuslauncher || true
-          adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+          timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
           sleep 3
-          dump_current_ui
-          assert_text "Kellvyn Assistente"
-          adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          # UIAutomator can hang after the launcher hand-off on the Android 15 AVD.
+          # We already exercised the app controls above; verify the return with the
+          # resumed-activity record and a fresh screenshot instead of another UIA dump.
           adb shell dumpsys activity activities > out/native-activity.txt
-          echo "PASS: Android 15 AVD at 1220x2712 / 440 dpi booted, APK installed and launched, UI controls checked, screenshot captured and no startup crash found."
+          if ! grep -E 'mResumedActivity|topResumedActivity' out/native-activity.txt | grep -q 'com\.kellvyn\.assistant/.MainActivity'; then
+            echo "Kellvyn did not return to the foreground after the Apps launcher test."
+            grep -E 'mResumedActivity|topResumedActivity' out/native-activity.txt || true
+            exit 1
+          fi
+          timeout 15s adb shell screencap -p /sdcard/native-screen-after-home.png
+          timeout 15s adb pull /sdcard/native-screen-after-home.png out/native-screen-after-home.png >/dev/null
+          adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          echo "PASS: Android 15 AVD booted, installed APK, checked app controls, returned from Apps launcher, captured UI and found no startup crash."
       - name: Upload native emulator capture and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
