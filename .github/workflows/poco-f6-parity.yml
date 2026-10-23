@@ -562,8 +562,15 @@ jobs:
             timeout 20s adb shell pm clear com.kellvyn.assistant
             timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
             sleep 3
-            dump_current_ui
-            assert_text "Kellvyn Assistente"
+            # This fallback block precedes the helper definitions, so dump the UI tree directly.
+            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/theme-reset-ui.log 2>&1 || true
+            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            if ! grep -Fq 'text="Kellvyn Assistente"' out/native-ui.xml; then
+              echo "Kellvyn main UI was not visible after resetting the palette test."
+              cat out/native-ui.xml || true
+              cat /tmp/theme-reset-ui.log || true
+              exit 1
+            fi
 
             # Reopen settings from a known main-screen state; custom Dialogs do not expose
             # their accessibility tree consistently on this Android 15 image.
@@ -593,8 +600,14 @@ jobs:
             timeout 20s adb shell pm clear com.kellvyn.assistant
             timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
             sleep 3
-            dump_current_ui
-            assert_text "Kellvyn Assistente"
+            timeout 10s adb shell uiautomator dump /sdcard/window.xml >/tmp/gold-reset-ui.log 2>&1 || true
+            timeout 10s adb pull /sdcard/window.xml out/native-ui.xml >/dev/null 2>&1 || true
+            if ! grep -Fq 'text="Kellvyn Assistente"' out/native-ui.xml; then
+              echo "Kellvyn main UI was not visible after resetting the gold-palette test."
+              cat out/native-ui.xml || true
+              cat /tmp/gold-reset-ui.log || true
+              exit 1
+            fi
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
