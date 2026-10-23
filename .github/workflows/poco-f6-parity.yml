@@ -496,15 +496,7 @@ jobs:
             exit 1
           fi
 
-          # Scroll to the lower settings rows and verify disabled/active controls.
-          adb shell input swipe 610 2200 610 700 600
-          sleep 1
-          dump_current_ui
-          for label in "Memória local" "Assistente virtual" "Leitura de tela" "Modo de jogo" "SEGURANÇA" "Proteção reforçada da IA"; do
-            assert_ui "$label"
-          done
-
-          # Local memory must save a test value, then return to settings on close.
+          # Local memory row is visible near the top of the settings sheet. Save a lab-only value.
           tap_parent_of_text "Memória local"
           assert_ui "MEMÓRIA LOCAL"
           assert_ui "Nova informação"
@@ -521,10 +513,15 @@ jobs:
           tap_text "Fechar" 0
           assert_ui "CONFIGURAÇÕES DO KELLVYN"
 
-          # Security switch must toggle OFF and restore its initial ON state.
+          # Scroll to the lower settings rows and verify game mode / security section.
           adb shell input swipe 610 2200 610 700 600
           sleep 1
           dump_current_ui
+          for label in "Assistente virtual" "Leitura de tela" "Modo de jogo" "SEGURANÇA" "Proteção reforçada da IA"; do
+            assert_ui "$label"
+          done
+
+          # Security switch must toggle OFF and restore its initial ON state.
           tap_node class "android.widget.Switch" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-off.xml
           grep -q 'name="protection" value="false"' out/prefs-protection-off.xml || {
