@@ -405,55 +405,89 @@ jobs:
             sleep 1
             dump_current_ui
           }
+          tap_seekbar_fraction() {
+            local fraction="$1"
+            local point
+            point="$(python3 - "$fraction" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          fraction, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          nodes = [n for n in root.iter("node") if n.attrib.get("class") == "android.widget.SeekBar"]
+          if not nodes: sys.exit(2)
+          b = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(b) != 4: sys.exit(3)
+          x1,y1,x2,y2 = map(int,b)
+          x = x1 + int(max(0.05, min(0.95, float(fraction))) * (x2-x1))
+          print(x, (y1+y2)//2)
+          PY
+          )" || { echo "Glow slider bounds were not found"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            adb shell input tap "$tx" "$ty"
+            sleep 1
+            dump_current_ui
+          }
           tap_desc() { tap_node desc "$1" "$2"; }
 
           dump_current_ui
-          # Confirm the three-dot sheet is isolated: do not alter the approved chat/Bots layout.
-          for label in "CONFIGURAÇÕES DO KELLVYN" "Cores" "Cor da interface" "Abrir" "Efeito na tela" "Efeitos visuais" "Configurar" "Atalhos" "Acesso à Web" "Segurança" "Proteção da IA" "Fechar"; do
+          # Compare/test the complete native settings sheet against the Lovable reference.
+          for label in "CONFIGURAÇÕES DO KELLVYN" "CORES" "Destaque" "Fundo" "Texto" "Intensidade do brilho" "Temas prontos" "Esmeralda" "Preto e Dourado" "EFEITO NA TELA" "Chuva" "Neve" "Folhas" "Raios" "Nenhum" "ATALHOS" "Memória local" "Assistente virtual" "Leitura de tela" "MODO DE JOGO" "SEGURANÇA" "Proteção reforçada da IA" "Fechar"; do
             assert_ui "$label"
           done
 
-          # Open the existing color selector, validate every palette option, and select a color.
-          tap_parent_of_text "Cor da interface"
-          assert_ui "Cor da interface"
-          assert_ui "Verde-esmeralda"
-          assert_ui "Turquesa"
-          assert_ui "Azul"
-          assert_ui "Violeta"
-          tap_text_bounds "Turquesa"
-          assert_ui "Kellvyn Assistente"
-          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-accent-selected.xml
-          grep -q 'name="accent" value="-13773633"' out/prefs-accent-selected.xml || {
-            echo "Color palette did not persist the selected accent color."
-            cat out/prefs-accent-selected.xml
+          # Custom color editor must appear above the sheet and Cancel must return to it.
+          tap_parent_of_text "Destaque"
+          assert_ui "Informe uma cor HEX de seis dígitos"
+          tap_text "Cancelar" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+
+          # Try a non-default theme and restore the original Emerald palette immediately.
+          tap_parent_of_text "Preto e Dourado"
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          tap_parent_of_text "Esmeralda"
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-theme-restored.xml
+          grep -q 'name="accent" value="-13048132"' out/prefs-theme-restored.xml || {
+            echo "Emerald accent was not restored after the palette interaction."
+            cat out/prefs-theme-restored.xml
+            exit 1
+          }
+          grep -q 'name="ui_bg" value="-16049645"' out/prefs-theme-restored.xml || {
+            echo "Emerald background was not restored after the palette interaction."
+            cat out/prefs-theme-restored.xml
             exit 1
           }
 
-          # Reopen the three-dot sheet and test visual-effect dialog without changing unrelated UI.
-          tap_desc "Configurações" 0
-          assert_ui "CONFIGURAÇÕES DO KELLVYN"
-          tap_parent_of_text "Efeitos visuais"
-          assert_ui "Efeito na tela"
-          assert_ui "Chuva"
-          assert_ui "Neve"
-          assert_ui "Folhas"
-          assert_ui "Raios"
-          assert_ui "Nenhum"
-          tap_text_bounds "Raios"
-          tap_text "Aplicar" 0
-          assert_ui "Kellvyn Assistente"
+          # Glow slider interaction must persist and remain available.
+          tap_seekbar_fraction "0.80"
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-glow-slider.xml
+          GLOW_VALUE="$(python3 - out/prefs-glow-slider.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          node = root.find("./int[@name='glow']")
+          if node is None: sys.exit("Glow slider did not persist a value")
+          print(int(node.attrib.get("value", "-1")))
+          PY
+          )"
+          [ "$GLOW_VALUE" -ge 0 ] && [ "$GLOW_VALUE" -le 60 ] || {
+            echo "Glow slider stored a value outside its 0-60 range: $GLOW_VALUE"
+            cat out/prefs-glow-slider.xml
+            exit 1
+          }
+          [ "$GLOW_VALUE" -ne 40 ] || {
+            echo "Glow slider tap did not change the default 40% value."
+            cat out/prefs-glow-slider.xml
+            exit 1
+          }
+
+          # Rain and lightning must be independently selectable together, and then restorable.
+          tap_text "Raios" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-both-effects.xml
           grep -q "chuva" out/prefs-both-effects.xml && grep -q "raios" out/prefs-both-effects.xml || {
             echo "Rain and lightning could not be enabled together."
             cat out/prefs-both-effects.xml
             exit 1
           }
-
-          # Restore rain-only before proceeding with other routes.
-          tap_desc "Configurações" 0
-          tap_parent_of_text "Efeitos visuais"
-          tap_text_bounds "Raios"
-          tap_text "Aplicar" 0
+          tap_text "Raios" 0
           adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-rain-restored.xml
           grep -q "chuva" out/prefs-rain-restored.xml || { echo "Rain effect was lost while restoring test state."; exit 1; }
           if grep -q "raios" out/prefs-rain-restored.xml; then
@@ -462,40 +496,52 @@ jobs:
             exit 1
           fi
 
-          # Web toggle must persist both ON and OFF states.
-          tap_desc "Configurações" 0
+          # Scroll to the lower settings rows and verify disabled/active controls.
+          adb shell input swipe 610 2200 610 700 600
+          sleep 1
+          dump_current_ui
+          for label in "Memória local" "Assistente virtual" "Leitura de tela" "Modo de jogo" "SEGURANÇA" "Proteção reforçada da IA"; do
+            assert_ui "$label"
+          done
+
+          # Local memory must save a test value, then return to settings on close.
+          tap_parent_of_text "Memória local"
+          assert_ui "MEMÓRIA LOCAL"
+          assert_ui "Nova informação"
+          tap_node class "android.widget.EditText" 0
+          adb shell input text "lab_memoria_funcionou"
+          dump_current_ui
+          tap_text "Salvar" 0
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-local-memory.xml
+          grep -q "lab_memoria_funcionou" out/prefs-local-memory.xml || {
+            echo "Local memory did not persist its test value."
+            cat out/prefs-local-memory.xml
+            exit 1
+          }
+          tap_text "Fechar" 0
+          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+
+          # Security switch must toggle OFF and restore its initial ON state.
+          adb shell input swipe 610 2200 610 700 600
+          sleep 1
           dump_current_ui
           tap_node class "android.widget.Switch" 0
-          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-on.xml
-          grep -q 'name="web_access" value="true"' out/prefs-web-on.xml || {
-            echo "Web-access switch did not turn on."
-            cat out/prefs-web-on.xml
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-off.xml
+          grep -q 'name="protection" value="false"' out/prefs-protection-off.xml || {
+            echo "Security switch did not turn protection off."
+            cat out/prefs-protection-off.xml
             exit 1
           }
           tap_node class "android.widget.Switch" 0
-          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-web-restored.xml
-          grep -q 'name="web_access" value="false"' out/prefs-web-restored.xml || {
-            echo "Web-access switch did not restore OFF."
-            cat out/prefs-web-restored.xml
+          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-restored.xml
+          grep -q 'name="protection" value="true"' out/prefs-protection-restored.xml || {
+            echo "Security switch did not restore protection."
+            cat out/prefs-protection-restored.xml
             exit 1
           }
 
-          # Security action opens its explicit explanation and activates the existing protection setting.
-          tap_parent_of_text "Proteção da IA"
-          assert_ui "Proteção da IA"
-          assert_ui "Ativar proteção visual"
-          tap_text "Ativar proteção visual" 0
-          assert_ui "Kellvyn Assistente"
-          adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/prefs-protection-on.xml
-          grep -q 'name="protection" value="true"' out/prefs-protection-on.xml || {
-            echo "Security action did not persist protection ON."
-            cat out/prefs-protection-on.xml
-            exit 1
-          }
-
-          # Reopen and close the sheet through its footer close action.
-          tap_desc "Configurações" 0
-          assert_ui "CONFIGURAÇÕES DO KELLVYN"
+          # Close with the native sheet footer.
+          dump_current_ui
           tap_text "Fechar" 0
           assert_ui "Kellvyn Assistente"
 
