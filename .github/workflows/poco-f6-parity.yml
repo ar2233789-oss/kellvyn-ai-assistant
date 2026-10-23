@@ -394,7 +394,8 @@ jobs:
           root = ET.parse(path).getroot()
           nodes = [n for n in root.iter("node") if n.attrib.get("text", "") == value]
           if not nodes: sys.exit(2)
-          b = nodes[0].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          # Prefer the last occurrence: modal list items often duplicate the editor field's text.
+          b = nodes[-1].attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
           if len(b) != 4: sys.exit(3)
           x1,y1,x2,y2 = map(int,b)
           print((x1+x2)//2, (y1+y2)//2)
