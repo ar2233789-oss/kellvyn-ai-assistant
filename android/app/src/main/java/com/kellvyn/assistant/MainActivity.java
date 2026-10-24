@@ -2261,9 +2261,8 @@ public class MainActivity extends Activity {
         private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count], opacity = new float[count];
         private final float[] px = new float[particleCount], py = new float[particleCount];
         private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
-        private final float[] boltX = new float[38], boltY = new float[38];
-        private final float[] branchX = new float[12], branchY = new float[12];
-        private int boltPointCount = 0, branchPointCount = 0;
+        private final float[] boltX = new float[14], boltY = new float[14];
+        private int boltPointCount = 0;
         private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
         private float flashIntensity = 0f;
@@ -2374,73 +2373,48 @@ public class MainActivity extends Activity {
         private void drawLightning(Canvas c) {
             long now = System.currentTimeMillis();
             if (flashIntensity <= 0f && now >= nextLightningAt) {
-                float endY = getHeight() * (0.44f + (float)Math.random() * 0.22f);
-                boltPointCount = Math.min(boltX.length,
-                        Math.max(18, Math.round(endY / Math.max(1f, dp(18))) + 1));
-                float bx = getWidth() * (0.22f + (float)Math.random() * 0.56f);
+                // One clean, short bolt with restrained bends: it should read as lightning,
+                // not a dense zigzag or a branching graphic covering the whole screen.
+                float endY = getHeight() * (0.40f + (float)Math.random() * 0.12f);
+                boltPointCount = boltX.length;
+                float bx = getWidth() * (0.24f + (float)Math.random() * 0.52f);
                 float by = 0f;
+                float minX = getWidth() * 0.12f;
+                float maxX = getWidth() * 0.88f;
                 for (int i = 0; i < boltPointCount; i++) {
                     boltX[i] = bx;
                     boltY[i] = by;
                     if (i < boltPointCount - 1) {
-                        // Small, irregular elbows look like one continuous bolt instead of a sawtooth.
-                        float jitter = dp(7f + (float)Math.random() * 8f);
-                        bx += (-jitter + (float)Math.random() * jitter * 2f);
+                        float jitter = dp(8f + (float)Math.random() * 8f);
+                        bx = Math.max(minX, Math.min(maxX,
+                                bx - jitter + (float)Math.random() * jitter * 2f));
                         by = endY * (i + 1f) / (boltPointCount - 1f);
                     }
                 }
-
-                // One short side branch gives the lightning a natural fork without filling the screen.
-                branchPointCount = 0;
-                if (boltPointCount > 18) {
-                    int branchStart = Math.min(boltPointCount - 7,
-                            Math.max(5, Math.round(boltPointCount * (0.34f + (float)Math.random() * 0.16f))));
-                    float branchHeight = Math.min(endY - boltY[branchStart], dp(190f));
-                    branchPointCount = Math.min(branchX.length,
-                            Math.max(6, Math.round(branchHeight / Math.max(1f, dp(18))) + 1));
-                    branchX[0] = boltX[branchStart];
-                    branchY[0] = boltY[branchStart];
-                    float direction = Math.random() < 0.5 ? -1f : 1f;
-                    float branchXPos = branchX[0];
-                    for (int i = 1; i < branchPointCount; i++) {
-                        branchXPos += direction * dp(5f + (float)Math.random() * 5f)
-                                + (-dp(3f) + (float)Math.random() * dp(6f));
-                        branchX[i] = branchXPos;
-                        branchY[i] = branchY[0] + branchHeight * i / (branchPointCount - 1f);
-                    }
-                }
-
                 flashIntensity = 1f;
                 nextLightningAt = now + 3500L + (long)(Math.random() * 5500L);
             }
+
             if (flashIntensity > 0f) {
-                // Keep the atmospheric flash subtle; the bolt itself remains the focus.
-                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.075f), 221, 232, 255));
+                // Keep the full-screen flash barely perceptible; the narrow bolt is the focus.
+                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.035f), 221, 232, 255));
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
 
-                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.92f), 242, 247, 255));
+                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.88f), 242, 247, 255));
                 p.setStyle(Paint.Style.STROKE);
                 p.setStrokeCap(Paint.Cap.ROUND);
                 p.setStrokeJoin(Paint.Join.ROUND);
-                p.setStrokeWidth(dp(1.55f));
-                p.setShadowLayer(dp(7), 0, 0, 0xFF9DB8FF);
+                p.setStrokeWidth(dp(1.35f));
+                p.setShadowLayer(dp(5f), 0, 0, 0xFF9DB8FF);
+
                 Path path = new Path();
                 if (boltPointCount > 0) {
                     path.moveTo(boltX[0], boltY[0]);
                     for (int i = 1; i < boltPointCount; i++) path.lineTo(boltX[i], boltY[i]);
                     c.drawPath(path, p);
                 }
-
-                if (branchPointCount > 1) {
-                    p.setStrokeWidth(dp(0.95f));
-                    p.setShadowLayer(dp(4), 0, 0, 0xFF9DB8FF);
-                    Path branch = new Path();
-                    branch.moveTo(branchX[0], branchY[0]);
-                    for (int i = 1; i < branchPointCount; i++) branch.lineTo(branchX[i], branchY[i]);
-                    c.drawPath(branch, p);
-                }
                 p.clearShadowLayer();
-                flashIntensity = Math.max(0f, flashIntensity - 0.12f);
+                flashIntensity = Math.max(0f, flashIntensity - 0.16f);
             }
         }
 
