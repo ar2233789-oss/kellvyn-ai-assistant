@@ -672,89 +672,15 @@ jobs:
               timeout 10s adb shell screencap -p "/sdcard/native-settings-fallback-${fallback_pass}.png"
               timeout 10s adb pull "/sdcard/native-settings-fallback-${fallback_pass}.png" "out/native-settings-fallback-${fallback_pass}.png" >/dev/null
             done
-            # Reset the disposable emulator instead of reusing a guessed scroll offset.
-            # The prior fallback left the settings sheet at a variable scroll position, so
-            # the old 875x1330 tap occasionally hit the "Fundo" HEX field instead of a palette.
-            timeout 10s adb shell am force-stop com.kellvyn.assistant
-            timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
-            wait_for_main_ui
-            timeout 10s adb shell screencap -p /sdcard/native-main-after-palette-reset.png
-            timeout 10s adb pull /sdcard/native-main-after-palette-reset.png out/native-main-after-palette-reset.png >/dev/null
-
-            # After pm clear, the first tap can be ignored by Android 15 while the activity is settling.
-            # Refresh the accessibility tree for every attempt and only continue if the screenshot
-            # proves the sheet is open. Never proceed to a palette tap while still on the home screen.
-            python3 -m pip install --quiet --disable-pip-version-check pillow numpy
-            SETTINGS_OPENED=0
-            for settings_try in 1 2 3; do
-              rm -f out/settings-tap-ui.xml
-              timeout 12s adb shell uiautomator dump /sdcard/settings-tap-ui.xml >/tmp/settings-tap-dump.log 2>&1 || true
-              timeout 12s adb pull /sdcard/settings-tap-ui.xml out/settings-tap-ui.xml >/dev/null 2>&1 || true
-              if [ ! -s out/settings-tap-ui.xml ]; then
-                cp /tmp/settings-tap-dump.log out/native-settings-tap-dump-${settings_try}.log 2>/dev/null || true
-                sleep 1
-                continue
-              fi
-              SETTINGS_TAP="$(python3 - out/settings-tap-ui.xml <<'PY'
-          import sys, xml.etree.ElementTree as ET
-          root = ET.parse(sys.argv[1]).getroot()
-          for node in root.iter("node"):
-              if node.attrib.get("content-desc") == "Configurações" and node.attrib.get("clickable") == "true" and node.attrib.get("enabled", "true") == "true":
-                  bounds = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
-                  if len(bounds) == 4:
-                      x1, y1, x2, y2 = map(int, bounds)
-                      print((x1+x2)//2, (y1+y2)//2)
-                      raise SystemExit(0)
-          raise SystemExit(1)
-          PY
-              )" || SETTINGS_TAP=""
-              if [ -z "$SETTINGS_TAP" ]; then
-                cp out/settings-tap-ui.xml out/native-settings-tap-ui-${settings_try}.xml 2>/dev/null || true
-                sleep 1
-                continue
-              fi
-              read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
-              echo "[LAB] opening settings attempt $settings_try at measured $SETTINGS_X,$SETTINGS_Y"
-              timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
-              sleep 2
-              remote_settings="/sdcard/native-settings-palette-test-${settings_try}.png"
-              local_settings="out/native-settings-palette-test-${settings_try}.png"
-              timeout 10s adb shell screencap -p "$remote_settings"
-              timeout 10s adb pull "$remote_settings" "$local_settings" >/dev/null
-              if python3 - out/native-main-after-palette-reset.png "$local_settings" <<'PY'
-          import sys
-          from PIL import Image, ImageChops, ImageStat
-          main = Image.open(sys.argv[1]).convert("RGB")
-          settings = Image.open(sys.argv[2]).convert("RGB")
-          if main.size != settings.size:
-              raise SystemExit("Main/settings screenshots have different dimensions.")
-          delta = sum(ImageStat.Stat(ImageChops.difference(main, settings)).mean) / 3
-          print(f"Native settings screenshot mean pixel delta after tap: {delta:.2f}")
-          if delta < 5.0:
-              raise SystemExit("This tap did not open Settings; retrying from a fresh accessibility tree.")
-          PY
-              then
-                cp "$local_settings" out/native-settings-palette-test.png
-                cp out/settings-tap-ui.xml out/native-settings-tap-ui.xml
-                SETTINGS_OPENED=1
-                break
-              fi
-              cp "$local_settings" out/native-settings-palette-test-failed-${settings_try}.png 2>/dev/null || true
-              sleep 1
-            done
-            if [ "$SETTINGS_OPENED" != "1" ]; then
-              echo "Could not open settings after three fresh accessibility-based tap attempts."
-              cp out/settings-tap-ui.xml out/native-settings-tap-ui-final.xml 2>/dev/null || true
-              cat /tmp/settings-tap-dump.log 2>/dev/null || true
-              exit 1
-            fi
+            # Keep this settings sheet open. Clearing app data here caused Android 15 to
+            # ignore the next tap and made UIAutomator return an empty tree.
+            # The following screenshot scan scrolls back up to the visible presets.
             # Find the real #D4AF37 swatch in screenshots and only tap after it is visible.
             # This replaces the old hard-coded tap that occasionally opened the "Fundo" HEX editor.
             PALETTE_TAP=""
             for palette_pass in 0 1 2 3 4; do
               if [ "$palette_pass" -gt 0 ]; then
-                timeout 10s adb shell input swipe 610 2240 610 1450 450
+                timeout 10s adb shell input swipe 610 700 610 2200 450
                 sleep 1
               fi
               remote_palette="/sdcard/native-settings-palette-scan-${palette_pass}.png"
@@ -819,11 +745,70 @@ jobs:
               exit 1
             fi
 
-            # Reset after verifying theme change so the remaining controls start in emerald.
-            timeout 10s adb shell am force-stop com.kellvyn.assistant
-            timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
-            wait_for_main_ui
+            # Restore the default theme by clicking the visible Esmeralda preset.
+            # The palette click reopens settings at its top, so use the real swatch instead
+            # of clearing app data and relying on a cold-launch tap.
+            GREEN_TAP=""
+            for green_pass in 0 1 2 3; do
+              if [ "$green_pass" -gt 0 ]; then
+                timeout 10s adb shell input swipe 610 700 610 2200 450
+                sleep 1
+              fi
+              remote_green="/sdcard/native-settings-emerald-scan-\${green_pass}.png"
+              local_green="out/native-settings-emerald-scan-\${green_pass}.png"
+              timeout 10s adb shell screencap -p "$remote_green"
+              timeout 10s adb pull "$remote_green" "$local_green" >/dev/null
+              GREEN_TAP="$(python3 - "$local_green" "$green_pass" <<'PY'
+          import json, sys
+          import numpy as np
+          from PIL import Image
+          path, scan = sys.argv[1], int(sys.argv[2])
+          image = np.asarray(Image.open(path).convert("RGB"), dtype=np.int16)
+          r, g, b = image[..., 0], image[..., 1], image[..., 2]
+          mask = (np.abs(r - 56) <= 20) & (np.abs(g - 230) <= 20) & (np.abs(b - 188) <= 20)
+          rows = mask.sum(axis=1)
+          if rows.size == 0 or int(rows.max()) < 18:
+              sys.exit(1)
+          y = int(rows.argmax())
+          x = int(image.shape[1] * 0.27)  # inside the left-hand Esmeralda preset card
+          print(json.dumps({"x": x, "y": y, "scanPass": scan,
+                            "emeraldPixelsAtDetectedRow": int(rows[y]),
+                            "screenshot": path,
+                            "imageSize": [int(image.shape[1]), int(image.shape[0])]}))
+          PY
+              )" || GREEN_TAP=""
+              if [ -n "$GREEN_TAP" ]; then break; fi
+            done
+            if [ -z "$GREEN_TAP" ]; then
+              echo "Could not visually locate Esmeralda after applying gold."
+              exit 1
+            fi
+            printf '%s\n' "$GREEN_TAP" > out/native-emerald-tap-location.json
+            GREEN_X="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["x"])' out/native-emerald-tap-location.json)"
+            GREEN_Y="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["y"])' out/native-emerald-tap-location.json)"
+            timeout 10s adb shell input tap "$GREEN_X" "$GREEN_Y"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-after-emerald-restore.png
+            timeout 10s adb pull /sdcard/native-after-emerald-restore.png out/native-after-emerald-restore.png >/dev/null
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs-after-emerald.xml
+            python3 - out/native-prefs-after-emerald.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          def pref(name):
+              node = next((n for n in root if n.tag == "int" and n.attrib.get("name") == name), None)
+              if node is None:
+                  raise SystemExit(f"Missing persisted preference: {name}")
+              return int(node.attrib["value"])
+          expected = {
+              "accent": int.from_bytes(bytes.fromhex("FF38E6BC"), "big", signed=True),
+              "ui_bg": int.from_bytes(bytes.fromhex("FF0B1413"), "big", signed=True),
+              "ui_text": int.from_bytes(bytes.fromhex("FFE3EEEC"), "big", signed=True),
+          }
+          actual = {key: pref(key) for key in expected}
+          if actual != expected:
+              raise SystemExit(f"Default theme restore failed. expected={expected}, actual={actual}")
+          print(f"PASS: default emerald theme restored via UI: {actual}")
+          PY
           else
             # Accessibility-capable AVDs also test the real palette action, using the
             # visible text node and its clickable parent rather than fixed coordinates.
