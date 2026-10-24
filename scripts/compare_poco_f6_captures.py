@@ -91,9 +91,74 @@ def main() -> int:
         compare_pair(args.web_dir / "web-settings.png", args.native_dir / "native-settings.png",
                      args.output_dir, "settings", args.status_bar_top_px),
     ]
+
+    # Palette switching is a separate parity case: compare both implementations after
+    # applying the same gold preset, not just the untouched default screenshots.
+    web_palette = args.web_dir / "web-after-gold-palette.png"
+    native_palette = args.native_dir / "native-after-gold-palette.png"
+    palette_comparison = "not_captured"
+    if web_palette.is_file() and native_palette.is_file():
+        results.append(compare_pair(web_palette, native_palette, args.output_dir,
+                                    "gold-palette", args.status_bar_top_px))
+        palette_comparison = "compared"
+    elif web_palette.is_file() != native_palette.is_file():
+        palette_comparison = "incomplete_pair"
+    else:
+        palette_comparison = "not_captured"
+
+    evidence = {}
+    web_audit = args.web_dir / "web-interaction-audit.json"
+    if web_audit.is_file():
+        try:
+            audit = json.loads(web_audit.read_text(encoding="utf-8"))
+            checks = audit.get("checks", [])
+            evidence["webInteractionAudit"] = {
+                "status": audit.get("status", "unknown"),
+                "totalChecks": len(checks),
+                "passedChecks": sum(1 for item in checks if item.get("result") == "PASS"),
+                "failedChecks": sum(1 for item in checks if item.get("result") != "PASS"),
+                "pageErrors": audit.get("pageErrors", []),
+            }
+        except (json.JSONDecodeError, OSError) as error:
+            evidence["webInteractionAudit"] = {"status": "unreadable", "error": str(error)}
+
+    native_controls = args.native_dir / "native-controls.json"
+    if native_controls.is_file():
+        try:
+            controls = json.loads(native_controls.read_text(encoding="utf-8"))
+            labels = [item.get("label", "") for item in controls]
+            expected_labels = [
+                "Histórico", "Configurações", "Anexos e Web", "Ditado por voz",
+                "Enviar mensagem", "AI", "Navegador", "Editor", "Terminal", "Bots", "Apps",
+            ]
+            evidence["nativeControlInventory"] = {
+                "count": len(controls),
+                "labels": labels,
+                "missingExpectedLabels": [label for label in expected_labels if label not in labels],
+            }
+        except (json.JSONDecodeError, OSError) as error:
+            evidence["nativeControlInventory"] = {"status": "unreadable", "error": str(error)}
+
+    crash_report = args.native_dir / "native-crashes.txt"
+    if crash_report.is_file():
+        crash_text = crash_report.read_text(encoding="utf-8", errors="replace")
+        evidence["startupCrashScan"] = {
+            "status": "clean" if "No crash for com.kellvyn.assistant" in crash_text else "inspect",
+            "report": crash_text[:2000],
+        }
+
+    evidence["nativeVisualEvidence"] = {
+        "paletteScreenshot": native_palette.is_file(),
+        "lightningVideo": (args.native_dir / "native-lightning.mp4").is_file(),
+        "responseControlScreenshot": (args.native_dir / "native-response-controls.png").is_file(),
+        "failureSummary": (args.native_dir / "lab-failure-summary.txt").is_file(),
+    }
+
     report = {
         "status": "captures_compared",
         "method": "pixel-aligned crops only; no rescale/interpolation",
+        "paletteComparison": palette_comparison,
+        "evidence": evidence,
         "results": results,
     }
     args.output_dir.mkdir(parents=True, exist_ok=True)
