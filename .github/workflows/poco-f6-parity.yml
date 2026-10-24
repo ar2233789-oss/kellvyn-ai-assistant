@@ -682,32 +682,47 @@ jobs:
             timeout 10s adb shell screencap -p /sdcard/native-main-after-palette-reset.png
             timeout 10s adb pull /sdcard/native-main-after-palette-reset.png out/native-main-after-palette-reset.png >/dev/null
 
-            # Find the actual settings icon bounds from the fresh main-screen tree instead
-            # of relying on fixed taps while the status/navigation bars settle.
-            SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
+            # After pm clear, the first tap can be ignored by Android 15 while the activity is settling.
+            # Refresh the accessibility tree for every attempt and only continue if the screenshot
+            # proves the sheet is open. Never proceed to a palette tap while still on the home screen.
+            python3 -m pip install --quiet --disable-pip-version-check pillow numpy
+            SETTINGS_OPENED=0
+            for settings_try in 1 2 3; do
+              rm -f out/settings-tap-ui.xml
+              timeout 12s adb shell uiautomator dump /sdcard/settings-tap-ui.xml >/tmp/settings-tap-dump.log 2>&1 || true
+              timeout 12s adb pull /sdcard/settings-tap-ui.xml out/settings-tap-ui.xml >/dev/null 2>&1 || true
+              if [ ! -s out/settings-tap-ui.xml ]; then
+                cp /tmp/settings-tap-dump.log out/native-settings-tap-dump-${settings_try}.log 2>/dev/null || true
+                sleep 1
+                continue
+              fi
+              SETTINGS_TAP="$(python3 - out/settings-tap-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
           for node in root.iter("node"):
-              if node.attrib.get("content-desc") == "Configurações" and node.attrib.get("clickable") == "true":
-                  b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
-                  if len(b) == 4:
-                      x1, y1, x2, y2 = map(int, b)
+              if node.attrib.get("content-desc") == "Configurações" and node.attrib.get("clickable") == "true" and node.attrib.get("enabled", "true") == "true":
+                  bounds = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                  if len(bounds) == 4:
+                      x1, y1, x2, y2 = map(int, bounds)
                       print((x1+x2)//2, (y1+y2)//2)
-                      break
+                      raise SystemExit(0)
+          raise SystemExit(1)
           PY
-            )"
-            if [ -z "$SETTINGS_TAP" ]; then
-              echo "Fresh main-screen UI tree has no clickable Configurações control."
-              cat out/native-ui.xml
-              exit 1
-            fi
-            read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
-            timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
-            sleep 2
-            timeout 10s adb shell screencap -p /sdcard/native-settings-palette-test.png
-            timeout 10s adb pull /sdcard/native-settings-palette-test.png out/native-settings-palette-test.png >/dev/null
-            python3 -m pip install --quiet --disable-pip-version-check pillow
-            python3 - out/native-main-after-palette-reset.png out/native-settings-palette-test.png <<'PY'
+              )" || SETTINGS_TAP=""
+              if [ -z "$SETTINGS_TAP" ]; then
+                cp out/settings-tap-ui.xml out/native-settings-tap-ui-${settings_try}.xml 2>/dev/null || true
+                sleep 1
+                continue
+              fi
+              read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
+              echo "[LAB] opening settings attempt $settings_try at measured $SETTINGS_X,$SETTINGS_Y"
+              timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
+              sleep 2
+              remote_settings="/sdcard/native-settings-palette-test-${settings_try}.png"
+              local_settings="out/native-settings-palette-test-${settings_try}.png"
+              timeout 10s adb shell screencap -p "$remote_settings"
+              timeout 10s adb pull "$remote_settings" "$local_settings" >/dev/null
+              if python3 - out/native-main-after-palette-reset.png "$local_settings" <<'PY'
           import sys
           from PIL import Image, ImageChops, ImageStat
           main = Image.open(sys.argv[1]).convert("RGB")
@@ -715,10 +730,25 @@ jobs:
           if main.size != settings.size:
               raise SystemExit("Main/settings screenshots have different dimensions.")
           delta = sum(ImageStat.Stat(ImageChops.difference(main, settings)).mean) / 3
-          print(f"Native settings sheet screenshot mean pixel delta: {delta:.2f}")
+          print(f"Native settings screenshot mean pixel delta after tap: {delta:.2f}")
           if delta < 5.0:
-              raise SystemExit("Settings tap did not open the sheet; refusing to test palette on the home screen.")
+              raise SystemExit("This tap did not open Settings; retrying from a fresh accessibility tree.")
           PY
+              then
+                cp "$local_settings" out/native-settings-palette-test.png
+                cp out/settings-tap-ui.xml out/native-settings-tap-ui.xml
+                SETTINGS_OPENED=1
+                break
+              fi
+              cp "$local_settings" out/native-settings-palette-test-failed-${settings_try}.png 2>/dev/null || true
+              sleep 1
+            done
+            if [ "$SETTINGS_OPENED" != "1" ]; then
+              echo "Could not open settings after three fresh accessibility-based tap attempts."
+              cp out/settings-tap-ui.xml out/native-settings-tap-ui-final.xml 2>/dev/null || true
+              cat /tmp/settings-tap-dump.log 2>/dev/null || true
+              exit 1
+            fi
             # Find the real #D4AF37 swatch in screenshots and only tap after it is visible.
             # This replaces the old hard-coded tap that occasionally opened the "Fundo" HEX editor.
             PALETTE_TAP=""
