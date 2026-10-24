@@ -744,6 +744,83 @@ jobs:
             timeout 20s adb shell pm clear com.kellvyn.assistant
             timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
             wait_for_main_ui
+          else
+            # Accessibility-capable AVDs also test the real palette action, using the
+            # visible text node and its clickable parent rather than fixed coordinates.
+            for reset_scroll in 1 2 3; do
+              timeout 10s adb shell input swipe 610 700 610 2200 450
+              sleep 1
+            done
+            PALETTE_TAP=""
+            for palette_pass in 0 1 2 3 4; do
+              remote_xml="/sdcard/settings-palette-access-\${palette_pass}.xml"
+              local_xml="out/native-settings-palette-access-\${palette_pass}.xml"
+              timeout 12s adb shell uiautomator dump "$remote_xml" >/tmp/settings-palette-access.log 2>&1 || true
+              timeout 12s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 || true
+              if [ -s "$local_xml" ]; then
+                PALETTE_TAP="$(python3 - "$local_xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          parents = {child: node for node in root.iter("node") for child in node}
+          for node in root.iter("node"):
+              if node.attrib.get("text", "").strip() != "Preto e Dourado":
+                  continue
+              candidate = node
+              while candidate is not None:
+                  if candidate.attrib.get("clickable") == "true" and candidate.attrib.get("enabled", "true") == "true":
+                      bounds = candidate.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                      if len(bounds) == 4:
+                          x1, y1, x2, y2 = map(int, bounds)
+                          print((x1+x2)//2, (y1+y2)//2)
+                          raise SystemExit(0)
+                  candidate = parents.get(candidate)
+              bounds = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+              if len(bounds) == 4:
+                  x1, y1, x2, y2 = map(int, bounds)
+                  print((x1+x2)//2, (y1+y2)//2)
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+                )" || PALETTE_TAP=""
+              fi
+              if [ -n "$PALETTE_TAP" ]; then
+                echo "$PALETTE_TAP" > out/native-palette-tap-location.txt
+                break
+              fi
+              if [ "$palette_pass" -lt 4 ]; then
+                timeout 10s adb shell input swipe 610 2240 610 1450 450
+                sleep 1
+              fi
+            done
+            if [ -z "$PALETTE_TAP" ]; then
+              echo "Accessible settings opened, but the gold palette button could not be located in five fresh UI trees."
+              cp /tmp/settings-palette-access.log out/native-palette-control-not-found.txt 2>/dev/null || true
+              exit 1
+            fi
+            read -r PALETTE_X PALETTE_Y <<< "$PALETTE_TAP"
+            python3 - "$PALETTE_X" "$PALETTE_Y" <<'PY' > out/native-palette-tap-location.json
+          import json, sys
+          print(json.dumps({"x": int(sys.argv[1]), "y": int(sys.argv[2]),
+                            "method": "UIAutomator visible text + clickable ancestor",
+                            "label": "Preto e Dourado"}, indent=2))
+          PY
+            timeout 10s adb shell input tap "$PALETTE_X" "$PALETTE_Y"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            python3 - out/native-prefs.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          pref = next((n for n in root if n.tag == "int" and n.attrib.get("name") == "accent"), None)
+          if pref is None:
+              raise SystemExit("Native accent preference is missing after choosing the gold palette.")
+          actual = int(pref.attrib["value"])
+          expected = int.from_bytes(bytes.fromhex("FFD4AF37"), "big", signed=True)
+          if actual != expected:
+              raise SystemExit(f"Gold palette button did not update accent. expected={expected}, actual={actual}")
+          print(f"PASS: gold palette persisted accent={actual}; UIAutomator tap target recorded.")
+          PY
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
