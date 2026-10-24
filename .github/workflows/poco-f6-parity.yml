@@ -1220,6 +1220,9 @@ jobs:
         with:
           name: poco-f6-native-emulator
           path: artifacts/native
+      - name: Install visual comparison dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check pillow numpy
       - name: Validate the lab's own screenshot comparator
         timeout-minutes: 3
         run: python scripts/test_compare_poco_f6_captures.py
@@ -1227,7 +1230,6 @@ jobs:
         timeout-minutes: 8
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check pillow numpy
           mkdir -p out/parity
           python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
       - name: Upload comparison report, overlays and difference maps
