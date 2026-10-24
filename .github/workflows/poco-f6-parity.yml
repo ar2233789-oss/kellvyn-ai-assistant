@@ -345,7 +345,33 @@ jobs:
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk out/kellvyn-native-debug.apk
-          trap 'cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true' EXIT
+          # Preserve actionable diagnostics even when a UI action fails or times out.
+          # Do not leave the next laboratory run guessing which dialog was left open.
+          trap '
+            status=$?
+            set +e
+            cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              {
+                echo "Poco F6 lab failed with exit code $status"
+                date -u
+                echo "--- adb devices ---"
+                timeout 10s adb devices -l
+                echo "--- foreground activities ---"
+                timeout 10s adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity|mCurrentFocus" || true
+                echo "--- app process ---"
+                timeout 10s adb shell pidof com.kellvyn.assistant || true
+              } > out/lab-failure-summary.txt 2>&1
+              timeout 12s adb shell screencap -p /sdcard/lab-failure-screen.png >/dev/null 2>&1 || true
+              timeout 12s adb pull /sdcard/lab-failure-screen.png out/lab-failure-screen.png >/dev/null 2>&1 || true
+              timeout 12s adb logcat -d -t 2000 > out/native-logcat-tail.txt 2>&1 || true
+              timeout 12s adb logcat -d -b crash > out/native-crash-buffer.txt 2>&1 || true
+              if [ -s out/current-ui.xml ]; then cp out/current-ui.xml out/lab-failure-ui-tree.xml; fi
+              if [ -s out/native-ui.xml ]; then cp out/native-ui.xml out/lab-last-known-ui-tree.xml; fi
+            fi
+            if [ -n "\${EMULATOR_PID:-}" ]; then kill "$EMULATOR_PID" 2>/dev/null || true; fi
+            exit "$status"
+          ' EXIT
           # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; fi
           "$ANDROID_HOME/emulator/emulator" -avd PocoF6Virtual -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > /tmp/poco-f6-emulator.log 2>&1 &
