@@ -439,6 +439,32 @@ jobs:
           fi
           timeout 10s adb shell wm size 1220x2712
           timeout 10s adb shell wm density 440
+          # Record the exact device image and viewport so failures can be reproduced.
+          python3 - <<'PY' > out/lab-environment.json
+          import json, os, platform, subprocess, sys
+          def adb(*args):
+              result = subprocess.run(["adb", *args], capture_output=True, text=True, timeout=8, check=False)
+              return result.stdout.strip() if result.returncode == 0 else "unavailable"
+          report = {
+              "lab": "Poco F6 virtual comparison lab",
+              "commit": os.environ.get("GITHUB_SHA", "unknown"),
+              "runId": os.environ.get("GITHUB_RUN_ID", "unknown"),
+              "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", "unknown"),
+              "runner": {"os": platform.platform(), "python": sys.version.split()[0]},
+              "device": {
+                  "model": adb("shell", "getprop", "ro.product.model"),
+                  "manufacturer": adb("shell", "getprop", "ro.product.manufacturer"),
+                  "androidRelease": adb("shell", "getprop", "ro.build.version.release"),
+                  "apiLevel": adb("shell", "getprop", "ro.build.version.sdk"),
+                  "buildFingerprint": adb("shell", "getprop", "ro.build.fingerprint"),
+                  "abi": adb("shell", "getprop", "ro.product.cpu.abi"),
+                  "windowSize": adb("shell", "wm", "size"),
+                  "windowDensity": adb("shell", "wm", "density"),
+                  "ramSizeMbConfigured": 8192,
+              },
+          }
+          print(json.dumps(report, indent=2))
+          PY
           # Avoid triggering the stalled Pixel Launcher menu; launch the app directly.
           timeout 10s adb shell am force-stop com.google.android.apps.nexuslauncher || true
           timeout 120s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
@@ -1212,6 +1238,8 @@ jobs:
             exit 1
           fi
           timeout 15s adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          timeout 15s adb shell dumpsys gfxinfo com.kellvyn.assistant framestats > out/native-gfxinfo-framestats.txt 2>&1 || true
+          timeout 15s adb shell dumpsys battery > out/native-battery.txt 2>&1 || true
           echo "PASS: Android 15 AVD booted, app controls checked, color palette round-trip validated, four response controls exercised, UI captured and no startup crash."
       - name: Upload native emulator capture and diagnostics
         if: always()
