@@ -372,7 +372,7 @@ jobs:
               if [ -s out/current-ui.xml ]; then cp out/current-ui.xml out/lab-failure-ui-tree.xml; fi
               if [ -s out/native-ui.xml ]; then cp out/native-ui.xml out/lab-last-known-ui-tree.xml; fi
             fi
-            if [ -n "\${EMULATOR_PID:-}" ]; then kill "$EMULATOR_PID" 2>/dev/null || true; fi
+            if [ -n "${EMULATOR_PID:-}" ]; then kill "$EMULATOR_PID" 2>/dev/null || true; fi
             exit "$status"
           ' EXIT
           # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
@@ -677,8 +677,8 @@ jobs:
                 timeout 10s adb shell input swipe 610 2240 610 1450 450
                 sleep 1
               fi
-              remote_palette="/sdcard/native-settings-palette-scan-\${palette_pass}.png"
-              local_palette="out/native-settings-palette-scan-\${palette_pass}.png"
+              remote_palette="/sdcard/native-settings-palette-scan-${palette_pass}.png"
+              local_palette="out/native-settings-palette-scan-${palette_pass}.png"
               timeout 10s adb shell screencap -p "$remote_palette"
               timeout 10s adb pull "$remote_palette" "$local_palette" >/dev/null
               PALETTE_TAP="$(python3 - "$local_palette" "$palette_pass" <<'PY'
@@ -753,8 +753,8 @@ jobs:
             done
             PALETTE_TAP=""
             for palette_pass in 0 1 2 3 4; do
-              remote_xml="/sdcard/settings-palette-access-\${palette_pass}.xml"
-              local_xml="out/native-settings-palette-access-\${palette_pass}.xml"
+              remote_xml="/sdcard/settings-palette-access-${palette_pass}.xml"
+              local_xml="out/native-settings-palette-access-${palette_pass}.xml"
               timeout 12s adb shell uiautomator dump "$remote_xml" >/tmp/settings-palette-access.log 2>&1 || true
               timeout 12s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 || true
               if [ -s "$local_xml" ]; then
