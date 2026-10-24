@@ -78,8 +78,10 @@ def main() -> int:
     required = [
         args.web_dir / "web-reference.png",
         args.web_dir / "web-settings.png",
+        args.web_dir / "web-after-gold-palette.png",
         args.native_dir / "native-screen.png",
         args.native_dir / "native-settings.png",
+        args.native_dir / "native-after-gold-palette.png",
     ]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
