@@ -666,22 +666,75 @@ jobs:
           if delta < 5.0:
               raise SystemExit("Settings tap did not open the sheet; refusing to test palette on the home screen.")
           PY
-            timeout 10s adb shell input tap 875 1330
-            sleep 2
-            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
-            if ! grep -q 'name="accent" value="-2830537"' out/native-prefs.xml; then
-              echo "Gold palette was not applied from the known initial settings position."
-              cat out/native-prefs.xml
+            # Find the real #D4AF37 swatch in screenshots and only tap after it is visible.
+            # This replaces the old hard-coded tap that occasionally opened the "Fundo" HEX editor.
+            PALETTE_TAP=""
+            for palette_pass in 0 1 2 3 4; do
+              if [ "$palette_pass" -gt 0 ]; then
+                timeout 10s adb shell input swipe 610 2240 610 1450 450
+                sleep 1
+              fi
+              remote_palette="/sdcard/native-settings-palette-scan-\${palette_pass}.png"
+              local_palette="out/native-settings-palette-scan-\${palette_pass}.png"
+              timeout 10s adb shell screencap -p "$remote_palette"
+              timeout 10s adb pull "$remote_palette" "$local_palette" >/dev/null
+              PALETTE_TAP="$(python3 - "$local_palette" "$palette_pass" <<'PY'
+          import json, sys
+          import numpy as np
+          from PIL import Image
+          path, scan = sys.argv[1], int(sys.argv[2])
+          image = np.asarray(Image.open(path).convert("RGB"), dtype=np.int16)
+          r, g, b = image[..., 0], image[..., 1], image[..., 2]
+          # The gold chip is a unique #D4AF37 swatch on the default emerald theme.
+          mask = (np.abs(r - 212) <= 24) & (np.abs(g - 175) <= 24) & (np.abs(b - 55) <= 24)
+          rows = mask.sum(axis=1)
+          if rows.size == 0 or int(rows.max()) < 18:
+              sys.exit(1)
+          y = int(rows.argmax())
+          if int(rows[y]) < 18:
+              sys.exit(1)
+          # The gold palette is the right-hand card in the first preset row.
+          # Derive its vertical coordinate from the screenshot, not from scroll guesses.
+          x = int(image.shape[1] * 0.73)
+          print(json.dumps({"x": x, "y": y, "scanPass": scan,
+                            "goldPixelsAtDetectedRow": int(rows[y]),
+                            "screenshot": path,
+                            "imageSize": [int(image.shape[1]), int(image.shape[0])]}))
+          PY
+              )" || PALETTE_TAP=""
+              if [ -n "$PALETTE_TAP" ]; then break; fi
+            done
+            if [ -z "$PALETTE_TAP" ]; then
+              echo "Could not locate the visible gold palette chip in five screenshot scans."
+              echo "No guessed tap was attempted." > out/native-palette-control-not-found.txt
               exit 1
             fi
+            printf '%s\n' "$PALETTE_TAP" > out/native-palette-tap-location.json
+            PALETTE_X="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["x"])' out/native-palette-tap-location.json)"
+            PALETTE_Y="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["y"])' out/native-palette-tap-location.json)"
+            timeout 10s adb shell input tap "$PALETTE_X" "$PALETTE_Y"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            python3 - out/native-prefs.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          pref = next((n for n in root if n.tag == "int" and n.attrib.get("name") == "accent"), None)
+          if pref is None:
+              raise SystemExit("Native accent preference is missing after choosing the gold palette.")
+          actual = int(pref.attrib["value"])
+          expected = int.from_bytes(bytes.fromhex("FFD4AF37"), "big", signed=True)
+          if actual != expected:
+              raise SystemExit(f"Gold palette tap did not update accent. expected={expected}, actual={actual}")
+          print(f"PASS: gold palette persisted accent={actual}; screenshot tap location recorded.")
+          PY
             timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
               echo "Kellvyn left the foreground after applying the gold palette."
               cat out/native-after-gold-palette.txt
               exit 1
             fi
-            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
-            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
 
             # Reset after verifying theme change so the remaining controls start in emerald.
             timeout 10s adb shell am force-stop com.kellvyn.assistant
