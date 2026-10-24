@@ -133,6 +133,9 @@ jobs:
           MANAGER="$(find "$SDK/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
           test -n "$MANAGER"
           export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
+          export ANDROID_USER_HOME="$HOME/.android" ANDROID_AVD_HOME="$HOME/.android/avd"
+          mkdir -p "$ANDROID_AVD_HOME"
+          echo "ANDROID_USER_HOME=$ANDROID_USER_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
@@ -140,9 +143,18 @@ jobs:
           set +o pipefail; yes | "$MANAGER" --licenses >/dev/null; set -o pipefail
           "$MANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools" "emulator" "system-images;android-35;google_apis;x86_64"
           AVDMANAGER="$(dirname "$MANAGER")/avdmanager"
-          mkdir -p "$HOME/.android/avd"
-          echo no | "$AVDMANAGER" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device pixel_7
-          CFG="$HOME/.android/avd/PocoF6Virtual.avd/config.ini"
+          mkdir -p "$ANDROID_AVD_HOME" out/android
+          (echo no | "$AVDMANAGER" create avd --force --name PocoF6Virtual --package "system-images;android-35;google_apis;x86_64" --device pixel_7) 2>&1 | tee out/android/avdmanager.log
+          CFG="$ANDROID_AVD_HOME/PocoF6Virtual.avd/config.ini"
+          if [ ! -s "$CFG" ]; then
+            CFG="$(find "$ANDROID_AVD_HOME" -maxdepth 5 -type f -name config.ini -path '*/PocoF6Virtual.avd/config.ini' -print -quit)"
+          fi
+          if [ -z "$CFG" ] || [ ! -s "$CFG" ]; then
+            echo "AVD creation did not produce PocoF6Virtual.avd/config.ini; Android SDK tools output follows."
+            cat out/android/avdmanager.log
+            find "$HOME/.android" -maxdepth 5 -type f -name config.ini -print || true
+            exit 1
+          fi
           set_prop() { if grep -q "^$1=" "$CFG"; then sed -i "s|^$1=.*|$1=$2|" "$CFG"; else echo "$1=$2" >> "$CFG"; fi; }
           set_prop hw.lcd.width 1220
           set_prop hw.lcd.height 2712
@@ -150,7 +162,7 @@ jobs:
           set_prop hw.ramSize 8192
           set_prop hw.cpu.ncore 4
           set_prop disk.dataPartition.size 4096M
-          echo "ANDROID_AVD_HOME=$HOME/.android/avd" >> "$GITHUB_ENV"
+          echo "ANDROID_AVD_HOME=$ANDROID_AVD_HOME" >> "$GITHUB_ENV"
       - name: Compile Android unit tests and APK
         working-directory: android
         run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
@@ -181,7 +193,7 @@ jobs:
       - name: Install Blender and headless render libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender libegl1 libgl1 libxrender1 libxi6 libxfixes3 libxxf86vm1 libxkbcommon0
+          sudo apt-get install -y blender python3-numpy libegl1 libgl1 libxrender1 libxi6 libxfixes3 libxxf86vm1 libxkbcommon0
           ldconfig -p | grep -E 'libEGL.so.1|libGL.so.1'
           blender --version | head -n 2
       - name: Generate editable scenes and preview renders
