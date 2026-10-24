@@ -178,10 +178,11 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Install Blender
+      - name: Install Blender and headless render libraries
         run: |
           sudo apt-get update
-          sudo apt-get install -y blender
+          sudo apt-get install -y blender libegl1 libgl1 libxrender1 libxi6 libxfixes3 libxxf86vm1 libxkbcommon0
+          ldconfig -p | grep -E 'libEGL.so.1|libGL.so.1'
           blender --version | head -n 2
       - name: Generate editable scenes and preview renders
         shell: bash
