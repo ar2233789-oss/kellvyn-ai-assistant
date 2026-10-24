@@ -5,7 +5,7 @@ APK="${1:?usage: android_smoke.sh path/to/app-debug.apk output-dir}"
 OUT="${2:?usage: android_smoke.sh path/to/app-debug.apk output-dir}"
 mkdir -p "$OUT"
 ADB="${ADB:-adb}"
-TIMEOUT="${LAB_ADB_TIMEOUT:-12}"
+TIMEOUT="${LAB_ADB_TIMEOUT:-60}"
 cmd() { timeout "$TIMEOUT" "$ADB" "$@"; }
 finish_diag() {
   python3 - "$OUT/android-smoke.json" "${RESULT:-failed}" "${ERROR:-}" <<'PY'
@@ -39,6 +39,9 @@ for _ in $(seq 1 120); do
   sleep 3
 done
 if [ "$booted" != "1" ]; then ERROR="Android 15 virtual device did not finish booting within 6 minutes"; false; fi
+# First boot continues Google/OEM provisioning for a short period after sys.boot_completed.
+# Let package manager settle before installing the test APK.
+sleep 18
 cmd shell wm size 1220x2712
 cmd shell wm density 440
 if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm || true; fi
