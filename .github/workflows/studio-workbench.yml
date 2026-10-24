@@ -1,0 +1,77 @@
+name: Production Studio workbench checks
+
+on:
+  pull_request:
+    paths:
+      - "studio/**"
+      - "scripts/test_studio_workbench.py"
+      - "scripts/test_studio_workbench.mjs"
+      - ".github/workflows/studio-workbench.yml"
+  push:
+    branches:
+      - main
+      - lab/studio-workbench-20261024
+    paths:
+      - "studio/**"
+      - "scripts/test_studio_workbench.py"
+      - "scripts/test_studio_workbench.mjs"
+      - ".github/workflows/studio-workbench.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: studio-workbench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  static-check:
+    name: HTML structure and JavaScript syntax
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Validate workbench markup, internal references and offline-only resources
+        timeout-minutes: 2
+        run: python scripts/test_studio_workbench.py
+
+  browser-interactions:
+    name: Browser interaction and export tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [static-check]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Install Playwright
+        timeout-minutes: 4
+        run: |
+          npm install --no-save playwright
+          npx playwright install --with-deps chromium
+      - name: Serve the standalone Studio locally
+        timeout-minutes: 10
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --bind 127.0.0.1 > /tmp/studio-workbench-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          READY=0
+          for attempt in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/studio/ >/dev/null; then READY=1; break; fi
+            sleep 1
+          done
+          if [ "$READY" != "1" ]; then
+            cat /tmp/studio-workbench-server.log
+            exit 1
+          fi
+          node scripts/test_studio_workbench.mjs
