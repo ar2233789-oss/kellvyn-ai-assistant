@@ -8,7 +8,9 @@ on:
       - "scripts/test_studio_workbench.mjs"
       - ".github/workflows/studio-workbench.yml"
   push:
-    branches: [main]
+    branches:
+      - main
+      - lab/studio-workbench-20261024
     paths:
       - "studio/**"
       - "scripts/test_studio_workbench.py"
