@@ -1281,6 +1281,56 @@ jobs:
           set -euo pipefail
           mkdir -p out/parity
           python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("out/parity/parity-metrics.json").read_text(encoding="utf-8"))
+          lines = [
+              "# Poco F6 lab report",
+              "",
+              f"Overall status: {data.get('status', 'unknown')}",
+              f"Palette comparison: {data.get('paletteComparison', 'unknown')}",
+              "",
+              "## Screenshot comparisons",
+              "",
+              "| View | Compared size | Mean absolute error | Pixels changed (>16) |",
+              "|---|---:|---:|---:|",
+          ]
+          for item in data.get("results", []):
+              size = " × ".join(str(value) for value in item.get("comparisonSize", []))
+              lines.append(
+                  f"| {item.get('name', 'unknown')} | {size} | "
+                  f"{item.get('meanAbsoluteError', 'n/a')} | "
+                  f"{item.get('changedPixelsPercentAtThreshold16', 'n/a')}% |"
+              )
+          evidence = data.get("evidence", {})
+          web = evidence.get("webInteractionAudit", {})
+          native = evidence.get("nativeControlInventory", {})
+          crash = evidence.get("startupCrashScan", {})
+          visuals = evidence.get("nativeVisualEvidence", {})
+          lines += [
+              "",
+              "## Interaction and runtime evidence",
+              "",
+              f"- Web interactions: {web.get('passedChecks', 0)}/{web.get('totalChecks', 0)} passed; status {web.get('status', 'not captured')}.",
+              f"- Native controls observed: {native.get('count', 'not captured')}.",
+              f"- Native controls missing from inventory: {', '.join(native.get('missingExpectedLabels', [])) or 'none reported'}.",
+              f"- Startup crash scan: {crash.get('status', 'not captured')}.",
+              f"- Palette screenshot captured: {visuals.get('paletteScreenshot', False)}.",
+              f"- Lightning video captured: {visuals.get('lightningVideo', False)}.",
+              f"- Response-controls screenshot captured: {visuals.get('responseControlScreenshot', False)}.",
+              f"- Failure diagnostics present: {visuals.get('failureSummary', False)}.",
+              "",
+              "## How to review",
+              "",
+              "Open each overlay, amplified difference image and side-by-side image in the artifacts. "
+              "Pixel metrics are diagnostic only; fonts and animated particles can differ naturally. "
+              "The palette comparison checks screenshots after selecting the same gold preset on both builds.",
+              "",
+          ]
+          Path("out/parity/lab-summary.md").write_text("\n".join(lines), encoding="utf-8")
+          print("\n".join(lines))
+          PY
       - name: Upload comparison report, overlays and difference maps
         uses: actions/upload-artifact@v4
         with:
