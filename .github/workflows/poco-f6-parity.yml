@@ -236,6 +236,9 @@ jobs:
             await page.getByRole("button", { name: "Preto e Dourado", exact: true }).click();
             const palette = await page.evaluate(() => JSON.parse(localStorage.getItem("kv.settings") || "{}"));
             if (palette.color !== "#D4AF37" || palette.bg !== "#0A0907") throw new Error("Palette button did not apply its colors");
+            // Capture the palette result separately so the comparator can verify theme changes,
+            // not just the default emerald screen and the closed palette picker.
+            await page.screenshot({ path: "out/web-after-gold-palette.png", fullPage: false });
             await page.getByRole("button", { name: "Abrir", exact: true }).click();
             await visible(heading("MEMÓRIA LOCAL"), "MEMÓRIA LOCAL");
             await page.getByPlaceholder("Nova informação…").fill("poco-f6-lab-temporary");
