@@ -387,7 +387,10 @@ jobs:
               timeout 12s adb pull /sdcard/lab-failure-screen.png out/lab-failure-screen.png >/dev/null 2>&1 || true
               timeout 12s adb logcat -d -t 2000 > out/native-logcat-tail.txt 2>&1 || true
               timeout 12s adb logcat -d -b crash > out/native-crash-buffer.txt 2>&1 || true
-              if [ -s out/current-ui.xml ]; then cp out/current-ui.xml out/lab-failure-ui-tree.xml; fi
+              timeout 12s adb shell uiautomator dump /sdcard/lab-failure-ui-tree.xml >/tmp/lab-failure-ui-dump.log 2>&1 || true
+              timeout 12s adb pull /sdcard/lab-failure-ui-tree.xml out/lab-failure-ui-tree-live.xml >/dev/null 2>&1 || true
+              cp /tmp/lab-failure-ui-dump.log out/lab-failure-ui-dump.log 2>/dev/null || true
+              if [ -s out/current-ui.xml ]; then cp out/current-ui.xml out/lab-ui-tree-before-failure.xml; fi
               if [ -s out/native-ui.xml ]; then cp out/native-ui.xml out/lab-last-known-ui-tree.xml; fi
             fi
             if [ -n "${EMULATOR_PID:-}" ]; then kill "$EMULATOR_PID" 2>/dev/null || true; fi
