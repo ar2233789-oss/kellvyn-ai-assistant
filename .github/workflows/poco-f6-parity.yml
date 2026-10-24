@@ -7,6 +7,8 @@ on:
       - "android/**"
       - "src/components/kellvyn/**"
       - "src/styles.css"
+      - "scripts/compare_poco_f6_captures.py"
+      - "scripts/test_compare_poco_f6_captures.py"
       - ".github/workflows/poco-f6-parity.yml"
   push:
     branches: [main]
@@ -275,6 +277,22 @@ jobs:
           path: out/*
           if-no-files-found: error
           retention-days: 14
+
+  lab-tooling-self-test:
+    name: Lab tooling self-test (no emulator required)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install visual comparison dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check pillow numpy
+      - name: Test screenshot diff, palette case and evidence report
+        timeout-minutes: 2
+        run: python scripts/test_compare_poco_f6_captures.py
 
   native-emulator-test:
     name: Android emulator boot, launch, and UI capture
@@ -1204,8 +1222,8 @@ jobs:
 
   compare-web-and-native-captures:
     name: Pixel-aligned web/native screenshot diff
-    needs: [web-build-and-capture, native-emulator-test]
-    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' }}
+    needs: [web-build-and-capture, lab-tooling-self-test, native-emulator-test]
+    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.lab-tooling-self-test.result == 'success' && needs.native-emulator-test.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -1223,9 +1241,6 @@ jobs:
       - name: Install visual comparison dependencies
         timeout-minutes: 3
         run: python -m pip install --disable-pip-version-check pillow numpy
-      - name: Validate the lab's own screenshot comparator
-        timeout-minutes: 3
-        run: python scripts/test_compare_poco_f6_captures.py
       - name: Compare main screen, settings and palette change without scaling
         timeout-minutes: 8
         run: |
