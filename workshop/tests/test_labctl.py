@@ -23,7 +23,7 @@ class LabCtlTests(unittest.TestCase):
             root = Path(td)
             source = root / "source"
             source.mkdir()
-            unsafe_name = "<script>alert(1)</script>.json"
+            unsafe_name = "<script>alert(1).json"
             (source / unsafe_name).write_text('{"msg":"diagnostic"}', encoding="utf-8")
             (source / "note.txt").write_text("diagnostic", encoding="utf-8")
             output = root / "report"
@@ -32,7 +32,7 @@ class LabCtlTests(unittest.TestCase):
             self.assertEqual(2, manifest["artifactCount"])
             html = (output / "index.html").read_text(encoding="utf-8")
             self.assertNotIn(unsafe_name, html)
-            self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt;.json", html)
+            self.assertIn("&lt;script&gt;alert(1).json", html)
             self.assertIn("android", html)
             self.assertTrue((output / "artifacts" / unsafe_name).is_file())
 
