@@ -303,6 +303,14 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      # The emulator's palette detector uses NumPy and Pillow. Install them in this
+      # job as well as the separate tooling job; GitHub Actions jobs do not share Python packages.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install native screenshot-analysis dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check numpy pillow
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
