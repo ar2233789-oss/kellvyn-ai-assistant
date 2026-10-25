@@ -274,9 +274,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-web-reference
-          path: out/*
+          # Only the screenshot and small machine-readable UI audit are needed downstream.
+          path: |
+            out/*.png
+            out/*.json
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
 
   lab-tooling-self-test:
     name: Lab tooling self-test (no emulator required)
@@ -376,7 +379,7 @@ jobs:
           set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk out/kellvyn-native-debug.apk
+          # The APK remains in Gradle's build output; keep the diagnostic artifact lightweight.
           # Preserve actionable diagnostics even when a UI action fails or times out.
           # Do not leave the next laboratory run guessing which dialog was left open.
           trap '
@@ -1272,9 +1275,17 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-native-emulator
-          path: out/*
+          # Capture evidence and diagnostics by type; never package the large debug APK here.
+          path: |
+            out/*.png
+            out/*.json
+            out/*.txt
+            out/*.xml
+            out/*.log
+            out/*.mp4
+            out/*.md
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 3
 
 
   compare-web-and-native-captures:
@@ -1360,4 +1371,4 @@ jobs:
           name: poco-f6-visual-comparison
           path: out/parity/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 3
