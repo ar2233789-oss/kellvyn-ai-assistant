@@ -276,7 +276,7 @@ jobs:
           name: poco-f6-web-reference
           path: out/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
 
   lab-tooling-self-test:
     name: Lab tooling self-test (no emulator required)
@@ -762,8 +762,8 @@ jobs:
                 timeout 10s adb shell input swipe 610 700 610 2200 450
                 sleep 1
               fi
-              remote_green="/sdcard/native-settings-emerald-scan-\${green_pass}.png"
-              local_green="out/native-settings-emerald-scan-\${green_pass}.png"
+              remote_green="/sdcard/native-settings-emerald-scan-${green_pass}.png"
+              local_green="out/native-settings-emerald-scan-${green_pass}.png"
               timeout 10s adb shell screencap -p "$remote_green"
               timeout 10s adb pull "$remote_green" "$local_green" >/dev/null
               GREEN_TAP="$(python3 - "$local_green" "$green_pass" <<'PY'
@@ -1274,7 +1274,7 @@ jobs:
           name: poco-f6-native-emulator
           path: out/*
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 1
 
 
   compare-web-and-native-captures:
@@ -1360,4 +1360,4 @@ jobs:
           name: poco-f6-visual-comparison
           path: out/parity/*
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 1
