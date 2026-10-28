@@ -22,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  actions: write
 
 # New commits supersede stale captures; never leave multiple runs fighting for runners.
 concurrency:
@@ -271,14 +270,12 @@ jobs:
           console.log(JSON.stringify({ interactionChecks: checks, pageErrors: errors }));
           await browser.close();
           NODE
-      - name: Upload web reference capture
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Save web reference captures to run cache
+        if: success()
+        uses: actions/cache/save@v4
         with:
-          name: poco-f6-web-reference
-          path: out/*
-          if-no-files-found: error
-          retention-days: 1
+          path: out
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
 
   lab-tooling-self-test:
     name: Lab tooling self-test (no emulator required)
@@ -289,28 +286,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Prune old Poco F6 lab captures to recover artifact quota
-        env:
-          GH_TOKEN: ${{ github.token }}
-        shell: bash
-        timeout-minutes: 3
-        run: |
-          set -euo pipefail
-          cutoff="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
-          # One bounded page keeps the cleanup quick; these lab runs produced many
-          # large duplicate screenshots. Each repeat cleans the next batch once newer
-          # entries have been retired, while preserving APK-release artifacts.
-          ids="$(gh api "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
-            --jq ".artifacts[] | select(.expired == false and .created_at < \"$cutoff\") | select(.name | startswith(\"poco-f6-\")) | .id")"
-          if [ -z "$ids" ]; then
-            echo "No stale Poco F6 evidence artifacts need pruning."
-          else
-            while IFS= read -r id; do
-              [ -n "$id" ] || continue
-              echo "Removing expired-in-practice lab evidence artifact id=$id"
-              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id" >/dev/null
-            done <<< "$ids"
-          fi
       - name: Install visual comparison dependencies
         timeout-minutes: 3
         run: python -m pip install --disable-pip-version-check pillow numpy pyyaml
@@ -323,7 +298,7 @@ jobs:
 
   native-emulator-test:
     name: Android emulator boot, launch, and UI capture
-    needs: [lab-tooling-self-test]
+    needs: [lab-tooling-self-test, web-build-and-capture]
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -394,6 +369,12 @@ jobs:
         timeout-minutes: 8
         working-directory: android
         run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+      - name: Restore web reference captures for same-run comparison
+        uses: actions/cache/restore@v4
+        with:
+          path: artifacts/web
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
       - name: Boot Android 15 virtual display, install APK and capture native UI
         timeout-minutes: 20
         shell: bash
@@ -1290,35 +1271,49 @@ jobs:
           timeout 15s adb shell dumpsys gfxinfo com.kellvyn.assistant framestats > out/native-gfxinfo-framestats.txt 2>&1 || true
           timeout 15s adb shell dumpsys battery > out/native-battery.txt 2>&1 || true
           echo "PASS: Android 15 AVD booted, app controls checked, color palette round-trip validated, four response controls exercised, UI captured and no startup crash."
-      - name: Upload native emulator capture and diagnostics
+      - name: Stage native screenshots and diagnostics for cache
         if: always()
-        uses: actions/upload-artifact@v4
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/evidence
+          for name in \
+            native-screen.png \
+            native-settings.png \
+            native-after-gold-palette.png \
+            native-after-emerald-restore.png \
+            native-settings-effects.png \
+            native-lightning.mp4 \
+            native-lightning-final.png \
+            native-response-controls.png \
+            native-controls.json \
+            native-crashes.txt \
+            native-after-response-controls.txt \
+            native-crash-buffer.txt \
+            native-logcat-tail.txt \
+            native-meminfo.txt \
+            native-gfxinfo-framestats.txt \
+            native-battery.txt \
+            lab-environment.json \
+            lab-failure-summary.txt \
+            lab-failure-screen.png \
+            native-settings-accessibility-warning.txt \
+            native-main-accessibility-warning.txt \
+            native-history-accessibility-warning.txt; do
+            if [ -f "out/$name" ]; then cp "out/$name" out/evidence/; fi
+          done
+          for file in out/native-prefs*.xml out/native-prefs-after-*.xml; do
+            if [ -f "$file" ]; then cp "$file" out/evidence/; fi
+          done
+          if [ ! -s out/evidence/native-screen.png ]; then
+            printf 'Native main-screen capture was not produced. See the native job logs.\n' > out/evidence/lab-evidence-missing.txt
+          fi
+      - name: Save native screenshots and diagnostics to run cache
+        if: always()
+        uses: actions/cache/save@v4
         with:
-          name: poco-f6-native-emulator
-          # Do not upload the APK here: it is a separate 60+ MB build output, not evidence.
-          # Keep the screenshots and diagnostics required for native/web parity and debugging.
-          path: |
-            out/native-screen.png
-            out/native-settings.png
-            out/native-after-gold-palette.png
-            out/native-after-emerald-restore.png
-            out/native-settings-effects.png
-            out/native-lightning.mp4
-            out/native-lightning-final.png
-            out/native-response-controls.png
-            out/native-controls.json
-            out/native-crashes.txt
-            out/native-crash-buffer.txt
-            out/native-logcat-tail.txt
-            out/lab-environment.json
-            out/lab-failure-summary.txt
-            out/lab-failure-screen.png
-            out/native-prefs*.xml
-            out/native-settings-accessibility-warning.txt
-            out/native-main-accessibility-warning.txt
-            out/native-history-accessibility-warning.txt
-          if-no-files-found: warn
-          retention-days: 1
+          path: out/evidence
+          key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
 
 
   compare-web-and-native-captures:
@@ -1329,16 +1324,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Download web screenshot captures
-        uses: actions/download-artifact@v4
+      - name: Restore web screenshot captures
+        uses: actions/cache/restore@v4
         with:
-          name: poco-f6-web-reference
           path: artifacts/web
-      - name: Download native emulator captures
-        uses: actions/download-artifact@v4
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Restore native emulator captures
+        uses: actions/cache/restore@v4
         with:
-          name: poco-f6-native-emulator
           path: artifacts/native
+          key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
       - name: Install visual comparison dependencies
         timeout-minutes: 3
         run: python -m pip install --disable-pip-version-check pillow numpy
@@ -1398,10 +1395,13 @@ jobs:
           Path("out/parity/lab-summary.md").write_text("\n".join(lines), encoding="utf-8")
           print("\n".join(lines))
           PY
-      - name: Upload comparison report, overlays and difference maps
-        uses: actions/upload-artifact@v4
-        with:
-          name: poco-f6-visual-comparison
-          path: out/parity/*
-          if-no-files-found: error
-          retention-days: 1
+      - name: Publish visual comparison summary in the workflow result
+        if: always()
+        shell: bash
+        run: |
+          if [ -s out/parity/lab-summary.md ]; then
+            cat out/parity/lab-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "# Poco F6 lab report" >> "$GITHUB_STEP_SUMMARY"
+            echo "Comparison report was not produced; inspect the previous step logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
