@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 # New commits supersede stale captures; never leave multiple runs fighting for runners.
 concurrency:
@@ -287,6 +288,25 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Prune old Poco F6 lab captures to recover artifact quota
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        timeout-minutes: 3
+        run: |
+          set -euo pipefail
+          cutoff="$(date -u -d '24 hours ago' +%Y-%m-%dT%H:%M:%SZ)"
+          ids="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/artifacts?per_page=100" \
+            --jq ".artifacts[] | select(.expired == false and .created_at < \"$cutoff\") | select(.name | startswith(\"poco-f6-\")) | .id")"
+          if [ -z "$ids" ]; then
+            echo "No stale Poco F6 evidence artifacts need pruning."
+          else
+            while IFS= read -r id; do
+              [ -n "$id" ] || continue
+              echo "Removing expired-in-practice lab evidence artifact id=$id"
+              gh api --method DELETE "repos/${GITHUB_REPOSITORY}/actions/artifacts/$id" >/dev/null
+            done <<< "$ids"
+          fi
       - name: Install visual comparison dependencies
         timeout-minutes: 3
         run: python -m pip install --disable-pip-version-check pillow numpy pyyaml
@@ -576,19 +596,17 @@ jobs:
           read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
           timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
           sleep 2
+          # Try accessibility once with a short timeout. This custom blurred Dialog is
+          # often absent from UIAutomator's tree on Android 15; repeated retries waste over
+          # two minutes despite the existing, verified screenshot/coordinate fallback.
           SETTINGS_READY=0
-          for attempt in $(seq 1 8); do
-            rm -f out/native-settings-ui.xml
-            timeout 10s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
-            if timeout 5s adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
-              timeout 10s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
-            fi
+          rm -f out/native-settings-ui.xml
+          timeout 5s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
+          if timeout 4s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 && test -s out/native-settings-ui.xml; then
             if grep -q "CONFIGURAÇÕES DO KELLVYN" out/native-settings-ui.xml 2>/dev/null; then
               SETTINGS_READY=1
-              break
             fi
-            sleep 1
-          done
+          fi
           timeout 10s adb shell screencap -p /sdcard/native-settings.png
           timeout 10s adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
           SETTINGS_ACCESSIBILITY=0
@@ -1272,7 +1290,28 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-native-emulator
-          path: out/*
+          # Do not upload the APK here: it is a separate 60+ MB build output, not evidence.
+          # Keep the screenshots and diagnostics required for native/web parity and debugging.
+          path: |
+            out/native-screen.png
+            out/native-settings.png
+            out/native-after-gold-palette.png
+            out/native-after-emerald-restore.png
+            out/native-settings-effects.png
+            out/native-lightning.mp4
+            out/native-lightning-final.png
+            out/native-response-controls.png
+            out/native-controls.json
+            out/native-crashes.txt
+            out/native-crash-buffer.txt
+            out/native-logcat-tail.txt
+            out/lab-environment.json
+            out/lab-failure-summary.txt
+            out/lab-failure-screen.png
+            out/native-prefs*.xml
+            out/native-settings-accessibility-warning.txt
+            out/native-main-accessibility-warning.txt
+            out/native-history-accessibility-warning.txt
           if-no-files-found: warn
           retention-days: 1
 
