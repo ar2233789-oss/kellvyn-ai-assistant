@@ -372,9 +372,16 @@ jobs:
       - name: Restore web reference captures for same-run comparison
         uses: actions/cache/restore@v4
         with:
-          path: artifacts/web
+          # Cache version includes the path, so it must match the web save path exactly.
+          path: out
           key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
+      - name: Stage restored web captures for native comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          cp out/web-reference.png out/web-settings.png out/web-after-gold-palette.png out/web-interaction-audit.json artifacts/web/
       - name: Boot Android 15 virtual display, install APK and capture native UI
         timeout-minutes: 20
         shell: bash
@@ -1327,15 +1334,28 @@ jobs:
       - name: Restore web screenshot captures
         uses: actions/cache/restore@v4
         with:
-          path: artifacts/web
+          path: out
           key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
+      - name: Stage restored web captures for comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          cp out/web-reference.png out/web-settings.png out/web-after-gold-palette.png out/web-interaction-audit.json artifacts/web/
       - name: Restore native emulator captures
         uses: actions/cache/restore@v4
         with:
-          path: artifacts/native
+          # Match the save path to keep the cache version identical.
+          path: out/evidence
           key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
           fail-on-cache-miss: true
+      - name: Stage restored native captures for comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/native
+          cp -a out/evidence/. artifacts/native/
       - name: Install visual comparison dependencies
         timeout-minutes: 3
         run: python -m pip install --disable-pip-version-check pillow numpy
@@ -1387,7 +1407,7 @@ jobs:
               "",
               "## How to review",
               "",
-              "Open each overlay, amplified difference image and side-by-side image in the artifacts. "
+              "Review the numeric differences below; overlay and difference-map files remain in the comparison runner workspace. "
               "Pixel metrics are diagnostic only; fonts and animated particles can differ naturally. "
               "The palette comparison checks screenshots after selecting the same gold preset on both builds.",
               "",
