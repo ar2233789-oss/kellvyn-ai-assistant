@@ -59,9 +59,11 @@ def main() -> int:
     require(not parser.external_resources, "workbench must not depend on external resources: " + ", ".join(parser.external_resources))
 
     required_ids = {
-        "page-home", "page-compare", "page-palette", "page-art", "page-space",
+        "page-home", "page-compare", "page-motion-audit", "page-palette", "page-art", "page-space",
         "page-motion", "page-logs", "page-report", "compareCanvas", "artCanvas",
-        "tesseract", "logInput", "reportFile", "exportSession",
+        "tesseract", "logInput", "reportFile", "exportSession", "channelThreshold",
+        "maxChangedPercent", "exportParityReport", "videoWebFile", "videoNativeFile",
+        "videoAuditChart", "analyzeEffectsBtn", "exportVideoAudit",
     }
     missing_ids = sorted(required_ids - set(parser.ids))
     require(not missing_ids, "missing required Studio sections/tools: " + ", ".join(missing_ids))
@@ -75,7 +77,8 @@ def main() -> int:
     must_contain = [
         "Comparar pixels", "Prancheta 720 × 440", "Tesserato", "Linha do tempo",
         "Logs / saída do build", "Exportar JSON", "Erro médio absoluto",
-        "Nenhuma alteração automática no app",
+        "Nenhuma alteração automática no app", "Aprovação rigorosa", "Analisador de efeitos",
+        "Gravação de referência", "Exigir flashes nesta captura", "Movimento entre quadros",
     ]
     for marker in must_contain:
         require(marker.casefold() in source.casefold(), "missing workbench feature marker: " + marker)
