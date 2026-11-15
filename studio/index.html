@@ -250,12 +250,12 @@ $("fileA").addEventListener("change",function(e){loadImageFile(e.target.files[0]
 function imageToCanvas(im){const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}
 let lastParityReport=null;
 function runCompare(){
-  if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";$("exportParityReport").disabled=true;return}
+  if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";$("exportParityReport").disabled=true;$("downloadCompare").disabled=true;$("downloadOverlay").disabled=true;return}
   if(imgA.naturalWidth!==imgB.naturalWidth||imgA.naturalHeight!==imgB.naturalHeight){
     $("compStatus").textContent="REPROVADO — dimensões diferentes";
     $("compStatus").style.color="var(--danger)";
     $("changed").textContent="—";$("mae").textContent="—";$("rmse").textContent="—";
-    $("exportParityReport").disabled=true;lastParityReport=null;drawCompareView();return
+    $("exportParityReport").disabled=true;$("downloadCompare").disabled=true;$("downloadOverlay").disabled=true;lastParityReport=null;drawCompareView();return
   }
   const a=imageToCanvas(imgA),b=imageToCanvas(imgB),w=a.width,h=a.height;
   const ac=a.getContext("2d").getImageData(0,0,w,h).data;
@@ -277,6 +277,7 @@ function runCompare(){
   ctx.putImageData(od,0,0);diffCanvas=out;
   overlayCanvas=document.createElement("canvas");overlayCanvas.width=w;overlayCanvas.height=h;
   const ox=overlayCanvas.getContext("2d");ox.drawImage(a,0,0);ox.globalAlpha=.5;ox.drawImage(b,0,0);ox.globalAlpha=1;
+  $("downloadCompare").disabled=false;$("downloadOverlay").disabled=false;
   const changedPercent=changed/pixels*100,mae=total/(pixels*3),rmse=Math.sqrt(sq/(pixels*3));
   const passed=changedPercent<=maxChangedPercent;
   $("changed").textContent=changedPercent.toFixed(3)+"%";
