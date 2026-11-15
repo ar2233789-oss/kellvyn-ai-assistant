@@ -301,21 +301,32 @@ function runCompare(){
   drawCompareView();noteSaved("Comparação concluída: "+(passed?"aprovada":"reprovada"));
 }
 $("compareBtn").addEventListener("click",runCompare);$("compMode").addEventListener("change",drawCompareView);$("opacity").addEventListener("input",function(){$("opacityLabel").textContent=this.value+"%";drawCompareView()});
+function canvasPngBlob(canvas){
+  const dataUrl=canvas.toDataURL("image/png");
+  const comma=dataUrl.indexOf(",");
+  if(comma<0)throw new Error("Canvas não produziu uma imagem PNG.");
+  const binary=atob(dataUrl.slice(comma+1));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return new Blob([bytes],{type:"image/png"});
+}
 $("downloadCompare").addEventListener("click",function(){
   if(!diffCanvas){$("exportStatus").textContent="Não há diferença calculada para exportar.";return}
-  diffCanvas.toBlob(function(blob){
-    if(!blob){$("exportStatus").textContent="Falha ao gerar PNG de diferença.";return}
+  $("exportStatus").textContent="Gerando PNG de diferença…";
+  try{
+    const blob=canvasPngBlob(diffCanvas);
     download("poco-f6-difference.png",blob);
     $("exportStatus").textContent="Diferença PNG exportada.";
-  },"image/png");
+  }catch(error){$("exportStatus").textContent="Falha ao exportar diferença: "+error.message}
 });
 $("downloadOverlay").addEventListener("click",function(){
   if(!overlayCanvas){$("exportStatus").textContent="Não há sobreposição calculada para exportar.";return}
-  overlayCanvas.toBlob(function(blob){
-    if(!blob){$("exportStatus").textContent="Falha ao gerar PNG de sobreposição.";return}
+  $("exportStatus").textContent="Gerando PNG de sobreposição…";
+  try{
+    const blob=canvasPngBlob(overlayCanvas);
     download("poco-f6-overlay.png",blob);
     $("exportStatus").textContent="Sobreposição PNG exportada.";
-  },"image/png");
+  }catch(error){$("exportStatus").textContent="Falha ao exportar sobreposição: "+error.message}
 });
 $("exportParityReport").addEventListener("click",function(){
   if(!lastParityReport){$("exportStatus").textContent="Não há relatório para exportar.";return}
