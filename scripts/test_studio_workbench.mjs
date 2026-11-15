@@ -42,10 +42,16 @@ try {
   await page.locator("#compMode").selectOption("overlay");
   assert.equal(await page.locator("#downloadCompare").isEnabled(), true, "difference export should be enabled after an image comparison");
   await page.locator("#downloadCompare").click();
-  await page.waitForFunction(() => document.querySelector("#exportStatus")?.textContent === "Diferença PNG exportada.", null, { timeout: 5000 });
+  await page.waitForTimeout(250);
+  const differenceExportState = await page.locator("#exportStatus").textContent();
+  console.log(JSON.stringify({ differenceExportState, pageErrors }));
+  assert.equal(differenceExportState, "Diferença PNG exportada.", "difference export state should confirm a valid PNG");
   assert.equal(await page.locator("#downloadOverlay").isEnabled(), true, "overlay export should be enabled after an image comparison");
   await page.locator("#downloadOverlay").click();
-  await page.waitForFunction(() => document.querySelector("#exportStatus")?.textContent === "Sobreposição PNG exportada.", null, { timeout: 5000 });
+  await page.waitForTimeout(250);
+  const overlayExportState = await page.locator("#exportStatus").textContent();
+  console.log(JSON.stringify({ overlayExportState, pageErrors }));
+  assert.equal(overlayExportState, "Sobreposição PNG exportada.", "overlay export state should confirm a valid PNG");
 
   // Animated effects: generate an entirely local synthetic WebM with movement and a bright flash.
   await page.locator('[data-page="motion-audit"]').click();
