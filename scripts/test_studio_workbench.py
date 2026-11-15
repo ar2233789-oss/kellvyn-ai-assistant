@@ -70,6 +70,7 @@ def main() -> int:
 
     script = "\n".join(parser.script_parts)
     require(script.strip(), "inline JavaScript was not found")
+    require("function drawCompareView(" in script, "screenshot comparison renderer is missing")
     literal_refs = set(re.findall(r'\$\("([A-Za-z0-9_-]+)"\)', script))
     missing_refs = sorted(literal_refs - set(parser.ids))
     require(not missing_refs, "JavaScript references unknown element ids: " + ", ".join(missing_refs))
