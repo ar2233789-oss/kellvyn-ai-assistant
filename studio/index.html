@@ -69,7 +69,7 @@
         <div class="control"><label for="channelThreshold">Tolerância por canal RGB</label><input class="field" type="number" id="channelThreshold" min="0" max="255" step="1" value="16"><span class="sub">Quanto cada canal pode variar antes de contar como pixel diferente.</span></div>
         <div class="control"><label for="maxChangedPercent">Máximo de pixels diferentes para aprovação (%)</label><input class="field" type="number" id="maxChangedPercent" min="0" max="100" step="0.01" value="0"><span class="sub">Padrão: 0%. Qualquer diferença reprova até que um limite explícito seja escolhido.</span></div>
       </div>
-      <div class="row" style="margin:8px 0"><button id="exportParityReport" disabled>Exportar relatório de aprovação JSON</button><span class="sub">O relatório registra dimensões, tolerância, diferença medida e critério usado.</span></div>
+      <div class="row" style="margin:8px 0"><button id="exportParityReport" disabled>Exportar relatório de aprovação JSON</button><span class="sub">O relatório registra dimensões, tolerância, diferença medida e critério usado.</span><span class="sub" id="exportStatus" aria-live="polite">Nenhuma exportação nesta sessão.</span></div>
       <pre class="result" id="parityReportPreview">O relatório de aprovação aparecerá aqui após comparar duas capturas.</pre>
       <div class="imagebox" style="min-height:260px"><canvas id="compareCanvas" class="compareCanvas" width="1000" height="600"></canvas></div>
       <div class="metricgrid" style="margin-top:12px">
@@ -301,9 +301,27 @@ function runCompare(){
   drawCompareView();noteSaved("Comparação concluída: "+(passed?"aprovada":"reprovada"));
 }
 $("compareBtn").addEventListener("click",runCompare);$("compMode").addEventListener("change",drawCompareView);$("opacity").addEventListener("input",function(){$("opacityLabel").textContent=this.value+"%";drawCompareView()});
-$("downloadCompare").addEventListener("click",function(){if(diffCanvas)diffCanvas.toBlob(function(b){if(b)download("poco-f6-difference.png",b)})});
-$("downloadOverlay").addEventListener("click",function(){if(overlayCanvas)overlayCanvas.toBlob(function(b){if(b)download("poco-f6-overlay.png",b)})});
-$("exportParityReport").addEventListener("click",function(){if(lastParityReport)downloadText("kellvyn-parity-report.json",JSON.stringify(lastParityReport,null,2),"application/json")});
+$("downloadCompare").addEventListener("click",function(){
+  if(!diffCanvas){$("exportStatus").textContent="Não há diferença calculada para exportar.";return}
+  diffCanvas.toBlob(function(blob){
+    if(!blob){$("exportStatus").textContent="Falha ao gerar PNG de diferença.";return}
+    download("poco-f6-difference.png",blob);
+    $("exportStatus").textContent="Diferença PNG exportada.";
+  },"image/png");
+});
+$("downloadOverlay").addEventListener("click",function(){
+  if(!overlayCanvas){$("exportStatus").textContent="Não há sobreposição calculada para exportar.";return}
+  overlayCanvas.toBlob(function(blob){
+    if(!blob){$("exportStatus").textContent="Falha ao gerar PNG de sobreposição.";return}
+    download("poco-f6-overlay.png",blob);
+    $("exportStatus").textContent="Sobreposição PNG exportada.";
+  },"image/png");
+});
+$("exportParityReport").addEventListener("click",function(){
+  if(!lastParityReport){$("exportStatus").textContent="Não há relatório para exportar.";return}
+  downloadText("kellvyn-parity-report.json",JSON.stringify(lastParityReport,null,2),"application/json");
+  $("exportStatus").textContent="Relatório JSON exportado.";
+});
 $("channelThreshold").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
 $("maxChangedPercent").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
 $("compareCanvas").width=1000;$("compareCanvas").height=600;drawCompareView();
