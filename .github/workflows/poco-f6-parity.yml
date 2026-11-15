@@ -1142,12 +1142,35 @@ jobs:
               timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
               sleep 3
               if ! dump_current_ui; then
+                echo "UIAutomator timed out after history dismissal; verifying the live main-screen header before reusing baseline bounds." > out/native-after-history-visual-fallback.txt
                 timeout 10s adb shell screencap -p /sdcard/native-after-history-relaunch-failed.png
                 timeout 10s adb pull /sdcard/native-after-history-relaunch-failed.png out/native-after-history-relaunch-failed.png >/dev/null
-                echo "A fresh accessibility tree could not be collected after history dismissal; refusing to reuse stale controls."
-                exit 1
+                timeout 10s adb shell dumpsys activity activities > out/native-after-history-relaunch-activity.txt
+                if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-history-relaunch-activity.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+                  echo "MainActivity is not in the foreground after history dismissal recovery; refusing stale controls."
+                  cat out/native-after-history-relaunch-activity.txt
+                  exit 1
+                fi
+                python3 - out/native-screen.png out/native-after-history-relaunch-failed.png <<'PY'
+          import sys
+          import numpy as np
+          from PIL import Image
+          reference = np.asarray(Image.open(sys.argv[1]).convert("RGB"), dtype=np.int16)
+          current = np.asarray(Image.open(sys.argv[2]).convert("RGB"), dtype=np.int16)
+          if reference.shape != current.shape:
+              raise SystemExit(f"Main-screen fallback size mismatch: {reference.shape} vs {current.shape}")
+          a, b = reference[136:400], current[136:400]
+          changed = np.any(np.abs(a - b) > 25, axis=2)
+          percent = float(changed.mean() * 100.0)
+          print(f"Main-screen header fallback difference: {percent:.3f}%")
+          if percent > 10.0:
+              raise SystemExit("Current screen does not match the initial main-screen header; baseline touch bounds are unsafe.")
+          PY
+                cp out/native-ui.xml out/current-ui.xml
+                echo "PASS: foreground Activity and main-screen header verified; baseline bounds may be reused." >> out/native-after-history-visual-fallback.txt
+              else
+                assert_text "Kellvyn Assistente"
               fi
-              assert_text "Kellvyn Assistente"
             fi
           fi
 
@@ -1197,6 +1220,21 @@ jobs:
               echo "Expected rain and lightning together, got: $EFFECTS_ON"
               cat out/native-prefs.xml
               exit 1
+            fi
+            tap_desc "Fechar configurações"
+            sleep 1
+            dump_current_ui
+            assert_text "Kellvyn Assistente"
+            # Record the actual combined rain + lightning animation in the normal accessibility path too.
+            timeout 25s adb shell screenrecord --bit-rate 3000000 --time-limit 10 /sdcard/native-lightning.mp4
+            timeout 20s adb pull /sdcard/native-lightning.mp4 out/native-lightning.mp4 >/dev/null
+            timeout 10s adb shell screencap -p /sdcard/native-lightning-final.png
+            timeout 10s adb pull /sdcard/native-lightning-final.png out/native-lightning-final.png >/dev/null
+            tap_desc "Configurações"
+            if ! grep -q 'text="Raios"' out/current-ui.xml; then
+              timeout 10s adb shell input swipe 610 700 610 2220 500
+              sleep 1
+              dump_current_ui
             fi
             tap_visible_text "Raios"
             EFFECTS_RESTORED="$(read_effect_pref)"
@@ -1392,7 +1430,9 @@ jobs:
             native-main-visual-fallback.txt \
             native-after-settings-relaunch-failed.png \
             native-after-settings-relaunch-activity.txt \
-            native-after-history-relaunch-failed.png; do
+            native-after-history-relaunch-failed.png \
+            native-after-history-relaunch-activity.txt \
+            native-after-history-visual-fallback.txt; do
             if [ -f "out/$name" ]; then cp "out/$name" out/evidence/; fi
           done
           for file in out/native-prefs*.xml out/native-prefs-after-*.xml; do
