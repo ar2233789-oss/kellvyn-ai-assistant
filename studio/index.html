@@ -249,6 +249,39 @@ function loadImageFile(file,side){if(!file)return;if(!file.type.startsWith("imag
 $("fileA").addEventListener("change",function(e){loadImageFile(e.target.files[0],"A")});$("fileB").addEventListener("change",function(e){loadImageFile(e.target.files[0],"B")});
 function imageToCanvas(im){const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}
 let lastParityReport=null;
+function drawCompareView(){
+  const canvas=$("compareCanvas"),ctx=canvas.getContext("2d"),mode=$("compMode").value;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!imgA||!imgB){
+    ctx.fillStyle="#8fa7ac";ctx.font="16px system-ui";ctx.textAlign="center";
+    ctx.fillText("Carregue as duas capturas para comparar",canvas.width/2,canvas.height/2);
+    return;
+  }
+  const same=imgA.naturalWidth===imgB.naturalWidth&&imgA.naturalHeight===imgB.naturalHeight;
+  if(!same){
+    ctx.fillStyle="#ff9aa4";ctx.font="16px system-ui";ctx.textAlign="center";
+    ctx.fillText("Dimensões incompatíveis — não há comparação pixel a pixel",canvas.width/2,canvas.height/2);
+    return;
+  }
+  const w=imgA.naturalWidth,h=imgA.naturalHeight;
+  const scale=Math.min(canvas.width/w,canvas.height/h);
+  const drawW=w*scale,drawH=h*scale,x=(canvas.width-drawW)/2,y=(canvas.height-drawH)/2;
+  if(mode==="side"){
+    const gap=12,sideScale=Math.min((canvas.width-gap)/(2*w),canvas.height/h);
+    const sideW=w*sideScale,sideH=h*sideScale,left=(canvas.width-(2*sideW+gap))/2,top=(canvas.height-sideH)/2;
+    ctx.drawImage(imgA,left,top,sideW,sideH);
+    ctx.drawImage(imgB,left+sideW+gap,top,sideW,sideH);
+    return;
+  }
+  if(mode==="diff"&&diffCanvas){
+    ctx.drawImage(diffCanvas,x,y,drawW,drawH);
+  }else{
+    ctx.globalAlpha=1;ctx.drawImage(imgA,x,y,drawW,drawH);
+    ctx.globalAlpha=Number($("opacity").value)/100;
+    ctx.drawImage(imgB,x,y,drawW,drawH);
+    ctx.globalAlpha=1;
+  }
+}
 function runCompare(){
   if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";$("exportParityReport").disabled=true;$("downloadCompare").disabled=true;$("downloadOverlay").disabled=true;return}
   if(imgA.naturalWidth!==imgB.naturalWidth||imgA.naturalHeight!==imgB.naturalHeight){
