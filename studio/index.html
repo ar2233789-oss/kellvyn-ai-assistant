@@ -20,6 +20,7 @@
   <div class="navlist">
   <button class="nav active" data-page="home"><span class="ico">⌂</span> Visão geral</button>
   <button class="nav" data-page="compare"><span class="ico">▧</span> Comparar telas</button>
+  <button class="nav" data-page="motion-audit"><span class="ico">ϟ</span> Efeitos animados</button>
   <button class="nav" data-page="palette"><span class="ico">◉</span> Paleta e luz</button>
   <button class="nav" data-page="art"><span class="ico">▤</span> Prancheta 2D</button>
   <button class="nav" data-page="space"><span class="ico">◇</span> 3D / 4D</button>
@@ -63,12 +64,57 @@
       </div>
       <div class="row" style="margin:13px 0"><button class="primary" id="compareBtn">Comparar pixels</button><button id="downloadCompare" disabled>Exportar diferença PNG</button><button id="downloadOverlay" disabled>Exportar sobreposição</button><label class="label">Modo <select class="field" id="compMode" style="width:auto;display:inline-block"><option value="overlay">Sobreposição</option><option value="diff">Diferença amplificada</option><option value="side">Lado a lado</option></select></label></div>
       <div class="control"><label>Opacidade da imagem nativa sobre a referência: <span id="opacityLabel">50%</span></label><input type="range" id="opacity" min="0" max="100" value="50"></div>
+      <div class="grid cols2" style="margin-top:12px">
+        <div class="control"><label for="channelThreshold">Tolerância por canal RGB</label><input class="field" type="number" id="channelThreshold" min="0" max="255" step="1" value="16"><span class="sub">Quanto cada canal pode variar antes de contar como pixel diferente.</span></div>
+        <div class="control"><label for="maxChangedPercent">Máximo de pixels diferentes para aprovação (%)</label><input class="field" type="number" id="maxChangedPercent" min="0" max="100" step="0.01" value="0"><span class="sub">Padrão: 0%. Qualquer diferença reprova até que um limite explícito seja escolhido.</span></div>
+      </div>
+      <div class="row" style="margin:8px 0"><button id="exportParityReport" disabled>Exportar relatório de aprovação JSON</button><span class="sub">O relatório registra dimensões, tolerância, diferença medida e critério usado.</span></div>
       <div class="imagebox" style="min-height:260px"><canvas id="compareCanvas" class="compareCanvas" width="1000" height="600"></canvas></div>
       <div class="metricgrid" style="margin-top:12px">
         <div class="metric"><small>Dimensões Web</small><b id="dimA">—</b></div><div class="metric"><small>Dimensões Nativo</small><b id="dimB">—</b></div><div class="metric"><small>Pixels > limiar</small><b id="changed">—</b></div>
         <div class="metric"><small>Erro médio absoluto</small><b id="mae">—</b></div><div class="metric"><small>Raiz do erro quadrático</small><b id="rmse">—</b></div><div class="metric"><small>Estado</small><b id="compStatus" style="font-size:13px">Aguardando</b></div>
       </div>
       <p class="sub">O limiar de diferença é 16 por canal RGB. As métricas só comparam pixels correspondentes quando as imagens possuem o mesmo tamanho; não são, sozinhas, uma aprovação visual.</p>
+    </div>
+  </section>
+  <section class="page" id="page-motion-audit">
+    <p class="intro">Analise gravações reais da referência e do APK nativo. O Studio amostra quadros no mesmo intervalo, mede movimento entre quadros e identifica aumentos súbitos de luminosidade compatíveis com flashes. Isso verifica atividade visual; a inspeção dos quadros continua necessária para julgar a aparência dos efeitos.</p>
+    <div class="grid cols2">
+      <div class="card">
+        <div class="between"><h2>Gravação de referência</h2><span class="badge" id="videoWebMeta">sem vídeo</span></div>
+        <input class="field" type="file" id="videoWebFile" accept="video/*">
+        <video id="videoWebPreview" controls muted playsinline preload="metadata" style="width:100%;max-height:260px;margin-top:10px;background:#05080a;border:1px solid var(--line);border-radius:10px"></video>
+        <p class="sub">Grave chuva/raios na interface original, com o mesmo estado e duração usados no APK.</p>
+      </div>
+      <div class="card">
+        <div class="between"><h2>Gravação do APK nativo</h2><span class="badge" id="videoNativeMeta">sem vídeo</span></div>
+        <input class="field" type="file" id="videoNativeFile" accept="video/*">
+        <video id="videoNativePreview" controls muted playsinline preload="metadata" style="width:100%;max-height:260px;margin-top:10px;background:#05080a;border:1px solid var(--line);border-radius:10px"></video>
+        <p class="sub">Use uma gravação feita no AVD ou no Poco F6 físico. O ADB pode capturar vídeo com screenrecord.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Parâmetros da análise</h2>
+      <div class="grid cols3">
+        <div class="control"><label for="videoSampleStep">Intervalo entre quadros (ms)</label><input class="field" id="videoSampleStep" type="number" min="100" max="1000" step="50" value="200"></div>
+        <div class="control"><label for="videoMotionThreshold">Variação mínima por pixel para contar movimento</label><input class="field" id="videoMotionThreshold" type="number" min="1" max="100" value="18"></div>
+        <div class="control"><label for="videoFlashThreshold">Aumento de luminosidade para sinalizar flash</label><input class="field" id="videoFlashThreshold" type="number" min="1" max="100" value="18"></div>
+      </div>
+      <div class="grid cols2">
+        <div class="control"><label for="videoMinActiveFrames">Mínimo de quadros com movimento (%)</label><input class="field" id="videoMinActiveFrames" type="number" min="0" max="100" step="1" value="20"></div>
+        <label class="row" style="align-items:center;margin:12px 0"><input type="checkbox" id="requireVideoFlash"> Exigir flashes nesta captura (ative ao testar raios)</label>
+      </div>
+      <div class="row"><button class="primary" id="analyzeEffectsBtn">Analisar movimento e flashes</button><button id="exportVideoAudit" disabled>Exportar relatório de animação JSON</button><span class="badge" id="videoAuditStatus">Aguardando gravações</span></div>
+      <div class="grid cols2" style="margin-top:14px">
+        <div class="metric"><small>Referência — atividade dos quadros</small><b id="videoWebActivity">—</b><small id="videoWebFlashes">Flashes: —</small></div>
+        <div class="metric"><small>APK — atividade dos quadros</small><b id="videoNativeActivity">—</b><small id="videoNativeFlashes">Flashes: —</small></div>
+      </div>
+      <div class="imagebox" style="margin-top:14px;padding:8px"><canvas id="videoAuditChart" width="960" height="300" style="width:100%;max-height:320px"></canvas></div>
+      <div class="grid cols2" style="margin-top:12px">
+        <div><h3>Resumo da referência</h3><pre class="result" id="videoWebResults">Nenhuma análise executada.</pre></div>
+        <div><h3>Resumo do APK</h3><pre class="result" id="videoNativeResults">Nenhuma análise executada.</pre></div>
+      </div>
+      <p class="sub">A análise limita-se a 30 segundos por gravação e no máximo 151 amostras. Um resultado sem movimento indica possível congelamento, não uma aprovação automática do desenho. Um flash detectado é um sinal de luminosidade, não uma classificação semântica de raio.</p>
     </div>
   </section>
   <section class="page" id="page-palette">
@@ -171,7 +217,7 @@ const $=function(id){return document.getElementById(id)};
 const safeText=function(v){return String(v==null?"":v)};
 const download=function(name,blob){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)};
 const downloadText=function(name,text,type){download(name,new Blob([text],{type:type||"text/plain;charset=utf-8"}))};
-const pages={home:"Visão geral da oficina",compare:"Comparador visual",palette:"Paleta e iluminação",art:"Prancheta 2D",space:"Laboratório 3D / 4D",motion:"Linha do tempo de animação",logs:"Logs e dependências",report:"Relatórios do laboratório"};
+const pages={home:"Visão geral da oficina",compare:"Comparador visual", "motion-audit":"Analisador de efeitos animados",palette:"Paleta e iluminação",art:"Prancheta 2D",space:"Laboratório 3D / 4D",motion:"Linha do tempo de animação",logs:"Logs e dependências",report:"Relatórios do laboratório"};
 function goto(name){document.querySelectorAll(".page").forEach(function(p){p.classList.toggle("active",p.id==="page-"+name)});document.querySelectorAll(".nav[data-page]").forEach(function(b){b.classList.toggle("active",b.dataset.page===name)});$("pagetitle").textContent=pages[name]||"Studio";if(name==="space")draw4d();if(name==="art")renderArt()}
 document.querySelectorAll(".nav[data-page]").forEach(function(b){b.addEventListener("click",function(){goto(b.dataset.page)})});
 document.querySelectorAll("[data-goto]").forEach(function(b){b.addEventListener("click",function(){goto(b.dataset.goto)})});
@@ -200,16 +246,196 @@ let imgA=null,imgB=null,diffCanvas=null,overlayCanvas=null;
 function loadImageFile(file,side){if(!file)return;if(!file.type.startsWith("image/")){alert("Selecione um arquivo de imagem.");return}const url=URL.createObjectURL(file),im=new Image();im.onload=function(){if(side==="A")imgA=im;else imgB=im;const box=$("box"+side);box.innerHTML="";const preview=document.createElement("img");preview.src=url;preview.alt=side==="A"?"Captura web":"Captura nativa";box.appendChild(preview);$("label"+side).textContent=file.name;$("dim"+side).textContent=im.naturalWidth+" × "+im.naturalHeight;$("dashshots").textContent=(imgA?1:0)+(imgB?1:0);$("compStatus").textContent=(imgA&&imgB)?"Prontas":"1 imagem";if(imgA&&imgB)runCompare()};im.onerror=function(){URL.revokeObjectURL(url);alert("Não foi possível abrir a imagem.")};im.src=url}
 $("fileA").addEventListener("change",function(e){loadImageFile(e.target.files[0],"A")});$("fileB").addEventListener("change",function(e){loadImageFile(e.target.files[0],"B")});
 function imageToCanvas(im){const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}
-function runCompare(){if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";return}if(imgA.naturalWidth!==imgB.naturalWidth||imgA.naturalHeight!==imgB.naturalHeight){$("compStatus").textContent="Tamanhos diferentes";$("changed").textContent="—";$("mae").textContent="—";$("rmse").textContent="—";drawCompareView();return}
-const a=imageToCanvas(imgA),b=imageToCanvas(imgB),w=a.width,h=a.height,ac=a.getContext("2d").getImageData(0,0,w,h).data,bc=b.getContext("2d").getImageData(0,0,w,h).data,out=document.createElement("canvas");out.width=w;out.height=h;const ctx=out.getContext("2d"),od=ctx.createImageData(w,h);let total=0,sq=0,changed=0,pixels=w*h;for(let i=0;i<ac.length;i+=4){let diff=0;for(let k=0;k<3;k++){const d=Math.abs(ac[i+k]-bc[i+k]);diff+=d;total+=d;sq+=d*d;od.data[i+k]=Math.min(255,d*4)}od.data[i+3]=255;if(Math.abs(ac[i]-bc[i])>16||Math.abs(ac[i+1]-bc[i+1])>16||Math.abs(ac[i+2]-bc[i+2])>16)changed++}
-ctx.putImageData(od,0,0);diffCanvas=out;overlayCanvas=document.createElement("canvas");overlayCanvas.width=w;overlayCanvas.height=h;const ox=overlayCanvas.getContext("2d");ox.drawImage(a,0,0);ox.globalAlpha=.5;ox.drawImage(b,0,0);ox.globalAlpha=1;$("changed").textContent=(changed/pixels*100).toFixed(2)+"%";$("mae").textContent=(total/(pixels*3)).toFixed(3);$("rmse").textContent=Math.sqrt(sq/(pixels*3)).toFixed(3);$("compStatus").textContent="Mesmo tamanho";$("compStatus").style.color="var(--ok)";drawCompareView();$("downloadCompare").disabled=false;$("downloadOverlay").disabled=false;noteSaved("Comparação executada")}
-function drawCompareView(){const c=$("compareCanvas"),ctx=c.getContext("2d"),mode=$("compMode").value;ctx.clearRect(0,0,c.width,c.height);if(!imgA||!imgB){ctx.fillStyle="#8fa7ac";ctx.font="16px system-ui";ctx.textAlign="center";ctx.fillText("Carregue as duas capturas para comparar",c.width/2,c.height/2);return}
-const same=imgA.naturalWidth===imgB.naturalWidth&&imgA.naturalHeight===imgB.naturalHeight;if(!same){ctx.fillStyle="#ff9aa4";ctx.font="16px system-ui";ctx.textAlign="center";ctx.fillText("Dimensões incompatíveis — não há comparação pixel a pixel",c.width/2,c.height/2);return}
-const w=imgA.naturalWidth,h=imgA.naturalHeight,scale=Math.min(c.width/w,c.height/h),dw=w*scale,dh=h*scale,x=(c.width-dw)/2,y=(c.height-dh)/2;if(mode==="side"){const gap=12,sideScale=Math.min((c.width-gap)/(2*w),c.height/h),sideW=w*sideScale,sideH=h*sideScale,left=(c.width-(2*sideW+gap))/2,top=(c.height-sideH)/2;ctx.drawImage(imgA,left,top,sideW,sideH);ctx.drawImage(imgB,left+sideW+gap,top,sideW,sideH);return}if(mode==="diff"&&diffCanvas)ctx.drawImage(diffCanvas,x,y,dw,dh);else{ctx.globalAlpha=1;ctx.drawImage(imgA,x,y,dw,dh);ctx.globalAlpha=Number($("opacity").value)/100;ctx.drawImage(imgB,x,y,dw,dh);ctx.globalAlpha=1}}
+let lastParityReport=null;
+function runCompare(){
+  if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";$("exportParityReport").disabled=true;return}
+  if(imgA.naturalWidth!==imgB.naturalWidth||imgA.naturalHeight!==imgB.naturalHeight){
+    $("compStatus").textContent="REPROVADO — dimensões diferentes";
+    $("compStatus").style.color="var(--danger)";
+    $("changed").textContent="—";$("mae").textContent="—";$("rmse").textContent="—";
+    $("exportParityReport").disabled=true;lastParityReport=null;drawCompareView();return
+  }
+  const a=imageToCanvas(imgA),b=imageToCanvas(imgB),w=a.width,h=a.height;
+  const ac=a.getContext("2d").getImageData(0,0,w,h).data;
+  const bc=b.getContext("2d").getImageData(0,0,w,h).data;
+  const out=document.createElement("canvas");out.width=w;out.height=h;
+  const ctx=out.getContext("2d"),od=ctx.createImageData(w,h);
+  const channelThreshold=Math.max(0,Math.min(255,Number($("channelThreshold").value)||0));
+  const maxChangedPercent=Math.max(0,Math.min(100,Number($("maxChangedPercent").value)||0));
+  let total=0,sq=0,changed=0,pixels=w*h;
+  for(let i=0;i<ac.length;i+=4){
+    let different=false;
+    for(let k=0;k<3;k++){
+      const d=Math.abs(ac[i+k]-bc[i+k]);total+=d;sq+=d*d;
+      od.data[i+k]=Math.min(255,d*4);
+      if(d>channelThreshold)different=true;
+    }
+    od.data[i+3]=255;if(different)changed++;
+  }
+  ctx.putImageData(od,0,0);diffCanvas=out;
+  overlayCanvas=document.createElement("canvas");overlayCanvas.width=w;overlayCanvas.height=h;
+  const ox=overlayCanvas.getContext("2d");ox.drawImage(a,0,0);ox.globalAlpha=.5;ox.drawImage(b,0,0);ox.globalAlpha=1;
+  const changedPercent=changed/pixels*100,mae=total/(pixels*3),rmse=Math.sqrt(sq/(pixels*3));
+  const passed=changedPercent<=maxChangedPercent;
+  $("changed").textContent=changedPercent.toFixed(3)+"%";
+  $("mae").textContent=mae.toFixed(3);$("rmse").textContent=rmse.toFixed(3);
+  $("compStatus").textContent=passed
+    ?(changed===0?"APROVADO — igualdade pixel a pixel":"APROVADO — dentro do limite configurado")
+    :"REPROVADO — diferença acima do limite";
+  $("compStatus").style.color=passed?"var(--ok)":"var(--danger)";
+  lastParityReport={
+    schema:"kellvyn-studio-parity-v2",createdAt:new Date().toISOString(),
+    status:passed?"passed":"failed",
+    method:"same-size pixel comparison; no resize or interpolation",
+    images:{reference:{name:$("labelA").textContent,width:w,height:h},native:{name:$("labelB").textContent,width:imgB.naturalWidth,height:imgB.naturalHeight}},
+    criteria:{channelThreshold:channelThreshold,maxChangedPercent:maxChangedPercent},
+    metrics:{changedPixels:changed,totalPixels:pixels,changedPixelsPercent:Number(changedPercent.toFixed(4)),meanAbsoluteError:Number(mae.toFixed(4)),rootMeanSquareError:Number(rmse.toFixed(4))},
+    exactPixelMatch:changed===0,
+    approvalNote:passed?(changed===0?"Exact pixel equality at the selected image dimensions.":"Within the user-configured tolerance; not exact pixel equality."):"Rejected by the configured changed-pixel limit."
+  };
+  $("exportParityReport").disabled=false;
+  drawCompareView();noteSaved("Comparação concluída: "+(passed?"aprovada":"reprovada"));
+}
 $("compareBtn").addEventListener("click",runCompare);$("compMode").addEventListener("change",drawCompareView);$("opacity").addEventListener("input",function(){$("opacityLabel").textContent=this.value+"%";drawCompareView()});
 $("downloadCompare").addEventListener("click",function(){if(diffCanvas)diffCanvas.toBlob(function(b){if(b)download("poco-f6-difference.png",b)})});
 $("downloadOverlay").addEventListener("click",function(){if(overlayCanvas)overlayCanvas.toBlob(function(b){if(b)download("poco-f6-overlay.png",b)})});
+$("exportParityReport").addEventListener("click",function(){if(lastParityReport)downloadText("kellvyn-parity-report.json",JSON.stringify(lastParityReport,null,2),"application/json")});
+$("channelThreshold").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
+$("maxChangedPercent").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
 $("compareCanvas").width=1000;$("compareCanvas").height=600;drawCompareView();
+
+
+/* ANIMATED EFFECT AUDIT — local video sampling, no external services */
+let videoAuditUrls={web:null,native:null},lastVideoAudit=null;
+function bindAuditVideo(file,side){
+  if(!file)return;
+  const video=side==="web"?$("videoWebPreview"):$("videoNativePreview");
+  const meta=side==="web"?$("videoWebMeta"):$("videoNativeMeta");
+  if(videoAuditUrls[side])URL.revokeObjectURL(videoAuditUrls[side]);
+  const url=URL.createObjectURL(file);videoAuditUrls[side]=url;video.src=url;video.load();
+  meta.textContent=file.name;
+  $("videoAuditStatus").textContent="Carregando "+(side==="web"?"referência":"APK")+"…";
+}
+$("videoWebFile").addEventListener("change",e=>bindAuditVideo(e.target.files[0],"web"));
+$("videoNativeFile").addEventListener("change",e=>bindAuditVideo(e.target.files[0],"native"));
+function waitVideoReady(video){
+  if(video.readyState>=2&&Number.isFinite(video.duration))return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{cleanup();reject(new Error("Vídeo não carregou ou não possui duração legível."))},12000);
+    function cleanup(){clearTimeout(timer);video.removeEventListener("loadeddata",ready);video.removeEventListener("error",failed)}
+    function ready(){cleanup();resolve()}
+    function failed(){cleanup();reject(new Error("Falha ao decodificar a gravação."))}
+    video.addEventListener("loadeddata",ready,{once:true});video.addEventListener("error",failed,{once:true});
+  });
+}
+function grabVideoFrame(video,time,canvas){
+  return new Promise((resolve,reject)=>{
+    const target=Math.max(0,Math.min(time,Math.max(0,video.duration-0.025)));
+    const draw=()=>{try{const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.drawImage(video,0,0,canvas.width,canvas.height);resolve(ctx.getImageData(0,0,canvas.width,canvas.height).data)}catch(error){reject(error)}};
+    if(Math.abs(video.currentTime-target)<0.01&&video.readyState>=2){draw();return}
+    const timer=setTimeout(()=>{video.removeEventListener("seeked",onSeek);reject(new Error("Tempo esgotado ao extrair quadro do vídeo."))},8000);
+    function onSeek(){clearTimeout(timer);video.removeEventListener("seeked",onSeek);draw()}
+    video.addEventListener("seeked",onSeek,{once:true});
+    try{video.currentTime=target}catch(error){clearTimeout(timer);video.removeEventListener("seeked",onSeek);reject(error)}
+  });
+}
+function frameLuminance(data){
+  let sum=0,bright=0;
+  for(let i=0;i<data.length;i+=4){const y=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];sum+=y;if(y>=210)bright++}
+  const pixels=data.length/4;return{mean:sum/pixels,brightPercent:bright/pixels*100};
+}
+async function auditOneVideo(video,stepMs,motionThreshold,flashThreshold){
+  await waitVideoReady(video);
+  const duration=Math.min(30,video.duration);
+  if(!Number.isFinite(duration)||duration<=0.15)throw new Error("Gravação curta demais para analisar.");
+  const w=120,h=68,canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+  const samples=[];let previous=null,previousLight=null,flashes=0;
+  const count=Math.min(151,Math.floor(duration*1000/stepMs)+1);
+  for(let index=0;index<count;index++){
+    const time=Math.min(index*stepMs/1000,Math.max(0,duration-.03));
+    const data=await grabVideoFrame(video,time,canvas);
+    const light=frameLuminance(data);
+    let motionPercent=0,flash=false;
+    if(previous){
+      let changed=0,pixels=data.length/4;
+      for(let i=0;i<data.length;i+=4){
+        const l1=.2126*previous[i]+.7152*previous[i+1]+.0722*previous[i+2];
+        const l2=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+        if(Math.abs(l2-l1)>=motionThreshold)changed++;
+      }
+      motionPercent=changed/pixels*100;
+      const meanJump=light.mean-previousLight.mean;
+      const brightJump=light.brightPercent-previousLight.brightPercent;
+      flash=meanJump>=flashThreshold&&brightJump>=0.25;
+      if(flash)flashes++;
+    }
+    samples.push({timeSeconds:Number(time.toFixed(3)),motionPercent:Number(motionPercent.toFixed(3)),meanLuminance:Number(light.mean.toFixed(2)),brightPixelPercent:Number(light.brightPercent.toFixed(3)),flash});
+    previous=data;previousLight=light;
+  }
+  const active=samples.filter(s=>s.motionPercent>=0.35);
+  const motionValues=samples.slice(1).map(s=>s.motionPercent);
+  const avg=motionValues.length?motionValues.reduce((a,b)=>a+b,0)/motionValues.length:0;
+  return{
+    durationSeconds:Number(duration.toFixed(3)),sampleIntervalMs:stepMs,sampleCount:samples.length,
+    activeFramePercent:Number((active.length/Math.max(1,samples.length-1)*100).toFixed(2)),
+    averageMotionPercent:Number(avg.toFixed(3)),
+    peakMotionPercent:Number(Math.max(0,...motionValues).toFixed(3)),
+    averageLuminance:Number((samples.reduce((a,s)=>a+s.meanLuminance,0)/samples.length).toFixed(2)),
+    flashesDetected:flashes,
+    movementDetected:active.length>0,
+    samples
+  };
+}
+function drawVideoAuditChart(web,native){
+  const canvas=$("videoAuditChart"),ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle="#081116";ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle="#263b44";ctx.lineWidth=1;
+  for(let y=0;y<=4;y++){const py=16+y*(h-48)/4;ctx.beginPath();ctx.moveTo(46,py);ctx.lineTo(w-18,py);ctx.stroke();ctx.fillStyle="#8fa7ac";ctx.font="12px system-ui";ctx.fillText(String(100-y*25)+"%",8,py+4)}
+  const maxDuration=Math.max(web.durationSeconds,native.durationSeconds,.1);
+  function draw(series,color){
+    ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+    series.samples.forEach((s,i)=>{const x=46+(w-64)*(s.timeSeconds/maxDuration),y=h-32-(h-48)*Math.min(100,s.motionPercent)/100;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+    ctx.stroke();
+  }
+  draw(web,"#38e6bc");draw(native,"#f0b35a");
+  ctx.fillStyle="#38e6bc";ctx.fillRect(54,h-17,14,4);ctx.fillStyle="#c8dfe0";ctx.fillText("Referência",74,h-13);
+  ctx.fillStyle="#f0b35a";ctx.fillRect(178,h-17,14,4);ctx.fillStyle="#c8dfe0";ctx.fillText("APK nativo",198,h-13);
+  ctx.fillStyle="#8fa7ac";ctx.fillText("Movimento entre quadros",w-220,15);
+}
+function renderVideoSummary(id,result,minActive,requireFlash){
+  const passed=result.activeFramePercent>=minActive&&(!requireFlash||result.flashesDetected>0);
+  const status=passed?"ATIVIDADE DETECTADA":"FALHA NO CRITÉRIO";
+  const summary={...result,gate:{minimumActiveFramePercent:minActive,flashRequired:requireFlash,passed},status};
+  $(id==="web"?"videoWebActivity":"videoNativeActivity").textContent=result.activeFramePercent.toFixed(1)+"% · "+status;
+  $(id==="web"?"videoWebFlashes":"videoNativeFlashes").textContent="Flashes: "+result.flashesDetected+" · pico de movimento: "+result.peakMotionPercent.toFixed(2)+"%";
+  $(id==="web"?"videoWebResults":"videoNativeResults").textContent=JSON.stringify(summary,null,2);
+  return summary;
+}
+$("analyzeEffectsBtn").addEventListener("click",async function(){
+  const webVideo=$("videoWebPreview"),nativeVideo=$("videoNativePreview");
+  if(!webVideo.src||!nativeVideo.src){$("videoAuditStatus").textContent="Faltam gravações";return}
+  this.disabled=true;$("videoAuditStatus").textContent="Analisando quadros…";
+  try{
+    const step=Math.max(100,Math.min(1000,Number($("videoSampleStep").value)||200));
+    const motion=Math.max(1,Math.min(100,Number($("videoMotionThreshold").value)||18));
+    const flash=Math.max(1,Math.min(100,Number($("videoFlashThreshold").value)||18));
+    const minActive=Math.max(0,Math.min(100,Number($("videoMinActiveFrames").value)||0));
+    const requireFlash=$("requireVideoFlash").checked;
+    const web=await auditOneVideo(webVideo,step,motion,flash);
+    const native=await auditOneVideo(nativeVideo,step,motion,flash);
+    const webSummary=renderVideoSummary("web",web,minActive,requireFlash);
+    const nativeSummary=renderVideoSummary("native",native,minActive,requireFlash);
+    drawVideoAuditChart(web,native);
+    const passed=webSummary.gate.passed&&nativeSummary.gate.passed;
+    lastVideoAudit={schema:"kellvyn-studio-motion-audit-v1",createdAt:new Date().toISOString(),status:passed?"passed":"failed",criteria:{sampleIntervalMs:step,pixelLuminanceDelta:motion,flashMeanLuminanceIncrease:flash,minimumActiveFramePercent:minActive,flashRequired:requireFlash},reference:webSummary,native:nativeSummary,limits:{maxDurationSeconds:30,maxSamples:151},warning:"Motion and luminance are objective activity signals, not semantic proof that the visual effect is correct."};
+    $("videoAuditStatus").textContent=passed?"ANÁLISE APROVADA":"ANÁLISE REPROVADA";
+    $("videoAuditStatus").style.color=passed?"var(--ok)":"var(--danger)";
+    $("exportVideoAudit").disabled=false;noteSaved("Gravações analisadas");
+  }catch(error){lastVideoAudit=null;$("videoAuditStatus").textContent="ERRO: "+error.message;$("videoAuditStatus").style.color="var(--danger)";$("exportVideoAudit").disabled=true}
+  finally{this.disabled=false}
+});
+$("exportVideoAudit").addEventListener("click",function(){if(lastVideoAudit)downloadText("kellvyn-motion-audit.json",JSON.stringify(lastVideoAudit,null,2),"application/json")});
+$("videoAuditChart").width=960;$("videoAuditChart").height=300;
 
 /* 2D ARTBOARD */
 const art=$("artCanvas"),actx=art.getContext("2d");let tool="pen",objects=[],draft=null,down=false,start=null;
