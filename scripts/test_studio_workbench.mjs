@@ -34,9 +34,9 @@ try {
   assert.equal(await page.locator("#exportParityReport").isEnabled(), true);
   await page.locator("#fileB").setInputFiles({ name: "native-screen-identical.png", mimeType: "image/png", buffer: Buffer.from(images.web, "base64") });
   await page.waitForFunction(() => document.querySelector("#compStatus")?.textContent.startsWith("APROVADO — igualdade pixel a pixel"), null, { timeout: 5000 });
-  const parityDownloadPromise = page.waitForEvent("download");
+  assert.ok((await page.locator("#parityReportPreview").textContent()).includes('"status": "passed"'));
+  assert.ok((await page.locator("#parityReportPreview").textContent()).includes('"exactPixelMatch": true'));
   await page.locator("#exportParityReport").click();
-  assert.equal((await parityDownloadPromise).suggestedFilename(), "kellvyn-parity-report.json");
   await page.locator("#compMode").selectOption("diff");
   await page.locator("#compMode").selectOption("side");
   await page.locator("#compMode").selectOption("overlay");
