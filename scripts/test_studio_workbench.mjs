@@ -29,8 +29,14 @@ try {
   });
   await page.locator("#fileA").setInputFiles({ name: "web-reference.png", mimeType: "image/png", buffer: Buffer.from(images.web, "base64") });
   await page.locator("#fileB").setInputFiles({ name: "native-screen.png", mimeType: "image/png", buffer: Buffer.from(images.native, "base64") });
-  await page.waitForFunction(() => document.querySelector("#compStatus")?.textContent === "Mesmo tamanho", null, { timeout: 5000 });
+  await page.waitForFunction(() => document.querySelector("#compStatus")?.textContent.startsWith("REPROVADO"), null, { timeout: 5000 });
   assert.notEqual(await page.locator("#changed").textContent(), "—");
+  assert.equal(await page.locator("#exportParityReport").isEnabled(), true);
+  await page.locator("#fileB").setInputFiles({ name: "native-screen-identical.png", mimeType: "image/png", buffer: Buffer.from(images.web, "base64") });
+  await page.waitForFunction(() => document.querySelector("#compStatus")?.textContent.startsWith("APROVADO — igualdade pixel a pixel"), null, { timeout: 5000 });
+  const parityDownloadPromise = page.waitForEvent("download");
+  await page.locator("#exportParityReport").click();
+  assert.equal((await parityDownloadPromise).suggestedFilename(), "kellvyn-parity-report.json");
   await page.locator("#compMode").selectOption("diff");
   await page.locator("#compMode").selectOption("side");
   await page.locator("#compMode").selectOption("overlay");
@@ -40,6 +46,58 @@ try {
   const overlayDownloadPromise = page.waitForEvent("download");
   await page.locator("#downloadOverlay").click();
   assert.equal((await overlayDownloadPromise).suggestedFilename(), "poco-f6-overlay.png");
+
+  // Animated effects: generate an entirely local synthetic WebM with movement and a bright flash.
+  await page.locator('[data-page="motion-audit"]').click();
+  await page.locator("#page-motion-audit.active").waitFor({ state: "visible", timeout: 5000 });
+  assert.equal(await page.locator("#analyzeEffectsBtn").isEnabled(), true);
+  const clip = await page.evaluate(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 96; canvas.height = 54;
+    const ctx = canvas.getContext("2d");
+    const stream = canvas.captureStream(12);
+    const mimeType = MediaRecorder.isTypeSupported("video/webm;codecs=vp8") ? "video/webm;codecs=vp8" : "video/webm";
+    const recorder = new MediaRecorder(stream, { mimeType });
+    const chunks = [];
+    const stopped = new Promise(resolve => {
+      recorder.ondataavailable = event => { if (event.data.size) chunks.push(event.data); };
+      recorder.onstop = () => resolve(new Blob(chunks, { type: mimeType }));
+    });
+    recorder.start();
+    for (let frame = 0; frame < 30; frame++) {
+      ctx.fillStyle = "#101820"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#38e6bc"; ctx.fillRect((frame * 3) % 84, 20, 12, 12);
+      if (frame >= 10 && frame <= 14) { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, canvas.width, canvas.height); }
+      await new Promise(resolve => setTimeout(resolve, 80));
+    }
+    recorder.stop();
+    const blob = await stopped;
+    stream.getTracks().forEach(track => track.stop());
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += 0x8000) {
+      binary += String.fromCharCode(...bytes.subarray(offset, Math.min(offset + 0x8000, bytes.length)));
+    }
+    return { type: blob.type || mimeType, base64: btoa(binary) };
+  });
+  const clipBuffer = Buffer.from(clip.base64, "base64");
+  await page.locator("#videoWebFile").setInputFiles({ name: "reference-effects.webm", mimeType: clip.type, buffer: clipBuffer });
+  await page.locator("#videoNativeFile").setInputFiles({ name: "native-effects.webm", mimeType: clip.type, buffer: clipBuffer });
+  await page.waitForFunction(() =>
+    document.querySelector("#videoWebPreview")?.readyState >= 2 &&
+    document.querySelector("#videoNativePreview")?.readyState >= 2, null, { timeout: 15000 });
+  await page.locator("#videoSampleStep").fill("200");
+  await page.locator("#videoMotionThreshold").fill("12");
+  await page.locator("#videoFlashThreshold").fill("12");
+  await page.locator("#videoMinActiveFrames").fill("10");
+  await page.locator("#requireVideoFlash").check();
+  await page.locator("#analyzeEffectsBtn").click();
+  await page.waitForFunction(() => document.querySelector("#videoAuditStatus")?.textContent.startsWith("ANÁLISE APROVADA"), null, { timeout: 20000 });
+  assert.ok(Number((await page.locator("#videoWebActivity").textContent()).split("%")[0]) > 0);
+  assert.ok((await page.locator("#videoNativeFlashes").textContent()).includes("Flashes:"));
+  const videoReportDownload = page.waitForEvent("download");
+  await page.locator("#exportVideoAudit").click();
+  assert.equal((await videoReportDownload).suggestedFilename(), "kellvyn-motion-audit.json");
 
   // Palette updates a color and preserves export behavior.
   await page.locator('[data-page="palette"]').click();
@@ -113,7 +171,8 @@ try {
     status: "PASS",
     checks: [
       "page initialization",
-      "screenshot image loading, pixel metrics, overlay/diff/side-by-side modes and exports",
+      "screenshot comparison with strict pass/fail gate and JSON evidence export",
+      "video sampling, motion/flash detection and animation audit JSON export",
       "palette editing and JSON export",
       "2D artboard text and PNG/SVG exports",
       "3D transform and 4D tesseract animation/export",
