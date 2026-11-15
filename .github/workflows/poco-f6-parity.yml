@@ -965,6 +965,45 @@ jobs:
             dump_current_ui
           }
           tap_text() { tap_control text "$1"; }
+          # Resolve visible text even when Android 15 exposes its row as a non-clickable TextView.
+          # Prefer the nearest clickable ancestor; if Android exposes none, tap the exact text bounds
+          # and verify the persisted preference immediately after the interaction.
+          tap_visible_text() {
+            local value="$1"
+            echo "[LAB] tap visible text with ancestor fallback: $value"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          parents = {child: parent for parent in root.iter() for child in parent}
+          nodes = [n for n in root.iter("node")
+                   if n.attrib.get("text", "").strip().casefold() == value.casefold()
+                   and n.attrib.get("enabled", "true") == "true"
+                   and n.attrib.get("bounds")]
+          if not nodes:
+              print(f"Visible text not found: {value}", file=sys.stderr)
+              sys.exit(2)
+          target = nodes[0]
+          current = target
+          while current is not None:
+              if current.attrib.get("clickable") == "true" and current.attrib.get("enabled", "true") == "true":
+                  target = current
+                  break
+              current = parents.get(current)
+          bounds = target.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4:
+              print(f"Invalid bounds for visible text: {value}", file=sys.stderr)
+              sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not resolve visible text target: $value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping visible text $value"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
           tap_desc() { tap_control desc "$1"; }
           # Dismiss native AlertDialogs by their stable Android button IDs instead of
           # matching theme-dependent labels such as "Fechar"/"FECHAR".
@@ -1075,11 +1114,11 @@ jobs:
           assert_text "Plugins"
           assert_text "Acesso à Web"
           WEB_BEFORE="$(read_web_pref)"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_AFTER="$(read_web_pref)"
           if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
           tap_desc "Anexos e Web"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_RESTORED="$(read_web_pref)"
           if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
 
@@ -1109,14 +1148,14 @@ jobs:
               sleep 1
               dump_current_ui
             fi
-            tap_text "Raios"
+            tap_visible_text "Raios"
             EFFECTS_ON="$(read_effect_pref)"
             if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
               echo "Expected rain and lightning together, got: $EFFECTS_ON"
               cat out/native-prefs.xml
               exit 1
             fi
-            tap_text "Raios"
+            tap_visible_text "Raios"
             EFFECTS_RESTORED="$(read_effect_pref)"
             if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
               echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
