@@ -1073,8 +1073,16 @@ jobs:
             if dump_current_ui; then
               assert_text "Kellvyn Assistente"
             else
-              echo "UIAutomator remained unavailable after closing settings; use the startup main-screen tree for the remaining main controls." > out/native-main-accessibility-warning.txt
-              cp out/native-ui.xml out/current-ui.xml
+              echo "UIAutomator timed out after closing settings; relaunching Kellvyn before collecting a fresh main-screen tree." > out/native-main-accessibility-warning.txt
+              timeout 10s adb shell am force-stop com.kellvyn.assistant
+              timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+              sleep 3
+              if ! dump_current_ui; then
+                timeout 10s adb shell screencap -p /sdcard/native-after-settings-relaunch-failed.png
+                timeout 10s adb pull /sdcard/native-after-settings-relaunch-failed.png out/native-after-settings-relaunch-failed.png >/dev/null
+                echo "A fresh accessibility tree could not be collected after relaunch; refusing to tap controls using stale coordinates."
+                exit 1
+              fi
               assert_text "Kellvyn Assistente"
             fi
           fi
@@ -1103,7 +1111,16 @@ jobs:
             if dump_current_ui; then
               assert_text "Kellvyn Assistente"
             else
-              cp out/native-ui.xml out/current-ui.xml
+              echo "UIAutomator timed out after dismissing history; relaunching before further interactions." > out/native-after-history-accessibility-warning.txt
+              timeout 10s adb shell am force-stop com.kellvyn.assistant
+              timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+              sleep 3
+              if ! dump_current_ui; then
+                timeout 10s adb shell screencap -p /sdcard/native-after-history-relaunch-failed.png
+                timeout 10s adb pull /sdcard/native-after-history-relaunch-failed.png out/native-after-history-relaunch-failed.png >/dev/null
+                echo "A fresh accessibility tree could not be collected after history dismissal; refusing to reuse stale controls."
+                exit 1
+              fi
               assert_text "Kellvyn Assistente"
             fi
           fi
