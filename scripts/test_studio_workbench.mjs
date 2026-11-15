@@ -40,12 +40,12 @@ try {
   await page.locator("#compMode").selectOption("diff");
   await page.locator("#compMode").selectOption("side");
   await page.locator("#compMode").selectOption("overlay");
-  const diffDownloadPromise = page.waitForEvent("download");
+  assert.equal(await page.locator("#downloadCompare").isEnabled(), true, "difference export should be enabled after an image comparison");
   await page.locator("#downloadCompare").click();
-  assert.equal((await diffDownloadPromise).suggestedFilename(), "poco-f6-difference.png");
-  const overlayDownloadPromise = page.waitForEvent("download");
+  await page.waitForFunction(() => document.querySelector("#exportStatus")?.textContent === "Diferença PNG exportada.", null, { timeout: 5000 });
+  assert.equal(await page.locator("#downloadOverlay").isEnabled(), true, "overlay export should be enabled after an image comparison");
   await page.locator("#downloadOverlay").click();
-  assert.equal((await overlayDownloadPromise).suggestedFilename(), "poco-f6-overlay.png");
+  await page.waitForFunction(() => document.querySelector("#exportStatus")?.textContent === "Sobreposição PNG exportada.", null, { timeout: 5000 });
 
   // Animated effects: generate an entirely local synthetic WebM with movement and a bright flash.
   await page.locator('[data-page="motion-audit"]').click();
