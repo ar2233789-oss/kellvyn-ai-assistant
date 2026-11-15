@@ -1498,7 +1498,14 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p out/parity
-          python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
+          COMPARE_STATUS=0
+          python scripts/compare_poco_f6_captures.py \
+            --web-dir artifacts/web \
+            --native-dir artifacts/native \
+            --output-dir out/parity \
+            --status-bar-top-px 136 \
+            --channel-threshold 16 \
+            --max-changed-pixels-percent 1.0 || COMPARE_STATUS=$?
           python - <<'PY'
           import json
           from pathlib import Path
@@ -1519,7 +1526,7 @@ jobs:
               lines.append(
                   f"| {item.get('name', 'unknown')} | {size} | "
                   f"{item.get('meanAbsoluteError', 'n/a')} | "
-                  f"{item.get('changedPixelsPercentAtThreshold16', 'n/a')}% |"
+                  f"{item.get('changedPixelsPercent', 'n/a')}% |"
               )
           evidence = data.get("evidence", {})
           web = evidence.get("webInteractionAudit", {})
@@ -1542,13 +1549,22 @@ jobs:
               "## How to review",
               "",
               "Review the numeric differences below; overlay and difference-map files remain in the comparison runner workspace. "
-              "Pixel metrics are diagnostic only; fonts and animated particles can differ naturally. "
-              "The palette comparison checks screenshots after selecting the same gold preset on both builds.",
+              f"- Maximum changed pixels per capture: {data.get('criteria', {}).get('maxChangedPixelsPercent', 'unknown')}%.",
+              f"- RGB channel threshold: {data.get('criteria', {}).get('channelThreshold', 'unknown')}.",
+              f"- Result: {'PASS' if data.get('passed') else 'FAIL'}.",
+              "",
+              "The visual threshold is an acceptance gate, not just a diagnostic. A pass means every required screenshot pair and evidence item met the configured criteria.",
+              "",
+              "Rejection reasons:",
+              *[f"- {reason}" for reason in data.get("failures", [])],
+              "",
+              "Review the uploaded overlays, amplified difference maps, cropped captures and parity-metrics.json.",
               "",
           ]
           Path("out/parity/lab-summary.md").write_text("\n".join(lines), encoding="utf-8")
           print("\n".join(lines))
           PY
+          exit "$COMPARE_STATUS"
       - name: Publish visual comparison summary in the workflow result
         if: always()
         shell: bash
@@ -1559,3 +1575,11 @@ jobs:
             echo "# Poco F6 lab report" >> "$GITHUB_STEP_SUMMARY"
             echo "Comparison report was not produced; inspect the previous step logs." >> "$GITHUB_STEP_SUMMARY"
           fi
+      - name: Upload comparison report, overlays and difference maps
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-visual-comparison
+          path: out/parity/**
+          if-no-files-found: warn
+          retention-days: 14
