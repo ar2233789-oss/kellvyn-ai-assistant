@@ -70,6 +70,7 @@
         <div class="control"><label for="maxChangedPercent">Máximo de pixels diferentes para aprovação (%)</label><input class="field" type="number" id="maxChangedPercent" min="0" max="100" step="0.01" value="0"><span class="sub">Padrão: 0%. Qualquer diferença reprova até que um limite explícito seja escolhido.</span></div>
       </div>
       <div class="row" style="margin:8px 0"><button id="exportParityReport" disabled>Exportar relatório de aprovação JSON</button><span class="sub">O relatório registra dimensões, tolerância, diferença medida e critério usado.</span></div>
+      <pre class="result" id="parityReportPreview">O relatório de aprovação aparecerá aqui após comparar duas capturas.</pre>
       <div class="imagebox" style="min-height:260px"><canvas id="compareCanvas" class="compareCanvas" width="1000" height="600"></canvas></div>
       <div class="metricgrid" style="margin-top:12px">
         <div class="metric"><small>Dimensões Web</small><b id="dimA">—</b></div><div class="metric"><small>Dimensões Nativo</small><b id="dimB">—</b></div><div class="metric"><small>Pixels > limiar</small><b id="changed">—</b></div>
@@ -294,6 +295,7 @@ function runCompare(){
     exactPixelMatch:changed===0,
     approvalNote:passed?(changed===0?"Exact pixel equality at the selected image dimensions.":"Within the user-configured tolerance; not exact pixel equality."):"Rejected by the configured changed-pixel limit."
   };
+  $("parityReportPreview").textContent=JSON.stringify(lastParityReport,null,2);
   $("exportParityReport").disabled=false;
   drawCompareView();noteSaved("Comparação concluída: "+(passed?"aprovada":"reprovada"));
 }
