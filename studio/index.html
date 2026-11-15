@@ -64,6 +64,7 @@
       </div>
       <div class="row" style="margin:13px 0"><button class="primary" id="compareBtn">Comparar pixels</button><button id="downloadCompare" disabled>Exportar diferença PNG</button><button id="downloadOverlay" disabled>Exportar sobreposição</button><label class="label">Modo <select class="field" id="compMode" style="width:auto;display:inline-block"><option value="overlay">Sobreposição</option><option value="diff">Diferença amplificada</option><option value="side">Lado a lado</option></select></label></div>
       <div class="control"><label>Opacidade da imagem nativa sobre a referência: <span id="opacityLabel">50%</span></label><input type="range" id="opacity" min="0" max="100" value="50"></div>
+      <h3>Aprovação rigorosa</h3>
       <div class="grid cols2" style="margin-top:12px">
         <div class="control"><label for="channelThreshold">Tolerância por canal RGB</label><input class="field" type="number" id="channelThreshold" min="0" max="255" step="1" value="16"><span class="sub">Quanto cada canal pode variar antes de contar como pixel diferente.</span></div>
         <div class="control"><label for="maxChangedPercent">Máximo de pixels diferentes para aprovação (%)</label><input class="field" type="number" id="maxChangedPercent" min="0" max="100" step="0.01" value="0"><span class="sub">Padrão: 0%. Qualquer diferença reprova até que um limite explícito seja escolhido.</span></div>
