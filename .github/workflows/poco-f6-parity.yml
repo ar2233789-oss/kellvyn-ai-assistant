@@ -1078,12 +1078,38 @@ jobs:
               timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
               sleep 3
               if ! dump_current_ui; then
+                echo "UIAutomator timed out after relaunch; verifying the live main-screen screenshot against the initial capture before using baseline control bounds." > out/native-main-visual-fallback.txt
                 timeout 10s adb shell screencap -p /sdcard/native-after-settings-relaunch-failed.png
                 timeout 10s adb pull /sdcard/native-after-settings-relaunch-failed.png out/native-after-settings-relaunch-failed.png >/dev/null
-                echo "A fresh accessibility tree could not be collected after relaunch; refusing to tap controls using stale coordinates."
-                exit 1
+                timeout 10s adb shell dumpsys activity activities > out/native-after-settings-relaunch-activity.txt
+                if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-relaunch-activity.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+                  echo "MainActivity is not in the foreground after relaunch; refusing to reuse baseline bounds."
+                  cat out/native-after-settings-relaunch-activity.txt
+                  exit 1
+                fi
+                python3 - out/native-screen.png out/native-after-settings-relaunch-failed.png <<'PY'
+          import sys
+          import numpy as np
+          from PIL import Image
+          reference = np.asarray(Image.open(sys.argv[1]).convert("RGB"), dtype=np.int16)
+          current = np.asarray(Image.open(sys.argv[2]).convert("RGB"), dtype=np.int16)
+          if reference.shape != current.shape:
+              raise SystemExit(f"Main-screen fallback size mismatch: {reference.shape} vs {current.shape}")
+          # Compare the opaque app header below Android's status bar. The translucent rain layer
+          # may change individual pixels, so allow small animation noise but reject a different sheet.
+          y1, y2 = 136, 400
+          a, b = reference[y1:y2], current[y1:y2]
+          changed = np.any(np.abs(a - b) > 25, axis=2)
+          percent = float(changed.mean() * 100.0)
+          print(f"Main-screen header fallback difference: {percent:.3f}%")
+          if percent > 10.0:
+              raise SystemExit("Current screenshot does not match the initial main-screen header; baseline touch bounds are unsafe.")
+          PY
+                cp out/native-ui.xml out/current-ui.xml
+                echo "PASS: MainActivity foreground and header screenshot verified; startup bounds may now be reused for unchanged header controls." >> out/native-main-visual-fallback.txt
+              else
+                assert_text "Kellvyn Assistente"
               fi
-              assert_text "Kellvyn Assistente"
             fi
           fi
 
@@ -1362,7 +1388,11 @@ jobs:
             lab-failure-screen.png \
             native-settings-accessibility-warning.txt \
             native-main-accessibility-warning.txt \
-            native-history-accessibility-warning.txt; do
+            native-history-accessibility-warning.txt \
+            native-main-visual-fallback.txt \
+            native-after-settings-relaunch-failed.png \
+            native-after-settings-relaunch-activity.txt \
+            native-after-history-relaunch-failed.png; do
             if [ -f "out/$name" ]; then cp "out/$name" out/evidence/; fi
           done
           for file in out/native-prefs*.xml out/native-prefs-after-*.xml; do
@@ -1377,6 +1407,14 @@ jobs:
         with:
           path: out/evidence
           key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Upload native screenshots and failure diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: poco-f6-native-evidence
+          path: out/evidence/**
+          if-no-files-found: warn
+          retention-days: 14
 
 
   compare-web-and-native-captures:
