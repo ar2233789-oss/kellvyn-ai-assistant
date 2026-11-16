@@ -84,7 +84,7 @@ internal class KellvynAgent(
                         continue
                     }
 
-                    val invalidArguments = tool.validate(decision.arguments)
+                    val invalidArguments = tools.validate(tool, decision.arguments)
                     if (invalidArguments != null) {
                         messages += observation(
                             "tool:${decision.name}",
@@ -94,7 +94,7 @@ internal class KellvynAgent(
                         continue
                     }
 
-                    val signature = tool.signature(decision.arguments)
+                    val signature = tools.signature(tool, decision.arguments)
                     val repetitions = (repeatedCalls[signature] ?: 0) + 1
                     repeatedCalls[signature] = repetitions
                     if (repetitions > config.maxSameCallRepeats) {
@@ -258,17 +258,17 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
     fun names(): Set<String> = registered.keys
     fun descriptions(): List<KellvynToolSpec> = registered.values.map { it.spec }
 
-    internal fun KellvynAgentTool.validate(arguments: Map<String, String>): String? {
-        val missing = spec.requiredArguments - arguments.keys
+    fun validate(tool: KellvynAgentTool, arguments: Map<String, String>): String? {
+        val missing = tool.spec.requiredArguments - arguments.keys
         if (missing.isNotEmpty()) return "faltam argumentos obrigatórios: ${missing.sorted().joinToString()}."
-        val unknown = arguments.keys - spec.allArguments
+        val unknown = arguments.keys - tool.spec.allArguments
         if (unknown.isNotEmpty()) return "argumentos não reconhecidos: ${unknown.sorted().joinToString()}."
         if (arguments.values.any { it.length > 4_000 }) return "um argumento excede 4000 caracteres."
         return null
     }
 
-    internal fun KellvynAgentTool.signature(arguments: Map<String, String>): String =
-        spec.name + "|" + arguments.toSortedMap().entries.joinToString("|") { "${it.key}=${it.value}" }
+    fun signature(tool: KellvynAgentTool, arguments: Map<String, String>): String =
+        tool.spec.name + "|" + arguments.toSortedMap().entries.joinToString("|") { "${it.key}=${it.value}" }
 }
 
 internal interface KellvynToolAuthorization {
