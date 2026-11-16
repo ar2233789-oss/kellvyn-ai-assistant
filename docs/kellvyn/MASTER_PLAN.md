@@ -5,7 +5,7 @@
 **Nome oficial da inteligência:** Kellvyn  
 **Branch de trabalho:** `lab/kellvyn-intelligence-core-20261116`  
 **Repositório de laboratório:** `ar2233789-oss/kellvyn-ai-assistant`  
-**Regra de distribuição:** o repositório antigo continua reservado para releases; não publicar nele mudanças experimentais.
+**Privacidade:** a Kellvyn será privada e de uso exclusivo do proprietário. Não há plano de publicação na Play Store nem de distribuição pública.
 
 ---
 
@@ -20,7 +20,7 @@ Desenvolver a inteligência Kellvyn como um sistema integrado capaz de:
 - programar, editar projetos, executar verificações, diagnosticar erros e iterar;
 - criar aplicativos Android, compilar APKs reais e verificar os artefatos;
 - trabalhar com documentos, imagens e outras modalidades na medida em que o modelo e o aparelho suportarem;
-- administrar automações e bots dentro das permissões e limitações legais do Android;
+- administrar automações, bots e integração com o dispositivo, respeitando as permissões explícitas do proprietário e os limites técnicos do Android;
 - executar tarefas no Poco F6 com funcionamento local e sem exigir hospedagem permanente.
 
 A interface aprovada do aplicativo é uma superfície de interação, não o cérebro. A sua estrutura visual, animações e controles protegidos não são alvo deste trabalho. As capacidades devem ser acionadas pela conversa principal e pelos controles que já existem, sem criar uma segunda IA ou um segundo chat.
@@ -54,7 +54,7 @@ A documentação de cada dependência, modelo, dataset, tokenizer, ferramenta e 
 9. Não colocar terminal irrestrito, shell genérico ou acesso arbitrário ao armazenamento à disposição do modelo.
 10. Ações com efeitos colaterais exigem políticas executadas no código e confirmação quando o risco exigir.
 11. Nenhum modelo, dataset, runtime ou código será escolhido somente pela popularidade. A decisão precisa de licença, compatibilidade, benchmark e justificativa.
-12. O laboratório não é o repositório de distribuição. Não publicar branches experimentais como APK final.
+12. O laboratório é privado e experimental. Não publicar builds experimentais como versões estáveis; o proprietário decide quando gerar e instalar um APK pessoal.
 
 ## 4. Arquitetura geral pretendida
 
@@ -191,7 +191,7 @@ O compilador que já existe no projeto só aceita um subconjunto de projetos And
 - imagem e PDF, dentro dos limites de memória;
 - documentos e código;
 - áudio/ditado e síntese de voz;
-- futura compreensão de tela, desde que os mecanismos Android e as políticas de distribuição permitam.
+- compreensão de tela, dentro das APIs e permissões realmente disponíveis no Android.
 
 ### F. Bots e automações
 - Telegram e Discord com tokens protegidos e runtime verificável;
@@ -199,8 +199,11 @@ O compilador que já existe no projeto só aceita um subconjunto de projetos And
 - WhatsApp somente quando existir uma integração oficial/compatível com infraestrutura exigida e termos verificados;
 - manter controle de ativação e interrupção pelo usuário.
 
-### G. Jogos e controle de dispositivo
-Esta é uma área de risco técnico e de política. O uso de AccessibilityService pelo Google Play não pode alimentar agentes que autonomamente iniciem, planejem e executem ações, exceto a exceção estreita para ferramentas realmente destinadas a acessibilidade. Portanto, não será implementada uma promessa de agente autônomo que controle qualquer app por AccessibilityService. Cada caso terá que ser projetado com APIs Android permitidas, escopo estreito, ação iniciada pelo usuário e análise de política antes de ser incluído na versão de Play Store.
+### G. Controle do dispositivo e ambientes interativos
+
+Como o projeto é privado, não vamos limitar a arquitetura por regras de publicação da Play Store. Podemos investigar integração por AccessibilityService, MediaProjection, intents, APIs de automação, ADB em ambiente de desenvolvimento e outras interfaces Android, sempre confirmando quais são tecnicamente disponíveis no Poco F6 e quais dependem de root, depuração ou permissões especiais.
+
+O agente deve conseguir operar interfaces e ambientes que o proprietário autorizar. A implementação terá níveis de acesso, visualização das ações, limites de risco, botão de interrupção e proteção contra ações irreversíveis acidentais. Não presumir que o Android permite controle irrestrito sem root ou sem permissões explícitas.
 
 ## 6. Como estudar e aproveitar cada referência
 
@@ -268,15 +271,16 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 
 **Gate:** vários projetos Android de complexidade crescente construídos e executados no aparelho. APK válido não é sinônimo de app funcional.
 
-### Fase 9 — ferramentas adicionais
-**Saídas:** Web, anexos, multimodalidade, bots, interface flutuante e outras capacidades já previstas.
+### Fase 9 — ferramentas e controle do dispositivo
+**Saídas:** Web, anexos, multimodalidade, bots, automação, integração com aplicativos e controle de dispositivo por mecanismos Android compatíveis.
 
-**Gate:** cada funcionalidade com permissão, política, teste e estado real. Itens proibidos pelo Play Store não entram na distribuição.
+**Gate:** cada funcionalidade passa por teste real no Poco F6, com permissões verificadas, interrupção funcional e logs.
 
-### Fase 10 — release Play Store
-**Saídas:** inventário de terceiros, avisos, licenças, SBOM, privacidade, Data Safety, permissões, screenshots originais, política de dados e pacote final assinado.
+### Fase 10 — consolidação privada e instalação no Poco F6
 
-**Gate:** auditoria jurídica/técnica e cumprimento das políticas vigentes do Google Play. A aprovação da loja não pode ser prometida de antemão.
+**Saídas:** build nativo pessoal, configuração local, gestão de dados, backup privado, recuperação, atualização controlada e documentação do proprietário.
+
+**Gate:** APK pessoal compilado, assinado e verificado; instalação e execução reais no Poco F6; nenhuma dependência obrigatória de hospedagem ou serviço de IA externo; dados e credenciais permanecem sob controle do proprietário.
 
 ## 8. Métricas e critérios de sucesso
 
@@ -301,13 +305,13 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 - Antes de editar: mapear os arquivos e os hashes que não podem mudar.
 - Depois de editar: diff, lint, testes, build e comparação visual/funcional conforme o escopo.
 - Falha de teste bloqueia a fase seguinte até ser entendida.
-- Alterações na branch de laboratório nunca são copiadas para produção sem gate de release.
+- Alterações da branch de laboratório só são promovidas para uma versão pessoal estável depois de passar pelos gates de teste.
 - Não reescrever história compartilhada nem force-push.
 - Registrar o motivo de uma decisão recusada para não a reintroduzir depois.
 
 ## 10. Estado de partida
 
-A branch atual é um rascunho de remoção/transição do runtime Gemma. Foram removidos dela `LocalBrain.kt`, `NativeModelPolicy.java`, o teste desse downloader e a primeira ferramenta experimental que estava acoplada à API LiteRT-LM. As chamadas antigas em `MainActivity.java` e `BotRuntimeService.kt` ainda precisam ser substituídas; o Gradle ainda inclui a biblioteca LiteRT-LM. Portanto, a branch não está pronta para build, não deve ser mesclada e não deve gerar APK de distribuição. O branch `main` de produção não foi modificado.
+A branch atual é um rascunho de remoção/transição do runtime Gemma. Foram removidos dela `LocalBrain.kt`, `NativeModelPolicy.java`, o teste desse downloader e a primeira ferramenta experimental que estava acoplada à API LiteRT-LM. As chamadas antigas em `MainActivity.java` e `BotRuntimeService.kt` ainda precisam ser substituídas; o Gradle ainda inclui a biblioteca LiteRT-LM. Portanto, a branch não está pronta para build, não deve ser mesclada nem usada para gerar APK pessoal até a substituição do runtime e dos contratos antigos. O branch `main` de produção não foi modificado.
 
 A próxima etapa segura é fechar a auditoria e decidir o contrato de integração do novo modelo/agente antes de substituir as chamadas antigas.
 
@@ -327,5 +331,3 @@ A próxima etapa segura é fechar a auditoria e decidir o contrato de integraç�
 - ExecuTorch: https://github.com/pytorch/executorch
 - llama.cpp: https://github.com/ggml-org/llama.cpp
 - MLC-LLM: https://github.com/mlc-ai/mlc-llm
-- Google Play IP policy: https://support.google.com/googleplay/android-developer/answer/9888072
-- Google Play AccessibilityService policy: https://support.google.com/googleplay/android-developer/answer/10964491
