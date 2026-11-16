@@ -38,12 +38,15 @@ A pesquisa foi transformada em módulos próprios. Não foram copiados código p
 - backup e transferência excluem o banco cuja chave é vinculada ao aparelho;
 - o agente consegue receber memórias explicitamente aprovadas como contexto não confiável e restrito ao projeto.
 
-### Contexto
+### Contexto e busca em projetos
 - `KellvynContextAssembler.kt`: orçamento determinístico de contexto;
 - mantém instruções de sistema e a última solicitação;
 - preserva ordem cronológica e metadados de confiança;
 - descarta mensagens antigas quando o orçamento não comporta tudo;
-- usa estimativa de caracteres, não contagem exata de tokens; o tokenizer real só poderá ser usado após integração neural.
+- `KellvynProjectContextRetriever.kt`: busca lexical no projeto explicitamente ativo, com limite de arquivos, trechos e resultados, filtros de caminhos/segredos e origem marcada como não confiável;
+- `ProjectWorkspaceStore.readFileExcerpt()`: lê trechos limitados sem carregar o arquivo inteiro;
+- `KellvynRuntime.createAgent()`: monta o agente com memória local e busca opcional do projeto ativo; a conversa principal ainda não chama essa fábrica porque não há backend neural conectado;
+- o orçamento de contexto usa estimativa de caracteres, não contagem exata de tokens; o tokenizer real só poderá ser usado após integração neural.
 
 ### Protótipo neural
 - `KellvynByteBrain.kt`: KBN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
@@ -58,12 +61,13 @@ As execuções concluídas do GitHub Actions passaram para:
 - montagem/limite de contexto;
 - protótipo KBN-001 e verificação de gradientes em execuções anteriores.
 
-O workflow executa testes unitários; não produz APK nem comprova execução no aparelho. A execução mais recente após o ajuste de chave composta precisa terminar antes de ser declarada aprovada.
+A execução `43928133784` passou após corrigir a interpolação do trecho com número de linha: os 80 testes unitários passaram naquele commit. A execução `43928462023` está validando também a fábrica do runtime. O workflow executa testes unitários; não produz APK nem comprova execução no aparelho.
 
 ## Limites e bloqueios que permanecem
 
 - `KellvynRuntime.kt` ainda não possui backend de inferência conversacional conectado;
-- o runtime instancia o repositório local de memória, mas o chat ainda não oferece operação de lembrar/apagar e não foi testado em aparelho;
+- a fábrica do runtime prepara memória e busca de projeto para um agente, mas `MainActivity` ainda não invoca essa fábrica; o chat ainda não oferece operação de lembrar/apagar e não foi testado em aparelho;
+- o armazenamento AES-GCM/Keystore e a leitura contextual do workspace ainda precisam de testes de integração Android em emulador/aparelho;
 - armazenamento AES-GCM/Keystore precisa de teste de integração Android real ou emulador; exportação/migração segura entre telefones ainda não existe;
 - a recuperação é lexical, não embeddings/busca semântica;
 - nenhuma base neural está selecionada; nenhum benchmark físico de modelo foi feito no Poco F6;
@@ -77,7 +81,7 @@ O workflow executa testes unitários; não produz APK nem comprova execução no
 1. terminar e inspecionar a execução CI atual;
 2. adicionar testes de persistência/criptografia com Android test harness;
 3. implementar armazenamento de checkpoints e histórico de tarefas com hashes;
-4. construir indexador de projetos e busca lexical de símbolos com limites de segurança;
+4. ampliar o indexador de projetos com mapa de símbolos/imports e cache incremental, preservando limites de segurança;
 5. melhorar esquemas de ferramentas e aprovação de ações mutáveis;
 6. preparar benchmark de qualidade e execução offline sem pré-selecionar modelo;
 7. desenhar interface de memória pelo chat principal sem tocar na aparência já aprovada;
