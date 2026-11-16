@@ -123,11 +123,11 @@ internal object KellvynTrainingPipeline {
     private const val MAX_TOTAL_CORPUS_BYTES = 500_000L
     private const val MAX_STEPS_PER_MODEL_CALL = 50_000L
     private val SECRET_ASSIGNMENT = Regex(
-        """(?i)\\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\\b\\s*[:=]\\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
+        """(?i)\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\b\s*[:=]\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
     )
-    private val BEARER_TOKEN = Regex("""(?i)\\bauthorization\\s*:\\s*bearer\\s+[A-Za-z0-9._~+/=-]{12,}""")
+    private val BEARER_TOKEN = Regex("""(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}""")
     private val PRIVATE_KEY = Regex("""-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----""")
-    private val KNOWN_TOKEN = Regex("""\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\\b""")
+    private val KNOWN_TOKEN = Regex("""\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\b""")
 
     fun train(
         documents: List<KellvynTrainingDocument>,
