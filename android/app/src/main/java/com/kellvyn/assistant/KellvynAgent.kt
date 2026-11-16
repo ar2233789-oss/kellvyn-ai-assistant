@@ -172,11 +172,13 @@ internal class KellvynAgent(
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 val cancelledState = taskPlanner.cancel(running)
-                repository.append(
-                    state = cancelledState,
-                    createdAtMillis = System.currentTimeMillis(),
-                    expectedPreviousSha256 = startedCheckpoint.sha256
-                )
+                runCatching {
+                    repository.append(
+                        state = cancelledState,
+                        createdAtMillis = System.currentTimeMillis(),
+                        expectedPreviousSha256 = startedCheckpoint.sha256
+                    )
+                }
             }
             throw cancelled
         } catch (error: Exception) {
@@ -200,11 +202,13 @@ internal class KellvynAgent(
             } catch (cancelled: CancellationException) {
                 withContext(NonCancellable) {
                     val cancelledState = taskPlanner.cancel(running)
-                    repository.append(
-                        state = cancelledState,
-                        createdAtMillis = System.currentTimeMillis(),
-                        expectedPreviousSha256 = startedCheckpoint.sha256
-                    )
+                    runCatching {
+                        repository.append(
+                            state = cancelledState,
+                            createdAtMillis = System.currentTimeMillis(),
+                            expectedPreviousSha256 = startedCheckpoint.sha256
+                        )
+                    }
                 }
                 throw cancelled
             } catch (_: Exception) {
@@ -257,6 +261,7 @@ internal class KellvynAgent(
     suspend fun executeReadySteps(
         taskId: String,
         verifiersByStepId: Map<String, KellvynIndependentVerifier>,
+        argumentsByStepId: Map<String, Map<String, String>> = emptyMap(),
         maxSteps: Int = 8
     ): KellvynAgentResult {
         require(maxSteps in 1..MAX_AUTOMATED_PLAN_STEPS)
@@ -293,7 +298,7 @@ internal class KellvynAgent(
                 taskId = taskId,
                 stepId = nextStep.id,
                 toolName = toolName,
-                arguments = emptyMap(),
+                arguments = argumentsByStepId[nextStep.id].orEmpty(),
                 verifier = verifier
             )
             if (result !is KellvynAgentResult.Planned) return result
