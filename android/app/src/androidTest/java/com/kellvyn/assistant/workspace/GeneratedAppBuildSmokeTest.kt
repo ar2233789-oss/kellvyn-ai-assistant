@@ -20,7 +20,8 @@ import java.io.File
 class GeneratedAppBuildSmokeTest {
 
     @Test
-    fun generatedNativeJavaProjectBuildsAndExportsSignedApkForDeviceTest() = runBlocking {
+    fun generatedNativeJavaProjectBuildsAndExportsSignedApkForDeviceTest() {
+        runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val workspace = ProjectWorkspaceStore(context)
 
@@ -152,6 +153,7 @@ class GeneratedAppBuildSmokeTest {
         assertTrue("Não foi possível preparar a pasta de artefatos de teste.",
             artifactDirectory.mkdirs() || artifactDirectory.isDirectory)
         builtApk.copyTo(File(artifactDirectory, "generated-app.apk"), overwrite = true)
+        }
     }
 
     private fun fileBlock(path: String, language: String, source: String): String {
