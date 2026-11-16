@@ -40,47 +40,21 @@ A regra de autoria é:
 9. **Checkpoints e rollback:** nunca depender de uma única alteração irreversível.
 10. **Avaliação por tarefa:** medir se o objetivo foi concluído e verificado, não se a resposta parece convincente.
 
-## 3. Modelos de pesos abertos em avaliação
+## 3. Fundação neural: decisão em aberto
 
-### Gemma 4 E2B — prioridade alta para teste móvel
+Nenhum modelo de terceiros foi escolhido, baixado ou integrado como cérebro da Kellvyn. A identidade da inteligência, a arquitetura cognitiva, o agente, a memória, as políticas, a integração com Android e o sistema de validação pertencem ao projeto Kellvyn.
 
-- Autor: Google DeepMind.
-- Licença declarada pelo model card: Apache 2.0.
-- Capacidades publicadas: texto, imagem e áudio; modo de pensamento; chamadas estruturadas de ferramentas; código; contexto de até 128K para a variante pequena.
-- Tamanho declarado: 2,3B parâmetros efetivos e 5,1B contando embeddings.
-- Há pesos oficiais QAT específicos para celular. A documentação informa footprint aproximado de 1,1 GB para a variante mobile e 0,84 GB para mobile somente texto; o cache de contexto e o restante do app exigem RAM adicional.
-- O Google publica amostras Android com LiteRT-LM, CPU/GPU e fallback; existe amostra multimodal de texto, imagem e áudio.
-- Limitação: a existência de pacote mobile não prova desempenho, estabilidade térmica nem suporte a aceleração no Poco F6. Precisa ser medido nesse aparelho.
+A pesquisa de componentes externos permanece separada e só poderá avançar mediante avaliação técnica e jurídica específica. Não haverá seleção automática de um modelo externo apenas porque possui uma versão móvel ou uma licença permissiva.
 
-Fontes oficiais:
-- Model card: https://ai.google.dev/gemma/docs/core/model_card_4
-- Modelo, quantização e memória: https://ai.google.dev/gemma/docs/core
-- Amostra Android: https://github.com/google-ai-edge/litert-samples/tree/main/samples/litert/qualcomm/gemma4/cpu_gpu
-- Pesos mobile QAT: https://huggingface.co/google/gemma-4-E2B-it-qat-mobile-transformers
+Qualquer eventual aproveitamento de pesos ou código deverá:
+- estar oficialmente disponível para o uso pretendido;
+- ter licença, termos, autores, versão e hashes verificados;
+- preservar atribuições e avisos exigidos;
+- manter claro o que é componente externo e o que foi desenvolvido no projeto;
+- passar por testes de português, raciocínio, código, ferramentas, consumo de memória e estabilidade;
+- poder ser substituído sem reescrever a identidade ou a arquitetura cognitiva da Kellvyn.
 
-### Qwen3.5-2B — comparação secundária
-
-- Autor: Alibaba Cloud / Qwen.
-- Licença declarada nos repositórios oficiais: Apache 2.0.
-- O model card descreve um modelo de 2B parâmetros, multimodal com encoder de visão e contexto nativo de 262.144 tokens.
-- O Qualcomm AI Hub lista um pacote Q4_0 de cerca de 1,21 GB em sua página do modelo, mas a página mobile consultada atualmente informa que o modelo não é suportado em chipsets móveis.
-- Portanto, não está aprovado para o Poco F6. Pode permanecer como comparação em CPU/GPU se existir runtime compatível, sem presumir aceleração NPU nem desempenho móvel.
-
-Fontes:
-- Model card: https://huggingface.co/Qwen/Qwen3.5-2B
-- Qualcomm AI Hub: https://aihub.qualcomm.com/mobile/models/qwen3_5_2b
-
-### Outros modelos
-
-A pesquisa não termina nesses dois. Candidatos adicionais serão aceitos somente quando houver:
-- pesos realmente disponíveis;
-- licença e termos verificáveis;
-- idioma português e desempenho nas tarefas desejadas;
-- formato e runtime compatíveis com Android/ARM64;
-- consumo medido em dispositivo;
-- capacidade de uso local sem serviço obrigatório em nuvem.
-
-Não escolher por ranking, nome ou quantidade de parâmetros isoladamente.
+Não copiar produtos, mecanismos privados, prompts internos ou pesos não autorizados. Não apresentar componente de terceiros como criação integral da Kellvyn.
 
 ## 4. Como será feita a escolha do cérebro local
 
