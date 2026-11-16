@@ -1,5 +1,6 @@
 package com.kellvyn.assistant.neural
 
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -92,6 +93,7 @@ internal class KellvynByteBrain private constructor(
         private const val PAD_TOKEN = VOCABULARY_SIZE
         private const val CHECKPOINT_MAGIC = 0x4B4C564E
         private const val CHECKPOINT_VERSION = 1
+        private const val CHECKSUM_BYTES = 32
         private const val GRADIENT_CLIP = 5.0
 
         /** Creates every trainable parameter from this project's seeded initializer. */
@@ -128,7 +130,18 @@ internal class KellvynByteBrain private constructor(
 
         /** Restores only this project's versioned KLVN checkpoint format. */
         fun readCheckpoint(input: InputStream): KellvynByteBrain {
-            val data = DataInputStream(input)
+            val checkpoint = input.readBytes()
+            require(checkpoint.size > CHECKSUM_BYTES) { "Checkpoint Kellvyn incompleto." }
+
+            val payloadSize = checkpoint.size - CHECKSUM_BYTES
+            val payload = checkpoint.copyOfRange(0, payloadSize)
+            val storedDigest = checkpoint.copyOfRange(payloadSize, checkpoint.size)
+            val actualDigest = MessageDigest.getInstance("SHA-256").digest(payload)
+            require(MessageDigest.isEqual(storedDigest, actualDigest)) {
+                "A integridade do checkpoint Kellvyn não confere."
+            }
+
+            val data = DataInputStream(ByteArrayInputStream(payload))
             require(data.readInt() == CHECKPOINT_MAGIC) {
                 "Checkpoint não pertence ao formato próprio da Kellvyn."
             }
@@ -148,7 +161,7 @@ internal class KellvynByteBrain private constructor(
             val hiddenWeightCount = config.contextLength * config.embeddingSize * config.hiddenSize
             val outputWeightCount = config.hiddenSize * VOCABULARY_SIZE
 
-            return KellvynByteBrain(
+            val model = KellvynByteBrain(
                 config,
                 readFloatArray(data, embeddingCount),
                 readFloatArray(data, hiddenWeightCount),
@@ -157,6 +170,8 @@ internal class KellvynByteBrain private constructor(
                 readFloatArray(data, VOCABULARY_SIZE),
                 steps
             )
+            require(data.available() == 0) { "Checkpoint contém dados inesperados." }
+            return model
         }
 
         private fun fillUniform(target: FloatArray, random: Random, limit: Float) {
@@ -330,7 +345,8 @@ internal class KellvynByteBrain private constructor(
     }
 
     fun writeCheckpoint(output: OutputStream) {
-        val data = DataOutputStream(output)
+        val payloadBuffer = ByteArrayOutputStream()
+        val data = DataOutputStream(payloadBuffer)
         data.writeInt(CHECKPOINT_MAGIC)
         data.writeInt(CHECKPOINT_VERSION)
         data.writeInt(config.contextLength)
@@ -344,6 +360,12 @@ internal class KellvynByteBrain private constructor(
         writeFloatArray(data, outputWeights)
         writeFloatArray(data, outputBias)
         data.flush()
+
+        val payload = payloadBuffer.toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(payload)
+        output.write(payload)
+        output.write(checksum)
+        output.flush()
     }
 
     /** Stable fingerprint for tests and checkpoint provenance. */
