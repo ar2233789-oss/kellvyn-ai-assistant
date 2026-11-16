@@ -110,6 +110,7 @@ internal class KellvynAttentionLanguageModel private constructor(
         private const val CHECKSUM_BYTES = 32
         private const val MAX_CHECKPOINT_BYTES = 64 * 1024 * 1024
         private const val MAX_TRAINING_TOKENS = 100_000
+        private const val MAX_GENERATION_INPUT_TOKENS = 100_000
         private const val MAX_TRAINING_STEPS_PER_CALL = 50_000L
         private const val GRADIENT_CLIP_NORM = 1.0
         private const val BETA1 = 0.9
@@ -148,7 +149,7 @@ internal class KellvynAttentionLanguageModel private constructor(
 
         /** Restores the model, including optimizer moments, from its own bounded format. */
         fun readCheckpoint(input: InputStream): KellvynAttentionLanguageModel {
-            val bytes = input.readBytes()
+            val bytes = readBounded(input)
             require(bytes.size in (CHECKSUM_BYTES + 32)..MAX_CHECKPOINT_BYTES) {
                 "Checkpoint neural inválido ou acima do limite."
             }
@@ -193,6 +194,30 @@ internal class KellvynAttentionLanguageModel private constructor(
                 trainingSteps,
                 optimizerSteps
             )
+        }
+
+        private fun readBounded(input: InputStream): ByteArray {
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(8192)
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (count == 0) {
+                    val single = input.read()
+                    if (single < 0) break
+                    require(total < MAX_CHECKPOINT_BYTES) { "Checkpoint neural acima do limite." }
+                    output.write(single)
+                    total++
+                } else {
+                    require(total <= MAX_CHECKPOINT_BYTES - count) {
+                        "Checkpoint neural acima do limite."
+                    }
+                    output.write(buffer, 0, count)
+                    total += count
+                }
+            }
+            return output.toByteArray()
         }
 
         private fun randomArray(size: Int, random: Random, limit: Float): FloatArray =
@@ -344,6 +369,9 @@ internal class KellvynAttentionLanguageModel private constructor(
     /** Greedy autoregressive generation for early KBN-002 experiments. */
     fun generate(prefixTokenIds: IntArray, maxNewTokens: Int): IntArray {
         require(prefixTokenIds.isNotEmpty())
+        require(prefixTokenIds.size <= MAX_GENERATION_INPUT_TOKENS) {
+            "Prefixo de geração acima do limite."
+        }
         require(prefixTokenIds.all { it in 0 until config.vocabularySize })
         require(maxNewTokens in 0..4096)
         val output = prefixTokenIds.toMutableList()
