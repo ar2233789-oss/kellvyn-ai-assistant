@@ -137,3 +137,12 @@ O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de b
 - A implementação é experimental e ainda não foi aprovada pelo CI nem medida no Poco F6. É um tokenizer, não um modelo neural completo. O caminho de codificação aplica merges em sequência e precisa ser otimizado antes de uso em corpus grande.
 - Os status/checks de CI consultados para esses commits retornaram vazios; não há evidência suficiente para dizer que os testes passaram.
 
+### Modelo neural KBN-002 alpha escrito — 16/11/2026
+
+- Criado `KellvynAttentionLanguageModel.kt`: modelo original com inicialização aleatória própria, atenção causal de uma cabeça para previsão do próximo token, embeddings de token/posição, projeções Q/K/V, softmax, tanh de saída, cross-entropy, gradientes manuais, AdamW, clipping, geração greedy e checkpoint de pesos/momentos.
+- Criado `KellvynAttentionLanguageModelTest.kt`: testes para gradientes por diferenças finitas, aprendizagem de padrão sintético, checkpoint e entrada fora do vocabulário, além de integração BPE→modelo.
+- Commits iniciais: modelo `e96ad13856bf2aa9d47e9b21bae8ee79f67bfc2b`; teste `be2584b7724bbfcf3c917368a45b63d32cf86178`; fábrica tokenizer-aware `de900376672b009bc94401784b333fbdac7cd7e8`; teste integração `7ecd8c26792f2336204bc8a38de099b932b0a075`; leitura de checkpoint limitada e limite de prefixo `ad7a1327106ff2da847b80da0dd9ba01140090c6`.
+- Revisão matemática externa por implementação equivalente em Python/NumPy float32: diferença máxima absoluta de gradientes em 21 coordenadas testadas ≈ (9,6\times10^{-7}); padrão alternado sintético caiu de loss ≈ 5,49 para ≈ 0,00392 após 1.100 passos simulados.
+- **Limite:** isso não executou a classe Kotlin nem substitui testes Gradle. Os status checks consultados não retornaram resultados; CI, build e teste no Poco F6 ainda não estão aprovados.
+- O modelo é uma alpha de atenção de cabeça única, não Transformer completo, não assistente conversacional e não está ligado a `KellvynRuntime.reply()`.
+
