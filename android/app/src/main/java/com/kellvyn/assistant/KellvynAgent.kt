@@ -96,9 +96,9 @@ internal class KellvynAgent(
                 0
             )
         }
-        if (toolName !in step.requiredTools) {
+        if (step.requiredTools != setOf(toolName)) {
             return KellvynAgentResult.Failed(
-                "A ferramenta não está autorizada pelo plano para esta etapa.",
+                "Esta versão exige exatamente uma ferramenta registrada por etapa executável.",
                 0,
                 0
             )
@@ -197,7 +197,9 @@ internal class KellvynAgent(
         } else {
             val proof = try {
                 verifier.verify(step, outcome)
-            } catch (error: Exception) {
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
                 null
             }
             if (proof == null) {
@@ -831,7 +833,8 @@ internal sealed class KellvynAgentResult {
         val state: KellvynTaskState,
         val checkpoint: KellvynTaskCheckpointMetadata
     ) : KellvynAgentResult() {
-        override val steps: Int = 0
-        override val toolCalls: Int = 0
+        override val steps: Int =
+            state.statuses.values.count { it == KellvynStepStatus.SUCCEEDED }
+        override val toolCalls: Int = state.attempts.values.sum()
     }
 }
