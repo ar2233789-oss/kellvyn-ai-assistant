@@ -104,10 +104,11 @@ class KellvynAgentPlanTest {
             verifier()
         )
         assertTrue(executed is KellvynAgentResult.Planned)
-        val finalState = (executed as KellvynAgentResult.Planned).state
+        val completed = executed as KellvynAgentResult.Planned
+        val finalState = completed.state
         assertEquals(KellvynStepStatus.SUCCEEDED, finalState.statuses["work"])
-        assertEquals(1, (executed as KellvynAgentResult.Planned).steps)
-        assertEquals(1, executed.toolCalls)
+        assertEquals(1, completed.steps)
+        assertEquals(1, completed.toolCalls)
         assertEquals(1, writeTool.executions)
         assertEquals(4, repository.appendCount)
     }
