@@ -32,6 +32,22 @@ internal class KellvynRuntime(context: Context) {
         KellvynAndroidTaskCheckpointCipher()
     )
 
+    private val taskCheckpointRepository = object : KellvynTaskCheckpointRepository {
+        override suspend fun append(
+            state: KellvynTaskState,
+            createdAtMillis: Long,
+            expectedPreviousSha256: String?
+        ): KellvynTaskCheckpointMetadata = saveTaskCheckpoint(
+            state,
+            createdAtMillis,
+            expectedPreviousSha256
+        )
+
+        override suspend fun loadLatest(
+            taskId: String
+        ): KellvynTaskCheckpointSnapshot? = restoreLatestTaskCheckpoint(taskId)
+    }
+
     /** Gives the agent layer access to the same app-private memory store. */
     fun memoryStore(): KellvynMemory = localMemory
 
@@ -90,7 +106,8 @@ internal class KellvynRuntime(context: Context) {
             memory = localMemory,
             memoryAddresses = addresses,
             projectContextRetriever = projectContextRetriever,
-            activeProjectId = activeProjectId
+            activeProjectId = activeProjectId,
+            taskCheckpoints = taskCheckpointRepository
         )
     }
     fun isReady(): Boolean = false
