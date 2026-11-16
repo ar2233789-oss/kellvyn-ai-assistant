@@ -1,61 +1,74 @@
 # Kellvyn — comparação de runtimes Android
 
-**Estado:** runtime é uma dependência de execução separada dos pesos. É permitido integrar um runtime de terceiros com licença compatível, desde que seja adequado ao modelo escolhido e ao Poco F6. A integração ainda não foi aprovada.
+**Candidato prioritário de teste:** LiteRT-LM Android 0.19.1, com pacote Gemma 4 E2B Instruct mobile \`.litertlm\`. A integração está em fase de compilação/validação; não há resultado físico no Poco F6.
 
 ## Critérios obrigatórios
 
-- Android ARM64 no Poco F6;
-- CPU funcional mesmo sem GPU/NPU;
-- opção de aceleração no hardware disponível;
-- formato de pesos oficialmente suportado pelo modelo aberto selecionado;
-- quantização;
-- cache de contexto/KV;
-- streaming, cancelamento e gestão de ciclo de vida;
-- integração Java/Kotlin/JNI;
-- licença e dependências transitivas;
-- funcionamento offline;
-- RAM, aquecimento e desempenho medidos em aparelho real.
+- Android ARM64, minSdk compatível com o app;
+- CPU funcional antes de depender de GPU/NPU;
+- uso offline depois de instalar os pesos;
+- formato e modelo-base documentados;
+- streaming e cancelamento;
+- sessão e ciclo de vida sob um único executor de inferência;
+- ferramentas em modo manual, com política de autorização Kellvyn;
+- RAM, armazenamento, aquecimento e velocidade medidos no Poco F6;
+- licença e dependências transitivas registradas.
 
-## Candidatos
+## Candidato 1 — LiteRT-LM 0.19.1
 
-| Runtime | Licença do projeto principal | Vantagens | Riscos/perguntas |
-|---|---|---|---|
-| LiteRT-LM | Apache 2.0 | API Kotlin Android/JVM, GPU/NPU, multimodalidade e ferramentas na API | forte candidato inicial para Gemma 4 E2B mobile QAT; medir suporte CPU/GPU no Poco F6 e auditar versão/dependências |
-| ExecuTorch | BSD 3-Clause | fluxo PyTorch → exportação `.pte`, runtime C++ e bindings Android | APIs LLM Android são descritas como experimentais; validar o export de arquitetura própria e backend Snapdragon |
-| llama.cpp | MIT | suporte Android ARM64, GGUF, kernels CPU e ferramentas maduras de quantização | arquitetura precisa ser suportada pelo loader/conversor; validar aceleração GPU disponível no Poco F6 |
-| MLC-LLM | Apache 2.0 no projeto principal | runtime compilado com foco em GPU móvel, cadeia de conversão/empacotamento | setup de compilação exige NDK, Rust, CMake e toolchain; confirmar se isso é sustentável no fluxo de desenvolvimento do usuário |
+- Licença do runtime: Apache 2.0.
+- API Kotlin para Android/JVM.
+- Backends CPU, GPU e NPU, sujeitos ao suporte do modelo e do aparelho.
+- Engine, Conversation, streaming por Flow e suporte a multimodalidade.
+- A API permite desabilitar execução automática de ferramentas (\`automaticToolCalling=false\`) e entregar a decisão ao código do app para execução manual.
+- A versão 0.19.1, publicada em 05/11/2026, inclui suporte multimodal Gemma 4 vision+audio no backend Artisan GPU; isso não significa suporte ao Artisan/NPU no Poco F6.
 
-## Observações técnicas confirmadas
+Dependência a testar e fixar, sem \`latest.release\`:
+\`com.google.ai.edge.litertlm:litertlm-android:0.19.1\`.
 
-### LiteRT-LM
-Candidato prioritário para teste com Gemma 4 E2B mobile QAT. O Google publica amostras Android multimodais com CPU/GPU e fallback. A existência de amostra não comprova compatibilidade com o Poco F6: testar primeiro CPU, GPU, consumo de memória, temperatura, streaming, cancelamento e tool calling. Fonte: https://github.com/google-ai-edge/litert-samples/tree/main/samples/litert/qualcomm/gemma4/cpu_gpu
+A inicialização do Engine pode bloquear por vários segundos e deve ocorrer em thread/corrotina de fundo. Um executor serial deve ser proprietário de Engine e Conversation; cada recurso deve ser encerrado exatamente uma vez e na ordem correta.
 
-### ExecuTorch
-A documentação mostra exportação de LLM para `.pte` e execução Android por APIs Java/C++. A documentação marca a API LLM Android como experimental. Permanece alternativa de runtime se a fundação/modelo e o formato exportado forem compatíveis.
+### CPU e GPU
 
-### llama.cpp
-A documentação oficial traz build Android `arm64-v8a`, projeto Android de exemplo, leitura de GGUF e runtime CPU com detecção de kernels. É uma boa referência para inferência local e formato quantizado, se a arquitetura e conversor forem compatíveis.
+- Começar por CPU com 4 threads como baseline.
+- GPU é uma segunda configuração de teste, não uma suposição de compatibilidade. O manifesto pode declarar \`libvndksupport.so\` e \`libOpenCL.so\` como bibliotecas nativas opcionais.
+- NPU não será usada sem pacote explicitamente compatível com o Snapdragon 8s Gen 3 e confirmação do backend no Poco F6.
 
-### MLC-LLM
-A documentação Android exige toolchain Android NDK, CMake e Rust, compila bibliotecas de modelo e runtime e ressalta que a aceleração real depende de GPU física. A cadeia deve ser comparada com a restrição de desenvolvimento pelo telefone.
+## Candidato 2 — ExecuTorch
 
-## Plano de benchmark
+BSD 3-Clause no repositório principal. Mantido como alternativa caso o modelo/fluxo de exportação escolhido seja melhor suportado. A API LLM Android tem estado experimental descrito nas páginas oficiais.
 
-1. Fixar um único artefato de teste pequeno, sem dados privados.
-2. Compilar cada runtime candidato com a mesma configuração de build e ABI.
-3. Carregar o mesmo modelo/quantização quando o formato permitir.
-4. Executar o mesmo conjunto de prompts.
-5. Medir latência de carregamento, prefill, tokens/s, memória máxima, temperatura, bateria, falhas e qualidade.
-6. repetir após fechar/reabrir o app.
-7. comparar integração com streaming, cancelamento, Tool Calling e liberação de memória.
-8. armazenar logs e resultados brutos.
+## Candidato 3 — llama.cpp
 
-Não escolher runtime por uma única execução ou por benchmark de outro aparelho.
+MIT no projeto principal. Alternativa de inferência ARM64/GGUF, se a arquitetura e a conversão do modelo forem compatíveis. O suporte CPU não garante aceleração GPU específica no Poco F6.
 
-## Fontes técnicas
+## Candidato 4 — MLC-LLM
 
-- LiteRT-LM Android: https://developers.google.com/edge/litert-lm/android
+Apache 2.0 no projeto principal. Candidato experimental para GPU móvel. A cadeia de compilação e os backends precisam ser avaliados; não selecionar sem benchmark e build reproduzível.
+
+## Benchmark no Poco F6
+
+1. Instalar o pacote de modelo em armazenamento privado, depois de consentimento.
+2. Verificar SHA-256 e tamanho.
+3. Iniciar pela CPU e registrar memória livre antes/depois.
+4. Medir cold start, tempo até primeiro token, tokens/s, uso de RAM e erros.
+5. Repetir com contexto curto e longo.
+6. Medir temperatura e throttling após cargas repetidas.
+7. Só então testar GPU e comparar a mesma bateria de prompts.
+8. Testar cancelamento, encerramento e reinício do processo.
+9. Testar function calling manual sem executar ferramentas fora da política Kellvyn.
+
+## Fontes oficiais
+
+- Kotlin Android API: https://developers.google.com/edge/litert-lm/android
+- API overview e Maven: https://developers.google.com/edge/litert-lm/api_overview
+- Release 0.19.1: https://github.com/google-ai-edge/LiteRT-LM/releases/tag/v0.19.1
+- Pacote Gemma 4 E2B LiteRT: https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm
+- Modelo e benchmark móvel: https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/blob/main/README.md
 - ExecuTorch LLM: https://pytorch.org/executorch/stable/llm/getting-started.html
-- ExecuTorch Android: https://pytorch.org/executorch/stable/llm/run-on-android.html
 - llama.cpp Android: https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md
 - MLC-LLM Android: https://llm.mlc.ai/docs/deploy/android.html
+
+## Estado
+
+LiteRT-LM 0.19.1 é candidato principal de integração, não um runtime final já validado. A conclusão depende de CI, teste físico no Poco F6 e comparação de qualidade e desempenho.
