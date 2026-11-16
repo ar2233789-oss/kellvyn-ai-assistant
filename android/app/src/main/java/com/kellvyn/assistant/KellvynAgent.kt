@@ -1,6 +1,9 @@
 package com.kellvyn.assistant
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -65,6 +68,175 @@ internal class KellvynAgent(
         }
         return KellvynAgentResult.Planned(approved, metadata)
     }
+
+    /**
+     * Executes exactly one ready plan step. A step is checkpointed as RUNNING before the
+     * tool executes and is marked SUCCEEDED only when the independent verifier proves every
+     * declared success criterion. Approval and tool authorization remain separate gates.
+     */
+    suspend fun executePlannedStep(
+        taskId: String,
+        stepId: String,
+        toolName: String,
+        arguments: Map<String, String>,
+        verifier: KellvynIndependentVerifier,
+        preconditionEvidence: KellvynPreconditionEvidence? = null
+    ): KellvynAgentResult {
+        val repository = taskCheckpoints
+            ?: return KellvynAgentResult.Failed("O armazenamento persistente de tarefas não está configurado.", 0, 0)
+        val latest = repository.loadLatest(taskId)
+            ?: return KellvynAgentResult.Failed("O plano solicitado não foi encontrado.", 0, 0)
+        val state = latest.state
+        val step = state.plan.steps.firstOrNull { it.id == stepId }
+            ?: return KellvynAgentResult.Failed("A etapa solicitada não pertence ao plano.", 0, 0)
+        if (state.statuses[stepId] != KellvynStepStatus.READY) {
+            return KellvynAgentResult.Failed(
+                "A etapa não está pronta. Estado atual: ${state.statuses[stepId]}.",
+                0,
+                0
+            )
+        }
+        if (toolName !in step.requiredTools) {
+            return KellvynAgentResult.Failed(
+                "A ferramenta não está autorizada pelo plano para esta etapa.",
+                0,
+                0
+            )
+        }
+
+        val registeredRisks = tools.descriptions().associate { spec ->
+            spec.name to KellvynStepRisk.valueOf(spec.risk.name)
+        }
+        val planErrors = taskPlanner.validate(state.plan, registeredRisks)
+        if (planErrors.isNotEmpty()) {
+            return KellvynAgentResult.Failed(
+                "O plano não passou pela revalidação: ${planErrors.joinToString(" ")}",
+                0,
+                0
+            )
+        }
+
+        val tool = tools.find(toolName)
+            ?: return KellvynAgentResult.Failed("A ferramenta não está mais registrada.", 0, 0)
+        val invalidArguments = tools.validate(tool, arguments)
+        if (invalidArguments != null) {
+            return KellvynAgentResult.Failed("Parâmetros da ferramenta recusados: $invalidArguments", 0, 0)
+        }
+
+        val allowed = try {
+            authorization.authorize(tool.spec, arguments, state.plan.goal)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            false
+        }
+        if (!allowed) {
+            return KellvynAgentResult.Failed(
+                "A política de autorização bloqueou a ferramenta, mesmo com a etapa aprovada.",
+                0,
+                0
+            )
+        }
+
+        val running = try {
+            taskPlanner.startStep(state, stepId, preconditionEvidence)
+        } catch (error: Exception) {
+            return KellvynAgentResult.Failed(
+                "Não foi possível iniciar a etapa: ${safeMessage(error)}",
+                0,
+                0
+            )
+        }
+        val startedCheckpoint = try {
+            repository.append(
+                state = running,
+                createdAtMillis = System.currentTimeMillis(),
+                expectedPreviousSha256 = latest.metadata.sha256
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            return KellvynAgentResult.Failed(
+                "Não foi possível persistir o início da etapa: ${safeMessage(error)}",
+                0,
+                0
+            )
+        }
+
+        val toolResult = try {
+            withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
+                tool.execute(arguments)
+            }
+        } catch (timeout: TimeoutCancellationException) {
+            KellvynToolResult(false, "A ferramenta excedeu o tempo limite.")
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                val cancelledState = taskPlanner.cancel(running)
+                repository.append(
+                    state = cancelledState,
+                    createdAtMillis = System.currentTimeMillis(),
+                    expectedPreviousSha256 = startedCheckpoint.sha256
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            KellvynToolResult(false, "A ferramenta falhou: ${safeMessage(error)}")
+        }
+
+        val observedAt = System.currentTimeMillis()
+        val outcome = KellvynTaskOutcome(
+            summary = toolResult.content.take(config.maxObservationChars),
+            observedAtMillis = observedAt
+        )
+        val updatedState = if (!toolResult.success) {
+            taskPlanner.failStep(
+                running,
+                stepId,
+                toolResult.content.ifBlank { "A ferramenta informou falha." }.take(500)
+            )
+        } else {
+            val proof = try {
+                verifier.verify(step, outcome)
+            } catch (error: Exception) {
+                null
+            }
+            if (proof == null) {
+                taskPlanner.failStep(
+                    running,
+                    stepId,
+                    "A ferramenta retornou sucesso, mas não houve prova independente dos critérios."
+                )
+            } else {
+                try {
+                    taskPlanner.completeStep(running, stepId, outcome, KellvynIndependentVerifier { _, _ -> proof })
+                } catch (error: Exception) {
+                    taskPlanner.failStep(
+                        running,
+                        stepId,
+                        "A prova independente foi inválida ou incompleta: ${safeMessage(error)}"
+                    )
+                }
+            }
+        }
+
+        val finalCheckpoint = try {
+            repository.append(
+                state = updatedState,
+                createdAtMillis = System.currentTimeMillis(),
+                expectedPreviousSha256 = startedCheckpoint.sha256
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            return KellvynAgentResult.Failed(
+                "A etapa terminou, mas o resultado não pôde ser persistido: ${safeMessage(error)}",
+                1,
+                1
+            )
+        }
+        return KellvynAgentResult.Planned(updatedState, finalCheckpoint)
+    }
+
     suspend fun run(goal: String): KellvynAgentResult {
         val normalizedGoal = goal.trim()
         if (normalizedGoal.isEmpty()) {
