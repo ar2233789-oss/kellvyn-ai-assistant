@@ -17,7 +17,7 @@ class KellvynTaskCheckpointStoreTest {
     @Before
     fun setUp() {
         root = Files.createTempDirectory("kellvyn-task-checkpoints").toFile()
-        store = KellvynTaskCheckpointStore(root)
+        store = KellvynTaskCheckpointStore(root, TestCheckpointCipher())
     }
 
     @After
@@ -161,4 +161,61 @@ class KellvynTaskCheckpointStoreTest {
         ),
         createdAtMillis = 1L
     )
+}
+
+/**
+ * JVM-only test cipher. Uses real AES-GCM with an ephemeral test key; production uses
+ * KellvynAndroidTaskCheckpointCipher backed by Android Keystore. This key must never ship.
+ */
+private class TestCheckpointCipher : KellvynTaskCheckpointCipher {
+    private val key = javax.crypto.spec.SecretKeySpec(
+        ByteArray(32) { index -> (index * 7).toByte() },
+        "AES"
+    )
+
+    override fun encrypt(plaintext: ByteArray, associatedData: ByteArray): ByteArray {
+        val iv = ByteArray(12).also(java.security.SecureRandom()::nextBytes)
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            javax.crypto.Cipher.ENCRYPT_MODE,
+            key,
+            javax.crypto.spec.GCMParameterSpec(128, iv)
+        )
+        cipher.updateAAD(associatedData)
+        val encrypted = cipher.doFinal(plaintext)
+        val output = java.io.ByteArrayOutputStream()
+        java.io.DataOutputStream(output).use { data ->
+            data.writeInt(0x4B565445) // "KVTE"
+            data.writeInt(1)
+            data.writeInt(iv.size)
+            data.write(iv)
+            data.writeInt(encrypted.size)
+            data.write(encrypted)
+        }
+        return output.toByteArray()
+    }
+
+    override fun decrypt(ciphertext: ByteArray, associatedData: ByteArray): ByteArray {
+        val input = java.io.DataInputStream(java.io.ByteArrayInputStream(ciphertext))
+        check(input.readInt() == 0x4B565445) { "Envelope de teste desconhecido." }
+        check(input.readInt() == 1) { "Versão do envelope de teste não suportada." }
+        val ivLength = input.readInt()
+        check(ivLength == 12) { "IV de teste inválido." }
+        val iv = ByteArray(ivLength)
+        input.readFully(iv)
+        val encryptedLength = input.readInt()
+        check(encryptedLength in 16..1_048_576) { "Payload de teste inválido." }
+        val encrypted = ByteArray(encryptedLength)
+        input.readFully(encrypted)
+        check(input.available() == 0) { "Envelope de teste contém dados extras." }
+
+        val cipher = javax.crypto.Cipher.getInstance("AES/GCM/NoPadding")
+        cipher.init(
+            javax.crypto.Cipher.DECRYPT_MODE,
+            key,
+            javax.crypto.spec.GCMParameterSpec(128, iv)
+        )
+        cipher.updateAAD(associatedData)
+        return cipher.doFinal(encrypted)
+    }
 }
