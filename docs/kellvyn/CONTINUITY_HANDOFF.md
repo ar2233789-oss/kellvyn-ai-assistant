@@ -273,3 +273,37 @@ O backend neural não existe ainda; o chat principal não chama o agente; não h
 9. Executar testes físicos no Poco F6 somente após os gates de build e segurança.
 
 Atualizar este arquivo, STATUS.md e o relatório comparativo após cada novo marco.
+
+## 10. Delegação especializada interna — 16/11/2026
+
+### Implementação
+
+`KellvynAgent.kt` agora aceita `KellvynModelDecision.Delegate` com os papéis RESEARCHER, CODE_EXPLORER, REVIEWER e TEST_ANALYST.
+
+- Reutiliza a mesma instância de inferência do agente principal.
+- Cria contexto/histórico separado e passa somente subtarefa/contexto autorizados.
+- Não repassa memória nem recuperação automática do projeto.
+- Filtra as ferramentas para a lista explicitamente pedida e somente risco READ_ONLY.
+- Desabilita delegação recursiva, plano, checkpoints e ferramentas mutáveis no especialista.
+- Limita quantidade, contexto, etapas, chamadas e timeout.
+- Retorna resultado ao pai como observação UNTRUSTED.
+- É sequencial, não paralelo.
+
+`KellvynToolRegistry.readOnlySubset()` implementa a projeção de ferramentas permitidas.
+`KellvynAgentDelegationTest.kt` testa contexto isolado, filtragem destrutiva, ferramenta de leitura, retorno e bloqueio recursivo. O teste foi corrigido para que o pai receba uma decisão final após a subtarefa completar.
+
+### Últimas alterações de referência
+
+- Delegação inicial: `4998632d4f171db3b5706a03bb58f8d09691bdba`
+- Não herdar contexto implícito do projeto: `9b81e87ed1a8ab986245e056ead85b5302a72e8b`
+- Teste corrigido para ciclo completo: `115267c41e2301d8a782c090d9cbb4d18f05e721`
+- Teste exercita leitura permitida e observação: `83afb2b77e6c6c26159b15151c7c1b0f45397abb`
+
+### Próximas ações
+
+1. Confirmar compilação/CI de todas as alterações novas.
+2. Rever e endurecer tratamento de cancelamento e falhas no executor de etapa.
+3. Ligar progresso/checkpoints a uma execução coordenada de plano com dependências, mantendo aprovação por etapa.
+4. Fazer o modelo neural próprio emitir decisões Plan, Delegate e CallTool somente após a interface de inferência ser validada.
+5. Criar ferramentas autorizadas de build e teste no laboratório, incluindo device install, screenshots, acessibilidade e Logcat.
+6. Não afirmar subagentes paralelos nem funcionamento no chat até que sejam implementados e testados.
