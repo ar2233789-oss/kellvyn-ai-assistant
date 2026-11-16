@@ -25,7 +25,7 @@ As dependências já existentes no Gradle são uma questão separada: cada artef
 | OpenCode | MIT | Componentes selecionados de permissões, sessões, skills e contexto | Preservar aviso e licença; não reutilizar identidade visual |
 | nanochat | MIT | Código de treino/avaliação pode ser integrado se ajudar em um pipeline separado | Preservar licença; dataset e pesos precisam de verificação independente |
 | OLMo-core | Apache 2.0 | Componentes de pipeline de treino, checkpoints ou otimização podem ser integrados se necessários | Preservar Apache 2.0/NOTICE e auditar dependências |
-| LiteRT-LM | Apache 2.0 | Runtime Android/JVM candidato para pesos abertos, especialmente Gemma mobile | Preservar Apache 2.0/NOTICE e testar compatibilidade/consumo no Poco F6 |
+| LiteRT-LM | Apache 2.0 | Runtime Android/JVM que pode ser avaliado com componentes neurais compatíveis | Preservar Apache 2.0/NOTICE e testar compatibilidade/consumo no Poco F6 |
 | ExecuTorch | BSD 3-Clause (repo principal) | Runtime/exportação de modelos próprios ou licenciados | Preservar condições e disclaimer; verificar API Android e backend |
 | llama.cpp | MIT (repo principal) | Runtime ARM64/GGUF candidato para modelos com arquitetura compatível | Preservar licença; auditar backend, kernels e dependências |
 | MLC-LLM | Apache 2.0 no projeto principal | Runtime/compilação de pesos abertos para GPU móvel, se viável | Preservar Apache 2.0/NOTICE e auditar submódulos/dependências |
