@@ -164,6 +164,9 @@ internal class KellvynTaskCheckpointStore(
         var expectedPreviousHash = ZERO_HASH
 
         for (file in files) {
+            check(file.name == checkpointFileName(expectedSequence)) {
+                "O nome do arquivo não corresponde à sequência do checkpoint."
+            }
             val snapshot = readRecord(file, taskId)
             val metadata = snapshot.metadata
             check(metadata.sequence == expectedSequence) {
