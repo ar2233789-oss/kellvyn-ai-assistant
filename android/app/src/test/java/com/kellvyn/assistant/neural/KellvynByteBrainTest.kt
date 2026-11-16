@@ -45,6 +45,33 @@ class KellvynByteBrainTest {
     }
 
     @Test
+    fun analyticGradientsMatchFiniteDifferencesAcrossParameterGroups() {
+        val brain = KellvynByteBrain.create(
+            KellvynByteBrain.Config(
+                contextLength = 4,
+                embeddingSize = 6,
+                hiddenSize = 12,
+                seed = 2026L
+            )
+        )
+        val context = KellvynByteTokenizer.encode("a")
+        val target = 'b'.code
+
+        val report = brain.checkGradients(
+            contextTokens = context,
+            target = target,
+            epsilon = 0.001,
+            maxCoordinatesPerGroup = 4
+        )
+
+        assertTrue("A checagem precisa cobrir vários parâmetros.", report.checkedParameters >= 5)
+        assertTrue(
+            "Gradiente analítico divergiu da diferença finita: " + report.maxAbsoluteError,
+            report.maxAbsoluteError < 0.001
+        )
+    }
+
+    @Test
     fun ownCheckpointRestoresTheExactParametersAndTrainingCount() {
         val original = KellvynByteBrain.create(
             KellvynByteBrain.Config(
