@@ -11,7 +11,7 @@ class KellvynSkillRegistryTest {
     fun loadsOnlySkillsRelevantToTheCurrentTask() {
         val registry = KellvynSkillRegistry.default()
 
-        val androidSkills = registry.selectFor("Quero compilar um APK Android e testar no emulador.")
+        val androidSkills = registry.selectFor("Quero compilar um APK Android e testar o app no emulador.")
 
         assertTrue(androidSkills.isNotEmpty())
         assertTrue(androidSkills.any { it.skill.id == "android-build-verification" })
@@ -67,7 +67,7 @@ class KellvynSkillRegistryTest {
         val systemMessage = model.seen.single().first { it.role == KellvynMessageRole.SYSTEM }
         assertEquals(KellvynTrustLevel.TRUSTED, systemMessage.trust)
         assertTrue(systemMessage.content.contains("android-build-verification"))
-        assertTrue(systemMessage.content.contains("Não declare APK funcional"))
+        assertTrue(systemMessage.content.contains("Nunca declare APK funcional"))
     }
 
     private fun skill(id: String, instructions: String) = KellvynSkillDefinition(
