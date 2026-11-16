@@ -35,8 +35,12 @@ internal class KellvynBpeTokenizer private constructor(
 
     /** Encodes text using UTF-8 bytes followed by the learned merge order. */
     fun encode(text: String): IntArray {
-        var tokens = text.toByteArray(Charsets.UTF_8)
-            .map { byte -> byte.toInt() and 0xff }
+        val inputBytes = text.toByteArray(Charsets.UTF_8)
+        require(inputBytes.size <= MAX_ENCODE_BYTES) { "Texto acima do limite de codificação." }
+        require(inputBytes.size.toLong() * merges.size.toLong() <= MAX_TRAINING_WORK) {
+            "A codificação excederia o orçamento experimental de processamento."
+        }
+        var tokens = inputBytes.map { byte -> byte.toInt() and 0xff }
         for (merge in merges) {
             tokens = applyMerge(
                 tokens,
@@ -52,8 +56,11 @@ internal class KellvynBpeTokenizer private constructor(
     fun decode(tokenIds: IntArray): String {
         require(tokenIds.size <= MAX_DECODE_TOKENS) { "Sequência de tokens acima do limite." }
         val output = ByteArrayOutputStream()
+        var outputBytes = 0
         for (tokenId in tokenIds) {
             require(tokenId in tokenBytes.indices) { "ID de token fora do vocabulário Kellvyn." }
+            outputBytes += tokenBytes[tokenId].size
+            require(outputBytes <= MAX_DECODE_BYTES) { "Texto decodificado acima do limite." }
             output.write(tokenBytes[tokenId])
         }
         return String(output.toByteArray(), Charsets.UTF_8)
@@ -111,8 +118,12 @@ internal class KellvynBpeTokenizer private constructor(
         private const val CHECKSUM_BYTES = 32
         private const val MAX_MERGES = 4096
         private const val MAX_CORPUS_BYTES = 1_000_000
+        private const val MAX_ENCODE_BYTES = 65_536
+        private const val MAX_DECODE_BYTES = 1_000_000
         private const val MAX_TOKEN_BYTES = 16_384
+        private const val MAX_TOKEN_TABLE_BYTES = 8 * 1024 * 1024
         private const val MAX_DECODE_TOKENS = 1_000_000
+        private const val MAX_TRAINING_WORK = 40_000_000L
         private const val MAX_CHECKPOINT_BYTES = 64 * 1024
 
         /**
@@ -141,13 +152,17 @@ internal class KellvynBpeTokenizer private constructor(
                 }
             }
             require(sequences.isNotEmpty()) { "O corpus não contém texto treinável." }
+            require(totalBytes.toLong() * maxMerges.toLong() <= MAX_TRAINING_WORK) {
+                "O treinamento do tokenizer excederia o orçamento experimental de processamento."
+            }
 
             val tokenBytes = MutableList(BASE_VOCABULARY_SIZE) { tokenId ->
                 byteArrayOf(tokenId.toByte())
             }
+            var tokenTableBytes = BASE_VOCABULARY_SIZE
             val merges = mutableListOf<Merge>()
 
-            repeat(maxMerges) {
+            for (round in 0 until maxMerges) {
                 val frequencies = HashMap<Long, Int>()
                 for (sequence in sequences) {
                     for (index in 0 until sequence.size - 1) {
@@ -167,7 +182,7 @@ internal class KellvynBpeTokenizer private constructor(
                         bestFrequency = frequency
                     }
                 }
-                if (bestPair == -1L) return@repeat
+                if (bestPair == -1L) break
 
                 val left = (bestPair ushr 32).toInt()
                 val right = bestPair.toInt()
@@ -175,6 +190,10 @@ internal class KellvynBpeTokenizer private constructor(
                 val mergedBytes = tokenBytes[left] + tokenBytes[right]
                 require(mergedBytes.size <= MAX_TOKEN_BYTES) {
                     "Um token aprendido excedeu o tamanho máximo."
+                }
+                tokenTableBytes += mergedBytes.size
+                require(tokenTableBytes <= MAX_TOKEN_TABLE_BYTES) {
+                    "A tabela de tokens excedeu o limite de memória experimental."
                 }
                 tokenBytes += mergedBytes
                 merges += Merge(left, right, mergedId)
@@ -222,6 +241,7 @@ internal class KellvynBpeTokenizer private constructor(
             }
             val merges = mutableListOf<Merge>()
             val seenPairs = HashSet<Long>()
+            var tokenTableBytes = BASE_VOCABULARY_SIZE
 
             repeat(count) {
                 val left = data.readInt()
@@ -239,6 +259,10 @@ internal class KellvynBpeTokenizer private constructor(
                 val mergedBytes = tokenBytes[left] + tokenBytes[right]
                 require(mergedBytes.size <= MAX_TOKEN_BYTES) {
                     "Token do checkpoint acima do limite."
+                }
+                tokenTableBytes += mergedBytes.size
+                require(tokenTableBytes <= MAX_TOKEN_TABLE_BYTES) {
+                    "Tabela de tokens do checkpoint acima do limite."
                 }
                 tokenBytes += mergedBytes
                 merges += Merge(left, right, mergedId)
