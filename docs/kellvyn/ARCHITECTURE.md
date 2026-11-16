@@ -12,7 +12,7 @@ A arquitetura não consiste em ligar várias IAs como se fossem cérebros indepe
 
 ## Separação que não pode ser confundida
 
-1. **Modelo neural Kellvyn:** será um modelo selecionado ou treinado sob uma linhagem documentada. Nenhum modelo Gemma ou outro peso externo está aprovado como cérebro. A escolha do treinamento e do runtime permanece em aberto até benchmark.
+1. **Modelo neural Kellvyn:** será criado do zero, com arquitetura e código próprios, tokenizer próprio, pesos inicializados aleatoriamente e treinamento próprio. Nenhum modelo-base, peso, adaptador ou fallback de terceiros será usado.
 2. **Agente Kellvyn:** controla o ciclo de tarefa: interpretar o objetivo, planejar, escolher uma ação autorizada pelo proprietário, observar seu resultado e decidir o próximo passo.
 3. **Ferramentas:** funções Kotlin delimitadas que consultam ou, futuramente, alteram recursos concretos. O modelo não recebe acesso irrestrito ao Android.
 4. **Memória:** dados persistentes e selecionados sobre usuário, tarefas e projetos. Memória não é treinamento dos pesos do modelo.
@@ -30,7 +30,7 @@ Kellvyn / interpretação do objetivo
 Plano de tarefa e limites
       |
       v
-Modelo neural local (LiteRT-LM)
+Modelo neural local Kellvyn (inferência própria)
       |
       v
 Seleção de ferramenta registrada
@@ -90,19 +90,19 @@ Nenhum código desses projetos é copiado nesta primeira implementação. Os det
 
 - A implementação anterior `LocalBrain.kt` baseada em Gemma foi removida da branch de laboratório; ela não será recuperada.
 - `MainActivity.java` e `BotRuntimeService.kt` ainda contêm referências antigas a `LocalBrain`; a integração está incompleta e precisa de uma nova interface de runtime.
-- O Gradle ainda declara a dependência LiteRT-LM, que não foi aprovada para o modelo final e deverá ser removida ou reavaliada no benchmark de runtimes.
+- O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo externo.
 - O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
 - A branch não deve ser considerada compilável até que os contratos antigos sejam substituídos e os testes/build passem.
 
 ## Próximas etapas
 
 1. Validar build Android e testes unitários desta branch.
-2. Testar uma chamada de ferramenta do modelo Gemma 4 E2B no Poco F6 (GPU e fallback CPU).
+2. Criar o primeiro protótipo neural próprio e testar tokenizer, passagem direta, retropropagação, loss e checkpoint.
 3. Adicionar contexto de tarefa e resumo de sessão sem exceder a memória disponível.
 4. Projetar memória persistente com consentimento, origem, edição e exclusão.
 5. Adicionar ferramentas de escrita somente após um fluxo explícito de aprovação.
 6. Criar avaliações repetíveis de qualidade e segurança do agente.
-7. Comparar treinamento de pesos próprios e adaptação licenciada; não baixar ou integrar pesos antes da decisão documentada.
+7. Expandir o treinamento integral do zero e medir a qualidade antes de conectar o modelo ao agente.
 
 ## Referência técnica primária
 
