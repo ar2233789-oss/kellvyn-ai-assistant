@@ -7,6 +7,8 @@
     <application
         android:label="Kellvyn IA"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/kellvyn_backup_rules"
+        android:dataExtractionRules="@xml/kellvyn_data_extraction_rules"
         android:hardwareAccelerated="true"
         android:usesCleartextTraffic="false"
         android:theme="@android:style/Theme.Material.NoActionBar">
