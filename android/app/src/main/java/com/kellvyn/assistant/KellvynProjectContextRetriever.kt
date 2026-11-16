@@ -66,9 +66,13 @@ internal object KellvynProjectSearchRanker {
             val textScore = textMatches.size.toDouble() / denominator
             val pathScore = pathMatches.size.toDouble() / denominator
             val identifierScore = identifierMatches.size.toDouble() / denominator
-            val score = (
-                0.62 * textScore + 0.16 * pathScore + 0.22 * identifierScore
-            ).coerceIn(0.0, 1.0)
+            val score = if (document.codeIndex == null) {
+                // Preserve the established text/path ranking for prose documents.
+                (0.78 * textScore + 0.22 * pathScore).coerceIn(0.0, 1.0)
+            } else {
+                (0.62 * textScore + 0.16 * pathScore + 0.22 * identifierScore)
+                    .coerceIn(0.0, 1.0)
+            }
             val snippet = bestSnippet(document.excerpt, queryTerms)
 
             KellvynProjectSearchHit(
