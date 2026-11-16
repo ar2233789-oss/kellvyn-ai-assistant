@@ -20,8 +20,8 @@ A arquitetura não consiste em ligar várias IAs como se fossem cérebros indepe
 
 ## Linhagem e autoria
 
-- Pesos-base abertos podem ser aproveitados sob licença compatível.
-- Fine-tuning/adapters podem gerar uma versão derivada com proveniência preservada.
+- Pesos pré-treinados de terceiros e adapters derivados não serão usados como cérebro; os pesos de linguagem serão inicializados e treinados pelo próprio projeto.
+- Bibliotecas auxiliares e runtimes podem ser avaliados sob licença compatível, desde que não forneçam pesos pré-treinados nem substituam o modelo autoral.
 - Código aberto de runtimes e ferramentas pode ser integrado seletivamente, com avisos e auditoria.
 - Não atribuir à Kellvyn pesos ou código alheios; não copiar sistemas proprietários.
 - API remota proprietária não será requisito para a execução offline.
