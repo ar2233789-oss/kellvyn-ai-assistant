@@ -20,11 +20,14 @@ O laboratório é dividido em quatro áreas:
 | Referência | Capacidade pública observada | Tradução original na Kellvyn |
 |---|---|---|
 | Claude Code | Instruções persistentes, regras, skills, hooks e subagentes | Regras do projeto, procedimentos versionados, eventos internos e tarefas especializadas sob o mesmo agente |
-| ChatGPT / plataforma OpenAI | Uso de ferramentas, pesquisa, arquivos, funções e fluxos com evidência | Registro tipado de ferramentas, recuperação de contexto, pesquisa opcional e validação independente |
+| ChatGPT / OpenAI Agents SDK | Ferramentas, sessões, guardrails, tracing, handoffs e estado de execução documentados publicamente | Registro tipado de ferramentas, memória de sessão, trilha de eventos e validação independente; sem dependência obrigatória dos serviços OpenAI |
 | Replit Agent | Separação entre planejamento e construção, teste e correção iterativa | Plano estruturado antes de executar; execução em workspace; ciclos de teste e recuperação |
 | Cursor | Navegação de codebase, edição multi-arquivo, terminal, projetos coordenados e subagentes especializados | Índice do projeto, seleção de contexto, diffs, verificação e responsabilidades internas focadas |
 | Android Studio Gemini Agent Mode | Planejamento de tarefas, ações sobre projeto, build, testes, Logcat e revisão | Pipeline Android com gates separados para alteração, compilação, instalação e teste real |
 | OpenHands SDK | SDK modular, ferramentas, workspaces, eventos e coordenação | Interfaces próprias desacopladas, trilha de eventos e executor confinado |
+| Aider | Mapa de repositório e seleção de contexto para mudanças de código | Indexador próprio de símbolos/dependências e busca seletiva; componentes licenciados podem ser avaliados para incorporação |
+| SWE-agent / mini-SWE-agent | Ciclo agente-ambiente para tarefas de software e avaliação reproduzível | Executor com ações tipadas, workspace e benchmark de tarefas |
+| OpenCode | Regras de permissão, sessões e ferramentas em agente de programação | Política de permissões e skills locais com formatos próprios |
 
 Estas referências são guias de capacidade, não autorização para copiar implementação privada. Onde houver código público com licença permissiva, a integração será analisada por commit e arquivo antes de qualquer uso.
 
@@ -156,7 +159,14 @@ Não confundir:
 - Claude Code — instruções, skills, hooks e subagentes: https://claude.com/resources/articles/steering-claude-code-skills-hooks-rules-subagents-and-more
 - Replit Agent: https://docs.replit.com/pt/references/agent/overview
 - Replit Plan Mode: https://docs.replit.com/pt/references/agent/plan-mode
+- OpenAI Agents SDK: https://developers.openai.com/api/docs/guides/agents/sdk
 - OpenHands Software Agent SDK: https://github.com/OpenHands/software-agent-sdk
+- Aider: https://github.com/Aider-AI/aider
+- SWE-agent: https://github.com/SWE-agent/SWE-agent
+- mini-SWE-agent: https://github.com/SWE-agent/mini-swe-agent
+- OpenCode: https://github.com/anomalyco/opencode
+- Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
+- Android Studio build/test/device agent tools: https://developer.android.com/studio/run
 - Android DataStore: https://developer.android.com/topic/libraries/architecture/datastore
 - Android Keystore: https://developer.android.com/privacy-and-security/keystore
 - REUSE compliance: https://reuse.software/tutorial/
