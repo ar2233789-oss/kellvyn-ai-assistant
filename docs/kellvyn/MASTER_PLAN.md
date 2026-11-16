@@ -27,25 +27,27 @@ A interface aprovada do aplicativo é uma superfície de interação, não o cé
 
 ## 2. O que significa “legítima” neste projeto
 
-A implementação da inteligência Kellvyn será autoral. Projetos, artigos e modelos públicos poderão ser estudados como material de pesquisa, mas não serão copiados nem incorporados como cérebro, pesos, tokenizer ou código de treinamento.
+A Kellvyn será um sistema original que pode aproveitar pesos, bibliotecas, runtimes, código aberto e técnicas de terceiros quando isso for legalmente permitido e tecnicamente vantajoso. Não é exigido reimplementar tudo que já existe.
 
 Regras obrigatórias:
-- não importar pesos de qualquer modelo de terceiros;
-- não usar modelo-base, fine-tuning, LoRA, adaptador ou fallback de outra IA;
-- não copiar código, arquivos, blocos de implementação, tokenizer ou dataset de projetos estudados;
-- não reproduzir uma arquitetura/modelo identificado como se fosse criação própria;
-- registrar as referências conceituais que influenciaram decisões e explicar a implementação feita especificamente para Kellvyn;
+- pesos abertos podem ser utilizados como fundação neural após auditoria de licença, model card, versão, hashes, proveniência e compatibilidade;
+- fine-tuning, LoRA e outros derivados são permitidos quando os termos do modelo-base autorizarem, mantendo a atribuição e identificando o resultado como derivado;
+- código aberto pode ser integrado seletivamente com licença, avisos, atribuição, registro de alterações e auditoria de dependências;
+- código, pesos ou componentes proprietários não serão copiados nem obtidos por meios não autorizados;
+- Claude, ChatGPT, Replit, Cursor e Gemini/Android Studio serão estudados pelo comportamento documentado; seus mecanismos internos e pesos privados não serão presumidos acessíveis;
+- APIs proprietárias remotas não serão requisito para o funcionamento local/offline e só poderão ser adotadas mediante decisão explícita sobre custos, privacidade e dependência de rede;
+- não copiar um produto inteiro e apenas trocar seu nome, marca, interface ou prompts;
+- não atribuir a Kellvyn código, pesos ou treinamento originalmente produzidos por terceiros;
+- a arquitetura cognitiva, orquestração, memória, políticas, ferramentas, verificação, integração Android e identidade de Kellvyn serão desenvolvidas e controladas no projeto;
 - não usar conversas privadas do proprietário no treino sem consentimento específico;
-- manter proveniência de cada dado de treino e hash de cada checkpoint produzido.
+- manter proveniência de cada dado, dependência, peso e checkpoint.
 
-Dependências genéricas do Android ou de infraestrutura só poderão ser avaliadas fora do cérebro e não poderão fornecer pesos, tokenizer ou inferência de outro modelo. A origem de cada dependência será documentada.
-
-**A Kellvyn não será um modelo alheio renomeado. O cérebro, o código neural, o tokenizer, o treinamento e os pesos serão desenvolvidos no próprio projeto.**
+**Kellvyn será própria pelo sistema, pela engenharia e pela integração que entregaremos. Componentes externos autorizados poderão acelerar e ampliar suas capacidades, sem esconder a autoria de cada parte.**
 
 ## 3. Restrições que orientam todas as decisões
 
 1. Uma única inteligência chamada Kellvyn; não montar uma coleção de IAs com identidades concorrentes.
-2. Não usar Gemma como cérebro da Kellvyn. A antiga integração Gemma não será recuperada nesta linha de desenvolvimento.
+2. Não tratar nenhum modelo de terceiros como se fosse criado por Kellvyn. Modelos de pesos abertos, inclusive Gemma e Qwen, podem ser avaliados e utilizados se passarem pelos gates técnicos e de licença.
 3. Não alegar treinamento, raciocínio, execução, pesquisa, compilação, instalação ou teste que não tenha ocorrido e sido verificado.
 4. Funcionamento local como objetivo principal; Web opcional pela conexão do telefone.
 5. Alvo de execução: Poco F6, Snapdragon 8s Gen 3, 8 GB de RAM.
@@ -95,9 +97,13 @@ A arquitetura deve ser modular por responsabilidade, mas o usuário conversa sem
                 Resposta comprovável
 ```
 
-### 4.1 Modelo neural
+### 4.1 Fundação neural
 
-O cérebro será um modelo próprio: arquitetura especificada para Kellvyn, código neural escrito no repositório, tokenizer próprio, pesos inicializados aleatoriamente e treinamento próprio. Não haverá base pré-treinada, pesos importados, adaptadores ou fallback de terceiros. Técnicas matemáticas publicadas podem ser estudadas e citadas, mas a implementação e as escolhas do modelo serão desenvolvidas especificamente para este projeto.
+Uma fundação principal de pesos abertos, sob licença verificada, poderá fornecer a capacidade linguística inicial. A escolha será feita por qualidade, português, raciocínio, código, visão, chamadas de ferramentas, consumo de RAM, latência e execução offline no Poco F6. Pesos e autores-base permanecem identificados.
+
+KBN-001 é uma experiência própria de treinamento neural e continuará como laboratório. Ela não será confundida com uma fundação conversacional avançada nem usada para bloquear a escolha de um modelo aberto mais capaz.
+
+Personalização de modelo-base por treino/adapters é permitida quando os termos autorizarem. Os pesos resultantes serão registrados como derivados. A rota de pré-treinamento integralmente do zero pode continuar como pesquisa de longo prazo, mas não é condição para entregar uma Kellvyn funcional.
 
 ### 4.2 Orquestrador
 
@@ -205,14 +211,16 @@ O agente deve conseguir operar interfaces e ambientes que o proprietário autori
 
 | Referência | Aprendizado pretendido | Tipo de aproveitamento |
 |---|---|---|
-| Android Studio + Gemini | planejamento multi-etapas, navegação por projeto, ferramentas, permissões, Logcat, emulador/dispositivo, correção iterativa | padrões de fluxo; o código e o serviço Gemini são proprietários |
-| OpenHands / Agent SDK | sessões, eventos, workspaces, estado de execução, agentes e ferramentas | arquitetura e, quando fizer sentido, código MIT com avisos |
-| Aider | mapa do repositório, seleção de contexto, diffs, integração Git, lint e testes | algoritmos/padrões; código Apache 2.0 se integrado |
-| SWE-agent | interface agente-computador, trajetórias observáveis, benchmark de tarefas reais | métodos e testes; MIT |
-| mini-SWE-agent | ciclo compacto de observação/ação e desenho simples de agente | referência atual adicional; MIT |
-| OpenCode | planejamento separado de execução, políticas de permissão, subagentes/skills e compactação | conceitos e código MIT selecionado |
-| nanochat | tokenizer, pré-treinamento, SFT, avaliação, RL e inferência em uma sequência didática | referência e componentes MIT, especialmente na área de treino |
-| OLMo-core | data pipeline, distribuição, otimizadores, checkpoints, métricas e avaliação | infraestrutura Apache 2.0, sobretudo em eventual ambiente de treino |
+| Claude Code | regras, skills, hooks, subagentes isolados, compactação de contexto | reproduzir os conceitos documentados com implementação própria; código e pesos privados não são copiados |
+| ChatGPT / OpenAI Agents | function calling, Web, file search, code interpreter, computer use, MCP | ferramentas equivalentes implementadas no ambiente local; APIs remotas são opcionais e não serão requisito offline |
+| Replit Agent | Plan/Build, tarefas ordenadas, testes visuais, autocorreção e checkpoints | padrões de processo e verificação |
+| Cursor Agent | coordenador, delegação, mapa de projeto, terminal, diff, review e debugging | arquitetura e fluxos; componentes abertos só após auditoria da licença |
+| Android Studio + Gemini | planejamento, edição multi-arquivo, build, dispositivo, screenshots, Logcat e ADB | padrões documentados; código e modelo internos não são copiados |
+| OpenHands / Agent SDK | sessões, eventos, workspaces, estado e ferramentas | código MIT pode ser integrado seletivamente após auditoria e atribuição |
+| Aider | mapa de repositório, contexto, diffs e Git | código Apache 2.0 pode ser integrado seletivamente após auditoria e atribuição |
+| SWE-agent / mini-SWE-agent | ciclos observáveis de ação, ambiente e avaliação | código MIT pode ser integrado seletivamente após auditoria e atribuição |
+| OpenCode | permissões, skills, subagentes e contexto | código MIT pode ser integrado seletivamente após auditoria e atribuição |
+| nanochat / OLMo-core | treinamento, dados, checkpoints e avaliação | estudar e eventualmente integrar componentes licenciados; nenhum peso/dataset é automaticamente autorizado |
 | LiteRT-LM | inferência Android, GPU/NPU, multimodalidade e chamada de ferramenta | candidato a runtime, não é modelo nem cérebro |
 | ExecuTorch | exportar modelo PyTorch próprio e executar no Android | candidato a runtime BSD; API LLM Android ainda experimental |
 | llama.cpp | inferência ARM64, GGUF, kernels e quantização | candidato a runtime MIT; requer arquitetura/modelo compatível |
@@ -223,7 +231,7 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 ## 7. Fases do programa
 
 ### Fase 0 — estabilizar o laboratório
-**Saídas:** inventário do estado real; branches e arquivos protegidos; separação de produção e laboratório; branch de transição sem Gemma documentada; matriz do que compila e do que ainda está quebrado.
+**Saídas:** inventário do estado real; branches e arquivos protegidos; separação de produção e laboratório; transição do runtime antigo documentada; matriz do que compila e do que ainda está quebrado.
 
 **Gate:** não alterar interface nem publicar o estado experimental; todo bloqueio deve estar declarado.
 
@@ -232,15 +240,17 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 
 **Gate:** cada componente proposto tem origem, versão, licença e justificativa. “Vi no README” não é investigação suficiente.
 
-### Fase 2 — especificação autoral do cérebro
-**Saídas:** arquitetura própria, tokenizer próprio, operações matemáticas, inicialização aleatória, pipeline de dados e estratégia de treinamento integral do zero.
+### Fase 2 — escolha da fundação neural e arquitetura cognitiva
+**Saídas:** comparação de modelos de pesos abertos, auditoria legal, especificação da interface de inferência, plano de personalização e arquitetura própria de agente.
 
-**Gate:** nenhuma dependência de modelo, peso, tokenizer ou código neural de terceiros; especificação e testes próprios revisados.
+**Gate:** modelo candidato identificado com versão, licença, hash e formato; benchmark preliminar no Poco F6 ou justificativa explícita de incompatibilidade. Não declarar um vencedor antes dos testes.
 
-### Fase 3 — prova neural mínima
-**Saídas:** tokenizer próprio; modelo pequeno com pesos inicializados aleatoriamente; passagem direta e retropropagação próprias; treinamento reproduzível; checkpoint autoral; inferência; testes de qualidade.
+### Fase 3 — núcleo cognitivo e adaptação
+**Saídas:** planner estruturado, estado de tarefa, skills, subagentes internos, memória, registro de ferramentas, políticas, verificação e checkpoints. Conectar uma fundação neural validada pela interface própria.
 
-**Gate:** loss, gradientes, mudança dos parâmetros, perplexidade/qualidade, memória e latência registrados. Um protótipo que prevê sequência não será apresentado como assistente conversacional geral.
+**Gate:** tarefas multi-etapas executadas com evidência, limites e rollback. Se houver treino/adapters, registrar model-base, dataset, licença, configuração e hashes.
+
+KBN-001 continua em paralelo como laboratório de treinamento próprio: tokenizer, passagem direta, gradientes e checkpoint são critérios de aprendizagem de engenharia, não o gate de entrega do assistente.
 
 ### Fase 4 — runtime no Poco F6
 **Saídas:** uma única implementação de inferência Android; carregamento/descarga; quantização se aplicável; streaming; cancelamento; uso de RAM; recuperação após erro.
@@ -307,7 +317,7 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 
 ## 10. Estado de partida
 
-A branch removeu a implementação anterior baseada em Gemma e não declara LiteRT-LM no Gradle. Há uma fronteira temporária `KellvynRuntime.kt` que informa que a inferência própria ainda não está pronta, e o agente de ferramentas não possui backend neural conectado. A proteção de interface está divergente porque `MainActivity.java` foi alterado apesar do hash bloqueado; o workflow deve continuar falhando nesse ponto até que a interface protegida seja restaurada ou exista autorização explícita para atualizar seu bloqueio. O branch `main` de produção não foi modificado.
+A branch removeu a implementação anterior de runtime e mantém uma fronteira temporária `KellvynRuntime.kt` sem inferência. O agente de ferramentas ainda não possui backend neural conectado. A pesquisa atual permite avaliar modelos de pesos abertos e runtimes licenciados, com prioridade para Gemma 4 E2B mobile QAT e comparação técnica com outras opções. A proteção de interface está divergente porque `MainActivity.java` foi alterado apesar do hash bloqueado; o workflow de APK deve continuar bloqueado até resolver isso sem redesenho e sem enfraquecer a proteção. O branch `main` de produção não foi modificado.
 
 A próxima etapa segura é fechar a auditoria e decidir o contrato de integração do novo modelo/agente antes de substituir as chamadas antigas.
 
