@@ -1,55 +1,87 @@
-# Kellvyn — registro do laboratório
+# Kellvyn — registro atualizado do laboratório
 
 **Data:** 16/11/2026  
 **Branch:** \`lab/kellvyn-intelligence-core-20261116\`  
 **Repositório:** \`ar2233789-oss/kellvyn-ai-assistant\`
 
-## Decisão atual sobre o cérebro
+## Decisão de autoria e fundação neural
 
-Kellvyn será um sistema próprio e pode aproveitar modelos de pesos abertos, bibliotecas e código de terceiros quando isso for permitido e melhorar o resultado. Cada origem será identificada e creditada. Não haverá cópia disfarçada nem atribuição falsa de pesos ou código. Modelos proprietários serão usados como referência pelas capacidades publicamente documentadas; APIs externas não serão dependência obrigatória do uso offline.
+Kellvyn será uma inteligência e um sistema próprios. Nenhum modelo de terceiros foi escolhido, baixado ou integrado como cérebro da Kellvyn. Sistemas proprietários são referências somente pelas capacidades publicamente documentadas. Código, bibliotecas, pesos e dados externos só poderão ser usados com origem, licença, termos e atribuições preservados. Nenhum componente externo será apresentado como criação integral do projeto.
 
-## Pesquisa recente
+## Pesquisa consolidada
 
-Foi criada a matriz \`CAPABILITY_RESEARCH_2026-11-16.md\`, reunindo:
-- Claude Code: instruções, rules, skills, subagentes, hooks e gestão de contexto;
-- ChatGPT/OpenAI Agents: function calling, ferramentas Web/arquivos/código/computer use/MCP;
-- Replit: Plan/Build, planejamento, testes visuais, autocorreção e checkpoints;
-- Cursor: agentes coordenadores, delegação, busca no projeto, terminal, revisão e debugging;
-- Android Studio Gemini: plano multi-etapas, alterações em vários arquivos, build, dispositivo, screenshots, Logcat e ADB;
-- OpenHands: sessões, eventos, workspaces e ferramentas.
+A matriz \`CAPABILITY_RESEARCH_2026-11-16.md\` estuda:
+- Claude Code: regras, skills, hooks, subagentes e gestão de contexto;
+- ChatGPT / OpenAI Agents: ferramentas, tracing, guardrails e orquestração;
+- Replit: planejamento, aprovação, testes autônomos, replay, checkpoints e continuidade;
+- Cursor: navegação de codebase, edição multi-arquivo, delegação e revisão;
+- Android Studio: plano multi-etapas, build, testes, dispositivo, screenshots e Logcat;
+- OpenHands, Aider, SWE-agent, mini-SWE-agent e OpenCode: arquiteturas públicas de agentes, workspaces, ferramentas, permissões e avaliação.
 
-Modelos em investigação:
-- Gemma 4 E2B mobile QAT: primeira prioridade de teste devido à variante móvel e às capacidades documentadas de visão, áudio e tool calling;
-- Qwen3.5-2B: comparação secundária; a página Qualcomm AI Hub consultada informa que o pacote ali listado não é suportado atualmente em chipsets móveis.
+A pesquisa foi transformada em módulos próprios. Não foram copiados código privado, prompts internos, pesos privados ou identidade visual de terceiros.
 
-Nenhum modelo foi selecionado como vencedor.
+## Código implementado no laboratório
 
-## Código existente
+### Planejamento e execução
+- \`KellvynTaskPlanner.kt\`: plano estruturado com dependências, critérios, riscos, permissões, rollback e prova independente;
+- bloqueio de ferramentas não registradas e de subestimação de risco;
+- comprovação separada de pré-condições antes da execução;
+- limite de chamadas, repetição e timeout no agente;
+- o agente não chama retorno positivo de ferramenta de verificação independente.
 
-- \`KellvynRuntime.kt\`: fronteira temporária; não contém inferência.
-- \`KellvynAgent.kt\`: ciclo experimental de ferramentas; não é o cérebro neural.
-- \`KellvynByteBrain.kt\`: KBN-001, pequeno preditor de próximo byte com pesos inicializados aleatoriamente, gradientes e checkpoint próprios. É pesquisa experimental, não assistente conversacional.
-- Testes iniciais do KBN-001 e do agente passaram em uma execução CI anterior.
-- Verificação numérica dos gradientes por diferenças finitas foi adicionada depois e ainda depende de resultado CI confirmado.
+### Memória local KLM-001
+- \`KellvynMemory.kt\`: tipos de memória, origem, proveniência, confiança, escopo, consentimento, classificação de privacidade, expiração e ranker lexical em português;
+- \`KellvynEncryptedMemoryRepository.kt\`: SQLite privado, payload AES-GCM, chave Android Keystore, leitura/escrita em thread de IO, limite de capacidade e isolamento por escopo;
+- chave composta de banco por escopo e ID;
+- inferência e conteúdo externo não entram automaticamente na memória duradoura;
+- credenciais são recusadas; dados pessoais sensíveis exigem aprovação específica;
+- backup e transferência excluem o banco cuja chave é vinculada ao aparelho;
+- o agente consegue receber memórias explicitamente aprovadas como contexto não confiável e restrito ao projeto.
 
-## Limitações e bloqueios
+### Contexto
+- \`KellvynContextAssembler.kt\`: orçamento determinístico de contexto;
+- mantém instruções de sistema e a última solicitação;
+- preserva ordem cronológica e metadados de confiança;
+- descarta mensagens antigas quando o orçamento não comporta tudo;
+- usa estimativa de caracteres, não contagem exata de tokens; o tokenizer real só poderá ser usado após integração neural.
 
-- Não há modelo final conectado à conversa.
-- Não há teste físico no Poco F6.
-- Não há benchmark comparativo no telefone.
-- Não há memória persistente cognitiva integrada ao agente.
-- Não há ferramentas de escrita/terminal/build completas ligadas ao agente.
-- \`MainActivity.java\` diverge do hash protegido em \`.github/interface-lock.sha\`. A proteção não será enfraquecida e o hash não será alterado sem autorização explícita.
-- A branch é experimental; nenhum APK dela está validado para instalação.
+### Protótipo neural
+- \`KellvynByteBrain.kt\`: KBN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
+- KBN-001 demonstra mecânica de treino, não é um cérebro conversacional nem um modelo de linguagem avançado.
+
+## Validação automatizada
+
+As execuções concluídas do GitHub Actions passaram para:
+- planejador e teste de risco/consentimento;
+- política de memória, escopo e recuperação lexical;
+- agente com memória injetada como contexto não confiável;
+- montagem/limite de contexto;
+- protótipo KBN-001 e verificação de gradientes em execuções anteriores.
+
+O workflow executa testes unitários; não produz APK nem comprova execução no aparelho. A execução mais recente após o ajuste de chave composta precisa terminar antes de ser declarada aprovada.
+
+## Limites e bloqueios que permanecem
+
+- \`KellvynRuntime.kt\` ainda não possui backend de inferência conversacional conectado;
+- o runtime instancia o repositório local de memória, mas o chat ainda não oferece operação de lembrar/apagar e não foi testado em aparelho;
+- armazenamento AES-GCM/Keystore precisa de teste de integração Android real ou emulador; exportação/migração segura entre telefones ainda não existe;
+- a recuperação é lexical, não embeddings/busca semântica;
+- nenhuma base neural está selecionada; nenhum benchmark físico de modelo foi feito no Poco F6;
+- não há teste físico no Poco F6 desta etapa;
+- \`MainActivity.java\` permanece divergente do hash de interface protegido em \`.github/interface-lock.sha\`; não editar a lock nem promover APK enquanto esse bloqueio não for resolvido sem alterar a interface aprovada;
+- a interface protegida e a branch principal não foram modificadas pelo trabalho cognitivo desta etapa;
+- a branch permanece experimental e nenhum APK dela está validado para instalação.
 
 ## Próximas etapas
 
-1. Finalizar a verificação matemática do KBN-001.
-2. Construir um benchmark local reprodutível para Gemma 4 E2B mobile QAT e alternativas compatíveis.
-3. Verificar licença, modelo, runtime e suporte real para o Poco F6 antes de incorporar pesos.
-4. Fortalecer o agente Kellvyn com planner estruturado, memória, skills, delegação interna, ferramentas tipadas e verificação independente.
-5. Conectar uma fundação neural aprovada ao agente próprio.
-6. Testar tarefas reais de conversa, código, arquivos, documentos e construção Android.
-7. Só depois validar o pacote completo no Poco F6.
+1. terminar e inspecionar a execução CI atual;
+2. adicionar testes de persistência/criptografia com Android test harness;
+3. implementar armazenamento de checkpoints e histórico de tarefas com hashes;
+4. construir indexador de projetos e busca lexical de símbolos com limites de segurança;
+5. melhorar esquemas de ferramentas e aprovação de ações mutáveis;
+6. preparar benchmark de qualidade e execução offline sem pré-selecionar modelo;
+7. desenhar interface de memória pelo chat principal sem tocar na aparência já aprovada;
+8. integrar inferência neural somente depois de decisões documentadas de arquitetura, licenciamento e compatibilidade;
+9. build, teste de instalação e execução real no Poco F6 em etapas independentes.
 
-Cada capacidade será declarada como concluída somente com evidência.
+Cada capacidade só será declarada concluída com código, testes e evidência correspondente.
