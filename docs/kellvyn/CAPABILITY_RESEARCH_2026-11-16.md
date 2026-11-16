@@ -9,8 +9,8 @@ Kellvyn será construída como um sistema próprio. Isso não significa rejeitar
 
 A regra de autoria é:
 - o produto integrado, a identidade, o orquestrador, as políticas, os fluxos, a memória, a arquitetura de ferramentas, as verificações, a interface e as integrações específicas de Kellvyn serão desenvolvidos neste projeto;
-- pesos abertos podem servir como fundação neural, desde que licença, model card, origem, versão, hashes e limitações sejam registrados;
-- fine-tuning, LoRA ou outros derivados podem ser produzidos para Kellvyn, mas deverão continuar identificados como derivados do modelo-base;
+- pesos pré-treinados de terceiros e adapters derivados não serão usados como cérebro da Kellvyn; os pesos conversacionais serão inicializados e treinados pelo próprio projeto, conforme a decisão vinculante em NEURAL_MODEL_DECISIONS.md;
+- bibliotecas, runtimes e ferramentas auxiliares podem ser avaliados sob licenças compatíveis, sem importar pesos nem substituir o treinamento original;
 - bibliotecas e código de terceiros podem ser integrados quando a licença permitir, com avisos, atribuição, registro de alterações e auditoria de dependências;
 - não copiar um sistema inteiro e apenas trocar seu nome, marca ou interface;
 - não alegar que pesos derivados foram inicializados e treinados integralmente do zero;
