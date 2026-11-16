@@ -562,10 +562,10 @@ jobs:
           dump_current_ui() {
             rm -f out/current-ui.xml
             echo "[LAB] dumping current Android accessibility tree"
-            timeout 15s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
+            timeout 30s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
               echo "[LAB] timed out while dumping Android UI tree"; return 1;
             }
-            timeout 15s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
+            timeout 20s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
               echo "[LAB] timed out while pulling Android UI tree"; return 1;
             }
             test -s out/current-ui.xml
@@ -615,12 +615,13 @@ jobs:
             grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
           }
 
-          # The previous step captured settings and scrolled its content; close that sheet before checking main-screen buttons.
+          # The previous step captured settings and scrolled its content. The Android
+          # UIAutomator service can stall after multiple dumps of this tall sheet.
+          # Dismiss through the system Back action before requesting a fresh tree.
+          adb shell input keyevent 4
+          sleep 2
           dump_current_ui
-          tap_desc "Fechar configurações"
           assert_text "Kellvyn Assistente"
-          sleep 1
-          dump_current_ui
 
           # History is an item-list dialog without a Close button; dismiss it with Android Back.
           tap_desc "Histórico"
