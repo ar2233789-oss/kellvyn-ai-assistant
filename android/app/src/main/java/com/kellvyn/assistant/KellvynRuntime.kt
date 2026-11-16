@@ -28,7 +28,8 @@ internal class KellvynRuntime(context: Context) {
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
-        File(appContext.filesDir, "task-checkpoints")
+        File(appContext.filesDir, "task-checkpoints"),
+        KellvynAndroidTaskCheckpointCipher()
     )
 
     /** Gives the agent layer access to the same app-private memory store. */
