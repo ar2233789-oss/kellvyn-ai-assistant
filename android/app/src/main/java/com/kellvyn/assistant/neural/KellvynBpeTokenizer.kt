@@ -213,7 +213,7 @@ internal class KellvynBpeTokenizer private constructor(
 
         /** Restores a bounded tokenizer checkpoint and reconstructs its byte table. */
         fun readCheckpoint(input: InputStream): KellvynBpeTokenizer {
-            val bytes = input.readBytes()
+            val bytes = readBounded(input)
             require(bytes.size in (CHECKSUM_BYTES + 12)..MAX_CHECKPOINT_BYTES) {
                 "Checkpoint do tokenizer inválido ou acima do limite."
             }
@@ -270,6 +270,32 @@ internal class KellvynBpeTokenizer private constructor(
             require(data.available() == 0) { "Checkpoint do tokenizer contém dados extras." }
 
             return KellvynBpeTokenizer(merges.toList(), tokenBytes.toList())
+        }
+
+        private fun readBounded(input: InputStream): ByteArray {
+            val output = ByteArrayOutputStream()
+            val buffer = ByteArray(4096)
+            var total = 0
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (count == 0) {
+                    val single = input.read()
+                    if (single < 0) break
+                    require(total < MAX_CHECKPOINT_BYTES) {
+                        "Checkpoint do tokenizer acima do limite."
+                    }
+                    output.write(single)
+                    total++
+                } else {
+                    require(total <= MAX_CHECKPOINT_BYTES - count) {
+                        "Checkpoint do tokenizer acima do limite."
+                    }
+                    output.write(buffer, 0, count)
+                    total += count
+                }
+            }
+            return output.toByteArray()
         }
 
         private fun applyStaticMerge(
