@@ -206,3 +206,9 @@ Foi acrescentada a decisão `KellvynModelDecision.Delegate` ao ciclo de `Kellvyn
 Cada especialista usa a mesma instância de inferência Kellvyn, com histórico separado e somente a subtarefa/contexto explicitamente fornecidos. A delegação não é recursiva, não herda memória ou recuperação automática do projeto e recebe apenas ferramentas registradas explicitamente permitidas com risco READ_ONLY. A resposta retorna ao agente principal como observação não confiável. Limites de quantidade, contexto e timeout são aplicados. **A execução é sequencial, não paralela.**
 
 Foi adicionado `KellvynToolRegistry.readOnlySubset()` e criado `KellvynAgentDelegationTest.kt`, com testes escritos para isolamento, ferramentas somente leitura e bloqueio de delegação recursiva. Os testes ainda não foram executados pelo Gradle/CI. Não há integração do backend neural ou no chat principal.
+
+## Executor incremental do plano — 16/11/2026
+
+Adicionada `KellvynAgent.executeReadySteps()`: avança as etapas READY em ordem, usando ferramenta única e argumentos por etapa, exige verificador independente, persiste cada RUNNING/final e pára em aprovação pendente, falha ou orçamento de etapas. Ao chamar novamente depois da aprovação, continua do último checkpoint, sem repetir etapa já SUCCEEDED. O cancelamento durante a verificação tenta registrar o estado CANCELLED em contexto não cancelável.
+
+Foi acrescentado teste de cadeia: inspeção somente leitura → parada aguardando aprovação → aprovação → etapa mutável concluída com prova. O teste está escrito, mas não foi executado pelo Gradle/CI.
