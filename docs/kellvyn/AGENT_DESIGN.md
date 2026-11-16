@@ -145,7 +145,15 @@ A memória deve guardar fatos úteis com:
 
 A compactação deve reter objetivo, restrições, decisões, arquivos alterados, estado de testes, erros e próximos passos. Não resumir de forma que apague uma restrição crítica.
 
-## 11. Avaliação do agente
+## 11. Skills procedurais carregadas sob demanda
+
+As skills são procedimentos versionados pela Kellvyn, separados das ferramentas. Cada skill declara ID, descrição, termos de ativação e instruções. O registro examina somente metadados pequenos, escolhe de forma determinística as skills mais relevantes e injeta o conteúdo completo no contexto confiável apenas para aquela tarefa. As skills não concedem permissões, não executam código e não podem substituir as políticas do agente.
+
+A primeira implementação está em `KellvynSkillRegistry.kt` e inclui procedimentos de construção Android, diagnóstico de falhas, revisão de código, pesquisa técnica e teste funcional. O agente limita a quantidade de skills e o orçamento de caracteres por tarefa. O conteúdo é próprio e deve ser atualizado junto com testes de ativação para evitar carregamentos irrelevantes.
+
+Próxima evolução: aprender skills a partir de tarefas concluídas somente após revisão explícita, registrar versão/origem e manter aprovação antes de torná-las parte das instruções confiáveis.
+
+## 12. Avaliação do agente
 
 Conjunto de tarefas sintéticas e reais, sem dados secretos:
 - encontrar arquivo;
