@@ -226,3 +226,18 @@ A delegação é **sequencial** nesta implementação. Não há paralelismo, mú
 - bloqueio de delegação recursiva.
 
 Os testes foram escritos, mas não foram executados pelo Gradle/CI nesta sessão. Status de CI continua pendente de confirmação.
+
+## Executor incremental de planos e checkpoints
+
+Arquivo principal: `KellvynAgent.kt`; teste: `KellvynAgentPlanTest.kt`.
+
+`executeReadySteps(taskId, verifiersByStepId, argumentsByStepId, maxSteps)` avança um plano persistido:
+1. Recupera o estado mais recente e validado.
+2. Seleciona a próxima etapa READY respeitando a ordem do plano.
+3. Exige exatamente uma ferramenta por etapa nesta versão.
+4. Exige verificador independente registrado para a etapa.
+5. Passa argumentos explícitos e validados pelo schema da ferramenta.
+6. Salva RUNNING antes da ação e o estado final depois da prova.
+7. Continua enquanto houver etapas prontas e pára em aprovação pendente, falha ou limite por chamada.
+
+A execução retoma a partir do último checkpoint; não reexecuta etapas já marcadas como SUCCEEDED. O método não cria permissões: a aprovação e a política de autorização continuam distintas. O chamador fornece verificador confiável por etapa. A implementação ainda não apresenta progresso ao chat e não está conectada a um backend neural que emita planos reais.
