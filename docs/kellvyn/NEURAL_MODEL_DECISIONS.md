@@ -81,7 +81,24 @@ A estratégia é construir uma sequência verificável:
 
 Ferramentas, memória, pesquisa e compilação aumentam a utilidade prática do agente, mas não transformam um modelo pequeno em um LLM avançado nem substituem aprendizagem neural.
 
-## 7. Situação técnica confirmada em 16/11/2026
+## 7. Implementação KBN-002 alpha
+
+Foram acrescentados ao projeto:
+- `KellvynBpeTokenizer.kt`: BPE byte-fallback com treinamento explícito, codificação reversível UTF-8, desempate determinístico, checkpoint versionado e SHA-256;
+- `KellvynAttentionLanguageModel.kt`: modelo autoral inicializado aleatoriamente, com uma cabeça de atenção escalada sobre o contexto anterior, cabeça de previsão do próximo token, cross-entropy, gradientes manuais, AdamW, clipping, geração greedy e checkpoint incluindo os momentos do otimizador;
+- `createForTokenizer()`: garante que o tamanho do vocabulário do modelo acompanhe o tokenizer treinado.
+
+Esta alpha é **um protótipo de atenção autoregressivo de cabeça única**, não uma implementação Transformer completa. Ainda faltam multi-head attention, blocos residuais, normalização, MLP gated, RoPE/cache KV, treinamento em corpus real e inferência integrada ao chat.
+
+### Verificação matemática de referência
+
+Uma implementação numérica equivalente em Python/NumPy float32 foi usada como verificação independente das fórmulas:
+- maior diferença absoluta entre gradientes analíticos e diferenças finitas nas amostras: aproximadamente (9,6\times10^{-7});
+- treino do padrão alternado sintético: perda aproximada de 5,49 para 0,00392 após 1.100 atualizações.
+
+Isso não é execução do código Kotlin, não é resultado do GitHub Actions e não é evidência de competência linguística. O gate Kotlin/Gradle e o teste no Poco F6 continuam pendentes.
+
+## 8. Situação técnica confirmada em 16/11/2026
 
 - KellvynByteBrain.kt (KBN-001) existe e inicializa seus próprios pesos;
 - KellvynBpeTokenizer.kt foi acrescentado como primeiro componente do KBN-002: aprende merges BPE de um corpus passado explicitamente, mantém fallback de byte UTF-8, checkpoint versionado com SHA-256 e limites experimentais de CPU/memória;
