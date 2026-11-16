@@ -251,6 +251,144 @@ class KellvynAgentTest {
         assertEquals(KellvynAgentResult.Completed("Olá.", 1, 0), result)
     }
 
+    @Test
+    fun typedIntegerSchemaRejectsMalformedValuesBeforeToolExecution() = runBlocking {
+        val model = FakeEngine(
+            KellvynModelDecision.CallTool("set_count", mapOf("count" to "4.5")),
+            KellvynModelDecision.Final("O valor foi recusado.")
+        )
+        val spec = KellvynToolSpec(
+            name = "set_count",
+            description = "Define um contador",
+            requiredArguments = setOf("count"),
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "count",
+                    type = KellvynToolArgumentType.INTEGER,
+                    minInteger = 0,
+                    maxInteger = 10
+                )
+            )
+        )
+        val tool = FakeTool(spec, KellvynToolResult(true, "count=4"))
+        val result = KellvynAgent(model, KellvynToolRegistry(listOf(tool))).run("Defina o contador.")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(0, tool.executions)
+        assertTrue(model.historySeen.last().any {
+            it.content.contains("argumento 'count' inválido")
+        })
+    }
+
+    @Test
+    fun relativePathSchemaRejectsTraversalBeforeToolExecution() = runBlocking {
+        val model = FakeEngine(
+            KellvynModelDecision.CallTool("read_file", mapOf("path" to "../secrets.txt")),
+            KellvynModelDecision.Final("O caminho foi recusado.")
+        )
+        val spec = KellvynToolSpec(
+            name = "read_file",
+            description = "Lê um arquivo do workspace",
+            requiredArguments = setOf("path"),
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "path",
+                    type = KellvynToolArgumentType.RELATIVE_PATH
+                )
+            )
+        )
+        val tool = FakeTool(spec, KellvynToolResult(true, "secret"))
+        val result = KellvynAgent(model, KellvynToolRegistry(listOf(tool))).run("Leia um arquivo.")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(0, tool.executions)
+        assertTrue(model.historySeen.last().any {
+            it.content.contains("caminho relativo seguro")
+        })
+    }
+
+    @Test
+    fun enumAndBooleanSchemasRejectValuesOutsideTheirDomains() = runBlocking {
+        val model = FakeEngine(
+            KellvynModelDecision.CallTool(
+                "configure",
+                mapOf("enabled" to "sometimes", "mode" to "root")
+            ),
+            KellvynModelDecision.Final("As opções foram recusadas.")
+        )
+        val spec = KellvynToolSpec(
+            name = "configure",
+            description = "Configura um recurso",
+            requiredArguments = setOf("enabled", "mode"),
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "enabled",
+                    type = KellvynToolArgumentType.BOOLEAN
+                ),
+                KellvynToolArgumentSchema(
+                    name = "mode",
+                    type = KellvynToolArgumentType.ENUM,
+                    allowedValues = setOf("safe", "read_only")
+                )
+            )
+        )
+        val tool = FakeTool(spec, KellvynToolResult(true, "configured"))
+        val result = KellvynAgent(model, KellvynToolRegistry(listOf(tool))).run("Configure o recurso.")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(0, tool.executions)
+        assertTrue(model.historySeen.last().any {
+            it.content.contains("precisa ser true ou false")
+        })
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun typedSchemaMustDescribeEveryAcceptedArgument() {
+        KellvynToolSpec(
+            name = "configure",
+            description = "Configura um recurso",
+            requiredArguments = setOf("enabled", "mode"),
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "enabled",
+                    type = KellvynToolArgumentType.BOOLEAN
+                )
+            )
+        )
+    }
+
+    @Test
+    fun validTypedArgumentsReachTheTool() = runBlocking {
+        val model = FakeEngine(
+            KellvynModelDecision.CallTool(
+                "configure",
+                mapOf("enabled" to "true", "mode" to "safe")
+            ),
+            KellvynModelDecision.Final("Configuração aplicada.")
+        )
+        val spec = KellvynToolSpec(
+            name = "configure",
+            description = "Configura um recurso",
+            requiredArguments = setOf("enabled", "mode"),
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "enabled",
+                    type = KellvynToolArgumentType.BOOLEAN
+                ),
+                KellvynToolArgumentSchema(
+                    name = "mode",
+                    type = KellvynToolArgumentType.ENUM,
+                    allowedValues = setOf("safe", "read_only")
+                )
+            )
+        )
+        val tool = FakeTool(spec, KellvynToolResult(true, "configured"))
+        val result = KellvynAgent(model, KellvynToolRegistry(listOf(tool))).run("Configure o recurso.")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(1, tool.executions)
+    }
+
     private class FakeProjectSearch(
         private val report: KellvynProjectSearchReport
     ) : KellvynProjectContextSearch {
