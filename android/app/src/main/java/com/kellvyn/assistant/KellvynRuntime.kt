@@ -3,6 +3,9 @@ package com.kellvyn.assistant
 import android.content.Context
 import android.net.Uri
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.io.File
 
 /**
  * Temporary application boundary while the original Kellvyn neural backend is built.
@@ -24,9 +27,38 @@ internal class KellvynRuntime(context: Context) {
     private val localMemory = KellvynMemory(memoryRepository)
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
+    private val taskCheckpointStore = KellvynTaskCheckpointStore(
+        File(appContext.filesDir, "task-checkpoints")
+    )
 
     /** Gives the agent layer access to the same app-private memory store. */
     fun memoryStore(): KellvynMemory = localMemory
+
+    /**
+     * Persists a complete planner snapshot in app-private storage.
+     * The caller must pass the last observed hash when continuing an existing task.
+     */
+    suspend fun saveTaskCheckpoint(
+        state: KellvynTaskState,
+        createdAtMillis: Long,
+        expectedPreviousSha256: String? = null
+    ): KellvynTaskCheckpointMetadata = withContext(Dispatchers.IO) {
+        taskCheckpointStore.append(state, createdAtMillis, expectedPreviousSha256)
+    }
+
+    /** Restores only after the store has verified every hash in the task's history. */
+    suspend fun restoreLatestTaskCheckpoint(
+        taskId: String
+    ): KellvynTaskCheckpointSnapshot? = withContext(Dispatchers.IO) {
+        taskCheckpointStore.loadLatest(taskId)
+    }
+
+    /** Returns the verified checkpoint chain for displaying or auditing task history. */
+    suspend fun taskCheckpointHistory(
+        taskId: String
+    ): List<KellvynTaskCheckpointMetadata> = withContext(Dispatchers.IO) {
+        taskCheckpointStore.history(taskId)
+    }
 
     /**
      * Creates the same Kellvyn agent with local memory and optional active-project context.
