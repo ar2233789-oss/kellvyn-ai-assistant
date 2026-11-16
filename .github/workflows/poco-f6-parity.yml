@@ -325,8 +325,12 @@ jobs:
           set_avd_prop hw.lcd.width 1220
           set_avd_prop hw.lcd.height 2712
           set_avd_prop hw.lcd.density 440
-          set_avd_prop hw.ramSize 8192
-          set_avd_prop hw.cpu.ncore 4
+          # Hosted CI runners cannot reserve the phone's full 8 GB guest RAM in addition
+          # to Gradle, the emulator host process and Android system services. Keep this
+          # virtual profile focused on display/UI parity; actual Poco F6 performance
+          # and 8 GB memory behavior require a physical-device test.
+          set_avd_prop hw.ramSize 3072
+          set_avd_prop hw.cpu.ncore 2
           set_avd_prop hw.gpu.enabled yes
           set_avd_prop hw.gpu.mode swiftshader_indirect
           set_avd_prop disk.dataPartition.size 4096M
