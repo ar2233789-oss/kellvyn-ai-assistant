@@ -134,7 +134,8 @@ internal class KellvynBpeTokenizer private constructor(
          */
         fun train(
             corpus: List<String>,
-            maxMerges: Int = 512
+            maxMerges: Int = 512,
+            cancellationCheck: (() -> Unit)? = null
         ): KellvynBpeTokenizer {
             require(corpus.isNotEmpty()) { "O corpus de treinamento está vazio." }
             require(maxMerges in 0..MAX_MERGES) { "Quantidade de merges fora do limite." }
@@ -142,6 +143,7 @@ internal class KellvynBpeTokenizer private constructor(
             val sequences = mutableListOf<List<Int>>()
             var totalBytes = 0L
             for (text in corpus) {
+                cancellationCheck?.invoke()
                 val bytes = text.toByteArray(Charsets.UTF_8)
                 totalBytes += bytes.size.toLong()
                 require(totalBytes <= MAX_CORPUS_BYTES) {
@@ -163,8 +165,10 @@ internal class KellvynBpeTokenizer private constructor(
             val merges = mutableListOf<Merge>()
 
             for (round in 0 until maxMerges) {
+                cancellationCheck?.invoke()
                 val frequencies = HashMap<Long, Int>()
                 for (sequence in sequences) {
+                    cancellationCheck?.invoke()
                     for (index in 0 until sequence.size - 1) {
                         val key = pairKey(sequence[index], sequence[index + 1])
                         frequencies[key] = (frequencies[key] ?: 0) + 1
@@ -199,6 +203,7 @@ internal class KellvynBpeTokenizer private constructor(
                 merges += Merge(left, right, mergedId)
 
                 for (sequenceIndex in sequences.indices) {
+                    if (sequenceIndex and 31 == 0) cancellationCheck?.invoke()
                     sequences[sequenceIndex] = applyStaticMerge(
                         sequences[sequenceIndex],
                         left,
