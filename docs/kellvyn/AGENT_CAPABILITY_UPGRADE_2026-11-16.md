@@ -129,3 +129,63 @@ Testes escritos cobrem seleção relevante, exclusão de skills não relacionada
 - Sem alterações em aparência, menus, animações ou componentes já aprovados.
 - Sem pesos pré-treinados de terceiros como cérebro da Kellvyn.
 - Não declarar pesquisa, código, build, teste, instalação ou funcionamento como concluídos sem a evidência correspondente.
+
+## Implementação adicional após a comparação — 16/11/2026
+
+### 1. Skills próprias sob demanda
+
+Arquivos: `KellvynSkillRegistry.kt`, `KellvynAgent.kt`, `KellvynSkillRegistryTest.kt`.
+
+O agente agora tem um registro interno de seis skills:
+- Android build e verificação;
+- diagnóstico de falhas;
+- revisão de código;
+- navegação estrutural Kotlin/Java;
+- pesquisa técnica;
+- teste funcional de aplicativos.
+
+A seleção é determinística por termos relevantes, com limite padrão de duas skills e orçamento de 6.000 caracteres. O texto completo só entra no contexto SYSTEM confiável quando selecionado. Skills não registram ferramentas, não autorizam operações e não executam código.
+
+### 2. Navegação estrutural Kotlin/Java
+
+Arquivos: `KellvynProjectCodeIndexer.kt`, `KellvynProjectContextRetriever.kt`, `KellvynAgent.kt`, `KellvynProjectCodeIndexerTest.kt`.
+
+O índice limitado identifica pacote, imports, classes, funções/propriedades, declarações de métodos Java e nomes de chamadas. A busca do projeto considera esses identificadores além do caminho e do texto. O agente recebe os identificadores reconhecidos no contexto, mas deve confirmar a informação no trecho-fonte original.
+
+Limites: não é AST, não resolve sobrecargas, tipos genéricos ou fluxo de controle e não substitui compilador. O recorte máximo por arquivo continua limitado. A implementação filtra comentários e strings para reduzir falsos símbolos.
+
+### 3. Plan antes de Build e checkpoints
+
+Arquivos: `KellvynTaskCheckpointRepository.kt`, `KellvynAgent.kt`, `KellvynRuntime.kt`, `KellvynAgentPlanTest.kt`.
+
+O protocolo do agente agora aceita `KellvynModelDecision.Plan`. Um plano só é aceito quando:
+- respeita o esquema e dependências;
+- usa ferramentas registradas;
+- declara risco no mínimo igual ao risco real da ferramenta;
+- exige aprovação para etapas mutáveis e possui plano de recuperação;
+- pode ser salvo no armazenamento local de checkpoints.
+
+O plano inicial é persistido antes de qualquer ferramenta executar. `approveTaskStep` registra uma aprovação como novo checkpoint. `restoreTaskPlan` recupera a cadeia validada. `executePlannedStep` executa uma etapa pronta, persiste o estado RUNNING antes da ferramenta e só grava SUCCEEDED após um `KellvynIndependentVerifier` comprovar todos os critérios. Uma resposta de sucesso da própria ferramenta, sem prova independente, resulta em FAILED. Nesta alpha, cada etapa executável deve declarar exatamente uma ferramenta.
+
+A aprovação do proprietário e a autorização técnica são gates separados. Aprovar uma etapa não concede acesso automaticamente: a política de ferramentas ainda precisa autorizar a execução. Timeout, erro e cancelamento têm caminhos distintos.
+
+### 4. Como isso se relaciona com as referências
+
+Replit: a skill registry segue a ideia de disponibilizar metadados pequenos e carregar instruções completas apenas quando relevantes. O protocolo Plan/Build agora tem validação e persistência iniciais. Code Optimizations e testes autônomos integrados ainda não foram implementados.
+
+Cursor: o indexador dá o primeiro passo para navegação por símbolos/referências. Subagentes com contexto realmente isolado, execução paralela e branches/worktrees não foram implementados. A referência do Cursor explica que subagentes próprios podem pesquisar, delegar e validar em janelas separadas; não vamos fingir essa capacidade usando apenas chamadas sequenciais ao mesmo agente.
+
+Android Studio: o protocolo de etapas, autorização e prova aproxima o ciclo plano → ação → validação. Deploy em device, screenshots, árvore de acessibilidade, ADB e Logcat ainda não estão conectados ao agente Kellvyn.
+
+### 5. Validação realizada e pendências
+
+Foi compilado e executado um harness Kotlin isolado para o indexador estrutural, cobrindo pacote, imports, declarações, referências, comentários, strings e limites. Um smoke test independente também exercitou a lógica de seleção de skills em português. Isso não equivale a compilar o repositório nem a executar os testes JUnit reais.
+
+O status combinado consultado para os commits recentes não trouxe checks. A ferramenta de consulta de runs disponível só retorna execuções associadas a pull requests e também não retornou runs. Portanto:
+- Gradle/JUnit do repositório: pendente de confirmação;
+- integração Android/Keystore no dispositivo: pendente;
+- backend neural que produza decisões Plan/CallTool: não existe ainda;
+- integração com o chat principal: não realizada;
+- teste no Poco F6: não realizado.
+
+Não declarar o agente operacional no aplicativo até esses gates serem executados.
