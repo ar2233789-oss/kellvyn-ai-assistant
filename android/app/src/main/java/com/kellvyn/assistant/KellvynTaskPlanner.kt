@@ -123,6 +123,7 @@ internal class KellvynTaskPlanner {
             approvedStepIds = emptySet(),
             attempts = emptyMap(),
             proofs = emptyMap(),
+            preconditionProofs = emptyMap(),
             failureReasons = emptyMap()
         )
         return refresh(initial)
@@ -133,12 +134,32 @@ internal class KellvynTaskPlanner {
         return refresh(state.copy(approvedStepIds = state.approvedStepIds + stepId))
     }
 
-    fun startStep(state: KellvynTaskState, stepId: String): KellvynTaskState {
+    fun startStep(
+        state: KellvynTaskState,
+        stepId: String,
+        preconditionEvidence: KellvynPreconditionEvidence? = null
+    ): KellvynTaskState {
         requireStatus(state, stepId, KellvynStepStatus.READY)
+        val step = state.plan.steps.first { it.id == stepId }
+        if (step.preconditions.isNotEmpty()) {
+            val evidence = requireNotNull(preconditionEvidence) {
+                "A etapa exige verificação independente das pré-condições."
+            }
+            require(evidence.checkedBy.isNotBlank()) { "Verificador de pré-condições ausente." }
+            require(evidence.summary.isNotBlank()) { "Resumo das pré-condições ausente." }
+            require(evidence.observedAtMillis > 0L) { "Data das pré-condições inválida." }
+            require(evidence.evidenceSha256.matches(SHA256)) { "Hash das pré-condições inválido." }
+            val missing = step.preconditions.toSet() - evidence.verifiedConditions
+            require(missing.isEmpty()) {
+                "Pré-condições não comprovadas: " + missing.joinToString()
+            }
+        }
         val attempts = (state.attempts[stepId] ?: 0) + 1
         return state.copy(
             statuses = state.statuses + (stepId to KellvynStepStatus.RUNNING),
-            attempts = state.attempts + (stepId to attempts)
+            attempts = state.attempts + (stepId to attempts),
+            preconditionProofs = if (preconditionEvidence == null) state.preconditionProofs
+                else state.preconditionProofs + (stepId to preconditionEvidence)
         )
     }
 
@@ -318,6 +339,7 @@ internal data class KellvynTaskState(
     val approvedStepIds: Set<String>,
     val attempts: Map<String, Int>,
     val proofs: Map<String, KellvynStepProof>,
+    val preconditionProofs: Map<String, KellvynPreconditionEvidence>,
     val failureReasons: Map<String, String>
 )
 
@@ -325,6 +347,14 @@ internal data class KellvynTaskOutcome(
     val summary: String,
     val exitCode: Int? = null,
     val artifactRefs: Set<String> = emptySet(),
+    val observedAtMillis: Long
+)
+
+internal data class KellvynPreconditionEvidence(
+    val checkedBy: String,
+    val verifiedConditions: Set<String>,
+    val summary: String,
+    val evidenceSha256: String,
     val observedAtMillis: Long
 )
 
