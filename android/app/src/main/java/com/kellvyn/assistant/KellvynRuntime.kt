@@ -2,6 +2,7 @@ package com.kellvyn.assistant
 
 import android.content.Context
 import android.net.Uri
+import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 
 /**
  * Temporary application boundary while the original Kellvyn neural backend is built.
@@ -21,10 +22,44 @@ internal class KellvynRuntime(context: Context) {
     private val appContext = context.applicationContext
     private val memoryRepository = KellvynEncryptedMemoryRepository(appContext)
     private val localMemory = KellvynMemory(memoryRepository)
+    private val projectWorkspace = ProjectWorkspaceStore(appContext)
+    private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
 
     /** Gives the agent layer access to the same app-private memory store. */
     fun memoryStore(): KellvynMemory = localMemory
 
+    /**
+     * Creates the same Kellvyn agent with local memory and optional active-project context.
+     * No inference backend is created here; the caller must supply an approved engine.
+     */
+    fun createAgent(
+        inference: KellvynInferenceEngine,
+        tools: KellvynToolRegistry,
+        activeProjectId: String? = null,
+        authorization: KellvynToolAuthorization = ReadOnlyKellvynAuthorization,
+        config: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynAgent {
+        val addresses = mutableListOf(KellvynMemoryAddress.global())
+        if (!activeProjectId.isNullOrBlank()) {
+            require(activeProjectId.matches(Regex("[a-z0-9][a-z0-9-]{0,60}"))) {
+                "Identificador de projeto ativo inválido."
+            }
+            require(projectWorkspace.getProject(activeProjectId) != null) {
+                "O projeto ativo não existe no workspace privado."
+            }
+            addresses += KellvynMemoryAddress.project(activeProjectId)
+        }
+        return KellvynAgent(
+            inference = inference,
+            tools = tools,
+            authorization = authorization,
+            config = config,
+            memory = localMemory,
+            memoryAddresses = addresses,
+            projectContextRetriever = projectContextRetriever,
+            activeProjectId = activeProjectId
+        )
+    }
     fun isReady(): Boolean = false
 
     fun hasActiveConversation(): Boolean = false
