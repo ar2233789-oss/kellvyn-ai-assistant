@@ -114,6 +114,78 @@ class KellvynAgentPlanTest {
     }
 
     @Test
+    fun readyPlanStepsAdvanceUntilTheNextOwnerApprovalGate() = runBlocking {
+        val repository = FakeCheckpointRepository()
+        val engine = PlanFakeEngine(KellvynModelDecision.Plan(dependentPlan()))
+        val readTool = FakePlanTool(
+            KellvynToolSpec("read_note", "Lê uma nota"),
+            KellvynToolResult(true, "A inspeção foi executada.")
+        )
+        val writeTool = FakePlanTool(
+            KellvynToolSpec(
+                "write_note",
+                "Grava uma nota",
+                risk = KellvynToolRisk.REVERSIBLE_WRITE
+            ),
+            KellvynToolResult(true, "A alteração foi gravada.")
+        )
+        val allowAuthorizedAction = object : KellvynToolAuthorization {
+            override suspend fun authorize(
+                spec: KellvynToolSpec,
+                arguments: Map<String, String>,
+                task: String
+            ): Boolean = true
+        }
+        val agent = KellvynAgent(
+            inference = engine,
+            tools = KellvynToolRegistry(listOf(readTool, writeTool)),
+            authorization = allowAuthorizedAction,
+            taskCheckpoints = repository,
+            skillRegistry = KellvynSkillRegistry.empty()
+        )
+        val verifier = KellvynIndependentVerifier { step, _ ->
+            KellvynStepProof(
+                verifiedBy = "independent-test-verifier",
+                verifiedCriteria = step.successCriteria.toSet(),
+                summary = "Os critérios da etapa foram observados.",
+                evidenceSha256 = "b".repeat(64),
+                observedAtMillis = System.currentTimeMillis()
+            )
+        }
+
+        val planned = agent.run("Inspecione e grave a alteração.") as KellvynAgentResult.Planned
+        assertEquals(KellvynStepStatus.READY, planned.state.statuses["inspect"])
+        assertEquals(KellvynStepStatus.WAITING, planned.state.statuses["write"])
+
+        val afterInspection = agent.executeReadySteps(
+            taskId = "agent-plan-deps-001",
+            verifiersByStepId = mapOf("inspect" to verifier, "write" to verifier)
+        ) as KellvynAgentResult.Planned
+
+        assertEquals(KellvynStepStatus.SUCCEEDED, afterInspection.state.statuses["inspect"])
+        assertEquals(KellvynStepStatus.AWAITING_APPROVAL, afterInspection.state.statuses["write"])
+        assertEquals(1, readTool.executions)
+        assertEquals(0, writeTool.executions)
+
+        val approval = agent.approveTaskStep("agent-plan-deps-001", "write")
+        assertTrue(approval is KellvynAgentResult.Planned)
+        assertEquals(
+            KellvynStepStatus.READY,
+            (approval as KellvynAgentResult.Planned).state.statuses["write"]
+        )
+
+        val completed = agent.executeReadySteps(
+            taskId = "agent-plan-deps-001",
+            verifiersByStepId = mapOf("inspect" to verifier, "write" to verifier)
+        ) as KellvynAgentResult.Planned
+
+        assertEquals(KellvynStepStatus.SUCCEEDED, completed.state.statuses["inspect"])
+        assertEquals(KellvynStepStatus.SUCCEEDED, completed.state.statuses["write"])
+        assertEquals(1, readTool.executions)
+        assertEquals(1, writeTool.executions)
+    }
+
+    @Test
     fun toolReportedSuccessWithoutIndependentProofCannotCompleteStep() = runBlocking {
         val repository = FakeCheckpointRepository()
         val engine = PlanFakeEngine(KellvynModelDecision.Plan(plan()))
@@ -195,6 +267,33 @@ class KellvynAgentPlanTest {
             )
         ),
         createdAtMillis = 1_800_000_000_000L
+    )
+
+    private fun dependentPlan() = KellvynTaskPlan(
+        id = "agent-plan-deps-001",
+        goal = "Inspecionar primeiro e somente depois gravar.",
+        constraints = listOf("Não alterar componentes protegidos."),
+        steps = listOf(
+            KellvynTaskStep(
+                id = "inspect",
+                title = "Inspecionar",
+                objective = "Ler o recurso necessário.",
+                requiredTools = setOf("read_note"),
+                successCriteria = listOf("O recurso foi lido")
+            ),
+            KellvynTaskStep(
+                id = "write",
+                title = "Gravar",
+                objective = "Gravar a alteração autorizada.",
+                dependencies = setOf("inspect"),
+                requiredTools = setOf("write_note"),
+                risk = KellvynStepRisk.REVERSIBLE_WRITE,
+                ownerApprovalRequired = true,
+                successCriteria = listOf("A alteração foi observada"),
+                recoveryPlan = "Restaurar o checkpoint anterior."
+            )
+        ),
+        createdAtMillis = 1_800_000_000_100L
     )
 
     private class FakeCheckpointRepository : KellvynTaskCheckpointRepository {
