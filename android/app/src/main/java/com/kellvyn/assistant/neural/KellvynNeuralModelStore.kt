@@ -46,9 +46,6 @@ internal class KellvynNeuralModelStore(
             error("Não foi possível confirmar o novo pacote neural.")
         }
 
-        FileOutputStream(root, true).use { output ->
-            output.fd.sync()
-        }
         if (backup.exists() && !backup.delete()) {
             // The new target is already committed; a stale backup is safe to clean next time.
         }
