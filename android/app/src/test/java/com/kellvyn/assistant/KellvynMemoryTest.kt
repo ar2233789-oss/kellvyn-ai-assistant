@@ -2,7 +2,6 @@ package com.kellvyn.assistant
 
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -21,14 +20,15 @@ class KellvynMemoryTest {
 
     @Test
     fun modelInferenceCannotBecomeDurableMemoryAutomatically() = runBlocking {
-        val memory = memory()
+        val repository = FakeRepository()
+        val memory = KellvynMemory(repository)
         val result = memory.remember(
             entry(source = KellvynMemorySource.MODEL_INFERENCE, userApproved = true),
             now
         )
 
         assertTrue(result is KellvynMemoryWriteResult.Rejected)
-        assertEquals(0, memory(projectA).size)
+        assertTrue(repository.all.isEmpty())
     }
 
     @Test
@@ -179,29 +179,20 @@ class KellvynMemoryTest {
         assertEquals(listOf("live"), repository.all.map { it.id })
     }
 
-    @Test
+    @Test(expected = IllegalArgumentException::class)
     fun queryRejectsUnboundedScopeOrResultLimits() {
-        try {
-            KellvynMemoryRanker.rank(
-                emptyList(),
-                KellvynMemoryQuery(
-                    text = "agent",
-                    addresses = (1..9).map { KellvynMemoryAddress.project("p-$it") },
-                    nowMillis = now
-                )
+        KellvynMemoryRanker.rank(
+            emptyList(),
+            KellvynMemoryQuery(
+                text = "agent",
+                addresses = (1..9).map { KellvynMemoryAddress.project("p-$it") },
+                nowMillis = now
             )
-            throw AssertionError("A consulta aceitou escopos demais.")
-        } catch (_: IllegalArgumentException) {
-            assertFalse(false)
-        }
+        )
     }
 
     private fun memory(repository: FakeRepository = FakeRepository()) = KellvynMemory(repository)
 
-    private fun memory(address: KellvynMemoryAddress): List<KellvynMemoryEntry> =
-        runBlocking { repositoryForTests.loadCandidates(
-            KellvynMemoryQuery("chuva", listOf(address), now)
-        ) }
 
     private fun entry(
         id: String = "m-1",
@@ -226,7 +217,6 @@ class KellvynMemoryTest {
         userApproved = userApproved
     )
 
-    private val repositoryForTests = FakeRepository()
 
     private class FakeRepository : KellvynMemoryRepository {
         val all = mutableListOf<KellvynMemoryEntry>()
