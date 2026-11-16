@@ -22,6 +22,11 @@ internal data class KellvynTaskCheckpointSnapshot(
     val state: KellvynTaskState
 )
 
+internal interface KellvynTaskCheckpointCipher {
+    fun encrypt(plaintext: ByteArray, associatedData: ByteArray): ByteArray
+    fun decrypt(ciphertext: ByteArray, associatedData: ByteArray): ByteArray
+}
+
 /**
  * Append-only, app-private task snapshots.
  *
@@ -34,7 +39,10 @@ internal data class KellvynTaskCheckpointSnapshot(
  * hash when appending to an existing task. That compare-and-swap check prevents stale workers
  * from silently overwriting newer task progress.
  */
-internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
+internal class KellvynTaskCheckpointStore(
+    private val rootDirectory: File,
+    private val cipher: KellvynTaskCheckpointCipher
+) {
     private val lock = Any()
 
     fun append(
@@ -62,7 +70,12 @@ internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
         val payload = encodeState(state)
         check(payload.size <= MAX_STATE_BYTES) { "O estado da tarefa excedeu o limite permitido." }
 
-        val body = encodeRecordBody(taskId, sequence, createdAtMillis, previousHash, payload)
+        val authenticatedHeader = encodeRecordHeader(taskId, sequence, createdAtMillis, previousHash)
+        val encryptedPayload = cipher.encrypt(payload, authenticatedHeader)
+        check(encryptedPayload.size in 1..MAX_ENCRYPTED_STATE_BYTES) {
+            "O estado criptografado excedeu o limite permitido."
+        }
+        val body = encodeRecordBody(authenticatedHeader, encryptedPayload)
         val digest = sha256(body)
         val completeRecord = body + digest
         val file = File(taskDirectory, checkpointFileName(sequence))
@@ -188,18 +201,24 @@ internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
         val sequence = input.readLong()
         val createdAtMillis = input.readLong()
         val previousHash = readString(input, HASH_HEX_LENGTH)
-        val payloadLength = input.readInt()
         check(taskId == expectedTaskId && TASK_ID.matches(taskId)) {
             "O checkpoint pertence a outra tarefa."
         }
         check(sequence > 0L && createdAtMillis > 0L) { "Metadados de checkpoint inválidos." }
         check(HASH_HEX.matches(previousHash)) { "Hash anterior inválido." }
-        check(payloadLength in 1..MAX_STATE_BYTES) { "Tamanho de estado inválido." }
 
-        val payload = ByteArray(payloadLength)
-        input.readFully(payload)
+        val headerLength = body.size - input.available()
+        val authenticatedHeader = body.copyOfRange(0, headerLength)
+        val encryptedLength = input.readInt()
+        check(encryptedLength in 1..MAX_ENCRYPTED_STATE_BYTES) {
+            "Tamanho do estado criptografado inválido."
+        }
+        val encryptedPayload = ByteArray(encryptedLength)
+        input.readFully(encryptedPayload)
         check(input.available() == 0) { "O checkpoint contém dados extras." }
 
+        val payload = cipher.decrypt(encryptedPayload, authenticatedHeader)
+        check(payload.size in 1..MAX_STATE_BYTES) { "Tamanho do estado restaurado inválido." }
         val state = decodeState(payload)
         check(state.plan.id == taskId) { "O estado restaurado não corresponde à tarefa." }
         validateTaskState(state)
@@ -216,12 +235,11 @@ internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
         )
     }
 
-    private fun encodeRecordBody(
+    private fun encodeRecordHeader(
         taskId: String,
         sequence: Long,
         createdAtMillis: Long,
-        previousHash: String,
-        payload: ByteArray
+        previousHash: String
     ): ByteArray {
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { output ->
@@ -231,8 +249,16 @@ internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
             output.writeLong(sequence)
             output.writeLong(createdAtMillis)
             writeString(output, previousHash, HASH_HEX_LENGTH)
-            output.writeInt(payload.size)
-            output.write(payload)
+        }
+        return bytes.toByteArray()
+    }
+
+    private fun encodeRecordBody(header: ByteArray, encryptedPayload: ByteArray): ByteArray {
+        val bytes = ByteArrayOutputStream(header.size + encryptedPayload.size + 4)
+        DataOutputStream(bytes).use { output ->
+            output.write(header)
+            output.writeInt(encryptedPayload.size)
+            output.write(encryptedPayload)
         }
         return bytes.toByteArray()
     }
@@ -571,7 +597,8 @@ internal class KellvynTaskCheckpointStore(private val rootDirectory: File) {
         private const val HASH_HEX_LENGTH = 64
         private const val MAX_CHECKPOINTS_PER_TASK = 200
         private const val MAX_STATE_BYTES = 1_048_576
-        private const val MAX_RECORD_BYTES = MAX_STATE_BYTES + 4_096
+        private const val MAX_ENCRYPTED_STATE_BYTES = MAX_STATE_BYTES + 128
+        private const val MAX_RECORD_BYTES = MAX_STATE_BYTES + 8_192
         private const val MIN_RECORD_BYTES = 32
         private const val MAX_TASK_ID_BYTES = 80
         private const val MAX_STEP_ID_BYTES = 64
