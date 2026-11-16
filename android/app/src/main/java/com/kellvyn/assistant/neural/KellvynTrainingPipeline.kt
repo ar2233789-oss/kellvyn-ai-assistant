@@ -132,8 +132,10 @@ internal object KellvynTrainingPipeline {
     fun train(
         documents: List<KellvynTrainingDocument>,
         config: KellvynTrainingConfig = KellvynTrainingConfig(),
-        createdAtMillis: Long = System.currentTimeMillis()
+        createdAtMillis: Long = System.currentTimeMillis(),
+        cancellationCheck: () -> Unit = {}
     ): KellvynTrainingResult {
+        cancellationCheck()
         require(createdAtMillis > 0L)
         require(documents.size in 3..MAX_DOCUMENTS) {
             "Forneça pelo menos um documento de treino, validação e teste."
@@ -145,6 +147,7 @@ internal object KellvynTrainingPipeline {
         var totalBytes = 0L
         val hashes = mutableSetOf<String>()
         for (document in documents) {
+            cancellationCheck()
             val size = document.text.toByteArray(Charsets.UTF_8).size
             require(size in 1..MAX_DOCUMENT_BYTES) {
                 "O documento ${document.id} excede o limite individual de bytes."
@@ -171,15 +174,19 @@ internal object KellvynTrainingPipeline {
 
         val tokenizer = KellvynBpeTokenizer.train(
             corpus = trainDocs.map { it.text },
-            maxMerges = config.maxMerges
+            maxMerges = config.maxMerges,
+            cancellationCheck = cancellationCheck
         )
         val trainingTokens = trainDocs.map { document ->
+            cancellationCheck()
             document.id to tokenizer.encode(document.text)
         }
         val validationTokens = validationDocs.map { document ->
+            cancellationCheck()
             document.id to tokenizer.encode(document.text)
         }
         val testTokens = testDocs.map { document ->
+            cancellationCheck()
             document.id to tokenizer.encode(document.text)
         }
 
@@ -215,6 +222,7 @@ internal object KellvynTrainingPipeline {
             var total = 0.0
             var examples = 0L
             for ((_, tokens) in sequences) {
+                cancellationCheck()
                 val count = tokens.size - 1
                 total += model.evaluateLoss(tokens) * count.toDouble()
                 examples += count.toLong()
@@ -225,15 +233,19 @@ internal object KellvynTrainingPipeline {
 
         val initialValidationLoss = meanLoss(validationTokens)
         for ((_, tokens) in trainingTokens) {
+            cancellationCheck()
             model.trainTokens(
                 tokenIds = tokens,
                 epochs = config.epochsPerDocument,
                 learningRate = config.learningRate,
-                weightDecay = config.weightDecay
+                weightDecay = config.weightDecay,
+                cancellationCheck = cancellationCheck
             )
         }
+        cancellationCheck()
         val finalValidationLoss = meanLoss(validationTokens)
         val heldOutTestLoss = meanLoss(testTokens)
+        cancellationCheck()
 
         val entries = documents.map { document ->
             KellvynTrainingManifestEntry(
