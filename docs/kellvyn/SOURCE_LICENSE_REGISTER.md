@@ -1,26 +1,26 @@
 # Kellvyn — registro de origem e licenças
 
 **Data da consulta:** 16/11/2026  
-**Objetivo:** manter a origem correta dos componentes e evitar plágio, atribuição falsa ou uso incompatível com as licenças, mesmo em uma instalação privada.
+**Objetivo:** registrar as referências estudadas e evitar plágio ou atribuição falsa. Os projetos abaixo são material de pesquisa; nenhum código, modelo, peso, tokenizer ou pipeline de treinamento deles está autorizado a ser incorporado ao cérebro da Kellvyn.
 
 > Este registro é uma triagem técnica, não um parecer jurídico. Antes de distribuir qualquer componente, conferir a licença do commit exato, arquivos NOTICE, dependências transitivas, marcas, modelo/pesos e datasets separadamente.
 
 ## 1. Projetos de referência
 
-| Projeto / fonte | Licença localizada | O que pode ser considerado | Condições / restrições |
+| Projeto / fonte | Licença identificada na triagem | Uso permitido neste projeto | Limite |
 |---|---|---|---|
 | Android Studio + Gemini Agent Mode | Produto/serviço proprietário; termos Google | Fluxo de planejamento, aprovações, ferramenta, teste em dispositivo, Logcat e correção iterativa como referência de produto | Não copiar código interno, modelo Gemini, prompts privados, marca/ícones ou serviços proprietários. A página de Agent Mode documenta o comportamento público |
-| OpenHands/software-agent-sdk | MIT | Código de sessões, eventos, workspaces e ferramentas, se uma parte concreta se mostrar compatível | Preservar copyright e texto da licença em cópias ou partes substanciais; verificar dependências |
-| Aider | Apache 2.0 | Implementação selecionada de mapas de repositório, contexto, Git/diff ou utilitários, se justificável | Incluir licença, manter avisos, marcar arquivos modificados e preservar NOTICE quando houver |
-| SWE-agent | MIT | Componentes selecionados de interface agente-ambiente, trajetórias e testes | Preservar aviso de copyright e licença |
-| mini-SWE-agent | MIT | Alternativa atual compacta para estudar ou reaproveitar ciclo de agente | Preservar aviso e licença; conferir versão |
-| OpenCode | MIT | Sistema de permissões, modos de planejamento/execução, agentes especializados e compaction, se um componente for reutilizado | Preservar aviso e licença; não reutilizar identidade visual como se fosse própria |
-| nanochat | MIT | Código de treinamento e avaliação em experimentos fora do Android, quando viável | Preservar aviso e licença; o dataset usado em treinamento tem licença independente |
-| OLMo-core | Apache 2.0 | Infraestrutura de treino PyTorch, otimizadores, dados, checkpoints e métricas se necessário | Incluir licença, manter avisos e indicar alterações |
-| LiteRT-LM | Apache 2.0 | Runtime de inferência Android/JVM, caso passe no gate de modelo próprio | Runtime não é modelo nem pesos; cumprir Apache 2.0 e auditar bibliotecas transitivas |
-| ExecuTorch | BSD 3-Clause (repo principal) | Runtime/exportação de modelos PyTorch e API Android, se compatível | Preservar avisos, condições e disclaimer; conferir componentes e backend específicos |
-| llama.cpp | MIT (repo principal) | Runtime de inferência CPU/GPU, suporte a GGUF, ARM64 e kernels Android, se compatível com o modelo | Preservar aviso e licença; auditar backends e dependências selecionados |
-| MLC-LLM | Apache 2.0 no projeto principal | Runtime/compilação de modelos para GPU móvel se a cadeia de build fizer sentido | Incluir licença/NOTICE e auditar TVM, submodules, kernels e dependências |
+| OpenHands/software-agent-sdk | MIT | Estudo conceitual de sessões, eventos e workspaces | Não copiar nem incorporar código |
+| Aider | Apache 2.0 | Estudo conceitual de mapa de repositório e diffs | Não copiar nem incorporar código |
+| SWE-agent | MIT | Estudo conceitual de ciclos agente-ambiente | Não copiar nem incorporar código |
+| mini-SWE-agent | MIT | Estudo conceitual de ciclo compacto de agente | Não copiar nem incorporar código |
+| OpenCode | MIT | Estudo conceitual de permissões, sessões e contexto | Não copiar nem incorporar código ou identidade visual |
+| nanochat | MIT | Estudo conceitual da sequência de treinamento e avaliação | Não copiar código, tokenizer, dataset ou pesos |
+| OLMo-core | Apache 2.0 | Estudo conceitual de dados, treino e checkpoints | Não copiar nem incorporar infraestrutura de treinamento |
+| LiteRT-LM | Apache 2.0 | Estudo da separação entre runtime e pesos | Não incorporar ao cérebro nesta etapa |
+| ExecuTorch | BSD 3-Clause (repo principal) | Estudo conceitual de exportação e execução | Não incorporar ao cérebro nesta etapa |
+| llama.cpp | MIT (repo principal) | Estudo conceitual de kernels e execução ARM64 | Não copiar nem incorporar código ou pesos |
+| MLC-LLM | Apache 2.0 no projeto principal | Estudo conceitual de compilação de modelos | Não copiar nem incorporar código ou pesos |
 
 ## 2. Licenças conferidas em repositórios
 
@@ -39,39 +39,13 @@ Os arquivos de licença foram consultados diretamente nos repositórios:
 
 Os SHAs acima identificam os arquivos de licença consultados nessa auditoria; antes de cada release, comparar com a versão/commit realmente incluído.
 
-## 3. Regras para copiar código de terceiros
+## 3. Regra de autoria
 
-Antes de qualquer cópia:
-1. confirmar que o arquivo pertence ao repositório e versão declarados;
-2. abrir o arquivo LICENSE e NOTICE no mesmo commit;
-3. verificar cabeçalhos de copyright do próprio arquivo;
-4. verificar se ele tem licença diferente da raiz;
-5. verificar licenças das dependências que ele importa;
-6. confirmar que o uso privado e as modificações previstas são permitidos pelos termos;
-7. copiar somente o mínimo necessário;
-8. manter avisos legais;
-9. anotar mudanças realizadas;
-10. executar revisão de segurança e testes;
-11. adicionar o componente ao inventário de dependências e pacote de notices.
+A regra atual é não copiar código de projetos estudados. Os arquivos serão escritos para o projeto Kellvyn, com commits, autores e testes próprios. A licença de um repositório público não transforma uma cópia em autoria original e não altera a decisão de manter o cérebro integralmente próprio.
 
-Não assumir que todo arquivo em um repositório tem a mesma licença da raiz. Não assumir que “público no GitHub” equivale a permissão de uso.
+## 4. Regra para pesos e modelos
 
-## 4. Regra adicional para modelos e pesos
-
-A licença do código do runtime não licencia os pesos. Para cada modelo candidato, registrar:
-- nome e versão exatos;
-- URL oficial e commit/revisão;
-- hashes dos pesos e tokenizer;
-- licença dos pesos;
-- termos de uso aceitável;
-- permissão explícita para uso comercial e redistribuição no APK, se houver;
-- condições para derivados/fine-tuning;
-- avisos e atribuições exigidos;
-- origem declarada dos dados de treino;
-- limitações conhecidas e modelo card;
-- formato, quantização e conversões aplicadas.
-
-Um modelo aberto pode ter pesos disponíveis sem ter todos os dados e processos de treinamento abertos. Não chamar um modelo de “open source” sem qualificar o que está de fato aberto.
+Não há modelos candidatos. Nenhum peso, modelo-base, tokenizer, adaptador, checkpoint ou saída de outra IA será baixado ou integrado. Os checkpoints aceitos serão exclusivamente os produzidos pela implementação Kellvyn a partir de pesos inicializados aleatoriamente. Cada checkpoint terá hash, configuração e linhagem de dados documentados.
 
 ## 5. Regra para datasets
 
