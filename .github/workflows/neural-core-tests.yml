@@ -16,6 +16,7 @@ on:
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynMemory.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynContextAssembler.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynProjectContextRetriever.kt'
+      - 'android/app/src/main/java/com/kellvyn/assistant/KellvynProjectCodeIndexer.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/workspace/ProjectWorkspaceStore.kt'
       - 'android/app/src/test/java/com/kellvyn/assistant/KellvynProjectContextRetrieverTest.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynEncryptedMemoryRepository.kt'
