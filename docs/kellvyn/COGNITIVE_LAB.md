@@ -155,6 +155,27 @@ A documentação pública do Replit acrescenta quatro padrões úteis:
 
 Na Kellvyn, isso foi traduzido para planejamento estruturado, aprovação de operações, evidência de teste, memória local criptografada e recuperação por checkpoints/estado Git. Não foram copiados código, prompts privados ou mecanismo interno do Replit.
 
+## 7.1. Contexto e recuperação KCP-001
+
+Código:
+- \`KellvynContextAssembler.kt\`;
+- \`KellvynProjectContextRetriever.kt\`;
+- leitura limitada em \`ProjectWorkspaceStore.readFileExcerpt()\`.
+
+A pesquisa do projeto ativo é opcional e só ocorre quando um identificador de projeto é explicitamente passado ao agente. Não percorre todos os projetos do aparelho.
+
+Limites:
+- até 60 arquivos por busca;
+- somente extensões textuais autorizadas;
+- até 12.000 caracteres por arquivo;
+- arquivos e caminhos conhecidos por guardar credenciais são excluídos;
+- conteúdo com padrões conhecidos de segredo é omitido;
+- até 4 trechos são enviados ao modelo por padrão;
+- todos os trechos entram como dados não confiáveis;
+- o contexto usa orçamento de caracteres como estimativa, ainda sem tokenizer neural definitivo.
+
+O módulo não executa código dos arquivos, não chama terminal e não escreve no projeto.
+
 ## 8. Estado de execução
 
 - A implementação KCL-001 é código original escrito para este repositório.
