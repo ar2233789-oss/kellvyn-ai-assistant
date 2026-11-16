@@ -127,3 +127,13 @@ Os documentos ARCHITECTURE.md, MASTER_PLAN.md e NEURAL_MODEL_DECISIONS.md foram 
 
 O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de byte, e KellvynRuntime.reply() continua sem inferência. O agente/planner/memória/contexto/checkpoints são módulos úteis, mas não conseguem substituir um modelo de linguagem treinado. Nenhum build/teste desta atualização foi confirmado; nenhum teste físico foi feito no Poco F6.
 
+### Primeiro componente KBN-002 escrito — tokenizer BPE próprio
+
+- Criado `KellvynBpeTokenizer.kt` com fallback nos 256 bytes UTF-8, aprendizado de pares frequentes, desempate determinístico, codificação/decodificação e checkpoint versionado com SHA-256.
+- O corpus só é lido quando passado explicitamente a `train()`; não há scraping, coleta oculta nem uso automático de conversas privadas.
+- Limites experimentais de corpus, número de merges, tamanho de token, custo de processamento, entrada, saída e checkpoint.
+- Criado `KellvynBpeTokenizerTest.kt` para round-trip de português/Unicode, determinismo, checkpoint e corrupção.
+- Commits: tokenizer inicial `a0704eba6815d2410a720d0ae5dd60ff0b0ab98d`; testes `5cbf434850c80aea48178b635c31115b061ab74b`; limites de CPU/memória e correção de contadores `61b382636a536cd627b162390ab39be37ab6005b` e `5239dc19fd9eb368a690d254d60189fcac083571`.
+- A implementação é experimental e ainda não foi aprovada pelo CI nem medida no Poco F6. É um tokenizer, não um modelo neural completo. O caminho de codificação aplica merges em sequência e precisa ser otimizado antes de uso em corpus grande.
+- Os status/checks de CI consultados para esses commits retornaram vazios; não há evidência suficiente para dizer que os testes passaram.
+
