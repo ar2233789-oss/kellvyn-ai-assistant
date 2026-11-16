@@ -189,3 +189,40 @@ O status combinado consultado para os commits recentes não trouxe checks. A fer
 - teste no Poco F6: não realizado.
 
 Não declarar o agente operacional no aplicativo até esses gates serem executados.
+
+## Delegação interna especializada — Cursor-inspired, sem múltiplos modelos
+
+### Código implementado
+
+Arquivos:
+- `KellvynAgent.kt`
+- `KellvynAgentDelegationTest.kt`
+
+A decisão `KellvynModelDecision.Delegate` permite ao modelo principal solicitar um especialista interno com um papel tipado:
+- pesquisador;
+- explorador de código;
+- revisor;
+- analista de testes.
+
+O especialista:
+- usa a mesma instância `KellvynInferenceEngine` do agente principal;
+- recebe um histórico próprio, sem copiar a conversa inteira;
+- recebe somente a subtarefa e o contexto explicitamente enviado pelo coordenador;
+- não herda a recuperação automática de contexto do projeto, nem memória persistente;
+- só enxerga ferramentas pedidas que estejam registradas e tenham risco `READ_ONLY`;
+- não pode delegar, propor plano, escrever, excluir, instalar ou executar ações mutáveis;
+- tem limites próprios de chamadas, etapas, contexto e timeout;
+- devolve uma observação marcada como não confiável para o agente principal revisar.
+
+A delegação é **sequencial** nesta implementação. Não há paralelismo, múltiplas instâncias de inferência ou especialistas com modelos separados. Isso preserva a decisão do projeto de uma única inteligência Kellvyn.
+
+### Testes escritos
+
+`KellvynAgentDelegationTest.kt` cobre:
+- contexto isolado do especialista;
+- filtragem de ferramentas destrutivas;
+- uso de ferramenta de leitura permitida;
+- retorno da conclusão como observação não confiável;
+- bloqueio de delegação recursiva.
+
+Os testes foram escritos, mas não foram executados pelo Gradle/CI nesta sessão. Status de CI continua pendente de confirmação.
