@@ -1,6 +1,6 @@
 # Kellvyn — estudo das referências
 
-**Princípio:** aprender mecanismos, comparar decisões e documentar a origem. Não clonar produtos, copiar código sem necessidade ou atribuir à Kellvyn o trabalho de terceiros.
+**Princípio:** estudar publicações e projetos para compreender problemas e resultados, mas escrever a implementação Kellvyn do zero. Nenhum código, peso, tokenizer, dataset, adaptador ou arquitetura de modelo de terceiros será copiado ou incorporado ao cérebro.
 
 ## 1. Android Studio + Gemini
 
@@ -114,15 +114,15 @@ Fontes:
 
 ## 8. Como aproveitar sem plagiar
 
-- Implementar em Kotlin os componentes específicos da Kellvyn, com contratos e testes próprios.
-- Usar conceitos e padrões documentados, não copiar arquivos ou segmentos extensos de código.
-- Quando algum componente externo for realmente indispensável, registrar projeto, versão/commit, caminho, licença, aviso de copyright e alterações.
-- Conferir as licenças e termos do modelo-base separadamente; a licença do runtime não substitui a licença/termos dos pesos.
+- Implementar em Kotlin os componentes de rede neural, tokenização, treinamento, checkpoint e inferência, com autoria e testes próprios.
+- Usar os repositórios apenas como material de estudo conceitual; não copiar arquivos, blocos de código, pesos, tokenizer ou pipeline de treino.
+- Não utilizar qualquer modelo-base, pesos pré-treinados, fine-tuning, LoRA ou fallback de outra IA.
 - Não alegar que o código interno do Gemini ou de outros sistemas proprietários foi estudado.
-- Manter um inventário de dependências e uma tabela de atribuição antes de cada integração.
+- Registrar as fontes consultadas e explicar o que foi aprendido, separando a ideia pública da implementação escrita para Kellvyn.
+- Dependências genéricas do aplicativo não podem introduzir um modelo ou pesos externos.
 
 ## Fontes adicionais
 
 [1] Android Studio Gemini Agent Mode: https://developer.android.com/studio/gemini/agent-mode
-[2] LiteRT-LM Kotlin tools (v0.18.0): https://github.com/google-ai-edge/LiteRT-LM/blob/b2f686e2ed4718fb84ec398a61dd59ca0f0aff27/docs/api/kotlin/getting_started.md
-[3] LiteRT-LM 0.18.0 tool implementation: https://github.com/google-ai-edge/LiteRT-LM/blob/b2f686e2ed4718fb84ec398a61dd59ca0f0aff27/kotlin/java/com/google/ai/edge/litertlm/Tool.kt
+
+As fontes listadas são referências de estudo. Nenhuma delas fornece código, pesos ou componentes neurais incorporados ao cérebro da Kellvyn.
