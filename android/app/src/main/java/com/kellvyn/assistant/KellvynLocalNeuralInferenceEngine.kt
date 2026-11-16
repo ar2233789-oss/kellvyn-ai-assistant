@@ -64,8 +64,21 @@ internal class KellvynLocalNeuralInferenceEngine(
         val generated = ArrayList<Int>(config.maxGenerationTokens)
         val complete = prefixTokens.toMutableList()
         var stopped = false
-        repeat(config.maxGenerationTokens) {
+        for (generationIndex in 0 until config.maxGenerationTokens) {
             coroutine.ensureActive()
+            val context = complete.takeLast(model.config.contextLength).toIntArray()
+            val nextToken = model.predictNext(context)
+            complete += nextToken
+            generated += nextToken
+
+            // The protocol terminator is printable ASCII; stop as soon as END appears.
+            val partial = tokenizer.decode(generated.toIntArray())
+            if (partial.trimEnd().endsWith("\nEND") || partial.trimEnd() == "END") {
+                stopped = true
+                break
+            }
+        }
+        coroutine.ensureActive()
             val context = complete.takeLast(model.config.contextLength).toIntArray()
             val nextToken = model.predictNext(context)
             complete += nextToken
@@ -150,6 +163,7 @@ internal class KellvynLocalNeuralInferenceEngine(
                 )
             }
             retained.removeAt(removableIndex)
+            if (removableIndex < latestUserIndex) latestUserIndex--
         }
     }
 
