@@ -89,10 +89,10 @@ Nenhum código desses projetos é copiado nesta primeira implementação. Os det
 ## Estado real em 2026-11-16
 
 - A implementação anterior `LocalBrain.kt` baseada em Gemma foi removida da branch de laboratório; ela não será recuperada.
-- `MainActivity.java` e `BotRuntimeService.kt` ainda contêm referências antigas a `LocalBrain`; a integração está incompleta e precisa de uma nova interface de runtime.
+- `MainActivity.java` e `BotRuntimeService.kt` já apontam para a fronteira temporária `KellvynRuntime`; ela ainda não contém inferência neural.
 - O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo externo.
 - O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
-- A branch não deve ser considerada compilável até que os contratos antigos sejam substituídos e os testes/build passem.
+- A alteração de `MainActivity.java` diverge do hash protegido em `.github/interface-lock.sha`, embora o objetivo tenha sido trocar apenas a fronteira de runtime e mensagens de estado. O gate de APK deve permanecer bloqueado até resolver essa divergência sem redesenhar a interface.
 
 ## Próximas etapas
 
