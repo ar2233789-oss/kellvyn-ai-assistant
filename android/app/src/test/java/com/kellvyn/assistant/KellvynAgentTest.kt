@@ -102,7 +102,7 @@ class KellvynAgentTest {
     @Test
     fun agentStopsAtConfiguredStepLimit() = runBlocking {
         val model = FakeEngine(
-            repeat(4) { KellvynModelDecision.CallTool("read_note", mapOf("name" to "next")) }.toList()
+            List(4) { KellvynModelDecision.CallTool("read_note", mapOf("name" to "next")) }
         )
         val tool = FakeTool(
             KellvynToolSpec("read_note", "Lê uma nota", requiredArguments = setOf("name")),
