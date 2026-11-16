@@ -10,6 +10,8 @@ import com.kellvyn.assistant.neural.KellvynTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 
@@ -98,7 +100,13 @@ internal class KellvynRuntime(context: Context) {
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynTrainingManifest {
         val trained = withContext(Dispatchers.Default) {
-            KellvynTrainingPipeline.train(documents, config, createdAtMillis)
+            val trainingContext = currentCoroutineContext()
+            KellvynTrainingPipeline.train(
+                documents = documents,
+                config = config,
+                createdAtMillis = createdAtMillis,
+                cancellationCheck = { trainingContext.ensureActive() }
+            )
         }
         withContext(Dispatchers.IO) {
             neuralModelStore.save(trained)
