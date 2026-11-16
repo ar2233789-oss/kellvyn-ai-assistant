@@ -25,7 +25,7 @@
 
 - Foram inspecionadas estruturas e arquivos centrais de OpenHands SDK, Aider, SWE-agent, mini-SWE-agent, OpenCode, nanochat e OLMo-core.
 - Foram consultadas licenças raiz de projetos de referência; isso é apenas triagem, não valida cada dependência transitiva.
-- Foram registrados candidatos de runtime e uma estratégia de linhagem de modelo, ainda sem decisão final.
+- A decisão de origem do cérebro foi fechada: implementação própria, pesos inicializados aleatoriamente e treinamento próprio. Não serão usados modelos, tokenizers ou pesos pré-treinados de terceiros.
 - Os documentos mestres do projeto ficam em `docs/kellvyn/`.
 
 ## Próxima sequência — sem saltar etapas
