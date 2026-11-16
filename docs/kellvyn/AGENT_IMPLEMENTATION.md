@@ -41,4 +41,4 @@ Isso mantém o orquestrador independente do formato/engine neural e impede que u
 - ferramentas de escrita/build;
 - integração no Poco F6.
 
-A aplicação usa temporariamente `KellvynRuntime` como fronteira que informa de modo honesto que o backend neural não está pronto. Não há fallback Gemma, Qwen, GPT ou outro modelo.
+A aplicação usa temporariamente `KellvynRuntime` como fronteira que informa de modo honesto que o backend neural não está pronto. Não existe fallback de terceiros nem backend neural conversacional conectado.
