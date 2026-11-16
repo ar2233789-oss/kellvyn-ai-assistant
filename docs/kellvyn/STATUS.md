@@ -101,3 +101,5 @@ O workflow `.github/workflows/poco-f6-parity.yml` agora também é disparado por
 **Limite essencial:** o teste usa uma saída de código fixa, não uma resposta produzida por inferência neural. Ele verifica o mecanismo real de compilação e execução, mas não mede se o cérebro já consegue projetar e gerar apps complexos. O backend neural ainda não está ligado ao chat principal. O teste de emulador também não substitui validação física no Poco F6.
 
 A branch principal, a interface aprovada e `.github/interface-lock.sha` não foram alteradas.
+
+Também foi criado `docs/kellvyn/APP_BUILDER_BENCHMARK.md`: uma escada de dez tarefas em português, com critérios externos por app, bloqueios de aprovação, pontuação sem autoavaliação do modelo e métricas para comparar versões do agente. Os casos que excedem o compilador Java atual estão explicitamente marcados como dependentes de novas capacidades, não como testes já aprovados.
