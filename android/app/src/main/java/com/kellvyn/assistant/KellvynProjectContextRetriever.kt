@@ -15,7 +15,8 @@ internal data class KellvynProjectSearchDocument(
     val path: String,
     val excerpt: String,
     val truncated: Boolean,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val codeIndex: KellvynProjectCodeIndex? = null
 )
 
 internal data class KellvynProjectSearchHit(
@@ -24,7 +25,8 @@ internal data class KellvynProjectSearchHit(
     val score: Double,
     val matchedTerms: Set<String>,
     val truncated: Boolean,
-    val sizeBytes: Long
+    val sizeBytes: Long,
+    val matchedIdentifiers: Set<String> = emptySet()
 )
 
 internal data class KellvynProjectSearchReport(
@@ -49,13 +51,24 @@ internal object KellvynProjectSearchRanker {
         return documents.mapNotNull { document ->
             val pathTerms = KellvynMemoryRanker.tokens(document.path)
             val contentTerms = KellvynMemoryRanker.tokens(document.excerpt)
-            val matched = queryTerms.intersect(pathTerms + contentTerms)
+            val identifierTerms = document.codeIndex?.searchableIdentifiers
+                ?.flatMap { KellvynMemoryRanker.tokens(it) }
+                ?.toSet()
+                .orEmpty()
+            val textTerms = pathTerms + contentTerms
+            val matched = queryTerms.intersect(textTerms + identifierTerms)
             if (matched.isEmpty()) return@mapNotNull null
 
             val pathMatches = queryTerms.intersect(pathTerms)
-            val overlap = matched.size.toDouble() / queryTerms.size.toDouble()
-            val pathScore = pathMatches.size.toDouble() / queryTerms.size.toDouble()
-            val score = (0.78 * overlap + 0.22 * pathScore).coerceIn(0.0, 1.0)
+            val textMatches = queryTerms.intersect(textTerms)
+            val identifierMatches = queryTerms.intersect(identifierTerms)
+            val denominator = queryTerms.size.toDouble()
+            val textScore = textMatches.size.toDouble() / denominator
+            val pathScore = pathMatches.size.toDouble() / denominator
+            val identifierScore = identifierMatches.size.toDouble() / denominator
+            val score = (
+                0.62 * textScore + 0.16 * pathScore + 0.22 * identifierScore
+            ).coerceIn(0.0, 1.0)
             val snippet = bestSnippet(document.excerpt, queryTerms)
 
             KellvynProjectSearchHit(
@@ -64,7 +77,8 @@ internal object KellvynProjectSearchRanker {
                 score = score,
                 matchedTerms = matched,
                 truncated = document.truncated,
-                sizeBytes = document.sizeBytes
+                sizeBytes = document.sizeBytes,
+                matchedIdentifiers = identifierMatches
             )
         }.sortedWith(
             compareByDescending<KellvynProjectSearchHit> { it.score }
@@ -129,11 +143,20 @@ internal class KellvynProjectContextRetriever(
                         skipped++
                         return@forEach
                     }
+                    val codeIndex = if (
+                        path.endsWith(".kt", ignoreCase = true) ||
+                        path.endsWith(".java", ignoreCase = true)
+                    ) {
+                        KellvynProjectCodeIndexer.index(path, excerpt.content)
+                    } else {
+                        null
+                    }
                     documents += KellvynProjectSearchDocument(
                         path = excerpt.path,
                         excerpt = excerpt.content,
                         truncated = excerpt.truncated,
-                        sizeBytes = excerpt.sizeBytes
+                        sizeBytes = excerpt.sizeBytes,
+                        codeIndex = codeIndex
                     )
                 } catch (_: Exception) {
                     skipped++
