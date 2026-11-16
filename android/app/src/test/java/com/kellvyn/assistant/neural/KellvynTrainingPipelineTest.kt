@@ -74,8 +74,8 @@ class KellvynTrainingPipelineTest {
         val sample = "Kellvyn cria inteligência própria em português."
         assertEquals(sample, restored.tokenizer.decode(restored.tokenizer.encode(sample)))
         assertEquals(
-            result.model.predictNext(result.tokenizer.encode("Kellvyn aprende")),
-            restored.model.predictNext(restored.tokenizer.encode("Kellvyn aprende"))
+            result.model.predictNext(result.tokenizer.encode("Oi")),
+            restored.model.predictNext(restored.tokenizer.encode("Oi"))
         )
     }
 
