@@ -117,11 +117,118 @@ class KellvynAgentTest {
     }
 
     @Test
+    fun approvedScopedMemoryIsProvidedAsUntrustedContext() = runBlocking {
+        val repository = FakeMemoryRepository()
+        val memory = KellvynMemory(repository)
+        val address = KellvynMemoryAddress.project("kellvyn")
+        memory.remember(
+            KellvynMemoryEntry(
+                id = "memory-1",
+                address = address,
+                kind = KellvynMemoryKind.PROJECT_DECISION,
+                title = "Efeitos visuais aprovados",
+                content = "Chuva e relâmpagos podem funcionar simultaneamente.",
+                tags = listOf("chuva", "relâmpago"),
+                source = KellvynMemorySource.USER_EXPLICIT,
+                provenance = "Decisão confirmada pelo proprietário.",
+                confidence = 1.0,
+                createdAtMillis = System.currentTimeMillis(),
+                privacyClass = KellvynMemoryPrivacyClass.NON_SENSITIVE,
+                userApproved = true
+            ),
+            System.currentTimeMillis()
+        )
+
+        val model = FakeEngine(KellvynModelDecision.Final("Entendido."))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            memory = memory,
+            memoryAddresses = listOf(address)
+        )
+
+        val result = agent.run("Como os efeitos visuais devem funcionar?")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        val messages = model.historySeen.single()
+        val recalled = messages.single { it.source == "memory:memory-1" }
+        assertEquals(KellvynTrustLevel.UNTRUSTED, recalled.trust)
+        assertTrue(recalled.content.contains("Chuva e relâmpagos"))
+        assertTrue(messages.first().content.contains("Memórias recuperadas são contexto"))
+        assertEquals(1, repository.putCount)
+    }
+
+    @Test
+    fun agentDoesNotRetrieveMemoryFromAnotherProject() = runBlocking {
+        val repository = FakeMemoryRepository()
+        repository.put(
+            KellvynMemoryEntry(
+                id = "other-project-memory",
+                address = KellvynMemoryAddress.project("other-project"),
+                kind = KellvynMemoryKind.PROJECT_FACT,
+                title = "Outro projeto",
+                content = "O projeto usa tema azul.",
+                tags = listOf("tema", "azul"),
+                source = KellvynMemorySource.USER_EXPLICIT,
+                provenance = "Registro explícito.",
+                confidence = 1.0,
+                createdAtMillis = System.currentTimeMillis(),
+                privacyClass = KellvynMemoryPrivacyClass.NON_SENSITIVE,
+                userApproved = true
+            )
+        )
+        val model = FakeEngine(KellvynModelDecision.Final("Sem contexto externo."))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            memory = KellvynMemory(repository),
+            memoryAddresses = listOf(KellvynMemoryAddress.project("kellvyn"))
+        )
+
+        agent.run("Qual é o tema do projeto?")
+
+        assertFalse(model.historySeen.single().any { it.source.startsWith("memory:") })
+    }
+
+    @Test
     fun finalAnswerCanCompleteWithoutToolCalls() = runBlocking {
         val model = FakeEngine(KellvynModelDecision.Final("Olá."))
         val result = KellvynAgent(model, KellvynToolRegistry(emptyList())).run("Olá.")
 
         assertEquals(KellvynAgentResult.Completed("Olá.", 1, 0), result)
+    }
+
+    private class FakeMemoryRepository : KellvynMemoryRepository {
+        private val entries = mutableListOf<KellvynMemoryEntry>()
+        var putCount = 0
+            private set
+
+        override suspend fun put(entry: KellvynMemoryEntry) {
+            putCount++
+            entries.removeAll { it.id == entry.id && it.address == entry.address }
+            entries += entry
+        }
+
+        override suspend fun loadCandidates(query: KellvynMemoryQuery): List<KellvynMemoryEntry> =
+            entries.filter {
+                it.address in query.addresses &&
+                    (it.expiresAtMillis == null || it.expiresAtMillis > query.nowMillis)
+            }
+
+        override suspend fun delete(id: String, address: KellvynMemoryAddress): Boolean =
+            entries.removeAll { it.id == id && it.address == address }
+
+        override suspend fun deleteScope(address: KellvynMemoryAddress): Int {
+            val previous = entries.size
+            entries.removeAll { it.address == address }
+            return previous - entries.size
+        }
+
+        override suspend fun purgeExpired(nowMillis: Long): Int {
+            val previous = entries.size
+            entries.removeAll { it.expiresAtMillis != null && it.expiresAtMillis <= nowMillis }
+            return previous - entries.size
+        }
     }
 
     private class FakeEngine(vararg decisions: KellvynModelDecision) : KellvynInferenceEngine {
