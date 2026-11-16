@@ -1,0 +1,279 @@
+package com.kellvyn.assistant.neural
+
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
+import java.io.DataInputStream
+import java.io.DataOutputStream
+import java.io.InputStream
+import java.io.OutputStream
+import java.security.MessageDigest
+
+/**
+ * Byte-fallback BPE tokenizer implemented for the original Kellvyn language model.
+ *
+ * The tokenizer is trained only from the corpus explicitly supplied by the caller.
+ * It starts with all 256 UTF-8 byte values, so every Unicode input remains losslessly
+ * representable regardless of which merges were learned.
+ *
+ * This is the first KBN-002 component. It is not a neural model by itself.
+ */
+internal class KellvynBpeTokenizer private constructor(
+    private val merges: List<Merge>,
+    private val tokenBytes: List<ByteArray>
+) {
+    internal data class Merge(
+        val leftTokenId: Int,
+        val rightTokenId: Int,
+        val mergedTokenId: Int
+    )
+
+    val vocabularySize: Int
+        get() = tokenBytes.size
+
+    val mergeCount: Int
+        get() = merges.size
+
+    /** Encodes text using UTF-8 bytes followed by the learned merge order. */
+    fun encode(text: String): IntArray {
+        var tokens = text.toByteArray(Charsets.UTF_8)
+            .map { byte -> byte.toInt() and 0xff }
+        for (merge in merges) {
+            tokens = applyMerge(
+                tokens,
+                merge.leftTokenId,
+                merge.rightTokenId,
+                merge.mergedTokenId
+            )
+        }
+        return tokens.toIntArray()
+    }
+
+    /** Decodes tokens back to their exact UTF-8 byte stream. */
+    fun decode(tokenIds: IntArray): String {
+        require(tokenIds.size <= MAX_DECODE_TOKENS) { "Sequência de tokens acima do limite." }
+        val output = ByteArrayOutputStream()
+        for (tokenId in tokenIds) {
+            require(tokenId in tokenBytes.indices) { "ID de token fora do vocabulário Kellvyn." }
+            output.write(tokenBytes[tokenId])
+        }
+        return String(output.toByteArray(), Charsets.UTF_8)
+    }
+
+    /** Saves only this tokenizer's merge table; model weights are stored separately. */
+    fun writeCheckpoint(output: OutputStream) {
+        val payloadBuffer = ByteArrayOutputStream()
+        DataOutputStream(payloadBuffer).use { data ->
+            data.writeInt(CHECKPOINT_MAGIC)
+            data.writeInt(CHECKPOINT_VERSION)
+            data.writeInt(merges.size)
+            for (merge in merges) {
+                data.writeInt(merge.leftTokenId)
+                data.writeInt(merge.rightTokenId)
+                data.writeInt(merge.mergedTokenId)
+            }
+        }
+        val payload = payloadBuffer.toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(payload)
+        output.write(payload)
+        output.write(checksum)
+        output.flush()
+    }
+
+    private fun applyMerge(
+        input: List<Int>,
+        leftTokenId: Int,
+        rightTokenId: Int,
+        mergedTokenId: Int
+    ): List<Int> {
+        if (input.size < 2) return input
+        val output = ArrayList<Int>(input.size)
+        var index = 0
+        while (index < input.size) {
+            if (
+                index + 1 < input.size &&
+                input[index] == leftTokenId &&
+                input[index + 1] == rightTokenId
+            ) {
+                output += mergedTokenId
+                index += 2
+            } else {
+                output += input[index]
+                index++
+            }
+        }
+        return output
+    }
+
+    companion object {
+        private const val BASE_VOCABULARY_SIZE = 256
+        private const val CHECKPOINT_MAGIC = 0x4B564250 // "KVBP"
+        private const val CHECKPOINT_VERSION = 1
+        private const val CHECKSUM_BYTES = 32
+        private const val MAX_MERGES = 4096
+        private const val MAX_CORPUS_BYTES = 1_000_000
+        private const val MAX_TOKEN_BYTES = 16_384
+        private const val MAX_DECODE_TOKENS = 1_000_000
+        private const val MAX_CHECKPOINT_BYTES = 64 * 1024
+
+        /**
+         * Learns deterministic byte-pair merges from the exact corpus supplied.
+         *
+         * Pair frequencies are recomputed after each merge. Ties are resolved by token
+         * IDs, making the resulting tokenizer reproducible for the same input ordering.
+         */
+        fun train(
+            corpus: List<String>,
+            maxMerges: Int = 512
+        ): KellvynBpeTokenizer {
+            require(corpus.isNotEmpty()) { "O corpus de treinamento está vazio." }
+            require(maxMerges in 0..MAX_MERGES) { "Quantidade de merges fora do limite." }
+
+            val sequences = mutableListOf<List<Int>>()
+            var totalBytes = 0
+            for (text in corpus) {
+                val bytes = text.toByteArray(Charsets.UTF_8)
+                totalBytes += bytes.size
+                require(totalBytes <= MAX_CORPUS_BYTES) {
+                    "O corpus excede o limite experimental de bytes."
+                }
+                if (bytes.isNotEmpty()) {
+                    sequences += bytes.map { byte -> byte.toInt() and 0xff }
+                }
+            }
+            require(sequences.isNotEmpty()) { "O corpus não contém texto treinável." }
+
+            val tokenBytes = MutableList(BASE_VOCABULARY_SIZE) { tokenId ->
+                byteArrayOf(tokenId.toByte())
+            }
+            val merges = mutableListOf<Merge>()
+
+            repeat(maxMerges) {
+                val frequencies = HashMap<Long, Int>()
+                for (sequence in sequences) {
+                    for (index in 0 until sequence.size - 1) {
+                        val key = pairKey(sequence[index], sequence[index + 1])
+                        frequencies[key] = (frequencies[key] ?: 0) + 1
+                    }
+                }
+
+                var bestPair = -1L
+                var bestFrequency = 1
+                for ((pair, frequency) in frequencies) {
+                    if (
+                        frequency > bestFrequency ||
+                        (frequency == bestFrequency && (bestPair == -1L || pair < bestPair))
+                    ) {
+                        bestPair = pair
+                        bestFrequency = frequency
+                    }
+                }
+                if (bestPair == -1L) return@repeat
+
+                val left = (bestPair ushr 32).toInt()
+                val right = bestPair.toInt()
+                val mergedId = tokenBytes.size
+                val mergedBytes = tokenBytes[left] + tokenBytes[right]
+                require(mergedBytes.size <= MAX_TOKEN_BYTES) {
+                    "Um token aprendido excedeu o tamanho máximo."
+                }
+                tokenBytes += mergedBytes
+                merges += Merge(left, right, mergedId)
+
+                for (sequenceIndex in sequences.indices) {
+                    sequences[sequenceIndex] = applyStaticMerge(
+                        sequences[sequenceIndex],
+                        left,
+                        right,
+                        mergedId
+                    )
+                }
+            }
+
+            return KellvynBpeTokenizer(merges.toList(), tokenBytes.toList())
+        }
+
+        /** Restores a bounded tokenizer checkpoint and reconstructs its byte table. */
+        fun readCheckpoint(input: InputStream): KellvynBpeTokenizer {
+            val bytes = input.readBytes()
+            require(bytes.size in (CHECKSUM_BYTES + 12)..MAX_CHECKPOINT_BYTES) {
+                "Checkpoint do tokenizer inválido ou acima do limite."
+            }
+
+            val payloadSize = bytes.size - CHECKSUM_BYTES
+            val payload = bytes.copyOfRange(0, payloadSize)
+            val storedChecksum = bytes.copyOfRange(payloadSize, bytes.size)
+            val actualChecksum = MessageDigest.getInstance("SHA-256").digest(payload)
+            require(MessageDigest.isEqual(storedChecksum, actualChecksum)) {
+                "A integridade do tokenizer não confere."
+            }
+
+            val data = DataInputStream(ByteArrayInputStream(payload))
+            require(data.readInt() == CHECKPOINT_MAGIC) {
+                "Checkpoint não pertence ao tokenizer Kellvyn."
+            }
+            require(data.readInt() == CHECKPOINT_VERSION) {
+                "Versão do tokenizer Kellvyn não suportada."
+            }
+            val count = data.readInt()
+            require(count in 0..MAX_MERGES) { "Quantidade de merges inválida." }
+
+            val tokenBytes = MutableList(BASE_VOCABULARY_SIZE) { tokenId ->
+                byteArrayOf(tokenId.toByte())
+            }
+            val merges = mutableListOf<Merge>()
+            val seenPairs = HashSet<Long>()
+
+            repeat(count) {
+                val left = data.readInt()
+                val right = data.readInt()
+                val mergedId = data.readInt()
+                require(left in tokenBytes.indices && right in tokenBytes.indices) {
+                    "O merge referencia um token inexistente."
+                }
+                require(mergedId == tokenBytes.size) {
+                    "A sequência de IDs do tokenizer está inválida."
+                }
+                require(seenPairs.add(pairKey(left, right))) {
+                    "O checkpoint repete um merge já registrado."
+                }
+                val mergedBytes = tokenBytes[left] + tokenBytes[right]
+                require(mergedBytes.size <= MAX_TOKEN_BYTES) {
+                    "Token do checkpoint acima do limite."
+                }
+                tokenBytes += mergedBytes
+                merges += Merge(left, right, mergedId)
+            }
+            require(data.available() == 0) { "Checkpoint do tokenizer contém dados extras." }
+
+            return KellvynBpeTokenizer(merges.toList(), tokenBytes.toList())
+        }
+
+        private fun applyStaticMerge(
+            input: List<Int>,
+            leftTokenId: Int,
+            rightTokenId: Int,
+            mergedTokenId: Int
+        ): List<Int> {
+            if (input.size < 2) return input
+            val output = ArrayList<Int>(input.size)
+            var index = 0
+            while (index < input.size) {
+                if (
+                    index + 1 < input.size &&
+                    input[index] == leftTokenId &&
+                    input[index + 1] == rightTokenId
+                ) {
+                    output += mergedTokenId
+                    index += 2
+                } else {
+                    output += input[index]
+                    index++
+                }
+            }
+            return output
+        }
+
+        private fun pairKey(left: Int, right: Int): Long =
+            (left.toLong() shl 32) or (right.toLong() and 0xffff_ffffL)
+    }
+}
