@@ -1,56 +1,41 @@
-# Kellvyn — aprendizado, memória e treinamento
+# Kellvyn — memória, aprendizado e treinamento próprios
 
-## Três coisas diferentes
+## 1. Memória operacional
 
-### 1. Memória operacional da Kellvyn
+Memória guarda fatos e preferências explicitamente autorizados para recuperar contexto. Cada registro precisa de origem, data, motivo, política de retenção e meios de consultar, corrigir e excluir. Memória altera o contexto disponível; não altera pesos neurais.
 
-Informações explicitamente guardadas sobre preferências, projetos e tarefas. Deve ter:
-- origem e data;
-- consentimento/razão para guardar;
-- limite de tamanho e política de retenção;
-- consulta, edição e exclusão;
-- prevenção de exposição de segredos;
-- distinção entre fato confirmado e inferência.
+## 2. Aprendizado dos pesos
 
-Guardar uma memória não altera os pesos do modelo.
+O cérebro da Kellvyn será treinado do zero. A implementação deverá:
+- inicializar pesos aleatórios com seed registrada;
+- preparar dados com proveniência;
+- calcular a previsão e a loss;
+- calcular gradientes e atualizar parâmetros;
+- registrar hiperparâmetros, passos, métricas e checkpoints;
+- permitir reproduzir o treinamento;
+- comparar resultados em conjuntos de avaliação que não participaram do treino.
 
-### 2. Adaptação do comportamento
+Não usar modelo pré-treinado, pesos emprestados, fine-tuning, LoRA ou adaptadores derivados de outro modelo. Não usar outro modelo para gerar silenciosamente o dataset da Kellvyn.
 
-Ajustar o modelo com exemplos selecionados, por exemplo:
-- SFT (supervised fine-tuning);
-- LoRA/adapters quando o runtime/modelo suportar;
-- preferência/feedback estruturado;
-- avaliação antes/depois para medir regressões.
+## 3. Etapas de treinamento
 
-É preciso guardar a origem e licença dos dados, filtrar informações privadas, remover segredos e avaliar memorizações indevidas.
+1. **Teste matemático:** validar operações numéricas, gradientes e estabilidade.
+2. **Protótipo de sequência:** treinar uma rede pequena com dados de teste explícitos; isso verifica o pipeline, não a inteligência geral.
+3. **Tokenização:** desenvolver e testar uma representação própria, sem importar tokenizer de modelo externo.
+4. **Corpus autorizado:** selecionar textos e código com origem, termos e escopo de uso registrados. Remover dados pessoais, segredos, duplicatas e conteúdo não autorizado.
+5. **Treino-base:** iniciar todos os pesos do zero e registrar cada checkpoint.
+6. **Treino de instrução:** preparar exemplos originais e autorizados, separados por tarefa e qualidade.
+7. **Avaliação:** medir português, continuidade, precisão factual, raciocínio, programação, uso de ferramentas, robustez e memorização indevida.
+8. **Execução móvel:** quantizar ou converter apenas pesos produzidos pelo próprio pipeline e comparar qualidade, RAM, latência, temperatura e consumo.
 
-### 3. Treinamento de um modelo-base
+## 4. Separação de dados
 
-Pré-treinar um modelo do zero exige grandes conjuntos de dados, processamento acelerado, armazenamento e uma infraestrutura muito além da memória de um celular. O Poco F6 pode hospedar inferência local e testes; não deve ser apresentado como infraestrutura para pré-treinar um LLM de grande porte.
+O conjunto de treino, validação e teste deverá ser separado. Exemplos de avaliação não podem vazar para treino. Dados privados do proprietário não entram automaticamente no corpus. Feedback e histórico só poderão virar exemplos de treino mediante autorização específica e revisão.
 
-## Referências de treinamento
+## 5. Limites de hardware
 
-- nanochat permite estudar o percurso de um LLM pequeno/educacional, desde tokenizer até pré-treinamento, ajuste e inferência: https://github.com/karpathy/nanochat
-- OLMo-core permite estudar a infraestrutura de treinamento mais ampla: https://github.com/allenai/OLMo-core
+O Poco F6 é o alvo de execução local e pode ser usado para experiências pequenas. Isso não torna seu processador móvel equivalente a uma infraestrutura de pré-treinamento de grande escala. O tamanho do primeiro modelo e o volume de dados serão definidos por medições reais, sem prometer capacidade geral antes dos resultados.
 
-Essas referências não significam que vamos executar o treinamento inteiro no Poco F6. A estratégia realista é:
+## 6. Evidência obrigatória
 
-1. preservar inicialmente o modelo local atual como base neural operacional;
-2. construir o agente e as ferramentas próprias da Kellvyn;
-3. criar um conjunto próprio de tarefas e avaliações;
-4. recolher exemplos/feedback apenas com consentimento e proveniência;
-5. experimentar adaptação em ambiente de treinamento apropriado, se houver infraestrutura;
-6. portar para o Android somente pesos e formatos compatíveis, depois de testes de memória, latência, temperatura e qualidade.
-
-## Gate para afirmar que houve aprendizado
-
-Só declarar uma melhoria de modelo quando houver:
-- dataset e versão identificados;
-- licença/consentimento verificados;
-- método de treinamento documentado;
-- pesos/adapters de saída identificados por hash;
-- conjunto de avaliação fixo;
-- resultado comparável antes/depois;
-- análise de regressões, privacidade e segurança.
-
-Uma alteração de prompt, uma memória salva ou uma ferramenta nova melhora o sistema, mas não é treinamento dos pesos.
+Uma etapa de aprendizado só será declarada concluída com: versão do código, configuração, seed, origem e hash do dataset, parâmetros treinados, hash do checkpoint, curvas de loss, métricas de avaliação e análise de regressões. Memória salva, prompt, ferramenta nova ou texto produzido por regras não contam como treinamento neural.
