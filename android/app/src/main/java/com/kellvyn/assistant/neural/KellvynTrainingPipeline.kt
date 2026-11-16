@@ -1,7 +1,6 @@
 package com.kellvyn.assistant.neural
 
 import java.security.MessageDigest
-import kotlin.math.max
 
 internal enum class KellvynTrainingSplit { TRAIN, VALIDATION, TEST }
 
@@ -119,10 +118,16 @@ internal data class KellvynTrainingResult(
  * supply explicit text and provenance for each sample.
  */
 internal object KellvynTrainingPipeline {
-    private const val MAX_DOCUMENTS = 10_000
+    private const val MAX_DOCUMENTS = 1_000
     private const val MAX_DOCUMENT_BYTES = 65_536
     private const val MAX_TOTAL_CORPUS_BYTES = 500_000L
     private const val MAX_STEPS_PER_MODEL_CALL = 50_000L
+    private val SECRET_ASSIGNMENT = Regex(
+        """(?i)\\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\\b\\s*[:=]\\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
+    )
+    private val BEARER_TOKEN = Regex("""(?i)\\bauthorization\\s*:\\s*bearer\\s+[A-Za-z0-9._~+/=-]{12,}""")
+    private val PRIVATE_KEY = Regex("""-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----""")
+    private val KNOWN_TOKEN = Regex("""\\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\\b""")
 
     fun train(
         documents: List<KellvynTrainingDocument>,
@@ -143,6 +148,9 @@ internal object KellvynTrainingPipeline {
             val size = document.text.toByteArray(Charsets.UTF_8).size
             require(size in 1..MAX_DOCUMENT_BYTES) {
                 "O documento ${document.id} excede o limite individual de bytes."
+            }
+            require(!containsSecretMaterial(document.text)) {
+                "O documento ${document.id} parece conter credenciais ou chave privada; foi recusado."
             }
             totalBytes += size.toLong()
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
@@ -257,6 +265,12 @@ internal object KellvynTrainingPipeline {
         )
         return KellvynTrainingResult(tokenizer, model, manifest)
     }
+
+    private fun containsSecretMaterial(text: String): Boolean =
+        SECRET_ASSIGNMENT.containsMatchIn(text) ||
+            BEARER_TOKEN.containsMatchIn(text) ||
+            PRIVATE_KEY.containsMatchIn(text) ||
+            KNOWN_TOKEN.containsMatchIn(text)
 
     private fun sha256(value: String): String =
         MessageDigest.getInstance("SHA-256")
