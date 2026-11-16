@@ -450,8 +450,8 @@ internal class KellvynAgent(
                                 "disponibilizadas e retorne uma síntese curta com evidências e incertezas. " +
                                 "Não delegue, não proponha planos e não modifique recursos."
                         ),
-                        projectContextRetriever = projectContextRetriever,
-                        activeProjectId = activeProjectId,
+                        projectContextRetriever = null,
+                        activeProjectId = null,
                         skillRegistry = skillRegistry,
                         taskCheckpoints = null
                     )
