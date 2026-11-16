@@ -77,6 +77,11 @@ Commits mais importantes desta correção:
 - tokenizer KBN-002: a0704eba6815d2410a720d0ae5dd60ff0b0ab98d
 - teste do tokenizer: 5cbf434850c80aea48178b635c31115b061ab74b
 - limites do tokenizer: 61b382636a536cd627b162390ab39be37ab6005b e 5239dc19fd9eb368a690d254d60189fcac083571
+- modelo atenção KBN-002 alpha: e96ad13856bf2aa9d47e9b21bae8ee79f67bfc2b
+- testes modelo: be2584b7724bbfcf3c917368a45b63d32cf86178
+- fábrica tokenizer/modelo: de900376672b009bc94401784b333fbdac7cd7e8
+- integração BPE/modelo em teste: 7ecd8c26792f2336204bc8a38de099b932b0a075
+- leitura de checkpoint limitada/prefixo de geração: ad7a1327106ff2da847b80da0dd9ba01140090c6
 
 **Não alegar que o CI passou.** A consulta de status para os commits de runtime/checkpoint e tokenizer retornou lista vazia; ainda não há check verificável nesta sessão. Os caminhos editados estão cobertos pelo filtro de push do workflow neural, mas falta confirmar a execução. Também não houve build Android nem teste no Poco F6 após as correções.
 
@@ -90,6 +95,8 @@ Commits mais importantes desta correção:
 - planejar teste instrumentado Android Keystore; não confundir o cifrador de teste JVM com o Keystore real.
 
 ### Passo 2 — construir o cérebro próprio KBN-002
+Já existe o tokenizer BPE próprio e a primeira alpha neural `KellvynAttentionLanguageModel.kt`, com atenção autoregressiva de uma cabeça, gradientes, AdamW e checkpoint. Testes foram escritos e a ligação BPE→modelo foi adicionada. A revisão matemática de referência em NumPy float32 encontrou erro absoluto máximo ≈9,6e-7 em 21 coordenadas e reduziu loss de padrão alternado de 5,49 para 0,00392 em 1.100 atualizações simuladas; **isso não é build nem teste Kotlin**. Falta obter CI verificável.
+
 Já existe o primeiro componente: KellvynBpeTokenizer.kt, com teste separado. Ele ainda não foi validado por CI. A implementação aplica a sequência de merges de forma simples e precisa de otimização antes de treinar em corpus grande. A base de implementação planejada está no NEURAL_MODEL_DECISIONS.md:
 - tokenizer próprio: byte UTF-8 como base e BPE treinado em corpus autorizado;
 - modelo autoregressivo decoder-only;
