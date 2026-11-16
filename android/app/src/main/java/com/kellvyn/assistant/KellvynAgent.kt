@@ -17,7 +17,7 @@ internal class KellvynAgent(
     private val config: KellvynAgentConfig = KellvynAgentConfig(),
     private val memory: KellvynMemory? = null,
     private val memoryAddresses: List<KellvynMemoryAddress> = emptyList(),
-    private val projectContextRetriever: KellvynProjectContextRetriever? = null,
+    private val projectContextRetriever: KellvynProjectContextSearch? = null,
     private val activeProjectId: String? = null
 ) {
     suspend fun run(goal: String): KellvynAgentResult {
