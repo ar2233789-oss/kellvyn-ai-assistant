@@ -64,6 +64,45 @@ class KellvynMemoryTest {
     }
 
     @Test
+    fun unknownPrivacyClassificationIsRejected() = runBlocking {
+        val result = memory().remember(
+            entry(privacyClass = KellvynMemoryPrivacyClass.UNKNOWN),
+            now
+        )
+
+        assertTrue(result is KellvynMemoryWriteResult.Rejected)
+    }
+
+    @Test
+    fun sensitivePersonalMemoryNeedsSeparateApproval() = runBlocking {
+        val denied = memory().remember(
+            entry(privacyClass = KellvynMemoryPrivacyClass.SENSITIVE_PERSONAL),
+            now
+        )
+        val allowed = memory().remember(
+            entry(
+                id = "sensitive-approved",
+                privacyClass = KellvynMemoryPrivacyClass.SENSITIVE_PERSONAL,
+                sensitiveDataApproved = true
+            ),
+            now
+        )
+
+        assertTrue(denied is KellvynMemoryWriteResult.Rejected)
+        assertTrue(allowed is KellvynMemoryWriteResult.Stored)
+    }
+
+    @Test
+    fun credentialClassificationIsAlwaysRejected() = runBlocking {
+        val result = memory().remember(
+            entry(privacyClass = KellvynMemoryPrivacyClass.CREDENTIAL, sensitiveDataApproved = true),
+            now
+        )
+
+        assertTrue(result is KellvynMemoryWriteResult.Rejected)
+    }
+
+    @Test
     fun recallNeverCrossesProjectScope() = runBlocking {
         val repository = FakeRepository()
         val memory = KellvynMemory(repository)
@@ -201,7 +240,9 @@ class KellvynMemoryTest {
         content: String = "A chuva verde usa animação fluida.",
         source: KellvynMemorySource = KellvynMemorySource.USER_EXPLICIT,
         userApproved: Boolean = true,
-        expiresAtMillis: Long? = null
+        expiresAtMillis: Long? = null,
+        privacyClass: KellvynMemoryPrivacyClass = KellvynMemoryPrivacyClass.NON_SENSITIVE,
+        sensitiveDataApproved: Boolean = false
     ) = KellvynMemoryEntry(
         id = id,
         address = address,
@@ -214,6 +255,8 @@ class KellvynMemoryTest {
         confidence = 1.0,
         createdAtMillis = now - 1_000L,
         expiresAtMillis = expiresAtMillis,
+        privacyClass = privacyClass,
+        sensitiveDataApproved = sensitiveDataApproved,
         userApproved = userApproved
     )
 
