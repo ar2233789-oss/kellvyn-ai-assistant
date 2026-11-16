@@ -163,7 +163,7 @@ Commits de implementação:
 - correção de contexto e assertions: `b640da81645d8a8606f2fae5ac97b90b8320865b`, `ee0f96ff86328d9740d53eba22c7ffa666417dab`
 - filtro de CI: `b3f2804b5dcdcf919492855b557733b7f44a2e92`
 
-Também foram alinhados os documentos de arquitetura e pesquisa para remover a permissão antiga e contraditória de utilizar pesos pré-treinados externos; a decisão vigente é treinamento de pesos próprios do zero.
+Também foram alinhados os documentos de arquitetura, pesquisa e estudo de referências para remover a permissão antiga e contraditória de utilizar pesos pré-treinados externos; a decisão vigente é treinamento de pesos próprios do zero (correção adicional em REFERENCE_STUDY.md: 0c7ce817ede6d1ff3f42fc40de39b98580b376dd).
 
 **Validação:** um smoke test Kotlin isolado da lógica de normalização/seleção foi compilado e executado com sucesso. Isso não é o Gradle do repositório, não executa os testes JUnit reais e não valida Android. O GitHub não retornou checks/status verificáveis para os commits consultados. Portanto, os testes do projeto continuam pendentes de CI confirmado. Nenhuma integração com o chat principal nem teste físico no Poco F6 ocorreu nesta atualização.
 
