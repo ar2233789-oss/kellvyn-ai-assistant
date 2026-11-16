@@ -1,0 +1,39 @@
+name: Kellvyn neural core tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - lab/kellvyn-intelligence-core-20261116
+    paths:
+      - 'android/app/src/main/java/com/kellvyn/assistant/neural/**'
+      - 'android/app/src/test/java/com/kellvyn/assistant/neural/**'
+      - '.github/workflows/neural-core-tests.yml'
+      - 'android/app/build.gradle'
+      - 'android/build.gradle'
+
+permissions:
+  contents: read
+
+jobs:
+  neural-unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Android SDK
+        uses: android-actions/setup-android@v3
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.13'
+
+      - name: Run unit tests only (no APK or release)
+        working-directory: android
+        run: gradle testDebugUnitTest --no-daemon --stacktrace
