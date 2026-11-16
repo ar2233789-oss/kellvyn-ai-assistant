@@ -71,3 +71,14 @@ A documentação Android recomenda separar testes locais, instrumentados e de UI
 ## Limite atual
 
 O fixture APP-01 do smoke test é uma saída determinística fornecida diretamente ao construtor; não atravessa a conversa principal e não é geração neural. `MainActivity` chama `KellvynRuntime.reply()`, que atualmente informa que a inferência está indisponível; o salvamento legado no Editor não chama o compilador. Portanto, ainda não existe prova de que o agente pelo chat gere e compile um app. Até conectar o backend e o caminho de saída do chat ao `LocalProjectBuilder`, executar esta escada e medir os resultados, não há medição honesta da capacidade do cérebro de projetar e implementar aplicativos. O compilador atual é restrito a Java Android simples, sem Kotlin/Compose, bibliotecas externas, assets ou recursos XML adicionais.
+
+## Referências externas aplicadas
+
+- Android Developers — [Test apps on Android](https://developer.android.com/training/testing): separa testes locais, instrumentados e de UI; usamos as camadas como gates diferentes, não como uma única pontuação.
+- Android Developers — [Fundamentals of testing Android apps](https://developer.android.com/training/testing/fundamentals): testes instrumentados executam em dispositivo/emulador e podem interagir com o app; os testes locais continuam mais rápidos para lógica isolada.
+- Android Developers — [What to test](https://developer.android.com/training/testing/fundamentals/what-to-test): sugere testes de tela, fluxos de navegação, regressão, screenshot, desempenho e compatibilidade.
+- Android Developers — [Build-managed devices](https://developer.android.com/studio/test/managed-devices): dispositivos gerenciados pelo Gradle podem automatizar criação, instalação, limpeza e snapshots para tornar as execuções mais repetíveis.
+- SWE-bench — [FAQ](https://www.swebench.com/SWE-bench/faq/): o modelo recebe um problema e o repositório; a correção é medida pela aplicação do patch e execução da suíte, não por autoavaliação.
+- OpenAI — [Why we no longer evaluate SWE-bench Verified](https://openai.com/index/why-we-no-longer-evaluate-swe-bench-verified/) (23/02/2026): alerta que contaminação do benchmark e testes defeituosos podem distorcer o desempenho reportado. Por isso, não usar SWE-bench Verified como placar principal da Kellvyn; preferir tarefas internas, holdout não divulgado, testes de referência validados e múltiplas tentativas independentes.
+
+**Consequência prática:** cada teste novo precisa demonstrar que falha no estado inicial quando há defeito conhecido, passa com a correção e mantém testes de regressão que já passavam. O conjunto de holdout não pode ser enviado no prompt ao agente nem ficar acessível no workspace que ele modifica.
