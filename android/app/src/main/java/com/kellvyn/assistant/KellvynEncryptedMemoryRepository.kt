@@ -51,6 +51,13 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
                     SQLiteDatabase.CONFLICT_REPLACE
                 ).also { rowId ->
                     check(rowId != -1L) { "Não foi possível gravar a memória local." }
+                    val scopeHash = scopeHash(entry.address)
+                    helper.writableDatabase.execSQL(
+                        "DELETE FROM $TABLE WHERE $COL_SCOPE_HASH = ? AND $COL_ID NOT IN " +
+                            "(SELECT $COL_ID FROM $TABLE WHERE $COL_SCOPE_HASH = ? " +
+                            "ORDER BY $COL_CREATED DESC LIMIT ?)",
+                        arrayOf(scopeHash, scopeHash, MAX_ENTRIES_PER_SCOPE)
+                    )
                 }
             }
         }
@@ -165,6 +172,8 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
             output.writeLong(entry.createdAtMillis)
             output.writeBoolean(entry.expiresAtMillis != null)
             entry.expiresAtMillis?.let(output::writeLong)
+            output.writeUTF(entry.privacyClass.name)
+            output.writeBoolean(entry.sensitiveDataApproved)
             output.writeBoolean(entry.userApproved)
         }
         return bytes.toByteArray()
@@ -187,6 +196,8 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
             val confidence = input.readDouble()
             val createdAtMillis = input.readLong()
             val expiresAtMillis = if (input.readBoolean()) input.readLong() else null
+            val privacyClass = enumValueOf<KellvynMemoryPrivacyClass>(input.readUTF())
+            val sensitiveDataApproved = input.readBoolean()
             val approved = input.readBoolean()
             require(input.available() == 0) { "O registro de memória contém dados extras." }
 
@@ -202,6 +213,8 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
                 confidence = confidence,
                 createdAtMillis = createdAtMillis,
                 expiresAtMillis = expiresAtMillis,
+                privacyClass = privacyClass,
+                sensitiveDataApproved = sensitiveDataApproved,
                 userApproved = approved
             )
         }
@@ -317,7 +330,8 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
         private const val COL_CREATED = "created_at"
         private const val COL_EXPIRES = "expires_at"
         private const val COL_PAYLOAD = "payload"
-        private const val PAYLOAD_VERSION = 1
+        private const val PAYLOAD_VERSION = 2
         private const val MAX_CANDIDATES = 500
+        private const val MAX_ENTRIES_PER_SCOPE = 5000
     }
 }
