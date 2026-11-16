@@ -1,8 +1,8 @@
 # Kellvyn — registro atualizado do laboratório
 
 **Data:** 16/11/2026  
-**Branch:** \`lab/kellvyn-intelligence-core-20261116\`  
-**Repositório:** \`ar2233789-oss/kellvyn-ai-assistant\`
+**Branch:** `lab/kellvyn-intelligence-core-20261116`  
+**Repositório:** `ar2233789-oss/kellvyn-ai-assistant`
 
 ## Decisão de autoria e fundação neural
 
@@ -10,7 +10,7 @@ Kellvyn será uma inteligência e um sistema próprios. Nenhum modelo de terceir
 
 ## Pesquisa consolidada
 
-A matriz \`CAPABILITY_RESEARCH_2026-11-16.md\` estuda:
+A matriz `CAPABILITY_RESEARCH_2026-11-16.md` estuda:
 - Claude Code: regras, skills, hooks, subagentes e gestão de contexto;
 - ChatGPT / OpenAI Agents: ferramentas, tracing, guardrails e orquestração;
 - Replit: planejamento, aprovação, testes autônomos, replay, checkpoints e continuidade;
@@ -23,15 +23,15 @@ A pesquisa foi transformada em módulos próprios. Não foram copiados código p
 ## Código implementado no laboratório
 
 ### Planejamento e execução
-- \`KellvynTaskPlanner.kt\`: plano estruturado com dependências, critérios, riscos, permissões, rollback e prova independente;
+- `KellvynTaskPlanner.kt`: plano estruturado com dependências, critérios, riscos, permissões, rollback e prova independente;
 - bloqueio de ferramentas não registradas e de subestimação de risco;
 - comprovação separada de pré-condições antes da execução;
 - limite de chamadas, repetição e timeout no agente;
 - o agente não chama retorno positivo de ferramenta de verificação independente.
 
 ### Memória local KLM-001
-- \`KellvynMemory.kt\`: tipos de memória, origem, proveniência, confiança, escopo, consentimento, classificação de privacidade, expiração e ranker lexical em português;
-- \`KellvynEncryptedMemoryRepository.kt\`: SQLite privado, payload AES-GCM, chave Android Keystore, leitura/escrita em thread de IO, limite de capacidade e isolamento por escopo;
+- `KellvynMemory.kt`: tipos de memória, origem, proveniência, confiança, escopo, consentimento, classificação de privacidade, expiração e ranker lexical em português;
+- `KellvynEncryptedMemoryRepository.kt`: SQLite privado, payload AES-GCM, chave Android Keystore, leitura/escrita em thread de IO, limite de capacidade e isolamento por escopo;
 - chave composta de banco por escopo e ID;
 - inferência e conteúdo externo não entram automaticamente na memória duradoura;
 - credenciais são recusadas; dados pessoais sensíveis exigem aprovação específica;
@@ -39,14 +39,14 @@ A pesquisa foi transformada em módulos próprios. Não foram copiados código p
 - o agente consegue receber memórias explicitamente aprovadas como contexto não confiável e restrito ao projeto.
 
 ### Contexto
-- \`KellvynContextAssembler.kt\`: orçamento determinístico de contexto;
+- `KellvynContextAssembler.kt`: orçamento determinístico de contexto;
 - mantém instruções de sistema e a última solicitação;
 - preserva ordem cronológica e metadados de confiança;
 - descarta mensagens antigas quando o orçamento não comporta tudo;
 - usa estimativa de caracteres, não contagem exata de tokens; o tokenizer real só poderá ser usado após integração neural.
 
 ### Protótipo neural
-- \`KellvynByteBrain.kt\`: KBN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
+- `KellvynByteBrain.kt`: KBN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
 - KBN-001 demonstra mecânica de treino, não é um cérebro conversacional nem um modelo de linguagem avançado.
 
 ## Validação automatizada
@@ -62,13 +62,13 @@ O workflow executa testes unitários; não produz APK nem comprova execução no
 
 ## Limites e bloqueios que permanecem
 
-- \`KellvynRuntime.kt\` ainda não possui backend de inferência conversacional conectado;
+- `KellvynRuntime.kt` ainda não possui backend de inferência conversacional conectado;
 - o runtime instancia o repositório local de memória, mas o chat ainda não oferece operação de lembrar/apagar e não foi testado em aparelho;
 - armazenamento AES-GCM/Keystore precisa de teste de integração Android real ou emulador; exportação/migração segura entre telefones ainda não existe;
 - a recuperação é lexical, não embeddings/busca semântica;
 - nenhuma base neural está selecionada; nenhum benchmark físico de modelo foi feito no Poco F6;
 - não há teste físico no Poco F6 desta etapa;
-- \`MainActivity.java\` permanece divergente do hash de interface protegido em \`.github/interface-lock.sha\`; não editar a lock nem promover APK enquanto esse bloqueio não for resolvido sem alterar a interface aprovada;
+- `MainActivity.java` permanece divergente do hash de interface protegido em `.github/interface-lock.sha`; não editar a lock nem promover APK enquanto esse bloqueio não for resolvido sem alterar a interface aprovada;
 - a interface protegida e a branch principal não foram modificadas pelo trabalho cognitivo desta etapa;
 - a branch permanece experimental e nenhum APK dela está validado para instalação.
 
