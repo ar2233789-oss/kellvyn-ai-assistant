@@ -88,6 +88,9 @@ internal object KellvynProjectSearchRanker {
     }
 }
 
+internal interface KellvynProjectContextSearch {
+    suspend fun search(request: KellvynProjectSearchRequest): KellvynProjectSearchReport
+}
 /**
  * Bounded project retrieval. It never scans .git, binary/unsupported files, known
  * secret-bearing paths, or files whose content resembles credentials.
@@ -95,8 +98,8 @@ internal object KellvynProjectSearchRanker {
  */
 internal class KellvynProjectContextRetriever(
     private val workspace: ProjectWorkspaceStore
-) {
-    suspend fun search(request: KellvynProjectSearchRequest): KellvynProjectSearchReport =
+) : KellvynProjectContextSearch {
+    override suspend fun search(request: KellvynProjectSearchRequest): KellvynProjectSearchReport =
         withContext(Dispatchers.IO) {
             require(request.projectId.matches(Regex("[a-z0-9][a-z0-9-]{0,60}")))
             require(request.query.trim().length in 2..120)
