@@ -198,3 +198,11 @@ Validação:
 - sem build de APK, sem teste real no Poco F6 e sem integração no chat principal.
 
 O runtime continua informando que a inferência neural ainda não está pronta. O modelo ainda não está conectado e, portanto, ainda não pode produzir decisões Plan ou chamadas de ferramenta no aplicativo.
+
+## Especialistas internos com contexto isolado (16/11/2026)
+
+Foi acrescentada a decisão `KellvynModelDecision.Delegate` ao ciclo de `KellvynAgent`, com quatro papéis: pesquisador, explorador de código, revisor e analista de testes.
+
+Cada especialista usa a mesma instância de inferência Kellvyn, com histórico separado e somente a subtarefa/contexto explicitamente fornecidos. A delegação não é recursiva, não herda memória ou recuperação automática do projeto e recebe apenas ferramentas registradas explicitamente permitidas com risco READ_ONLY. A resposta retorna ao agente principal como observação não confiável. Limites de quantidade, contexto e timeout são aplicados. **A execução é sequencial, não paralela.**
+
+Foi adicionado `KellvynToolRegistry.readOnlySubset()` e criado `KellvynAgentDelegationTest.kt`, com testes escritos para isolamento, ferramentas somente leitura e bloqueio de delegação recursiva. Os testes ainda não foram executados pelo Gradle/CI. Não há integração do backend neural ou no chat principal.
