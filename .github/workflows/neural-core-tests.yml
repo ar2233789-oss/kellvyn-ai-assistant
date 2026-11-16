@@ -13,6 +13,7 @@ on:
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynAgentLimits.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynTaskPlanner.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynTaskCheckpointStore.kt'
+      - 'android/app/src/main/java/com/kellvyn/assistant/KellvynTaskCheckpointRepository.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynMemory.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynContextAssembler.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynProjectContextRetriever.kt'
