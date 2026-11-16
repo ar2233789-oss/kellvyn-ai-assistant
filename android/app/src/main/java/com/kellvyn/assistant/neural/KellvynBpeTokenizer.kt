@@ -56,10 +56,10 @@ internal class KellvynBpeTokenizer private constructor(
     fun decode(tokenIds: IntArray): String {
         require(tokenIds.size <= MAX_DECODE_TOKENS) { "Sequência de tokens acima do limite." }
         val output = ByteArrayOutputStream()
-        var outputBytes = 0
+        var outputBytes = 0L
         for (tokenId in tokenIds) {
             require(tokenId in tokenBytes.indices) { "ID de token fora do vocabulário Kellvyn." }
-            outputBytes += tokenBytes[tokenId].size
+            outputBytes += tokenBytes[tokenId].size.toLong()
             require(outputBytes <= MAX_DECODE_BYTES) { "Texto decodificado acima do limite." }
             output.write(tokenBytes[tokenId])
         }
@@ -140,10 +140,10 @@ internal class KellvynBpeTokenizer private constructor(
             require(maxMerges in 0..MAX_MERGES) { "Quantidade de merges fora do limite." }
 
             val sequences = mutableListOf<List<Int>>()
-            var totalBytes = 0
+            var totalBytes = 0L
             for (text in corpus) {
                 val bytes = text.toByteArray(Charsets.UTF_8)
-                totalBytes += bytes.size
+                totalBytes += bytes.size.toLong()
                 require(totalBytes <= MAX_CORPUS_BYTES) {
                     "O corpus excede o limite experimental de bytes."
                 }
