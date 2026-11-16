@@ -39,7 +39,7 @@ class KellvynAgentTest {
         val result = agent.run("Execute algo.")
 
         assertTrue(result is KellvynAgentResult.Completed)
-        assertTrue(model.historySeen.last().any { it.any { message -> message.content.contains("Ferramenta inexistente") } })
+        assertTrue(model.historySeen.last().any { message -> message.content.contains("Ferramenta inexistente") })
     }
 
     @Test
@@ -96,7 +96,7 @@ class KellvynAgentTest {
 
         assertTrue(result is KellvynAgentResult.Completed)
         assertEquals(1, tool.executions)
-        assertTrue(model.historySeen.last().any { it.any { message -> message.content.contains("Chamada repetida bloqueada") } })
+        assertTrue(model.historySeen.last().any { message -> message.content.contains("Chamada repetida bloqueada") })
     }
 
     @Test
