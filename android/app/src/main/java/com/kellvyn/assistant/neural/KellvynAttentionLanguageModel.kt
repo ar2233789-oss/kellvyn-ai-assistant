@@ -304,7 +304,8 @@ internal class KellvynAttentionLanguageModel private constructor(
         tokenIds: IntArray,
         epochs: Int,
         learningRate: Float = 0.003f,
-        weightDecay: Float = DEFAULT_WEIGHT_DECAY
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
     ): TrainingReport {
         require(tokenIds.size in 2..MAX_TRAINING_TOKENS) { "Corpus tokenizado fora do limite." }
         require(tokenIds.all { it in 0 until config.vocabularySize }) {
@@ -321,14 +322,17 @@ internal class KellvynAttentionLanguageModel private constructor(
             "Weight decay fora do limite."
         }
 
+        cancellationCheck?.invoke()
         val initialLoss = evaluateLoss(tokenIds)
         repeat(epochs) {
             for (targetIndex in 1 until tokenIds.size) {
+                if (targetIndex and 31 == 0) cancellationCheck?.invoke()
                 val start = max(0, targetIndex - config.contextLength)
                 val context = tokenIds.copyOfRange(start, targetIndex)
                 trainOne(context, tokenIds[targetIndex], learningRate, weightDecay)
             }
         }
+        cancellationCheck?.invoke()
         val finalLoss = evaluateLoss(tokenIds)
         return TrainingReport(
             initialLoss = initialLoss,
