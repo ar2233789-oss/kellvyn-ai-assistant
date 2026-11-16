@@ -77,7 +77,7 @@ class BotRuntimeService : Service() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val replyMutex = Mutex()
-    private lateinit var brain: LocalBrain
+    private lateinit var brain: KellvynRuntime
     private var telegramJob: Job? = null
     private var discordJob: Job? = null
     private var telegramTokenInUse: String? = null
@@ -88,7 +88,7 @@ class BotRuntimeService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        brain = LocalBrain(applicationContext)
+        brain = KellvynRuntime(applicationContext)
         ensureNotificationChannel()
         enterForeground("Verificando bots habilitados…")
     }
@@ -475,9 +475,9 @@ class BotRuntimeService : Service() {
 
     private suspend fun buildLocalBotReply(platform: String, chatId: String, incoming: String): String =
         replyMutex.withLock {
-            if (!brain.hasModel()) {
+            if (!brain.isReady()) {
                 throw IllegalStateException(
-                    "O modelo local ainda não está preparado. Abra o chat principal e envie uma mensagem para autorizar o download antes de iniciar o bot."
+                    "O núcleo neural próprio da Kellvyn ainda não está conectado. Os bots ficam indisponíveis até a validação do runtime."
                 )
             }
             val prefs = getSharedPreferences(PREFS, MODE_PRIVATE)
@@ -494,14 +494,14 @@ class BotRuntimeService : Service() {
                 append("\nMensagem recebida:\n").append(incoming.take(3000))
             }
             brain.resetConversationAndWait()
-            val answer = askLocalBrain(prompt).take(MAX_RESPONSE_CHARS)
+            val answer = askKellvynRuntime(prompt).take(MAX_RESPONSE_CHARS)
             writeBotHistory(platform, chatId, incoming, answer)
             answer
         }
 
-    private suspend fun askLocalBrain(prompt: String): String =
+    private suspend fun askKellvynRuntime(prompt: String): String =
         suspendCancellableCoroutine { continuation ->
-            brain.reply(prompt, null, null, object : LocalBrain.Listener {
+            brain.reply(prompt, null, null, object : KellvynRuntime.Listener {
                 override fun onStatus(message: String) { writeStatus("runtime", message) }
                 override fun onPartial(text: String) {}
                 override fun onComplete(text: String, backend: String) {
