@@ -768,6 +768,15 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
     fun names(): Set<String> = registered.keys
     fun descriptions(): List<KellvynToolSpec> = registered.values.map { it.spec }
 
+    /** Creates an isolated registry containing only explicitly requested, read-only tools. */
+    fun readOnlySubset(requestedNames: Set<String>, maxTools: Int = 16): KellvynToolRegistry {
+        require(maxTools in 0..32)
+        require(requestedNames.size <= maxTools) { "A delegação excedeu o limite de ferramentas." }
+        val selected = requestedNames.mapNotNull { registered[it] }
+            .filter { it.spec.risk == KellvynToolRisk.READ_ONLY }
+        return KellvynToolRegistry(selected)
+    }
+
     fun validate(tool: KellvynAgentTool, arguments: Map<String, String>): String? {
         val missing = tool.spec.requiredArguments - arguments.keys
         if (missing.isNotEmpty()) return "faltam argumentos obrigatórios: ${missing.sorted().joinToString()}."
