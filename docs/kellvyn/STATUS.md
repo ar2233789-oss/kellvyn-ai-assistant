@@ -146,3 +146,25 @@ O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de b
 - **Limite:** isso não executou a classe Kotlin nem substitui testes Gradle. Os status checks consultados não retornaram resultados; CI, build e teste no Poco F6 ainda não estão aprovados.
 - O modelo é uma alpha de atenção de cabeça única, não Transformer completo, não assistente conversacional e não está ligado a `KellvynRuntime.reply()`.
 
+## Atualização do agente — skills procedurais sob demanda (16/11/2026)
+
+Foi feita nova comparação com documentação oficial do Replit Agent, Cursor Agent e Gemini Agent Mode no Android Studio. O mapeamento e as fontes estão em `AGENT_CAPABILITY_UPGRADE_2026-11-16.md`.
+
+Implementação acrescentada:
+- `KellvynSkillRegistry.kt`: catálogo de procedimentos de Android/build, diagnóstico de falhas, revisão de código, pesquisa e teste funcional.
+- `KellvynAgent.kt`: seleciona no máximo duas skills relevantes por tarefa e injeta o procedimento no contexto de sistema confiável; limite padrão de 6.000 caracteres. Skills não concedem permissões nem executam ações.
+- `KellvynSkillRegistryTest.kt`: testes escritos para relevância, seleção determinística, orçamento e integração no contexto do agente.
+- `.github/workflows/neural-core-tests.yml`: filtro de push atualizado para incluir o novo arquivo de produção.
+
+Commits de implementação:
+- registro inicial: `6cf8f68e772089224a8e2606c954c03470032b76`
+- integração no agente: `48936a1f59bacf1f810a763903e05635a0579762`
+- testes: `e136c4d1a3cb05c8153633e8c209f907fd4fedc7`
+- correção de contexto e assertions: `b640da81645d8a8606f2fae5ac97b90b8320865b`, `ee0f96ff86328d9740d53eba22c7ffa666417dab`
+- filtro de CI: `b3f2804b5dcdcf919492855b557733b7f44a2e92`
+
+Também foram alinhados os documentos de arquitetura e pesquisa para remover a permissão antiga e contraditória de utilizar pesos pré-treinados externos; a decisão vigente é treinamento de pesos próprios do zero.
+
+**Validação:** um smoke test Kotlin isolado da lógica de normalização/seleção foi compilado e executado com sucesso. Isso não é o Gradle do repositório, não executa os testes JUnit reais e não valida Android. O GitHub não retornou checks/status verificáveis para os commits consultados. Portanto, os testes do projeto continuam pendentes de CI confirmado. Nenhuma integração com o chat principal nem teste físico no Poco F6 ocorreu nesta atualização.
+
+Próximo passo obrigatório: confirmar o CI da branch, corrigir falhas reais e só então integrar checkpoints/progresso ao ciclo do agente.
