@@ -12,7 +12,7 @@ A arquitetura não consiste em ligar várias IAs como se fossem cérebros indepe
 
 ## Separação que não pode ser confundida
 
-1. **Fundação neural:** um modelo aberto licenciado pode fornecer a capacidade linguística; a versão e a origem dos pesos serão declaradas. A arquitetura cognitiva e a integração em torno dele serão próprias da Kellvyn. KBN-001 permanece como pesquisa neural autoral, não como cérebro final.
+1. **Fundação neural:** o modelo de linguagem da Kellvyn será desenvolvido e treinado do zero, com pesos inicializados pelo próprio projeto e sem pesos pré-treinados de terceiros. Arquiteturas publicadas podem servir de referência conceitual; o código do núcleo neural, o tokenizer, o treinamento, os pesos e os checkpoints serão próprios. Bibliotecas ou runtimes auxiliares só entram após auditoria de licença, sem substituir o modelo original.
 2. **Agente Kellvyn:** controla o ciclo de tarefa: interpretar o objetivo, planejar, escolher uma ação autorizada pelo proprietário, observar seu resultado e decidir o próximo passo.
 3. **Ferramentas:** funções Kotlin delimitadas que consultam ou, futuramente, alteram recursos concretos. O modelo não recebe acesso irrestrito ao Android.
 4. **Memória:** dados persistentes e selecionados sobre usuário, tarefas e projetos. Memória não é treinamento dos pesos do modelo.
@@ -97,7 +97,7 @@ Esses conceitos orientam o projeto; código aberto pode ser integrado seletivame
 
 ## Estado real em 2026-11-16
 
-- O adaptador anterior de modelo externo foi removido da branch de laboratório; a nova arquitetura permanece sem modelo-base selecionado.
+- O adaptador anterior de modelo externo foi removido da branch de laboratório. A decisão agora é construir o modelo e os pesos do zero; não haverá seleção de modelo-base pré-treinado.
 - `MainActivity.java` e `BotRuntimeService.kt` já apontam para a fronteira temporária `KellvynRuntime`; ela ainda não contém inferência neural.
 - O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo. A integração de um runtime licenciado será avaliada junto com a fundação neural e o benchmark do Poco F6.
 - O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
@@ -111,7 +111,7 @@ Esses conceitos orientam o projeto; código aberto pode ser integrado seletivame
 4. Projetar memória persistente com consentimento, origem, edição e exclusão.
 5. Adicionar ferramentas de escrita somente após um fluxo explícito de aprovação.
 6. Criar avaliações repetíveis de qualidade e segurança do agente.
-7. Benchmark de fundações abertas e integração do modelo aprovado com o agente próprio; manter KBN-001 como rota de treinamento experimental independente.
+7. Evoluir KBN-001 para um modelo autoral de linguagem decoder-only, com tokenizer treinável, atenção causal, retropropagação, otimizador, checkpoints e avaliação; conectar ao agente somente após os gates de qualidade e desempenho.
 
 ## Referência técnica primária
 
