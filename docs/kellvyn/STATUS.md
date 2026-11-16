@@ -2,49 +2,65 @@
 
 **Data:** 16/11/2026  
 **Branch:** `lab/kellvyn-intelligence-core-20261116`  
-**Objetivo atual:** desenvolver uma inteligência e um agente privados, de uso exclusivo do proprietário.
+**Repositório:** `ar2233789-oss/kellvyn-ai-assistant`
 
-## Decisão de produto
+## Decisão irrevogável sobre o cérebro
 
-- Não há publicação planejada na Play Store.
-- Não há distribuição pública planejada.
-- O objetivo é um agente privado, independente e integrado ao Poco F6.
-- A conexão do telefone pode ser usada para pesquisa e acesso Web opcionais; o cérebro não deve depender de uma API de IA em nuvem para conversar.
-- O uso privado não autoriza plágio: código, modelos, pesos, dados e bibliotecas continuam exigindo proveniência e termos de uso compatíveis.
+O cérebro será criado do zero neste projeto:
+- arquitetura e código neural próprios;
+- tokenizer desenvolvido no projeto;
+- pesos inicializados aleatoriamente;
+- treinamento e checkpoints próprios;
+- nenhuma base pré-treinada, pesos externos, fine-tuning, LoRA, adaptador ou fallback de outra IA;
+- projetos públicos podem ser estudados como referências conceituais, sem copiar código, pesos, tokenizers ou datasets.
 
-## Estado de partida verificado
+O uso privado não torna plágio aceitável. Toda origem dos dados e toda etapa de treino serão documentadas.
 
-- O repositório contém app Android nativo, chat, histórico, anexos, workspace local e um compilador Android limitado a Java.
-- A interface existente é referência protegida e não deve ser redesenhada durante o desenvolvimento do cérebro.
-- A antiga implementação `LocalBrain.kt` baseada em Gemma foi removida desta branch.
-- As referências antigas a `LocalBrain` permanecem em `MainActivity.java` e `BotRuntimeService.kt`; o branch está em transição e não deve ser compilado ou instalado.
-- A dependência LiteRT-LM permanece declarada no Gradle, mas não está aprovada como runtime final.
-- A branch `cerebro` contém um experimento Web/browser e não deve ser tomada como base para a inteligência Android nativa.
+## Trabalho executado nesta branch
 
-## Pesquisa já realizada
+- Criada a fronteira temporária `KellvynRuntime`, sem provedor ou peso externo.
+- Criado `KellvynAgent` como controlador do ciclo de ferramentas; não é o cérebro neural.
+- Removida a implementação anterior de cérebro baseada em Gemma da branch de laboratório.
+- Removida a dependência LiteRT-LM do Gradle desta branch.
+- Criado o primeiro protótipo neural autoral `KellvynByteBrain.kt`: tokenizer UTF-8 por bytes, inicialização aleatória, embeddings treináveis, camada oculta, softmax, loss de próximo byte, retropropagação, atualização de pesos e checkpoint próprio.
+- Criados testes de tokenizer, redução de loss em sequência sintética, alteração de pesos e persistência exata de checkpoint.
+- Corrigido um teste preexistente do agente que tentava chamar `toList()` no resultado de `repeat()`.
+- Criado workflow isolado de testes neurais, sem gerar APK nem publicar release.
+- Documentada a especificação KBN-001.
 
-- Foram inspecionadas estruturas e arquivos centrais de OpenHands SDK, Aider, SWE-agent, mini-SWE-agent, OpenCode, nanochat e OLMo-core.
-- Foram consultadas licenças raiz de projetos de referência; isso é apenas triagem, não valida cada dependência transitiva.
-- A decisão de origem do cérebro foi fechada: implementação própria, pesos inicializados aleatoriamente e treinamento próprio. Não serão usados modelos, tokenizers ou pesos pré-treinados de terceiros.
-- Os documentos mestres do projeto ficam em `docs/kellvyn/`.
+## Validação atual
 
-## Próxima sequência — sem saltar etapas
+- Uma execução anterior de `testDebugUnitTest` concluiu com sucesso, cobrindo o protótipo inicial e os testes do agente.
+- Foi adicionada agora uma verificação numérica da retropropagação por diferenças finitas. A execução dessa nova verificação está em andamento.
+- O teste inicial só mede o aprendizado sobre sequência sintética repetitiva. Não demonstra compreensão geral, diálogo ou raciocínio.
+- Nenhum APK desta branch foi validado.
+- Nenhum teste físico no Poco F6 foi executado nesta etapa.
 
-1. Finalizar o mapa dos acoplamentos antigos no app e nos bots.
-2. Definir contratos próprios `KellvynEngine`, `KellvynSession` e `KellvynAgent`.
-3. Comparar runtime de inferência sem escolher pesos por conveniência.
-4. Implementar o primeiro núcleo neural experimental com pesos inicializados por nós, acompanhado de tokenizer, teste de forward/backward e checkpoint.
-5. Definir caminho realista de treino e benchmark para o Poco F6 e, se necessário, um ambiente de treino separado.
-6. Só depois conectar o runtime selecionado ao agente e ao chat.
+## Bloqueios conhecidos
+
+- `MainActivity.java` diverge do hash fixado em `.github/interface-lock.sha`. O arquivo teve alterações apenas na ligação de runtime e no texto de estado, mas o mecanismo de proteção continua exigindo correspondência exata. O bloqueio não será enfraquecido nem o hash será alterado sem autorização explícita.
+- A integração definitiva do cérebro com o chat ainda não foi feita.
+- O agente não possui backend neural e não deve ser apresentado como pronto.
+- O protótipo KBN-001 é uma pequena rede preditora de bytes; não é ainda uma arquitetura conversacional completa.
+
+## Próximas etapas técnicas
+
+1. Aprovar os gradientes analíticos por comparação numérica.
+2. Fortalecer formato de checkpoint, limites de memória e testes com múltiplas seeds.
+3. Construir avaliação separada de treino, validação e teste.
+4. Especificar uma arquitetura sequencial mais capaz, escrita e testada no projeto, sem reproduzir um modelo público.
+5. Desenvolver um pipeline de corpus com origem e autorização verificadas.
+6. Medir o que o Poco F6 consegue treinar e executar; só então definir escala e otimizações.
+7. Integrar o cérebro ao agente e à interface somente após os gates neurais.
 
 ## Não declarar como concluído
 
-- Modelo conversacional Kellvyn treinado;
-- memória inteligente;
-- agente geral com uso de ferramentas;
-- edição e compilação autônomas de qualquer app;
-- controle geral do dispositivo;
-- benchmark no Poco F6;
-- APK desta branch validado.
+- IA conversacional Kellvyn;
+- raciocínio geral ou programação autônoma;
+- memória inteligente treinada;
+- agente geral com ferramentas;
+- controle do Android;
+- criador universal de APKs;
+- build final ou teste físico no Poco F6.
 
-Cada capacidade exige teste real e evidência.
+Cada capacidade depende de implementação e evidência próprias.
