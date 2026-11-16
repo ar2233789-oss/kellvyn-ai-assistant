@@ -1,84 +1,111 @@
-# Kellvyn — estratégia da inteligência neural
+# Kellvyn — decisão vinculante da fundação neural própria
 
-**Estado:** nenhum modelo-base externo foi escolhido ou integrado.  
-**Regra principal:** Kellvyn é a inteligência e o sistema que estamos construindo. Um peso, runtime ou biblioteca de terceiros, quando autorizado, é um componente identificado — nunca será apresentado como criação integral nossa.
+**Data:** 16/11/2026  
+**Estado:** decisão aprovada para o projeto: construir o cérebro conversacional do zero.
 
-## 1. O que é criação própria da Kellvyn
+## 1. Decisão central
 
-- identidade, comportamento e experiência do assistente;
-- arquitetura cognitiva de interpretação, planejamento, memória e execução;
-- orquestração, políticas, permissões, ferramentas, validação e recuperação;
-- camada de contexto, indexador, skills e histórico de tarefas;
-- integração Android e fluxos de interação;
-- avaliação, testes, evidências e critérios de qualidade;
-- código e adaptações escritos especificamente para o projeto.
+O cérebro da Kellvyn será original. A arquitetura neural, o tokenizer, a inicialização, o código de treino, os pesos aprendidos e os checkpoints serão criados e mantidos neste repositório.
 
-## 2. O que pode ser aproveitado legitimamente
+**Não usar como cérebro:** pesos pré-treinados de ChatGPT, Claude, Gemini/Android Studio, Replit, Gemma, Qwen, Llama ou de qualquer outro modelo externo. Não baixar um modelo alheio e apresentá-lo como se fosse o cérebro criado pela Kellvyn. Não fazer fine-tuning ou LoRA de pesos externos como substituto desta decisão.
 
-- capacidades de produto descritas em documentação pública;
-- ideias e técnicas técnicas publicadas, implementadas com projeto próprio;
-- bibliotecas, runtimes e código aberto com licença compatível;
-- pesos e checkpoints com licença e termos de uso compatíveis;
-- conjuntos de dados com origem e permissões verificadas;
-- adaptações, conversões e fine-tuning quando os direitos do material-base permitirem.
+A Kellvyn pode estudar modelos e agentes conhecidos para entender técnicas publicamente documentadas. Referências de arquitetura não são autorização para copiar código privado, pesos, prompts internos ou mecanismos proprietários.
 
-Cada item externo continuará identificado por autores, versão, hash, licença, arquivos de aviso, alterações e limitações. Pesos adaptados serão descritos como derivados da base correspondente.
+## 2. O que pode ser aprendido com outras IAs
 
-## 3. Referências proprietárias
+| Referência | O que observar | O que a Kellvyn implementará por conta própria |
+|---|---|---|
+| ChatGPT / OpenAI Agents | decomposição de tarefas, ferramentas tipadas, chamadas estruturadas, recuperação e verificação | protocolo próprio de ferramentas, orquestração, estado, memória e avaliação |
+| Claude / Claude Code | planejamento longo, instruções em camadas, skills, hooks e revisão | gerenciador próprio de tarefas, skills e regras |
+| Android Studio Agent Mode | ciclo plano → edição → build → teste → Logcat/correção | pipeline próprio de engenharia Android e evidência de execução |
+| Replit Agent | fluxo Plan/Build, checkpoints, replay e testes funcionais | workspace próprio, checkpoints e validação independente |
+| Cursor | mapa de código, contexto de repositório e diffs | indexador, busca e editor de mudanças próprios |
+| OpenHands, Aider, SWE-agent, OpenCode | padrões públicos de agentes, ambientes, permissões e avaliação | estudar implementação pública e licenças; não copiar sem auditoria e atribuição |
+| Pesquisas de Transformers | atenção, previsão autoregressiva e otimização de treinamento | implementação própria de uma arquitetura neural apropriada ao hardware-alvo |
 
-Claude, ChatGPT, Replit, Cursor e Gemini/Android Studio servem para estudar capacidades que estejam publicamente documentadas: planejamento, uso de ferramentas, contexto, edição de projetos, execução, testes e recuperação.
+Para cada referência, registrar fonte, versão/data, capacidade observada, ideia reaproveitada, diferença da implementação Kellvyn e teste que comprova o resultado. “Inspirado por” não deve esconder cópia.
 
-Não presumimos acesso ao código interno, prompts privados, pesos privados ou mecanismos proprietários desses produtos. Não vamos copiar esses elementos, nem reconstruir um produto proprietário por engenharia reversa proibida. Uma API pública só poderá ser considerada como integração externa, com custos, privacidade, termos e dependência de rede avaliados separadamente; ela não será requisito do funcionamento local.
+## 3. Limite entre originalidade e componentes auxiliares
 
-## 4. Nenhuma decisão de modelo-base neste momento
+O núcleo que aprende linguagem e raciocínio deve ser autoral. Ferramentas auxiliares como armazenamento, serialização, compilador, operações matemáticas otimizadas ou runtime de execução podem ser estudadas e, quando necessário, incorporadas sob licença compatível e atribuição correta. Esses componentes não podem fornecer pesos pré-treinados nem funcionar como modelo substituto.
 
-Não há modelo neural externo vencedor, preferido ou designado como “cérebro da Kellvyn”. Modelos abertos podem ser estudados e comparados como possíveis componentes, mas nenhuma escolha será feita por nome, popularidade ou promessa de benchmark.
+Quando um código aberto for incorporado, registrar:
+- repositório e URL de origem;
+- commit/tag exato;
+- licença e avisos obrigatórios;
+- arquivos importados ou modificados;
+- diferenças mantidas pela Kellvyn;
+- razão técnica de uso e testes.
 
-Antes de qualquer seleção, será necessário:
-- verificar a licença exata do checkpoint e seus termos;
-- conferir model card, autores, versão, revisão e hashes;
-- avaliar tokenizer, formatos, runtime, conversão e dependências;
-- confirmar compatibilidade com Android e Poco F6;
-- medir português brasileiro, raciocínio, código, uso de ferramentas e contexto;
-- medir RAM de pico, latência, estabilidade, temperatura e bateria;
-- documentar limitações, proveniência e eventual natureza derivada;
-- demonstrar que a arquitetura cognitiva original permanece controlada pelo projeto.
+Código proprietário não será copiado. Ideias gerais e técnicas publicadas serão reimplementadas de forma independente. Não usar acesso não autorizado, engenharia reversa proibida ou prompts internos vazados.
 
-A comparação poderá incluir diferentes opções e componentes, inclusive combinações, somente quando a compatibilidade técnica, jurídica e de desempenho for comprovada. Não existe obrigação de escolher uma única marca ou de integrar todos os componentes disponíveis.
+## 4. Arquitetura neural de trabalho — KBN-002 (proposta de implementação)
 
-## 5. Protótipo neural original KBN-001
+A próxima geração não será somente um preditor de byte. A proposta técnica é um pequeno modelo autoregressivo decoder-only, inicialmente treinado em escala experimental:
 
-KBN-001 é uma experiência de aprendizado escrita neste repositório: preditor de próximo byte UTF-8 com embeddings, camada oculta, softmax, loss, retropropagação, atualização de parâmetros e checkpoints próprios.
+1. **Tokenizer próprio:** começar com byte UTF-8 como representação de referência e criar um tokenizer subword (BPE) treinado em corpus autorizado, com vocabulário/versionamento próprios.
+2. **Embeddings:** tabela de tokens e codificação posicional.
+3. **Blocos Transformer causais:** normalização prévia, atenção multi-cabeças causal e MLP gated (por exemplo, SwiGLU); mecanismos posicionais como RoPE podem ser implementados após testes.
+4. **Cabeça de linguagem:** logits por token e cross-entropy para prever o próximo token.
+5. **Treinamento:** inicialização aleatória reproduzível, retropropagação, otimizador AdamW, clipping de gradiente, agenda de taxa de aprendizado e checkpoints atômicos.
+6. **Inferência:** geração incremental com cache KV quando validado, cancelamento, limites de contexto e critérios de parada.
+7. **Avaliação:** dados de validação separados do treino, tarefas de português brasileiro, seguimento de instruções, consistência multi-turno, recuperação, código e chamadas de ferramenta.
 
-Ele demonstra mecânica de treino em pequena escala. Não é um modelo conversacional, não tem corpus de pré-treinamento de qualidade, não está conectado ao chat e não é apresentado como cérebro final.
+A primeira versão deve ser deliberadamente pequena. Dimensões, parâmetros, comprimento de contexto e precisão numérica serão escolhidos depois de medir uso real de RAM, tempo, calor e bateria no Poco F6.
 
-A pesquisa de modelos neurais e runtimes permanece separada da construção do planejador, memória, ferramentas e verificação da Kellvyn.
+**KBN-002 ainda é uma especificação de trabalho, não código concluído.** Nenhuma arquitetura Transformer completa, tokenizer BPE, treino em corpus real ou geração conversacional de qualidade foi validada neste estado.
 
-## 6. Duas rotas de treinamento, com nomes corretos
+## 5. Dados e treinamento
 
-- **Pré-treinamento integral próprio:** inicialização e treinamento dos pesos a partir de dados autorizados usando um pipeline controlado pelo projeto. É uma rota de alto custo computacional e de dados.
-- **Adaptação autorizada:** personalização de pesos de terceiros por fine-tuning, LoRA ou método permitido pelos termos da base. O resultado é derivado e deve manter a linhagem explícita.
+Só usar dados cuja origem e permissão de uso estejam documentadas: material criado pelo projeto, conteúdo de domínio público, licenças permissivas/compatíveis ou conteúdo fornecido pelo proprietário com consentimento explícito. Não coletar dados privados nem tratar qualquer conteúdo público da Web como automaticamente livre para treinamento.
 
-Nenhuma rota será descrita de forma enganosa. Utilizar pesos licenciados não é, por si só, plágio; apagar sua origem ou violar seus termos é inaceitável.
+Separar e identificar:
+- corpus de treino;
+- corpus de validação;
+- corpus de teste final;
+- dados de alinhamento/instrução;
+- exemplos de chamadas de ferramenta;
+- material excluído por licença, privacidade ou qualidade.
 
-## 7. Estado técnico real
+Dedupe, normalização, detecção de dados sensíveis, proveniência, versão e hash precisam fazer parte do pipeline. Dados de validação/teste não devem vazar para o treino.
 
-- KBN-001 existe como protótipo experimental de treinamento neural próprio.
-- O agente experimental possui um ciclo limitado de uso de ferramentas.
-- O planejador estruturado KCL-001 está sendo desenvolvido separadamente.
-- O runtime de conversa ainda não está conectado a um modelo neural funcional.
-- Nenhum modelo externo foi escolhido, baixado ou integrado como cérebro.
-- Nenhum benchmark físico no Poco F6 foi executado nesta etapa.
+## 6. Realismo técnico do Poco F6
 
-## 8. Regra de aceitação
+O aparelho-alvo tem 8 GB de RAM e execução local/offline. Isso é uma restrição séria. Treinar um modelo avançado comparável a ChatGPT ou Claude do zero exige enormes quantidades de dados, computação e tempo; o telefone sozinho não torna esse objetivo viável.
 
-Nenhum componente externo entra na versão utilizável sem:
-1. proveniência verificável;
-2. licença/termos compatíveis com o uso pretendido;
-3. avisos e atribuições preservados;
-4. dependências transitivas auditadas;
-5. hashes e versões registrados;
-6. testes de segurança, compatibilidade e regressão;
-7. registro das modificações e limitações.
+A estratégia é construir uma sequência verificável:
+- primeiro um protótipo neural pequeno para provar tokenizer, forward, loss, gradientes, atualizações e checkpoint;
+- depois um pequeno modelo de linguagem avaliado em corpus separado;
+- em seguida otimizar inferência e medir RAM, latência, temperatura e bateria;
+- ampliar somente se os dados e as medições justificarem.
 
-A privacidade do aplicativo não elimina obrigações de licença, atribuição ou direitos autorais. Este documento é um controle de engenharia e não substitui aconselhamento jurídico quando houver dúvida sobre um uso específico.
+Ferramentas, memória, pesquisa e compilação aumentam a utilidade prática do agente, mas não transformam um modelo pequeno em um LLM avançado nem substituem aprendizagem neural.
+
+## 7. Situação técnica confirmada em 16/11/2026
+
+- KellvynByteBrain.kt (KBN-001) existe e inicializa seus próprios pesos;
+- o modelo prevê o próximo byte com rede rasa, janela curta, embeddings, gradientes e checkpoints;
+- os testes anteriores verificam UTF-8, redução de loss em dados sintéticos repetidos, gradientes por diferenças finitas e restauração de checkpoint;
+- KBN-001 não possui tokenizer subword, Transformer, corpus de treinamento de linguagem, diálogo multi-turno, capacidade de seguir instruções ou integração com o chat;
+- KellvynAgent, planner, memória, recuperação de contexto e ferramentas estão separados do modelo;
+- KellvynRuntime.reply() ainda informa que a inferência não está conectada;
+- nenhum peso de modelo externo foi selecionado ou integrado;
+- nenhum benchmark de modelo no Poco F6 foi executado.
+
+## 8. Critérios para chamar o cérebro de funcional
+
+Não declarar “cérebro pronto” até que todos os itens mínimos sejam observados:
+1. arquitetura neural e tokenizer próprios documentados;
+2. pesos inicializados e efetivamente treinados pelo pipeline Kellvyn;
+3. loss de treino e validação calculadas em corpus separado, sem vazamento;
+4. geração de texto coerente em português além de memorizar frases repetidas;
+5. teste de instruções com conjunto fixo e avaliação externa;
+6. conversa multi-turno com contexto e cancelamento;
+7. inferência integrada ao KellvynRuntime sem fallback externo;
+8. agente consegue propor ferramenta estruturada e o código valida permissões/parâmetros;
+9. testes automatizados aprovados e build Android;
+10. teste no Poco F6 com RAM, latência, temperatura e estabilidade medidos.
+
+## 9. Regra permanente para evitar regressões de decisão
+
+Antes de propor qualquer modelo, peso ou adapter, reler este documento. A decisão de origem própria prevalece sobre textos anteriores que mencionem pesos abertos, modelo-base externo, fine-tuning ou LoRA. Só alterar esta regra mediante nova instrução explícita do proprietário.
