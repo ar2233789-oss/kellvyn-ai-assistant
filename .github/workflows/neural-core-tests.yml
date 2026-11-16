@@ -7,7 +7,7 @@ on:
       - lab/kellvyn-intelligence-core-20261116
     paths:
       - 'android/app/src/main/java/com/kellvyn/assistant/neural/**'
-      - 'android/app/src/test/java/com/kellvyn/assistant/neural/**'
+      - 'android/app/src/test/java/com/kellvyn/assistant/**'
       - '.github/workflows/neural-core-tests.yml'
       - 'android/app/build.gradle'
       - 'android/build.gradle'
