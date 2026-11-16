@@ -21,7 +21,11 @@ class KellvynAgentDelegationTest {
             KellvynModelDecision.Final("Revisei o resultado do especialista.")
         )
         val readTool = DelegationFakeTool(
-            KellvynToolSpec("read_source", "Lê código"),
+            KellvynToolSpec(
+                "read_source",
+                "Lê código",
+                requiredArguments = setOf("path")
+            ),
             KellvynToolResult(true, "código")
         )
         val deleteTool = DelegationFakeTool(
