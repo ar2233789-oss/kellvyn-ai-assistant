@@ -43,6 +43,9 @@ internal object KellvynProjectCodeIndexer {
         """^\s*(?:(?:public|private|protected|internal|open|abstract|final|data|sealed|enum|annotation|expect|actual|suspend|inline|override|operator|tailrec|external|static|native|synchronized)\s+)*(class|interface|object|fun|val|var|typealias|record|enum\s+class)\s+([A-Za-z_][A-Za-z0-9_]*)"""
     )
     private val CALL = Regex("""\b([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^<>\n]{1,100}>)?\s*\(""")
+    private val JAVA_METHOD = Regex(
+        """^\s*(?:(?:public|private|protected|static|final|abstract|synchronized|native|default|strictfp)\s+)+[A-Za-z_][A-Za-z0-9_<>,.? \[\]]*\s+([A-Za-z_][A-Za-z0-9_]*)\s*\("""
+    )
     private val KEYWORDS = setOf(
         "if", "for", "while", "switch", "when", "catch", "return", "throw",
         "new", "super", "this", "synchronized", "try", "assert", "sizeof"
@@ -165,13 +168,22 @@ internal object KellvynProjectCodeIndexer {
             IMPORT.find(line)?.groupValues?.getOrNull(1)?.let { imported ->
                 if (imports.size < MAX_IMPORTS) imports += imported
             }
-            DECLARATION.find(line)?.let { match ->
-                if (declarations.size < MAX_DECLARATIONS) {
-                    declarations += KellvynCodeDeclaration(
-                        name = match.groupValues[2],
-                        kind = match.groupValues[1].replace(Regex("""\s+"""), " "),
-                        line = index + 1
-                    )
+            val declaration = DECLARATION.find(line)
+            if (declaration != null && declarations.size < MAX_DECLARATIONS) {
+                declarations += KellvynCodeDeclaration(
+                    name = declaration.groupValues[2],
+                    kind = declaration.groupValues[1].replace(Regex("""\s+"""), " "),
+                    line = index + 1
+                )
+            } else {
+                JAVA_METHOD.find(line)?.let { method ->
+                    if (declarations.size < MAX_DECLARATIONS) {
+                        declarations += KellvynCodeDeclaration(
+                            name = method.groupValues[1],
+                            kind = "java-method",
+                            line = index + 1
+                        )
+                    }
                 }
             }
             CALL.findAll(line).forEach { match ->
