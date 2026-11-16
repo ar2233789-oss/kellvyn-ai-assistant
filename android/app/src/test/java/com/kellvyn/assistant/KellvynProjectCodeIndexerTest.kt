@@ -70,17 +70,20 @@ class KellvynProjectCodeIndexerTest {
 
     @Test
     fun ignoresCommentDeclarationsAndBoundsLargeSources() {
-        val index = KellvynProjectCodeIndexer.index(
-            "src/Large.kt",
-            """
-                // class FakeDeclaration
-                /* fun FakeCall() */
-                class ActualDeclaration
-            """.trimIndent() + " ".repeat(13_000)
-        )
+        val source = listOf(
+            "/*",
+            "class FakeDeclaration",
+            "fun FakeCall()",
+            "*/",
+            "val message = \"class HiddenInString\"",
+            "class ActualDeclaration"
+        ).joinToString("\n") + " ".repeat(13_000)
+        val index = KellvynProjectCodeIndexer.index("src/Large.kt", source)
 
         assertTrue(index.declarations.any { it.name == "ActualDeclaration" })
         assertFalse(index.declarations.any { it.name == "FakeDeclaration" })
+        assertFalse(index.declarations.any { it.name == "HiddenInString" })
+        assertFalse(index.references.contains("FakeCall"))
         assertTrue(index.truncatedSource)
     }
 }
