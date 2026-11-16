@@ -42,3 +42,15 @@ Isso mantém o orquestrador independente do formato/engine neural e impede que u
 - integração no Poco F6.
 
 A aplicação usa temporariamente `KellvynRuntime` como fronteira que informa de modo honesto que o backend neural não está pronto. Não existe fallback de terceiros nem backend neural conversacional conectado.
+
+## Evolução posterior do agente — skills, navegação, plano e especialistas
+
+A branch de laboratório também implementa:
+
+- **Skills sob demanda:** `KellvynSkillRegistry` escolhe no máximo duas instruções procedurais relevantes, com orçamento de caracteres. Skills não concedem permissões.
+- **Navegação Kotlin/Java:** `KellvynProjectCodeIndexer` identifica pacotes, imports, declarações e chamadas em trechos limitados. É lexical, não AST, e os achados precisam ser confirmados no fonte.
+- **Plano persistente:** `KellvynModelDecision.Plan` carrega plano estruturado; o agente valida ferramentas, riscos, dependências e critérios e só retorna o plano depois de gravá-lo no checkpoint criptografado.
+- **Aprovação e execução:** `approveTaskStep` grava aprovação como novo checkpoint; `executePlannedStep` salva RUNNING antes da ação e só grava SUCCEEDED após verificação independente; `executeReadySteps` percorre etapas prontas até o próximo gate.
+- **Especialistas internos:** `KellvynModelDecision.Delegate` cria pesquisador, explorador de código, revisor ou analista de testes usando a mesma instância de inferência e histórico isolado. Ferramentas são restritas a READ_ONLY; não há recursão nem paralelismo.
+
+Arquivos de teste foram escritos para as skills, indexador, plano/executor e delegação. **Não considerar esses testes aprovados sem execução verificável do Gradle/CI.** O runtime de inferência continua não implementado, o chat principal ainda não chama o agente e o teste físico no Poco F6 não ocorreu.
