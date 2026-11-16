@@ -61,7 +61,7 @@ As execuções concluídas do GitHub Actions passaram para:
 - montagem/limite de contexto;
 - protótipo KBN-001 e verificação de gradientes em execuções anteriores.
 
-A execução `43928133784` passou após corrigir a interpolação do trecho com número de linha: os 80 testes unitários passaram naquele commit. A execução `43928462023` está validando também a fábrica do runtime. O workflow executa testes unitários; não produz APK nem comprova execução no aparelho.
+A execução `43928133784` passou após corrigir a interpolação do trecho com número de linha. A execução mais recente `43928462023`, no commit `f9096480fd5ecc4427c7f4c17ec9d5d79fb48ea6`, também passou com a fábrica do runtime incluída. O workflow executa testes unitários e compila as fontes; não produz APK nem comprova execução no aparelho.
 
 ## Limites e bloqueios que permanecem
 
