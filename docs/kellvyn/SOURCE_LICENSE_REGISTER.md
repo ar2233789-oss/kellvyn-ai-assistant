@@ -5,6 +5,14 @@
 
 > Este registro é uma triagem técnica, não um parecer jurídico. Antes de distribuir qualquer componente, conferir a licença do commit exato, arquivos NOTICE, dependências transitivas, marcas, modelo/pesos e datasets separadamente.
 
+## Estado jurídico do repositório da Kellvyn
+
+Na inspeção desta branch não foi encontrado arquivo raiz \`LICENSE\`, \`COPYING\`, \`NOTICE\` ou \`COPYRIGHT\`. Portanto, não se deve presumir que o código próprio do repositório esteja liberado como open source ou que terceiros tenham permissão para copiá-lo. Antes de qualquer publicação ou distribuição, o titular do projeto deve decidir os termos de licença do próprio código.
+
+O laboratório KCL-001 não incorporou código-fonte, pesos, prompts privados ou datasets de terceiros. Os arquivos novos foram escritos especificamente para este repositório, com base em requisitos próprios e padrões técnicos públicos.
+
+As dependências já existentes no Gradle são uma questão separada: cada artefato e dependência transitiva precisa de uma SBOM e verificação de licença/NOTICE por versão. Esta inspeção não conclui que todas as dependências existentes já estejam liberadas ou auditadas. Nenhum artefato externo novo foi adicionado pelo KCL-001.
+
 ## 1. Projetos de referência
 
 | Projeto / fonte | Licença identificada na triagem | Uso possível em Kellvyn | Obrigações e limites |
