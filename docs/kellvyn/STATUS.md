@@ -168,3 +168,33 @@ Também foram alinhados os documentos de arquitetura, pesquisa e estudo de refer
 **Validação:** um smoke test Kotlin isolado da lógica de normalização/seleção foi compilado e executado com sucesso. Isso não é o Gradle do repositório, não executa os testes JUnit reais e não valida Android. O GitHub não retornou checks/status verificáveis para os commits consultados. Portanto, os testes do projeto continuam pendentes de CI confirmado. Nenhuma integração com o chat principal nem teste físico no Poco F6 ocorreu nesta atualização.
 
 Próximo passo obrigatório: confirmar o CI da branch, corrigir falhas reais e só então integrar checkpoints/progresso ao ciclo do agente.
+
+## Evolução do agente — skills, indexação e Plan/Build (16/11/2026)
+
+A pesquisa oficial foi atualizada e as melhorias foram transformadas em código na branch de laboratório.
+
+Código adicionado:
+- `KellvynSkillRegistry.kt`: seis skills internas carregadas sob demanda, seleção determinística e limite de contexto.
+- `KellvynProjectCodeIndexer.kt`: índice lexical limitado para package, imports, declarações Kotlin e métodos Java, chamadas e referências.
+- `KellvynProjectContextRetriever.kt`: ranking usa sinais estruturais junto com texto e caminho.
+- `KellvynTaskCheckpointRepository.kt`: contrato suspendável para persistência/recuperação de planos.
+- `KellvynAgent.kt`: decisão estruturada Plan; validação de ferramentas/risco; checkpoints; restauração; aprovação persistida; execução de uma etapa pronta com timeout e verificador independente.
+- `KellvynRuntime.kt`: conecta a interface do agente ao armazenamento local de checkpoints criptografados.
+- Testes escritos: `KellvynSkillRegistryTest.kt`, `KellvynProjectCodeIndexerTest.kt` e `KellvynAgentPlanTest.kt`.
+- Workflow neural atualizado para disparar com os novos arquivos de produção.
+
+Restrições desta primeira versão:
+- cada etapa executável declara exatamente uma ferramenta;
+- operações mutáveis exigem aprovação explícita e continuam sujeitas à política de autorização;
+- uma ferramenta que relata sucesso não conclui a etapa sem prova independente de todos os critérios;
+- o índice não é AST nem compilador;
+- as skills são procedimentos, não permissões.
+
+Validação:
+- harness Kotlin isolado do indexador executado com sucesso para pacote/imports/declarações/referências, filtragem de comentários/strings e limites;
+- smoke test independente da seleção de skills executado com exemplos em português;
+- os testes JUnit do repositório foram escritos, mas não há execução Gradle/CI confirmada;
+- status combinado consultado não retornou checks e a consulta limitada de workflow runs também não retornou execuções;
+- sem build de APK, sem teste real no Poco F6 e sem integração no chat principal.
+
+O runtime continua informando que a inferência neural ainda não está pronta. O modelo ainda não está conectado e, portanto, ainda não pode produzir decisões Plan ou chamadas de ferramenta no aplicativo.
