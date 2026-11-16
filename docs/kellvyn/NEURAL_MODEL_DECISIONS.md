@@ -43,7 +43,7 @@ Estes modelos foram localizados com licenças declaradas, mas não foram selecio
 | Qwen/Qwen3-1.7B | Apache 2.0 | 1,7B; repositório listado em aproximadamente 4,08 GB não quantizados; exigiria avaliação cuidadosa de espaço e RAM |
 | microsoft/Phi-4-mini-instruct | MIT | candidato de avaliação; conferir o tamanho/quantização exata e termos associados ao artefato que seria distribuído |
 
-A presença de MIT/Apache não prova, sozinha, que o modelo é o melhor para o Poco F6 ou que o pacote completo está pronto para Play Store. Conferir o LICENSE, model card, hashes, tokenizer, quantização e arquivos de cada revisão.
+A presença de MIT/Apache não prova, sozinha, que o modelo é o melhor para o Poco F6 ou que todos os arquivos associados têm termos compatíveis. Conferir o LICENSE, model card, hashes, tokenizer, quantização e arquivos de cada revisão.
 
 ## 3. Por que não escolher um modelo agora
 
@@ -120,4 +120,4 @@ A decisão deverá comparar:
 1. peso original treinado pela Kellvyn, com limite realista de qualidade;
 2. uma base única licenciada, adaptada e reconhecida como derivada.
 
-A decisão incluirá benchmark, orçamento de armazenamento/RAM, licença e plano de distribuição. Até esse gate, nenhum modelo pré-treinado está aprovado.
+A decisão incluirá benchmark, orçamento de armazenamento/RAM, termos dos pesos e plano de execução privada. Até esse gate, nenhum modelo pré-treinado está aprovado.
