@@ -198,6 +198,14 @@ internal class KellvynAgent(
             val proof = try {
                 verifier.verify(step, outcome)
             } catch (cancelled: CancellationException) {
+                withContext(NonCancellable) {
+                    val cancelledState = taskPlanner.cancel(running)
+                    repository.append(
+                        state = cancelledState,
+                        createdAtMillis = System.currentTimeMillis(),
+                        expectedPreviousSha256 = startedCheckpoint.sha256
+                    )
+                }
                 throw cancelled
             } catch (_: Exception) {
                 null
@@ -237,6 +245,71 @@ internal class KellvynAgent(
             )
         }
         return KellvynAgentResult.Planned(updatedState, finalCheckpoint)
+    }
+
+    /**
+     * Advances a persisted plan through ready steps in dependency order.
+     *
+     * It stops naturally when a step awaits owner approval, fails verification, or the
+     * per-call step budget is exhausted. Every individual step still goes through the same
+     * checkpoint, authorization, timeout and independent-verifier gates.
+     */
+    suspend fun executeReadySteps(
+        taskId: String,
+        verifiersByStepId: Map<String, KellvynIndependentVerifier>,
+        maxSteps: Int = 8
+    ): KellvynAgentResult {
+        require(maxSteps in 1..MAX_AUTOMATED_PLAN_STEPS)
+        val repository = taskCheckpoints
+            ?: return KellvynAgentResult.Failed(
+                "O armazenamento persistente de tarefas não está configurado.",
+                0,
+                0
+            )
+        var executed = 0
+        var latest = repository.loadLatest(taskId)
+            ?: return KellvynAgentResult.Failed("O plano solicitado não foi encontrado.", 0, 0)
+
+        while (executed < maxSteps) {
+            val state = latest.state
+            val nextStep = state.plan.steps.firstOrNull {
+                state.statuses[it.id] == KellvynStepStatus.READY
+            } ?: return KellvynAgentResult.Planned(state, latest.metadata)
+
+            val toolName = nextStep.requiredTools.singleOrNull()
+                ?: return KellvynAgentResult.Failed(
+                    "A etapa ${nextStep.id} precisa declarar exatamente uma ferramenta para execução automática.",
+                    executed,
+                    executed
+                )
+            val verifier = verifiersByStepId[nextStep.id]
+                ?: return KellvynAgentResult.Failed(
+                    "Não existe verificador independente registrado para a etapa ${nextStep.id}.",
+                    executed,
+                    executed
+                )
+
+            val result = executePlannedStep(
+                taskId = taskId,
+                stepId = nextStep.id,
+                toolName = toolName,
+                arguments = emptyMap(),
+                verifier = verifier
+            )
+            if (result !is KellvynAgentResult.Planned) return result
+            if (result.state.statuses[nextStep.id] != KellvynStepStatus.SUCCEEDED) {
+                return result
+            }
+            executed++
+            latest = repository.loadLatest(taskId)
+                ?: return KellvynAgentResult.Failed(
+                    "O plano desapareceu após uma etapa concluída.",
+                    executed,
+                    executed
+                )
+        }
+
+        return latest.let { KellvynAgentResult.Planned(it.state, it.metadata) }
     }
 
     suspend fun run(goal: String): KellvynAgentResult {
@@ -654,6 +727,10 @@ internal class KellvynAgent(
 
     private fun safeMessage(error: Exception): String =
         (error.message ?: error.javaClass.simpleName).take(500)
+
+    private companion object {
+        const val MAX_AUTOMATED_PLAN_STEPS = 32
+    }
 }
 
 internal data class KellvynAgentConfig(
