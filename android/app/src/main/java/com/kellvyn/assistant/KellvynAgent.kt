@@ -323,19 +323,128 @@ internal enum class KellvynToolRisk {
     DESTRUCTIVE
 }
 
+internal enum class KellvynToolArgumentType {
+    TEXT,
+    INTEGER,
+    NUMBER,
+    BOOLEAN,
+    ENUM,
+    RELATIVE_PATH
+}
+
+/**
+ * Optional strict schema for a tool argument. The model still emits string values at the
+ * inference boundary, but the registry validates their meaning before any tool can execute.
+ */
+internal data class KellvynToolArgumentSchema(
+    val name: String,
+    val type: KellvynToolArgumentType,
+    val required: Boolean = true,
+    val maxLength: Int = 4_000,
+    val pattern: String? = null,
+    val allowedValues: Set<String> = emptySet(),
+    val minInteger: Long? = null,
+    val maxInteger: Long? = null,
+    val minNumber: Double? = null,
+    val maxNumber: Double? = null
+) {
+    init {
+        require(name.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{0,63}")))
+        require(maxLength in 1..4_000)
+        require(pattern == null || runCatching { Regex(pattern) }.isSuccess)
+        require(type == KellvynToolArgumentType.ENUM || allowedValues.isEmpty())
+        require(type == KellvynToolArgumentType.ENUM && allowedValues.isNotEmpty() ||
+            type != KellvynToolArgumentType.ENUM)
+        require(type == KellvynToolArgumentType.INTEGER ||
+            minInteger == null && maxInteger == null)
+        require(type == KellvynToolArgumentType.NUMBER ||
+            minNumber == null && maxNumber == null)
+        require(minInteger == null || maxInteger == null || minInteger <= maxInteger)
+        require(minNumber == null || maxNumber == null || minNumber <= maxNumber)
+        require(minNumber == null || minNumber.isFinite())
+        require(maxNumber == null || maxNumber.isFinite())
+    }
+
+    fun validate(value: String): String? {
+        if (value.length > maxLength) return "excede o limite de $maxLength caracteres."
+        if (value.indexOf('\u0000') >= 0) return "contém um byte nulo inválido."
+        if (pattern != null && !Regex(pattern).matches(value)) {
+            return "não corresponde ao formato permitido."
+        }
+
+        return when (type) {
+            KellvynToolArgumentType.TEXT -> null
+
+            KellvynToolArgumentType.INTEGER -> {
+                val number = value.toLongOrNull()
+                    ?: return "precisa ser um número inteiro válido."
+                if (minInteger != null && number < minInteger) return "está abaixo do mínimo permitido."
+                if (maxInteger != null && number > maxInteger) return "ultrapassa o máximo permitido."
+                null
+            }
+
+            KellvynToolArgumentType.NUMBER -> {
+                val number = value.toDoubleOrNull()?.takeIf { it.isFinite() }
+                    ?: return "precisa ser um número finito válido."
+                if (minNumber != null && number < minNumber) return "está abaixo do mínimo permitido."
+                if (maxNumber != null && number > maxNumber) return "ultrapassa o máximo permitido."
+                null
+            }
+
+            KellvynToolArgumentType.BOOLEAN ->
+                if (value == "true" || value == "false") null else "precisa ser true ou false."
+
+            KellvynToolArgumentType.ENUM ->
+                if (value in allowedValues) null else "não pertence aos valores permitidos."
+
+            KellvynToolArgumentType.RELATIVE_PATH -> {
+                val segments = value.split("/")
+                val unsafe = value.isBlank() ||
+                    value.startsWith("/") ||
+                    value.startsWith("\\") ||
+                    value.contains("\\") ||
+                    Regex("^[A-Za-z]:").containsMatchIn(value) ||
+                    segments.any { it.isBlank() || it == "." || it == ".." } ||
+                    segments.any { segment ->
+                        segment.any { it.code < 32 } || segment.contains(":")
+                    }
+                if (unsafe) "precisa ser um caminho relativo seguro dentro do workspace." else null
+            }
+        }
+    }
+}
+
 internal data class KellvynToolSpec(
     val name: String,
     val description: String,
     val requiredArguments: Set<String> = emptySet(),
     val optionalArguments: Set<String> = emptySet(),
     val risk: KellvynToolRisk = KellvynToolRisk.READ_ONLY,
-    val timeoutMs: Long = 15_000L
+    val timeoutMs: Long = 15_000L,
+    val argumentSchemas: List<KellvynToolArgumentSchema> = emptyList()
 ) {
     init {
         require(name.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{1,63}")))
         require(description.isNotBlank())
         require(timeoutMs > 0)
         require(requiredArguments.intersect(optionalArguments).isEmpty())
+        require((requiredArguments + optionalArguments).all {
+            it.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{0,63}"))
+        })
+        if (argumentSchemas.isNotEmpty()) {
+            val schemaNames = argumentSchemas.map { it.name }
+            require(schemaNames.size == schemaNames.toSet().size) {
+                "Esquemas de argumentos duplicados."
+            }
+            require(schemaNames.toSet() == requiredArguments + optionalArguments) {
+                "O esquema precisa descrever todos os argumentos aceitos pela ferramenta."
+            }
+            require(argumentSchemas.all {
+                it.required == (it.name in requiredArguments)
+            }) {
+                "A obrigatoriedade do esquema diverge da lista de argumentos da ferramenta."
+            }
+        }
     }
 
     val allArguments: Set<String>
@@ -369,6 +478,15 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
         val unknown = arguments.keys - tool.spec.allArguments
         if (unknown.isNotEmpty()) return "argumentos não reconhecidos: ${unknown.sorted().joinToString()}."
         if (arguments.values.any { it.length > 4_000 }) return "um argumento excede 4000 caracteres."
+        if (tool.spec.argumentSchemas.isNotEmpty()) {
+            for (schema in tool.spec.argumentSchemas) {
+                val value = arguments[schema.name] ?: continue
+                val failure = schema.validate(value)
+                if (failure != null) {
+                    return "argumento '" + schema.name + "' inválido: " + failure
+                }
+            }
+        }
         return null
     }
 
