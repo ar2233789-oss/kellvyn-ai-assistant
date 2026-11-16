@@ -48,6 +48,96 @@ internal object KellvynProjectCodeIndexer {
         "new", "super", "this", "synchronized", "try", "assert", "sizeof"
     )
 
+    private data class CleanLine(
+        val content: String,
+        val insideBlockComment: Boolean,
+        val insideTripleQuotedString: Boolean
+    )
+
+    /** Removes comments and string bodies before extracting identifiers. */
+    private fun stripCommentsAndStrings(
+        rawLine: String,
+        startsInBlockComment: Boolean,
+        startsInTripleString: Boolean
+    ): CleanLine {
+        val output = StringBuilder(rawLine.length)
+        var inBlock = startsInBlockComment
+        var inTriple = startsInTripleString
+        var quote: Char? = null
+        var escaped = false
+        var index = 0
+
+        while (index < rawLine.length) {
+            if (inBlock) {
+                val close = rawLine.indexOf("*/", index)
+                if (close < 0) {
+                    output.append(" ".repeat(rawLine.length - index))
+                    index = rawLine.length
+                } else {
+                    output.append(" ".repeat(close + 2 - index))
+                    index = close + 2
+                    inBlock = false
+                }
+                continue
+            }
+
+            if (inTriple) {
+                if (rawLine.startsWith("\"\"\"", index)) {
+                    output.append("   ")
+                    index += 3
+                    inTriple = false
+                } else {
+                    output.append(' ')
+                    index++
+                }
+                continue
+            }
+
+            val current = rawLine[index]
+            if (quote != null) {
+                output.append(' ')
+                if (escaped) {
+                    escaped = false
+                } else if (current == '\\') {
+                    escaped = true
+                } else if (current == quote) {
+                    quote = null
+                }
+                index++
+                continue
+            }
+
+            if (rawLine.startsWith("\"\"\"", index)) {
+                output.append("   ")
+                index += 3
+                inTriple = true
+                continue
+            }
+            if (current == '"' || current == '\'') {
+                output.append(' ')
+                quote = current
+                index++
+                continue
+            }
+            if (rawLine.startsWith("//", index)) {
+                output.append(" ".repeat(rawLine.length - index))
+                index = rawLine.length
+                continue
+            }
+            if (rawLine.startsWith("/*", index)) {
+                output.append("  ")
+                index += 2
+                inBlock = true
+                continue
+            }
+
+            output.append(current)
+            index++
+        }
+
+        return CleanLine(output.toString(), inBlock, inTriple)
+    }
+
     fun index(path: String, source: String): KellvynProjectCodeIndex {
         require(path.isNotBlank() && path.length <= 240)
         val bounded = source.take(MAX_SOURCE_CHARS)
@@ -56,20 +146,26 @@ internal object KellvynProjectCodeIndexer {
         val imports = linkedSetOf<String>()
         val declarations = mutableListOf<KellvynCodeDeclaration>()
         val references = linkedSetOf<String>()
+        var insideBlockComment = false
+        var insideTripleQuotedString = false
 
         lines.forEachIndexed { index, rawLine ->
-            val line = rawLine.trimStart()
-            if (line.startsWith("//") || line.startsWith("*") || line.startsWith("/*")) {
-                return@forEachIndexed
-            }
+            val cleaned = stripCommentsAndStrings(
+                rawLine,
+                insideBlockComment,
+                insideTripleQuotedString
+            )
+            insideBlockComment = cleaned.insideBlockComment
+            insideTripleQuotedString = cleaned.insideTripleQuotedString
+            val line = cleaned.content
 
             if (packageName == null) {
-                packageName = PACKAGE.find(rawLine)?.groupValues?.getOrNull(1)
+                packageName = PACKAGE.find(line)?.groupValues?.getOrNull(1)
             }
-            IMPORT.find(rawLine)?.groupValues?.getOrNull(1)?.let { imported ->
+            IMPORT.find(line)?.groupValues?.getOrNull(1)?.let { imported ->
                 if (imports.size < MAX_IMPORTS) imports += imported
             }
-            DECLARATION.find(rawLine)?.let { match ->
+            DECLARATION.find(line)?.let { match ->
                 if (declarations.size < MAX_DECLARATIONS) {
                     declarations += KellvynCodeDeclaration(
                         name = match.groupValues[2],
@@ -78,7 +174,7 @@ internal object KellvynProjectCodeIndexer {
                     )
                 }
             }
-            CALL.findAll(rawLine).forEach { match ->
+            CALL.findAll(line).forEach { match ->
                 val name = match.groupValues[1]
                 if (name.lowercase() !in KEYWORDS && references.size < MAX_REFERENCES) {
                     references += name
