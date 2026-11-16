@@ -36,28 +36,50 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
     override suspend fun put(entry: KellvynMemoryEntry) {
         withContext(Dispatchers.IO) {
             synchronized(lock) {
-                val values = ContentValues().apply {
-                    put(COL_ID, entry.id)
-                    put(COL_SCOPE_HASH, scopeHash(entry.address))
-                    put(COL_CREATED, entry.createdAtMillis)
-                    if (entry.expiresAtMillis == null) putNull(COL_EXPIRES)
-                    else put(COL_EXPIRES, entry.expiresAtMillis)
-                    put(COL_PAYLOAD, crypto.encrypt(encode(entry)))
-                }
-                helper.writableDatabase.insertWithOnConflict(
-                    TABLE,
-                    null,
-                    values,
-                    SQLiteDatabase.CONFLICT_REPLACE
-                ).also { rowId ->
-                    check(rowId != -1L) { "Não foi possível gravar a memória local." }
-                    val scopeHash = scopeHash(entry.address)
-                    helper.writableDatabase.execSQL(
-                        "DELETE FROM $TABLE WHERE $COL_SCOPE_HASH = ? AND $COL_ID NOT IN " +
-                            "(SELECT $COL_ID FROM $TABLE WHERE $COL_SCOPE_HASH = ? " +
-                            "ORDER BY $COL_CREATED DESC LIMIT ?)",
-                        arrayOf(scopeHash, scopeHash, MAX_ENTRIES_PER_SCOPE)
+                val db = helper.writableDatabase
+                val hash = scopeHash(entry.address)
+                db.beginTransaction()
+                try {
+                    val alreadyExists = db.query(
+                        TABLE,
+                        arrayOf(COL_ID),
+                        "$COL_ID = ? AND $COL_SCOPE_HASH = ?",
+                        arrayOf(entry.id, hash),
+                        null,
+                        null,
+                        null,
+                        "1"
+                    ).use { it.moveToFirst() }
+                    if (!alreadyExists) {
+                        db.rawQuery(
+                            "SELECT COUNT(*) FROM $TABLE WHERE $COL_SCOPE_HASH = ?",
+                            arrayOf(hash)
+                        ).use { cursor ->
+                            check(cursor.moveToFirst())
+                            check(cursor.getLong(0) < MAX_ENTRIES_PER_SCOPE) {
+                                "O escopo atingiu o limite de memórias. Apague registros antigos antes de guardar outros."
+                            }
+                        }
+                    }
+
+                    val values = ContentValues().apply {
+                        put(COL_ID, entry.id)
+                        put(COL_SCOPE_HASH, hash)
+                        put(COL_CREATED, entry.createdAtMillis)
+                        if (entry.expiresAtMillis == null) putNull(COL_EXPIRES)
+                        else put(COL_EXPIRES, entry.expiresAtMillis)
+                        put(COL_PAYLOAD, crypto.encrypt(encode(entry)))
+                    }
+                    val rowId = db.insertWithOnConflict(
+                        TABLE,
+                        null,
+                        values,
+                        SQLiteDatabase.CONFLICT_REPLACE
                     )
+                    check(rowId != -1L) { "Não foi possível gravar a memória local." }
+                    db.setTransactionSuccessful()
+                } finally {
+                    db.endTransaction()
                 }
             }
         }
