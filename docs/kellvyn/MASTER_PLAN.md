@@ -27,12 +27,12 @@ A interface aprovada do aplicativo é uma superfície de interação, não o cé
 
 ## 2. O que significa “legítima” neste projeto
 
-A Kellvyn será um sistema original que pode aproveitar pesos, bibliotecas, runtimes, código aberto e técnicas de terceiros quando isso for legalmente permitido e tecnicamente vantajoso. Não é exigido reimplementar tudo que já existe.
+A Kellvyn será um sistema original cujo cérebro conversacional será construído e treinado do zero. Técnicas publicadas podem orientar a engenharia; ferramentas auxiliares, runtimes e aceleradores poderão ser usados sob licença compatível, mas pesos pré-treinados de terceiros não serão o cérebro.
 
 Regras obrigatórias:
-- pesos abertos podem ser utilizados como fundação neural após auditoria de licença, model card, versão, hashes, proveniência e compatibilidade;
-- fine-tuning, LoRA e outros derivados são permitidos quando os termos do modelo-base autorizarem, mantendo a atribuição e identificando o resultado como derivado;
-- código aberto pode ser integrado seletivamente com licença, avisos, atribuição, registro de alterações e auditoria de dependências;
+- o modelo neural conversacional será implementado e treinado do zero, com pesos iniciais e pesos aprendidos próprios;
+- não importar pesos pré-treinados, checkpoints ou adapters de outros modelos para substituir ou constituir o cérebro;
+- código aberto auxiliar (runtime, kernel matemático, ferramenta de build ou biblioteca não neural) poderá ser incorporado seletivamente sob licença compatível, com avisos e atribuição; o núcleo neural e o pipeline de treino continuam autorais;
 - código, pesos ou componentes proprietários não serão copiados nem obtidos por meios não autorizados;
 - Claude, ChatGPT, Replit, Cursor e Gemini/Android Studio serão estudados pelo comportamento documentado; seus mecanismos internos e pesos privados não serão presumidos acessíveis;
 - APIs proprietárias remotas não serão requisito para o funcionamento local/offline e só poderão ser adotadas mediante decisão explícita sobre custos, privacidade e dependência de rede;
@@ -42,12 +42,12 @@ Regras obrigatórias:
 - não usar conversas privadas do proprietário no treino sem consentimento específico;
 - manter proveniência de cada dado, dependência, peso e checkpoint.
 
-**Kellvyn será própria pelo sistema, pela engenharia e pela integração que entregaremos. Componentes externos autorizados poderão acelerar e ampliar suas capacidades, sem esconder a autoria de cada parte.**
+**A arquitetura neural, o tokenizer, o treinamento, os pesos resultantes, o planejador, a memória e a integração serão próprios. Os produtos citados servem como inspiração a partir de capacidades públicas; não serão copiados código proprietário, prompts internos ou pesos privados. Componentes auxiliares legítimos terão origem e licença explicitadas.**
 
 ## 3. Restrições que orientam todas as decisões
 
 1. Uma única inteligência chamada Kellvyn; não montar uma coleção de IAs com identidades concorrentes.
-2. Não tratar modelos, pesos, códigos ou produtos de terceiros como se fossem criados por Kellvyn. Nenhuma fundação neural externa está selecionada; qualquer componente futuro exige auditoria, origem e atribuição preservadas.
+2. O cérebro neural deve ser criado e treinado do zero: não importar pesos pré-treinados ou adapters externos. Técnicas públicas servem de inspiração; código proprietário não será copiado. Componentes auxiliares exigem auditoria e atribuição.
 3. Não alegar treinamento, raciocínio, execução, pesquisa, compilação, instalação ou teste que não tenha ocorrido e sido verificado.
 4. Funcionamento local como objetivo principal; Web opcional pela conexão do telefone.
 5. Alvo de execução: Poco F6, Snapdragon 8s Gen 3, 8 GB de RAM.
@@ -99,11 +99,9 @@ A arquitetura deve ser modular por responsabilidade, mas o usuário conversa sem
 
 ### 4.1 Fundação neural
 
-Uma fundação principal de pesos abertos, sob licença verificada, poderá fornecer a capacidade linguística inicial. A escolha será feita por qualidade, português, raciocínio, código, visão, chamadas de ferramentas, consumo de RAM, latência e execução offline no Poco F6. Pesos e autores-base permanecem identificados.
+**Decisão vinculante: a fundação neural será criada do zero.** O plano é evoluir KBN-001 para um modelo autoregressivo decoder-only próprio, com tokenizer treinado em corpus autorizado, blocos de atenção causal, parâmetros inicializados pelo projeto, retropropagação, otimizador, checkpoints e avaliação. Nenhum peso pré-treinado externo ou adapter será importado como cérebro.
 
-KBN-001 é uma experiência própria de treinamento neural e continuará como laboratório. Ela não será confundida com uma fundação conversacional avançada nem usada para bloquear a escolha de um modelo aberto mais capaz.
-
-Personalização de modelo-base por treino/adapters é permitida quando os termos autorizarem. Os pesos resultantes serão registrados como derivados. A rota de pré-treinamento integralmente do zero pode continuar como pesquisa de longo prazo, mas não é condição para entregar uma Kellvyn funcional.
+As dimensões iniciais serão pequenas e medidas no Poco F6. Um protótipo treinável não equivale a ChatGPT/Claude: modelos avançados exigem dados e computação em escala muito maior. A entrega será incremental e baseada em testes, sem promessas de paridade que o hardware/dados não sustentem.
 
 ### 4.2 Orquestrador
 
@@ -240,17 +238,15 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 
 **Gate:** cada componente proposto tem origem, versão, licença e justificativa. “Vi no README” não é investigação suficiente.
 
-### Fase 2 — escolha da fundação neural e arquitetura cognitiva
-**Saídas:** comparação de modelos de pesos abertos, auditoria legal, especificação da interface de inferência, plano de personalização e arquitetura própria de agente.
+### Fase 2 — arquitetura neural original e especificação de treinamento
+**Saídas:** especificação do tokenizer próprio, arquitetura autoregressiva própria, pipeline de dados autorizados, inicialização, gradientes/otimizador, checkpoints, métricas e orçamento de memória.
 
-**Gate:** modelo candidato identificado com versão, licença, hash e formato; benchmark preliminar no Poco F6 ou justificativa explícita de incompatibilidade. Não declarar um vencedor antes dos testes.
+**Gate:** forward/backward numericamente verificados; overfit intencional em corpus minúsculo; validação separada e checkpoints reproduzíveis. Nenhum peso externo.
 
-### Fase 3 — núcleo cognitivo e adaptação
-**Saídas:** planner estruturado, estado de tarefa, skills, subagentes internos, memória, registro de ferramentas, políticas, verificação e checkpoints. Conectar uma fundação neural validada pela interface própria.
+### Fase 3 — cérebro treinável e integração cognitiva
+**Saídas:** evolução do KBN para modelo de linguagem original, agente com planner, memória, contexto, ferramentas e verificação ligados ao mesmo motor de inferência próprio.
 
-**Gate:** tarefas multi-etapas executadas com evidência, limites e rollback. Se houver treino/adapters, registrar model-base, dataset, licença, configuração e hashes.
-
-KBN-001 continua em paralelo como laboratório de treinamento próprio: tokenizer, passagem direta, gradientes e checkpoint são critérios de aprendizagem de engenharia, não o gate de entrega do assistente.
+**Gate:** modelo gera respostas em português em corpus não visto, passa por testes de instrução e conversa multi-turno, integra-se ao runtime e não chama ferramentas fora da política. KBN-001 fica como referência histórica de protótipo, não como cérebro final.
 
 ### Fase 4 — runtime no Poco F6
 **Saídas:** uma única implementação de inferência Android; carregamento/descarga; quantização se aplicável; streaming; cancelamento; uso de RAM; recuperação após erro.
@@ -319,7 +315,7 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 
 A branch de laboratório mantém `KellvynRuntime.kt` sem inferência neural funcional. O agente experimental tem ciclo de ferramentas, planejamento estruturado, recuperação de contexto e memória local em implementação; ainda não está conectado a um modelo conversacional funcional. Nenhuma base neural externa está selecionada. A proteção da interface permanece divergente porque `MainActivity.java` difere do hash bloqueado; o workflow de APK continua bloqueado até resolver isso sem redesenho e sem enfraquecer a proteção. A branch `main` de produção não foi modificada.
 
-A próxima etapa segura é fechar a auditoria e decidir o contrato de integração do novo modelo/agente antes de substituir as chamadas antigas.
+A próxima etapa é estabilizar o checkpoint criptografado e iniciar KBN-002: tokenizer e modelo autoregressivo próprio. O chat principal só será conectado depois que existir inferência funcional e testes aprovados.
 
 ---
 
