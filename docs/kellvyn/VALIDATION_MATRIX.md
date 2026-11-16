@@ -6,7 +6,7 @@ Nenhuma fase passa apenas porque o código existe. Cada prova precisa estar asso
 
 | Teste | Evidência | Aprovação |
 |---|---|---|
-| Branch isolada | branch e diff | não tocar distribuição |
+| Branch isolada | branch e diff | não tocar versão estável nem repositório antigo |
 | Interface protegida | hashes da lock file | hashes preservados |
 | Inventário de arquivos | tree e manifest | nenhuma referência órfã |
 | Licença | arquivos LICENSE/NOTICE | origem registrada |
@@ -86,16 +86,23 @@ Executar:
 
 Registrar HyperOS/Android, versão do APK, hash, espaço disponível, RAM, temperatura, logs e capturas.
 
-## 7. Play Store
+## 7. Privacidade e execução privada
 
-- verificar propriedade intelectual;
-- verificar licenças e dependências;
-- verificar dados e SDKs;
-- verificar permissões e acessibilidade;
-- verificar política de privacidade e Data Safety;
-- testar as funcionalidades com e sem rede;
-- confirmar que a descrição não exagera capacidades.
+- nenhuma dependência obrigatória de API de IA hospedada;
+- conversas e memória permanecem locais por padrão;
+- conexões Web são opcionais e claramente identificadas;
+- credenciais de bots protegidas;
+- controle de acesso do sistema operacional documentado;
+- interrupção e encerramento do agente testados;
+- backups sob controle do proprietário;
+- sem telemetria ou envio de conteúdo privado não documentados.
 
-## 8. Regra final
+## 8. Gate final privado
 
-Se um teste não foi executado, o estado deve ser “não testado”. Se falhou, o estado é “falhou”. “Parece funcionar” não é um status aceito.
+- APK pessoal compilado e assinatura verificada;
+- instalação no Poco F6;
+- inicialização e fluxo real testados;
+- funcionamento offline após preparação;
+- comportamento Web 5G opcional testado;
+- recuperação de crash e reinício;
+- consumo de memória, temperatura e bateria medidos.
