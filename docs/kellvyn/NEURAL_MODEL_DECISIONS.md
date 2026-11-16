@@ -84,6 +84,8 @@ Ferramentas, memória, pesquisa e compilação aumentam a utilidade prática do 
 ## 7. Situação técnica confirmada em 16/11/2026
 
 - KellvynByteBrain.kt (KBN-001) existe e inicializa seus próprios pesos;
+- KellvynBpeTokenizer.kt foi acrescentado como primeiro componente do KBN-002: aprende merges BPE de um corpus passado explicitamente, mantém fallback de byte UTF-8, checkpoint versionado com SHA-256 e limites experimentais de CPU/memória;
+- KellvynBpeTokenizerTest.kt cobre ida e volta Unicode/português, determinismo, restauração e rejeição de checkpoint alterado; a execução CI desta atualização ainda não foi confirmada;
 - o modelo prevê o próximo byte com rede rasa, janela curta, embeddings, gradientes e checkpoints;
 - os testes anteriores verificam UTF-8, redução de loss em dados sintéticos repetidos, gradientes por diferenças finitas e restauração de checkpoint;
 - KBN-001 não possui tokenizer subword, Transformer, corpus de treinamento de linguagem, diálogo multi-turno, capacidade de seguir instruções ou integração com o chat;
