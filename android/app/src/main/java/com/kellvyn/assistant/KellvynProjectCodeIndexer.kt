@@ -37,13 +37,12 @@ internal object KellvynProjectCodeIndexer {
     private const val MAX_DECLARATIONS = 128
     private const val MAX_REFERENCES = 192
 
-    private val PACKAGE = Regex("""^\\s*package\\s+([A-Za-z_][A-Za-z0-9_.]*)""")
-    private val IMPORT = Regex("""^\\s*import\\s+(?:static\\s+)?([A-Za-z_][A-Za-z0-9_.*]*)""")
+    private val PACKAGE = Regex("""^\s*package\s+([A-Za-z_][A-Za-z0-9_.]*)""")
+    private val IMPORT = Regex("""^\s*import\s+(?:static\s+)?([A-Za-z_][A-Za-z0-9_.*]*)""")
     private val DECLARATION = Regex(
-        """^\\s*(?:(?:public|private|protected|internal|open|abstract|final|data|sealed|enum|annotation|expect|actual|suspend|inline|override|operator|tailrec|external|static|native|synchronized)\\s+)*(class|interface|object|fun|val|var|typealias|record|enum\\s+class)\\s+([A-Za-z_][A-Za-z0-9_]*)"""
+        """^\s*(?:(?:public|private|protected|internal|open|abstract|final|data|sealed|enum|annotation|expect|actual|suspend|inline|override|operator|tailrec|external|static|native|synchronized)\s+)*(class|interface|object|fun|val|var|typealias|record|enum\s+class)\s+([A-Za-z_][A-Za-z0-9_]*)"""
     )
-    private val CALL = Regex("""\\b([A-Za-z_][A-Za-z0-9_]*)\\s*(?:<[^<>\\n]{1,100}>)?\\s*\\(""")
-    private val IDENTIFIER = Regex("""[A-Za-z_][A-Za-z0-9_]*""")
+    private val CALL = Regex("""\b([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^<>\n]{1,100}>)?\s*\(""")
     private val KEYWORDS = setOf(
         "if", "for", "while", "switch", "when", "catch", "return", "throw",
         "new", "super", "this", "synchronized", "try", "assert", "sizeof"
@@ -74,7 +73,7 @@ internal object KellvynProjectCodeIndexer {
                 if (declarations.size < MAX_DECLARATIONS) {
                     declarations += KellvynCodeDeclaration(
                         name = match.groupValues[2],
-                        kind = match.groupValues[1].replace(Regex("""\\s+"""), " "),
+                        kind = match.groupValues[1].replace(Regex("""\s+"""), " "),
                         line = index + 1
                     )
                 }
