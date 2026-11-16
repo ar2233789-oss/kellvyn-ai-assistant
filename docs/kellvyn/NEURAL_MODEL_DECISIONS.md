@@ -1,56 +1,96 @@
-# Kellvyn — decisão definitiva de origem do cérebro neural
+# Kellvyn — estratégia do cérebro e modelos
 
-**Decisão:** o cérebro neural da Kellvyn será criado do zero. Não haverá modelo-base de terceiros, pesos pré-treinados importados, fine-tuning de modelo alheio, LoRA, fallback oculto ou troca por outro provedor.
+**Decisão de produto:** Kellvyn será um sistema próprio, mas não precisa rejeitar modelos, pesos ou código de terceiros. O uso é permitido quando houver licença e proveniência verificadas, adequação técnica e atribuição correta.
 
-## 1. Regra inviolável de autoria
+## 1. O que é próprio e o que pode ser aproveitado
 
-A Kellvyn terá:
-- arquitetura especificada e implementada para este projeto;
-- tokenizer desenvolvido e versionado no projeto;
-- pesos inicializados aleatoriamente pela própria implementação;
-- pipeline próprio de preparação de dados, treinamento, checkpoint e avaliação;
-- histórico reproduzível de cada execução de treinamento;
-- pesos de saída identificados por hash e ligados ao código e ao conjunto de dados que os produziram.
+### Próprio da Kellvyn
+- identidade e comportamento do assistente;
+- arquitetura cognitiva de planejamento, estado de tarefas, memória e execução;
+- orquestrador, políticas, ferramentas, permissões, validação e rollback;
+- camada de contexto, índice de projetos e skills;
+- integração Android, interface, fluxos e experiência;
+- avaliação de tarefas, testes e evidências;
+- código específico escrito para o projeto e adaptações claramente documentadas.
 
-Nenhum arquivo de pesos vindo de outro modelo poderá ser carregado como ponto de partida, mesmo que tenha licença permissiva. Não haverá modelo de terceiros como cérebro temporário, reserva, auxiliar ou fallback.
+### Aproveitável de terceiros
+- pesos de modelos abertos com licença e termos compatíveis;
+- runtimes e bibliotecas licenciados;
+- código aberto selecionado, com licença e atribuição preservadas;
+- técnicas, artigos e arquiteturas publicamente documentadas;
+- dados sob licenças/permissões verificadas.
 
-## 2. Uso de pesquisa sem plágio
+O aproveitamento não será ocultado. Modelo-base, versão, autores, licença, hash, quantização, alterações e limitações ficarão registrados. Pesos derivados continuam derivados; não serão anunciados como pré-treinados do zero pela Kellvyn.
 
-Artigos, documentação e projetos públicos podem ser estudados para compreender matemática, limitações, decisões de engenharia e resultados publicados. O estudo não autoriza copiar implementação, arquitetura de um modelo identificado, tokenizer, pesos, dataset ou código de treinamento.
+## 2. Modelos proprietários e abertos
 
-A implementação da Kellvyn será escrita especificamente para este repositório. Cada decisão técnica relevante terá uma nota de projeto própria. Quando um princípio científico conhecido for utilizado, a fonte será citada como referência conceitual; não será reivindicada a autoria da ciência já publicada. Não serão reproduzidos arquivos ou blocos de código de projetos estudados.
+Claude, ChatGPT, Replit e Gemini/Android Studio são referências de capacidade e fluxo. O código interno e os pesos proprietários não serão presumidos acessíveis. Suas documentações públicas podem orientar capacidades; APIs remotas só entram se o proprietário aceitar explicitamente rede, custos, privacidade e dependência externa.
 
-Bibliotecas genéricas fora do cérebro — por exemplo, APIs de sistema, armazenamento ou rede — só poderão ser adicionadas após avaliação de necessidade, licença e proveniência. Nenhuma biblioteca poderá fornecer silenciosamente um modelo, tokenizer ou pesos.
+Modelos de pesos abertos são candidatos reais a fundação neural local. O projeto pode utilizar uma base licenciada, personalizá-la e integrá-la a um sistema cognitivo original. Isso não é plágio quando os direitos são respeitados e a origem é declarada.
 
-## 3. Desenvolvimento do cérebro
+## 3. Candidatos atuais para benchmark
 
-A construção seguirá etapas mensuráveis:
+### Gemma 4 E2B — primeira prioridade de investigação móvel
+- Licença declarada: Apache 2.0.
+- Texto, imagem e áudio; suporte nativo a chamadas estruturadas de ferramentas.
+- Contexto de 128K na variante E2B.
+- 2,3B parâmetros efetivos e 5,1B contando embeddings.
+- Existem checkpoints mobile QAT e amostras Android com LiteRT-LM.
+- A documentação Google estima footprint mobile de aproximadamente 1,1 GB (0,84 GB em texto apenas); contexto, runtime, buffers e demais partes do app usam memória adicional.
+- Ainda precisa de teste no Poco F6 (Snapdragon 8s Gen 3, 8 GB). O suporte da família a dispositivos móveis não prova compatibilidade/estabilidade nesse aparelho.
 
-1. **Fundação matemática própria:** tensores/estruturas numéricas, operações, inicialização determinística, funções de ativação, normalização, loss e cálculo de gradientes implementados e testados.
-2. **Tokenização própria:** representação reversível de texto, testes de português, acentos, símbolos, código e Unicode.
-3. **Arquitetura Kellvyn:** especificação própria dos blocos de processamento, memória de contexto, passagem direta e retropropagação. Não clonar uma arquitetura/modelo de terceiros.
-4. **Treinamento do zero:** pesos aleatórios, previsão de sequência, otimizador implementado e checkpoints reproduzíveis.
-5. **Aprendizado conversacional:** dados próprios ou com autorização e proveniência verificadas, preparação, filtragem, treino supervisionado próprio e avaliação.
-6. **Agente:** conexão ao orquestrador e às ferramentas somente depois de o modelo demonstrar capacidade mensurável de seguir o formato de saída.
-7. **Android:** portar a inferência para o Poco F6 após os testes do modelo; o runtime não define a origem nem a identidade do cérebro.
+### Qwen3.5-2B — comparação de arquitetura e desempenho
+- Licença declarada nos repositórios oficiais: Apache 2.0.
+- Modelo de 2B, multimodal com encoder de visão, contexto nativo de 262.144 tokens.
+- A página atual do Qualcomm AI Hub informa que a versão ali listada não está suportada em chipsets móveis. Não presumir aceleração NPU ou compatibilidade com o Poco F6.
+- Só será testado no telefone se encontrarmos uma conversão e runtime tecnicamente compatíveis; caso contrário, fica como referência comparativa.
 
-## 4. Dados e privacidade
+Os candidatos podem mudar conforme novas versões, pesos e resultados. Nenhum é declarado vencedor antes de benchmark reproduzível.
 
-Não serão usados pesos ou corpora extraídos de outros modelos. Os dados de treino deverão ter origem documentada e autorização compatível. Conversas privadas do proprietário não serão usadas para treinar pesos sem consentimento específico. Dados de teste sintéticos serão identificados como testes e não serão apresentados como corpus de treinamento de qualidade.
+## 4. Critérios de escolha
 
-## 5. O que não pode ser alegado
+- compatibilidade de licença, model card e arquivos de pesos;
+- português brasileiro e qualidade de instrução;
+- raciocínio, código, planejamento e chamadas de ferramentas;
+- visão e documentos, quando necessário;
+- tamanho real dos pesos e memória de pico;
+- latência de carregamento e geração;
+- temperatura, bateria e throttling;
+- estabilidade em contexto longo;
+- execução offline;
+- suporte real no Poco F6 e runtime Android;
+- capacidade de fine-tuning/adapters, caso exista ambiente adequado.
 
-Não chamar uma rede pequena de assistente geral. Não afirmar que a Kellvyn aprendeu linguagem, raciocínio ou programação antes de medir isso em conjuntos de avaliação separados. Uma resposta gerada por regras, memória ou ferramenta não prova capacidade neural. Um checkpoint só será considerado peso próprio quando for produzido por este pipeline a partir de inicialização aleatória.
+A escolha não será pelo nome, hype, licença isolada ou número de parâmetros.
 
-## 6. Primeiro marco verificável
+## 5. Caminho recomendado
 
-O primeiro marco é um protótipo neural pequeno, inteiramente escrito no projeto, capaz de:
-- tokenizar texto de forma reversível;
-- inicializar pesos sem carregar arquivos externos;
-- executar inferência;
-- calcular loss e gradientes;
-- treinar em um corpus de teste declarado;
-- salvar e restaurar um checkpoint próprio;
-- demonstrar por teste que os pesos mudam durante o treino e que a loss é registrada.
+1. Manter KBN-001 como laboratório didático de pesos próprios, matemática, gradientes e checkpoint. Ele não é o cérebro final.
+2. Avaliar modelos abertos adequados ao Poco F6, começando pelo Gemma 4 E2B mobile QAT e comparando Qwen3.5-2B quando tecnicamente viável.
+3. Implementar a camada cognitiva Kellvyn independente do modelo: planejamento, memória, skills, subagentes internos, tools, permissões, verificação e rollback.
+4. Conectar o modelo escolhido à camada cognitiva por uma interface própria.
+5. Personalizar o comportamento com instruções, exemplos e, depois, fine-tuning/adapters autorizados se a infraestrutura permitir.
+6. Medir e manter um benchmark que impeça regressão e revele quando o modelo não consegue executar uma tarefa.
 
-Esse marco prova que existe um pipeline neural autoral em funcionamento. Não significa que já exista uma IA conversacional de qualidade.
+## 6. Treino próprio e adaptação
+
+Há duas rotas legítimas, com nomes diferentes:
+
+- **Modelo integralmente treinado pela Kellvyn:** pesos inicializados aleatoriamente e pré-treinados pelo pipeline do projeto. É a rota mais autoral, porém muito mais cara em dados e computação.
+- **Modelo derivado e personalizado pela Kellvyn:** pesos-base de um modelo aberto licenciado, adaptados por treino supervisionado, LoRA ou método permitido. É uma rota válida e potencialmente muito mais eficiente, mas a origem-base deve permanecer declarada.
+
+A rota derivada é aceita. Não será chamada de treinamento integral do zero. O objetivo é a inteligência completa de Kellvyn, não uma declaração enganosa sobre a linhagem dos pesos.
+
+## 7. O que não será confundido
+
+- modelo neural não é agente;
+- agente não é conjunto de prompts;
+- memória não é treinamento de pesos;
+- ferramenta nova não é aprendizado neural;
+- benchmark de texto não prova capacidade de operar o Android;
+- APK compilado não prova que a aplicação funciona;
+- modelo-base licenciado não torna automaticamente legal qualquer dataset, adapter ou conversão.
+
+## 8. Estado atual
+
+KBN-001 existe como protótipo neural próprio de previsão de bytes e treino mínimo. O agente Kellvyn possui um ciclo de ferramentas experimental, mas não tem backend neural conectado. Nenhum modelo final foi selecionado e nenhum teste físico no Poco F6 foi feito.
