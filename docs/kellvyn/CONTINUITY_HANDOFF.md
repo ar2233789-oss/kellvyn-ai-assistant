@@ -151,3 +151,37 @@ No fim de cada sessão de trabalho:
 - deixar o repositório em estado verificável, sem dizer que um teste passou até ler o resultado.
 
 **A conversa pode terminar; o registro técnico não pode ficar para trás.**
+
+## 6. Atualização da revisão do agente — 16/11/2026
+
+Pesquisa oficial revalidada:
+- Replit Agent: modo Plan/Build, skills carregadas sob demanda, testes automáticos aplicáveis a apps web e checkpoints/rollback.
+- Cursor Agent: busca de codebase, edição multi-arquivo, terminal, navegador, revisão de diffs, checkpoints, regras persistentes e coordenação de agentes.
+- Android Studio Gemini Agent: plano multi-etapas, edição multi-arquivo, build, deploy em emulador/dispositivo, screenshots, Logcat e interação ADB.
+
+Documento detalhado: `docs/kellvyn/AGENT_CAPABILITY_UPGRADE_2026-11-16.md`.
+
+### Alteração de skills já presente na branch
+- `KellvynSkillRegistry.kt`: seleção lexical determinística de procedimentos relevantes, com limite por tarefa e por caracteres.
+- Skills iniciais: Android build/verification, diagnóstico de falhas, code review, pesquisa Web e teste funcional de apps.
+- `KellvynAgent.kt`: injeta somente skills selecionadas no contexto de sistema; skill não amplia autorização nem cria ferramentas.
+- `KellvynSkillRegistryTest.kt`: seleção, exclusão de skills irrelevantes, determinismo, orçamento e injeção.
+- Essa camada ainda depende de aprovação de CI. A seleção é lexical, não busca semântica.
+
+### Correções desta sessão
+- Commit `9977a800e036f50ac114746ae52f48f137ba5450`: corrigiu a obtenção não nula do diretório de checkpoints e mudou `ZERO_HASH` de const inválida para propriedade.
+- Commit `6282fd6d31241dd5451f8250590fabb70a6bf641`: moveu normalização/tokenização de skills para funções de arquivo reutilizáveis, corrigindo referências não resolvidas.
+- Workflow neural do commit `6282fd6d31241dd5451f8250590fabb70a6bf641`: execução `43974766928`, ainda em andamento no último registro desta atualização. Não declarar sucesso antes da conclusão.
+- Workflow do laboratório Android do mesmo commit: execução `43974766963`, ainda em andamento. Não equivale a teste físico no Poco F6.
+
+### Próximas prioridades do agente
+1. Fechar CI e testes antes de acrescentar mais módulos.
+2. Conectar checkpoints ao ciclo real do agente (plano, etapa, tentativa, ferramenta, resultado, erro e retomada).
+3. Integrar `KellvynTaskPlanner` à execução para tarefas multi-etapas, com gates de aprovação e dependências.
+4. Emitir eventos estruturados de progresso e evidência.
+5. Evoluir busca lexical para índice incremental de símbolos, imports, referências e dependências.
+6. Integrar diff/revisão, build, instalação, screenshots, acessibilidade e Logcat por ferramentas autorizadas.
+7. Não mexer na interface aprovada; não declarar agente funcional no chat principal enquanto o backend neural não estiver conectado e testado.
+
+Limite atual: `KellvynRuntime.isReady() = false`; o chat principal ainda não executa o agente com um backend neural real.
+
