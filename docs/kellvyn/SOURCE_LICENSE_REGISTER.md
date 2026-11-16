@@ -7,7 +7,7 @@
 
 ## Estado jurídico do repositório da Kellvyn
 
-Na inspeção desta branch não foi encontrado arquivo raiz \`LICENSE\`, \`COPYING\`, \`NOTICE\` ou \`COPYRIGHT\`. Portanto, não se deve presumir que o código próprio do repositório esteja liberado como open source ou que terceiros tenham permissão para copiá-lo. Antes de qualquer publicação ou distribuição, o titular do projeto deve decidir os termos de licença do próprio código.
+Na inspeção desta branch não foi encontrado arquivo raiz `LICENSE`, `COPYING`, `NOTICE` ou `COPYRIGHT`. Portanto, não se deve presumir que o código próprio do repositório esteja liberado como open source ou que terceiros tenham permissão para copiá-lo. Antes de qualquer publicação ou distribuição, o titular do projeto deve decidir os termos de licença do próprio código.
 
 O laboratório KCL-001 não incorporou código-fonte, pesos, prompts privados ou datasets de terceiros. Os arquivos novos foram escritos especificamente para este repositório, com base em requisitos próprios e padrões técnicos públicos.
 
