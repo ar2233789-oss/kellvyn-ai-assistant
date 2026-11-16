@@ -191,6 +191,59 @@ class KellvynAgentTest {
     }
 
     @Test
+    fun activeProjectResultsAreInjectedAsUntrustedData() = runBlocking {
+        val search = FakeProjectSearch(
+            KellvynProjectSearchReport(
+                projectId = "kellvyn",
+                query = "onde está a memória",
+                hits = listOf(
+                    KellvynProjectSearchHit(
+                        path = "src/Memory.kt",
+                        snippet = "12: class KellvynMemory",
+                        score = 0.95,
+                        matchedTerms = setOf("memoria"),
+                        truncated = false,
+                        sizeBytes = 120
+                    )
+                ),
+                filesScanned = 4,
+                filesSkipped = 1
+            )
+        )
+        val model = FakeEngine(KellvynModelDecision.Final("Encontrei o arquivo."))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            projectContextRetriever = search,
+            activeProjectId = "kellvyn"
+        )
+
+        val result = agent.run("Onde está a memória?")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(1, search.calls)
+        val fileContext = model.historySeen.single().single { it.source == "workspace:kellvyn:src/Memory.kt" }
+        assertEquals(KellvynTrustLevel.UNTRUSTED, fileContext.trust)
+        assertTrue(fileContext.content.contains("class KellvynMemory"))
+    }
+
+    @Test
+    fun projectFilesAreNotReadWhenNoProjectIsExplicitlyActive() = runBlocking {
+        val search = FakeProjectSearch(
+            KellvynProjectSearchReport("kellvyn", "pedido", emptyList(), 0, 0)
+        )
+        val model = FakeEngine(KellvynModelDecision.Final("Resposta."))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            projectContextRetriever = search
+        )
+
+        agent.run("Explique a arquitetura.")
+
+        assertEquals(0, search.calls)
+    }
+    @Test
     fun finalAnswerCanCompleteWithoutToolCalls() = runBlocking {
         val model = FakeEngine(KellvynModelDecision.Final("Olá."))
         val result = KellvynAgent(model, KellvynToolRegistry(emptyList())).run("Olá.")
@@ -198,6 +251,17 @@ class KellvynAgentTest {
         assertEquals(KellvynAgentResult.Completed("Olá.", 1, 0), result)
     }
 
+    private class FakeProjectSearch(
+        private val report: KellvynProjectSearchReport
+    ) : KellvynProjectContextSearch {
+        var calls = 0
+            private set
+
+        override suspend fun search(request: KellvynProjectSearchRequest): KellvynProjectSearchReport {
+            calls++
+            return report
+        }
+    }
     private class FakeMemoryRepository : KellvynMemoryRepository {
         private val entries = mutableListOf<KellvynMemoryEntry>()
         var putCount = 0
