@@ -97,7 +97,7 @@ Esses conceitos orientam o projeto; código aberto pode ser integrado seletivame
 
 ## Estado real em 2026-11-16
 
-- A implementação anterior `LocalBrain.kt` baseada em Gemma foi removida da branch de laboratório; ela não será recuperada.
+- O adaptador anterior de modelo externo foi removido da branch de laboratório; a nova arquitetura permanece sem modelo-base selecionado.
 - `MainActivity.java` e `BotRuntimeService.kt` já apontam para a fronteira temporária `KellvynRuntime`; ela ainda não contém inferência neural.
 - O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo. A integração de um runtime licenciado será avaliada junto com a fundação neural e o benchmark do Poco F6.
 - O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
