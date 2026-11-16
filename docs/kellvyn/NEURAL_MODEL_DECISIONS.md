@@ -1,123 +1,56 @@
-# Kellvyn — estratégia do modelo neural
+# Kellvyn — decisão definitiva de origem do cérebro neural
 
-**Estado:** decisão em aberto; nenhum modelo de terceiros aprovado como cérebro.
+**Decisão:** o cérebro neural da Kellvyn será criado do zero. Não haverá modelo-base de terceiros, pesos pré-treinados importados, fine-tuning de modelo alheio, LoRA, fallback oculto ou troca por outro provedor.
 
-## 1. Uma única inteligência, duas linhagens possíveis
+## 1. Regra inviolável de autoria
 
-A identidade do produto é Kellvyn. A linhagem dos pesos precisa ser descrita de forma verdadeira.
+A Kellvyn terá:
+- arquitetura especificada e implementada para este projeto;
+- tokenizer desenvolvido e versionado no projeto;
+- pesos inicializados aleatoriamente pela própria implementação;
+- pipeline próprio de preparação de dados, treinamento, checkpoint e avaliação;
+- histórico reproduzível de cada execução de treinamento;
+- pesos de saída identificados por hash e ligados ao código e ao conjunto de dados que os produziram.
 
-### Caminho A — pesos originais da Kellvyn
+Nenhum arquivo de pesos vindo de outro modelo poderá ser carregado como ponto de partida, mesmo que tenha licença permissiva. Não haverá modelo de terceiros como cérebro temporário, reserva, auxiliar ou fallback.
 
-- Implementar a arquitetura neural e o pipeline de treinamento.
-- Inicializar os pesos aleatoriamente.
-- Treinar com dados de proveniência e licença verificadas.
-- Executar pré-treino, ajuste supervisionado e avaliação.
-- Produzir checkpoints e pesos com hash e histórico reproduzível.
-- Converter/quantizar para execução Android.
+## 2. Uso de pesquisa sem plágio
 
-Vantagem: permite afirmar que os pesos foram treinados pela equipe da Kellvyn, quando isso for comprovado.
+Artigos, documentação e projetos públicos podem ser estudados para compreender matemática, limitações, decisões de engenharia e resultados publicados. O estudo não autoriza copiar implementação, arquitetura de um modelo identificado, tokenizer, pesos, dataset ou código de treinamento.
 
-Limite: um modelo neural útil de conversação exige escala de dados, treino e avaliação. O Poco F6 não pode ser tratado como substituto de uma infraestrutura moderna de treinamento acelerado. Um experimento pequeno no aparelho não produzirá por mágica uma IA geral de alto nível.
+A implementação da Kellvyn será escrita especificamente para este repositório. Cada decisão técnica relevante terá uma nota de projeto própria. Quando um princípio científico conhecido for utilizado, a fonte será citada como referência conceitual; não será reivindicada a autoria da ciência já publicada. Não serão reproduzidos arquivos ou blocos de código de projetos estudados.
 
-### Caminho B — uma única base de pesos de terceiros, licenciada e adaptada
+Bibliotecas genéricas fora do cérebro — por exemplo, APIs de sistema, armazenamento ou rede — só poderão ser adicionadas após avaliação de necessidade, licença e proveniência. Nenhuma biblioteca poderá fornecer silenciosamente um modelo, tokenizer ou pesos.
 
-- Selecionar exatamente um modelo com licença/termos que permitam o uso pretendido.
-- Adaptá-lo ao comportamento, idioma e tarefas da Kellvyn por SFT/LoRA ou método compatível.
-- Identificar publicamente o modelo-base, seus autores e licença.
-- Documentar o que foi alterado e o que continua pertencendo à base original.
-- Não afirmar que os pesos-base foram criados do zero pela Kellvyn.
+## 3. Desenvolvimento do cérebro
 
-Vantagem: pode entregar uma qualidade de linguagem e raciocínio muito superior com menos treinamento próprio.
+A construção seguirá etapas mensuráveis:
 
-Limite: é um modelo derivado. É legítimo quando licença e obrigações são cumpridas, mas não é honesto chamá-lo de pesos inteiramente originais.
+1. **Fundação matemática própria:** tensores/estruturas numéricas, operações, inicialização determinística, funções de ativação, normalização, loss e cálculo de gradientes implementados e testados.
+2. **Tokenização própria:** representação reversível de texto, testes de português, acentos, símbolos, código e Unicode.
+3. **Arquitetura Kellvyn:** especificação própria dos blocos de processamento, memória de contexto, passagem direta e retropropagação. Não clonar uma arquitetura/modelo de terceiros.
+4. **Treinamento do zero:** pesos aleatórios, previsão de sequência, otimizador implementado e checkpoints reproduzíveis.
+5. **Aprendizado conversacional:** dados próprios ou com autorização e proveniência verificadas, preparação, filtragem, treino supervisionado próprio e avaliação.
+6. **Agente:** conexão ao orquestrador e às ferramentas somente depois de o modelo demonstrar capacidade mensurável de seguir o formato de saída.
+7. **Android:** portar a inferência para o Poco F6 após os testes do modelo; o runtime não define a origem nem a identidade do cérebro.
 
-A possibilidade de aproveitar uma base aberta não autoriza ocultar sua origem. O projeto não usará Gemma.
+## 4. Dados e privacidade
 
-## 2. Candidatos apenas para benchmark
+Não serão usados pesos ou corpora extraídos de outros modelos. Os dados de treino deverão ter origem documentada e autorização compatível. Conversas privadas do proprietário não serão usadas para treinar pesos sem consentimento específico. Dados de teste sintéticos serão identificados como testes e não serão apresentados como corpus de treinamento de qualidade.
 
-Estes modelos foram localizados com licenças declaradas, mas não foram selecionados nem baixados. Eles servem para comparar capacidade, compatibilidade e direitos, não para substituir automaticamente a identidade da Kellvyn.
+## 5. O que não pode ser alegado
 
-| Candidato | Licença indicada na página oficial consultada | Observação |
-|---|---|---|
-| Qwen/Qwen3-0.6B | Apache 2.0 | 0,6B; repositório de pesos safetensors listado em aproximadamente 1,52 GB não quantizados |
-| Qwen/Qwen3-1.7B | Apache 2.0 | 1,7B; repositório listado em aproximadamente 4,08 GB não quantizados; exigiria avaliação cuidadosa de espaço e RAM |
-| microsoft/Phi-4-mini-instruct | MIT | candidato de avaliação; conferir o tamanho/quantização exata e termos associados ao artefato que seria distribuído |
+Não chamar uma rede pequena de assistente geral. Não afirmar que a Kellvyn aprendeu linguagem, raciocínio ou programação antes de medir isso em conjuntos de avaliação separados. Uma resposta gerada por regras, memória ou ferramenta não prova capacidade neural. Um checkpoint só será considerado peso próprio quando for produzido por este pipeline a partir de inicialização aleatória.
 
-A presença de MIT/Apache não prova, sozinha, que o modelo é o melhor para o Poco F6 ou que todos os arquivos associados têm termos compatíveis. Conferir o LICENSE, model card, hashes, tokenizer, quantização e arquivos de cada revisão.
+## 6. Primeiro marco verificável
 
-## 3. Por que não escolher um modelo agora
+O primeiro marco é um protótipo neural pequeno, inteiramente escrito no projeto, capaz de:
+- tokenizar texto de forma reversível;
+- inicializar pesos sem carregar arquivos externos;
+- executar inferência;
+- calcular loss e gradientes;
+- treinar em um corpus de teste declarado;
+- salvar e restaurar um checkpoint próprio;
+- demonstrar por teste que os pesos mudam durante o treino e que a loss é registrada.
 
-Escolher por nome, número de parâmetros ou popularidade repete o erro que queremos evitar. O benchmark precisa medir no Poco F6:
-- instalação e espaço real de armazenamento;
-- RAM de pico incluindo KV cache, tokenizer e app;
-- tempo de carregamento;
-- tokens por segundo;
-- temperatura e throttling;
-- consumo de bateria;
-- português brasileiro;
-- raciocínio e seguimento de instrução;
-- programação;
-- estruturação de chamadas de ferramentas;
-- estabilidade em contexto longo;
-- qualidade depois da quantização.
-
-O modelo precisa funcionar sem rede após preparado, conforme o requisito local.
-
-## 4. Arquitetura neural experimental
-
-A primeira família a estudar é um Transformer decoder-only autoregressivo. Componentes em avaliação:
-- tokenizer BPE ou SentencePiece;
-- token embeddings;
-- positional encoding/RoPE;
-- atenção causal multi-head ou grouped-query;
-- normalização RMSNorm;
-- MLP/SwiGLU;
-- residual connections;
-- logits e sampling;
-- KV cache;
-- loss de next-token prediction.
-
-A arquitetura é uma combinação de técnicas publicadas, não uma invenção isolada. A originalidade estará na implementação, seleção, configuração, treinamento, dados e avaliação, sem alegar autoria de conceitos científicos existentes.
-
-## 5. Pipeline de treinamento
-
-### Etapa 1 — dados
-- corpus em português brasileiro;
-- texto de domínio público ou licenças expressamente compatíveis;
-- código com licença e proveniência compatíveis;
-- dados de instruções elaborados pela equipe;
-- exemplos sintéticos revisados;
-- filtros de qualidade, duplicação, dados pessoais e segredos.
-
-### Etapa 2 — tokenizer
-Treinar ou selecionar tokenizer licenciado; medir taxa de compressão e cobertura do português, nomes de bibliotecas, símbolos e código.
-
-### Etapa 3 — pré-treino
-Treinar previsão do próximo token. Guardar configurações, seed, quantidade de tokens, loss, checkpoints e métricas.
-
-### Etapa 4 — ajuste supervisionado
-Exemplos de conversa, explicações, português, código, planejamento e chamadas de ferramenta.
-
-### Etapa 5 — preferência e alinhamento
-Somente depois de avaliação reproduzível. Preferências explícitas e dados revisados; nunca treinar indiscriminadamente em todo o histórico privado.
-
-### Etapa 6 — quantização e exportação
-Comparar precisão, qualidade, RAM e latência. Guardar versão não quantizada e derivada quantizada com seus hashes.
-
-## 6. O que significa “aprender”
-
-- Uma memória salva altera o contexto, não os pesos.
-- Um prompt novo altera instruções, não os pesos.
-- Uma ferramenta nova aumenta a capacidade do agente, não treina o modelo.
-- SFT/LoRA altera os parâmetros de um modelo e precisa ser registrado como treino/adaptação.
-- Pré-treino desde pesos aleatórios produz um modelo novo, mas a qualidade deve ser medida.
-
-Nenhuma dessas etapas será anunciada como “aprendizado” sem especificar qual tipo ocorreu.
-
-## 7. Decisão necessária antes de baixar ou treinar pesos
-
-A decisão deverá comparar:
-1. peso original treinado pela Kellvyn, com limite realista de qualidade;
-2. uma base única licenciada, adaptada e reconhecida como derivada.
-
-A decisão incluirá benchmark, orçamento de armazenamento/RAM, termos dos pesos e plano de execução privada. Até esse gate, nenhum modelo pré-treinado está aprovado.
+Esse marco prova que existe um pipeline neural autoral em funcionamento. Não significa que já exista uma IA conversacional de qualidade.
