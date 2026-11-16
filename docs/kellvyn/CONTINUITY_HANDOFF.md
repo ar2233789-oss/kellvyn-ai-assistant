@@ -70,12 +70,15 @@ A interrupção anterior foi causada por uma alteração incompleta no checkpoin
 
 Commits mais importantes desta correção:
 - runtime: d9fb31379a6373fe4e1082916705deb29ee23262
-- teste: 7fb7ba187f5bd7537c0649d0fd17f329d51ab74d
+- teste de checkpoint: 7fb7ba187f5bd7537c0649d0fd17f329d51ab74d
 - arquitetura: 90b7c83a0fad1623012d21823a9545a86b965f5a
 - decisão neural: f400ffa0ab1f34237f5ed1bdb8e131c6f04d3536
 - plano mestre: 1f443eee9b9f900e000bb881957666f1f647a11e
+- tokenizer KBN-002: a0704eba6815d2410a720d0ae5dd60ff0b0ab98d
+- teste do tokenizer: 5cbf434850c80aea48178b635c31115b061ab74b
+- limites do tokenizer: 61b382636a536cd627b162390ab39be37ab6005b e 5239dc19fd9eb368a690d254d60189fcac083571
 
-**Não alegar que o CI passou.** Os pushes em caminhos cobertos pelo workflow devem disparar testes, mas o resultado desta atualização ainda não foi confirmado nesta sessão. Também não houve build Android nem teste no Poco F6 após a correção.
+**Não alegar que o CI passou.** A consulta de status para os commits de runtime/checkpoint e tokenizer retornou lista vazia; ainda não há check verificável nesta sessão. Os caminhos editados estão cobertos pelo filtro de push do workflow neural, mas falta confirmar a execução. Também não houve build Android nem teste no Poco F6 após as correções.
 
 ## 5. Próxima sequência obrigatória
 
@@ -87,7 +90,7 @@ Commits mais importantes desta correção:
 - planejar teste instrumentado Android Keystore; não confundir o cifrador de teste JVM com o Keystore real.
 
 ### Passo 2 — construir o cérebro próprio KBN-002
-A base de implementação planejada está no NEURAL_MODEL_DECISIONS.md:
+Já existe o primeiro componente: KellvynBpeTokenizer.kt, com teste separado. Ele ainda não foi validado por CI. A implementação aplica a sequência de merges de forma simples e precisa de otimização antes de treinar em corpus grande. A base de implementação planejada está no NEURAL_MODEL_DECISIONS.md:
 - tokenizer próprio: byte UTF-8 como base e BPE treinado em corpus autorizado;
 - modelo autoregressivo decoder-only;
 - atenção causal, embeddings e blocos neurais;
