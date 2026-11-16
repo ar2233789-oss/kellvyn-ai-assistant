@@ -49,6 +49,24 @@ class KellvynTaskPlannerTest {
     }
 
     @Test
+    fun planCannotDowngradeRiskOfRegisteredTool() {
+        val step = readStep(requiredTools = setOf("delete_file"))
+        val errors = planner.validate(
+            plan(step),
+            mapOf("delete_file" to KellvynStepRisk.DESTRUCTIVE)
+        )
+
+        assertTrue(errors.any { it.contains("risco declarado é inferior") })
+    }
+
+    @Test
+    fun unregisteredToolCannotEnterExecutablePlan() {
+        val errors = planner.validate(plan(readStep(requiredTools = setOf("unknown_tool"))))
+
+        assertTrue(errors.any { it.contains("Ferramentas não registradas") })
+    }
+
+    @Test
     fun mutatingStepCannotDisableOwnerApproval() {
         val unsafe = writeStep(ownerApprovalRequired = false)
         val errors = planner.validate(plan(unsafe))
@@ -121,12 +139,14 @@ class KellvynTaskPlannerTest {
 
     private fun readStep(
         id: String = "read",
-        dependencies: Set<String> = emptySet()
+        dependencies: Set<String> = emptySet(),
+        requiredTools: Set<String> = emptySet()
     ) = KellvynTaskStep(
         id = id,
         title = "Inspecionar",
         objective = "Ler o recurso delimitado.",
         dependencies = dependencies,
+        requiredTools = requiredTools,
         successCriteria = listOf("O conteúdo foi lido", "A origem foi registrada")
     )
 
