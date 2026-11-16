@@ -50,7 +50,7 @@ class KellvynAgentDelegationTest {
         assertTrue(engine.histories[2].any {
             it.source == "specialist:code_explorer" &&
                 it.trust == KellvynTrustLevel.UNTRUSTED &&
-                it.content.contains("Encontre a função") .not()
+                it.content.contains("A função fica")
         })
         assertEquals(0, deleteTool.executions)
         assertEquals(0, readTool.executions)
@@ -69,7 +69,8 @@ class KellvynAgentDelegationTest {
                 task = "Delegue mais uma tarefa.",
                 allowedTools = emptySet()
             ),
-            KellvynModelDecision.Final("Não posso delegar; conclusão da pesquisa.")
+            KellvynModelDecision.Final("Não posso delegar; conclusão da pesquisa."),
+            KellvynModelDecision.Final("Resumo principal concluído.")
         )
         val agent = KellvynAgent(
             inference = engine,
@@ -81,7 +82,7 @@ class KellvynAgentDelegationTest {
         val result = agent.run("Pesquise e resuma uma questão.")
 
         assertTrue(result is KellvynAgentResult.Completed)
-        assertEquals(3, engine.histories.size)
+        assertEquals(4, engine.histories.size)
         assertTrue(engine.histories[2].any {
             it.content.contains("especialistas internos não podem delegar novamente")
         })
