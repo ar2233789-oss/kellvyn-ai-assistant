@@ -66,14 +66,22 @@ Modelos de pesos abertos podem ser fundações neurais de Kellvyn. Para cada um,
 
 Pesos derivados continuam identificados como derivados do modelo-base. Não afirmar que foram criados integralmente do zero pela Kellvyn. A licença do código do runtime não substitui a licença dos pesos.
 
-### Modelos em avaliação (não selecionados)
+### Estado dos modelos neurais
 
-| Modelo | Origem/licença declarada | Observação atual |
-|---|---|---|
-| Gemma 4 E2B / mobile QAT | Google DeepMind; Apache 2.0 | Prioridade de avaliação por variante mobile, texto/imagem/áudio e tool calling. Confirmar versão exata do checkpoint mobile, hashes e desempenho no Poco F6 |
-| Qwen3.5-2B | Qwen/Alibaba Cloud; Apache 2.0 | Comparação secundária; a página atual do Qualcomm AI Hub consultada informa que o pacote ali listado não está suportado em chipsets móveis |
+Nenhum modelo-base externo foi selecionado, priorizado, baixado ou integrado como cérebro da Kellvyn nesta fase. Nomes de modelos encontrados durante pesquisa não constituem escolha de arquitetura nem autorização de uso.
 
-Esses candidatos ainda não foram baixados, instalados ou medidos no Poco F6. A seleção depende de licença, benchmark e compatibilidade.
+Quando uma opção específica for avaliada, ela terá uma ficha individual com:
+- repositório e autores oficiais;
+- nome, versão/revisão e hash de cada artefato;
+- licença e termos dos pesos, tokenizer e arquivos auxiliares;
+- licença do runtime e de cada dependência;
+- model card, tarefas, idiomas, limites e restrições;
+- origem, licença e consentimento dos datasets;
+- método e configuração de qualquer adaptação;
+- memória/armazenamento medidos no aparelho-alvo;
+- compatibilidade e benchmark reproduzível no Poco F6.
+
+Não se deve inferir que todos os elementos de uma solução tenham a mesma licença. Código, pesos, dados, documentação, marca e serviços são categorias independentes e precisam ser auditados separadamente.
 
 ## 5. Regra para datasets
 
