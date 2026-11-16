@@ -106,3 +106,13 @@ Registrar HyperOS/Android, versão do APK, hash, espaço disponível, RAM, tempe
 - comportamento Web 5G opcional testado;
 - recuperação de crash e reinício;
 - consumo de memória, temperatura e bateria medidos.
+
+## Novas provas de agente adicionadas em 16/11/2026
+
+Foram escritos, mas ainda aguardam execução Gradle/CI verificável:
+- `KellvynSkillRegistryTest.kt`: relevância, seleção determinística, orçamento e injeção de skills.
+- `KellvynProjectCodeIndexerTest.kt`: Kotlin/Java, imports, chamadas, comentários, strings e limites.
+- `KellvynAgentPlanTest.kt`: plano persistente, ferramenta não registrada, aprovação explícita, executor incremental e verificação independente.
+- `KellvynAgentDelegationTest.kt`: contexto separado, ferramentas READ_ONLY, retorno como dado não confiável e bloqueio recursivo.
+
+Smoke tests isolados de código auxiliar não substituem JUnit/Gradle do repositório. Os checks do commit e a consulta disponível de workflow runs não confirmaram execução; build Android, integração de Keystore e teste Poco F6 permanecem pendentes.
