@@ -51,6 +51,25 @@ internal class KellvynByteBrain private constructor(
         val totalSteps: Long
     )
 
+    data class GradientCheckReport(
+        val maxAbsoluteError: Double,
+        val maxRelativeError: Double,
+        val checkedParameters: Int
+    )
+
+    private data class Gradients(
+        val embeddings: FloatArray,
+        val hiddenWeights: FloatArray,
+        val hiddenBias: FloatArray,
+        val outputWeights: FloatArray,
+        val outputBias: FloatArray
+    )
+
+    private data class ParameterGroup(
+        val values: FloatArray,
+        val gradients: FloatArray
+    )
+
     private data class ForwardPass(
         val hidden: FloatArray,
         val probabilities: FloatArray
@@ -208,6 +227,80 @@ internal class KellvynByteBrain private constructor(
         return total / tokens.size.toDouble()
     }
 
+
+    /**
+     * Compares analytic backpropagation with central finite differences.
+     * This is a bounded diagnostic and does not change the model parameters.
+     */
+    internal fun checkGradients(
+        contextTokens: IntArray,
+        target: Int,
+        epsilon: Double = 0.001,
+        maxCoordinatesPerGroup: Int = 4
+    ): GradientCheckReport {
+        require(contextTokens.size <= config.contextLength)
+        require(contextTokens.all { it in 0 until VOCABULARY_SIZE })
+        require(target in 0 until VOCABULARY_SIZE)
+        require(epsilon in 0.00001..0.01)
+        require(maxCoordinatesPerGroup in 1..16)
+
+        val context = IntArray(config.contextLength) { PAD_TOKEN }
+        val offset = config.contextLength - contextTokens.size
+        for (i in contextTokens.indices) context[offset + i] = contextTokens[i]
+
+        val gradients = computeGradients(context, target)
+        val groups = listOf(
+            ParameterGroup(embeddings, gradients.embeddings),
+            ParameterGroup(hiddenWeights, gradients.hiddenWeights),
+            ParameterGroup(hiddenBias, gradients.hiddenBias),
+            ParameterGroup(outputWeights, gradients.outputWeights),
+            ParameterGroup(outputBias, gradients.outputBias)
+        )
+
+        var maxAbsoluteError = 0.0
+        var maxRelativeError = 0.0
+        var checked = 0
+
+        for (group in groups) {
+            val candidates = group.gradients.indices.filter {
+                kotlin.math.abs(group.gradients[it]) > 1.0e-7f
+            }
+            val samples = minOf(maxCoordinatesPerGroup, candidates.size)
+            for (sample in 0 until samples) {
+                val candidatePosition = if (samples == 1) 0
+                    else sample * (candidates.size - 1) / (samples - 1)
+                val parameterIndex = candidates[candidatePosition]
+                val original = group.values[parameterIndex]
+                group.values[parameterIndex] = (original.toDouble() + epsilon).toFloat()
+                val plusLoss = singleByteLoss(context, target)
+                group.values[parameterIndex] = (original.toDouble() - epsilon).toFloat()
+                val minusLoss = singleByteLoss(context, target)
+                group.values[parameterIndex] = original
+
+                val numericGradient = (plusLoss - minusLoss) / (2.0 * epsilon)
+                val analyticGradient = group.gradients[parameterIndex].toDouble()
+                val absoluteError = kotlin.math.abs(numericGradient - analyticGradient)
+                val relativeError = absoluteError /
+                    max(1.0e-7, kotlin.math.abs(numericGradient) + kotlin.math.abs(analyticGradient))
+
+                if (!numericGradient.isFinite() || !analyticGradient.isFinite()) {
+                    throw IllegalStateException("Gradiente não finito na verificação numérica.")
+                }
+                maxAbsoluteError = max(maxAbsoluteError, absoluteError)
+                maxRelativeError = max(maxRelativeError, relativeError)
+                checked++
+            }
+        }
+
+        require(checked > 0) { "Não houve parâmetros ativos para verificar." }
+        return GradientCheckReport(maxAbsoluteError, maxRelativeError, checked)
+    }
+
+    private fun singleByteLoss(context: IntArray, target: Int): Double {
+        val probability = max(forward(context).probabilities[target].toDouble(), 1.0e-12)
+        return -kotlin.math.ln(probability)
+    }
+
     /** Predicts a byte ID from up to contextLength previous byte IDs. */
     fun predictNext(contextTokens: IntArray): Int {
         require(contextTokens.size <= config.contextLength)
@@ -310,7 +403,29 @@ internal class KellvynByteBrain private constructor(
         return ForwardPass(hidden, probabilities)
     }
 
+
     private fun trainOne(context: IntArray, target: Int, learningRate: Float) {
+        val gradients = computeGradients(context, target)
+        var squaredNorm = 0.0
+        squaredNorm += squaredNorm(gradients.embeddings)
+        squaredNorm += squaredNorm(gradients.hiddenWeights)
+        squaredNorm += squaredNorm(gradients.hiddenBias)
+        squaredNorm += squaredNorm(gradients.outputWeights)
+        squaredNorm += squaredNorm(gradients.outputBias)
+
+        val norm = sqrt(squaredNorm)
+        val scale = if (norm > GRADIENT_CLIP) (GRADIENT_CLIP / norm).toFloat() else 1.0f
+        val step = learningRate * scale
+
+        applyGradient(embeddings, gradients.embeddings, step)
+        applyGradient(hiddenWeights, gradients.hiddenWeights, step)
+        applyGradient(hiddenBias, gradients.hiddenBias, step)
+        applyGradient(outputWeights, gradients.outputWeights, step)
+        applyGradient(outputBias, gradients.outputBias, step)
+    }
+
+    /** Analytic derivatives of the single-example cross-entropy objective. */
+    private fun computeGradients(context: IntArray, target: Int): Gradients {
         val pass = forward(context)
         val outputGradient = pass.probabilities.copyOf()
         outputGradient[target] -= 1.0f
@@ -348,21 +463,13 @@ internal class KellvynByteBrain private constructor(
             }
         }
 
-        var squaredNorm = 0.0
-        squaredNorm += squaredNorm(gradEmbeddings)
-        squaredNorm += squaredNorm(gradHiddenWeights)
-        squaredNorm += squaredNorm(gradHiddenBias)
-        squaredNorm += squaredNorm(gradOutputWeights)
-        squaredNorm += squaredNorm(gradOutputBias)
-        val norm = sqrt(squaredNorm)
-        val scale = if (norm > GRADIENT_CLIP) (GRADIENT_CLIP / norm).toFloat() else 1.0f
-        val step = learningRate * scale
-
-        applyGradient(embeddings, gradEmbeddings, step)
-        applyGradient(hiddenWeights, gradHiddenWeights, step)
-        applyGradient(hiddenBias, gradHiddenBias, step)
-        applyGradient(outputWeights, gradOutputWeights, step)
-        applyGradient(outputBias, gradOutputBias, step)
+        return Gradients(
+            gradEmbeddings,
+            gradHiddenWeights,
+            gradHiddenBias,
+            gradOutputWeights,
+            gradOutputBias
+        )
     }
 
     private fun contextFor(tokens: IntArray, targetIndex: Int): IntArray {
