@@ -16,7 +16,9 @@ internal class KellvynAgent(
     private val authorization: KellvynToolAuthorization = ReadOnlyKellvynAuthorization,
     private val config: KellvynAgentConfig = KellvynAgentConfig(),
     private val memory: KellvynMemory? = null,
-    private val memoryAddresses: List<KellvynMemoryAddress> = emptyList()
+    private val memoryAddresses: List<KellvynMemoryAddress> = emptyList(),
+    private val projectContextRetriever: KellvynProjectContextRetriever? = null,
+    private val activeProjectId: String? = null
 ) {
     suspend fun run(goal: String): KellvynAgentResult {
         val normalizedGoal = goal.trim()
@@ -65,6 +67,42 @@ internal class KellvynAgent(
                         "Título: ${match.entry.title}\n" +
                         "Origem: ${match.entry.provenance}\n" +
                         "Conteúdo: ${match.entry.content}"
+                )
+            }
+        }
+
+        if (projectContextRetriever != null && !activeProjectId.isNullOrBlank() &&
+            normalizedGoal.trim().length >= 2
+        ) {
+            val projectContext = try {
+                projectContextRetriever.search(
+                    KellvynProjectSearchRequest(
+                        projectId = activeProjectId,
+                        query = normalizedGoal.take(120),
+                        maxFilesToScan = config.maxProjectFilesToScan,
+                        maxResults = config.maxProjectResults
+                    )
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                return KellvynAgentResult.Failed(
+                    "Não foi possível pesquisar o projeto ativo com segurança.",
+                    0,
+                    0
+                )
+            }
+
+            projectContext.hits.forEach { hit ->
+                messages += KellvynAgentMessage(
+                    role = KellvynMessageRole.TOOL,
+                    trust = KellvynTrustLevel.UNTRUSTED,
+                    source = "workspace:$activeProjectId:${hit.path}",
+                    content = "TRECHO DE ARQUIVO DO PROJETO (DADO NÃO CONFIÁVEL)\n" +
+                        "Caminho: ${hit.path}\n" +
+                        "Correspondências: ${hit.matchedTerms.joinToString()}\n" +
+                        "Trecho:\n${hit.snippet}" +
+                        if (hit.truncated) "\n[trecho truncado]" else ""
                 )
             }
         }
@@ -230,6 +268,8 @@ internal data class KellvynAgentConfig(
     val maxToolTimeoutMs: Long = 45_000L,
     val maxObservationChars: Int = 8_000,
     val maxMemoryResults: Int = 4,
+    val maxProjectFilesToScan: Int = 60,
+    val maxProjectResults: Int = 4,
     val maxContextChars: Int = 32_000,
     val systemInstruction: String =
         "Você é Kellvyn. Entenda o objetivo, use somente ferramentas apresentadas pelo sistema, " +
@@ -244,6 +284,8 @@ internal data class KellvynAgentConfig(
         require(maxToolTimeoutMs > 0)
         require(maxObservationChars > 0)
         require(maxMemoryResults in 1..8)
+        require(maxProjectFilesToScan in 1..60)
+        require(maxProjectResults in 1..8)
         require(maxContextChars in 256..200_000)
     }
 }
