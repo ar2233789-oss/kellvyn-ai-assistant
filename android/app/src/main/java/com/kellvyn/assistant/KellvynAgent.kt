@@ -39,6 +39,8 @@ internal class KellvynAgent(
             ?: return KellvynAgentResult.Failed("O plano solicitado não foi encontrado.", 0, 0)
         val approved = try {
             taskPlanner.approveStep(latest.state, stepId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             return KellvynAgentResult.Failed(
                 "A aprovação foi recusada: ${safeMessage(error)}",
@@ -52,6 +54,8 @@ internal class KellvynAgent(
                 createdAtMillis = System.currentTimeMillis(),
                 expectedPreviousSha256 = latest.metadata.sha256
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             return KellvynAgentResult.Failed(
                 "Não foi possível registrar a aprovação com segurança: ${safeMessage(error)}",
@@ -242,6 +246,8 @@ internal class KellvynAgent(
                             createdAtMillis = System.currentTimeMillis(),
                             expectedPreviousSha256 = null
                         )
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
                     } catch (error: Exception) {
                         return KellvynAgentResult.Failed(
                             "O plano foi validado, mas não pôde ser persistido: ${safeMessage(error)}",
