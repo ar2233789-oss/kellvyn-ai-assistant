@@ -54,7 +54,7 @@ internal object KellvynDecisionProtocol {
     }
 
     private fun parseFinal(lines: List<String>): ParseResult {
-        require(lines.size == 5) { "FINAL exige exatamente um texto." }
+        require(lines.size == 4) { "FINAL exige exatamente um texto." }
         require(lines[2].startsWith("TEXT\t")) { "Campo TEXT ausente." }
         val text = decodeHex(lines[2].substringAfter('\t')).trim()
         require(text.isNotEmpty()) { "A resposta final está vazia." }
@@ -62,7 +62,7 @@ internal object KellvynDecisionProtocol {
     }
 
     private fun parseCallTool(lines: List<String>): ParseResult {
-        require(lines.size in 5..(MAX_ARGUMENTS + 5)) { "CALL_TOOL excedeu o número de campos." }
+        require(lines.size in 4..(MAX_ARGUMENTS + 4)) { "CALL_TOOL excedeu o número de campos." }
         require(lines[2].startsWith("NAME\t")) { "Nome da ferramenta ausente." }
         val name = decodeHex(lines[2].substringAfter('\t'))
         require(name.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}"))) {
@@ -84,7 +84,7 @@ internal object KellvynDecisionProtocol {
     }
 
     private fun parseDelegate(lines: List<String>): ParseResult {
-        require(lines.size >= 5) { "DELEGATE está incompleto." }
+        require(lines.size >= 6) { "DELEGATE está incompleto." }
         require(lines[2].startsWith("ROLE\t")) { "Papel do especialista ausente." }
         require(lines[3].startsWith("TASK\t")) { "Objetivo do especialista ausente." }
         require(lines[4].startsWith("CONTEXT\t")) { "Contexto do especialista ausente." }
