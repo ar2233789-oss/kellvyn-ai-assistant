@@ -1,8 +1,6 @@
 package com.kellvyn.assistant.neural
 
-import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -45,9 +43,9 @@ class KellvynTrainingPipelineTest {
         assertTrue(result.manifest.finalValidationLoss.isFinite())
         assertTrue(result.manifest.heldOutTestLoss.isFinite())
         assertEquals(result.model.trainingSteps, result.manifest.totalTrainingSteps)
-        assertNotEquals(
-            documents.first { it.split == KellvynTrainingSplit.VALIDATION }.text,
-            documents.first { it.split == KellvynTrainingSplit.TEST }.text
+        assertTrue(
+            documents.first { it.split == KellvynTrainingSplit.VALIDATION }.text !=
+                documents.first { it.split == KellvynTrainingSplit.TEST }.text
         )
     }
 
@@ -103,6 +101,15 @@ class KellvynTrainingPipelineTest {
     fun rejectsDuplicateContentAcrossTrainAndValidation() {
         val docs = sampleDocuments().toMutableList()
         docs[1] = docs[1].copy(text = docs[0].text)
+        KellvynTrainingPipeline.train(docs)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsCredentialBearingTrainingSamples() {
+        val docs = sampleDocuments().toMutableList()
+        docs[0] = docs[0].copy(
+            text = "api_key = \"ghp_abcdefghijklmnopqrstuvwxyz1234567890\""
+        )
         KellvynTrainingPipeline.train(docs)
     }
 
