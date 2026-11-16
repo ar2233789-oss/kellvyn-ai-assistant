@@ -149,6 +149,25 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
                     """.trimIndent()
                 ),
                 KellvynSkillDefinition(
+                    id = "project-code-navigation",
+                    description = "Navegação estrutural por classes, funções, imports e referências Kotlin/Java.",
+                    triggerTerms = setOf(
+                        "kotlin", "java", "import", "imports", "simbolo", "simbolos",
+                        "referencia", "referencias", "declaracao", "dependencia", "chamada"
+                    ),
+                    instructions = """
+                        SKILL: NAVEGAÇÃO ESTRUTURAL DO PROJETO
+                        1. Use os sinais do índice de código (pacotes, imports, declarações e chamadas) para
+                           localizar definições e possíveis usos; o índice é lexical, não substitui AST nem compilador.
+                        2. Siga imports e chamadas para localizar dependências, callers e callees relevantes.
+                        3. Confirme cada hipótese lendo o trecho-fonte original; nunca altere código apenas com
+                           base no índice ou em um resultado de busca.
+                        4. Respeite o limite de arquivos, trechos e filtros de segredos do workspace.
+                        5. Quando o símbolo não for encontrado, informe a cobertura limitada da busca e não
+                           invente relações de dependência.
+                    """.trimIndent()
+                ),
+                KellvynSkillDefinition(
                     id = "web-research",
                     description = "Pesquisa comparativa de ferramentas, documentação e técnicas atuais.",
                     triggerTerms = setOf(
