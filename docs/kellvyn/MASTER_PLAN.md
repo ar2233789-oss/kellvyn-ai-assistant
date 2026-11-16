@@ -27,19 +27,20 @@ A interface aprovada do aplicativo é uma superfície de interação, não o cé
 
 ## 2. O que significa “legítima” neste projeto
 
-A Kellvyn pode utilizar conhecimento, bibliotecas, ferramentas, modelos ou trechos de código de terceiros quando a licença e os termos aplicáveis autorizarem esse uso. Isso não é plágio por si só. O que não será permitido:
+A implementação da inteligência Kellvyn será autoral. Projetos, artigos e modelos públicos poderão ser estudados como material de pesquisa, mas não serão copiados nem incorporados como cérebro, pesos, tokenizer ou código de treinamento.
 
-- retirar avisos de copyright ou licenças;
-- copiar código protegido sem autorização;
-- esconder a origem de um componente;
-- atribuir à Kellvyn o treinamento, os pesos ou a implementação de terceiros;
-- chamar um modelo baixado de “modelo treinado pela Kellvyn”;
-- usar o nome, a marca, a interface ou os recursos visuais de outro produto de forma confusa;
-- incorporar pesos ou datasets antes de conferir separadamente seus termos de uso e redistribuição.
+Regras obrigatórias:
+- não importar pesos de qualquer modelo de terceiros;
+- não usar modelo-base, fine-tuning, LoRA, adaptador ou fallback de outra IA;
+- não copiar código, arquivos, blocos de implementação, tokenizer ou dataset de projetos estudados;
+- não reproduzir uma arquitetura/modelo identificado como se fosse criação própria;
+- registrar as referências conceituais que influenciaram decisões e explicar a implementação feita especificamente para Kellvyn;
+- não usar conversas privadas do proprietário no treino sem consentimento específico;
+- manter proveniência de cada dado de treino e hash de cada checkpoint produzido.
 
-A documentação de cada dependência, modelo, dataset, tokenizer, ferramenta e recurso visual será registrada. O pacote de lançamento deverá conter os avisos e as licenças exigidos.
+Dependências genéricas do Android ou de infraestrutura só poderão ser avaliadas fora do cérebro e não poderão fornecer pesos, tokenizer ou inferência de outro modelo. A origem de cada dependência será documentada.
 
-**Originalidade não exige reescrever toda a ciência da computação. Exige autoria verdadeira, proveniência e cumprimento das licenças.**
+**A Kellvyn não será um modelo alheio renomeado. O cérebro, o código neural, o tokenizer, o treinamento e os pesos serão desenvolvidos no próprio projeto.**
 
 ## 3. Restrições que orientam todas as decisões
 
@@ -96,12 +97,7 @@ A arquitetura deve ser modular por responsabilidade, mas o usuário conversa sem
 
 ### 4.1 Modelo neural
 
-É a parte que representa linguagem, interpreta contexto e gera respostas ou chamadas de ferramenta. Sua linhagem precisa ser declarada:
-
-- **Pesos próprios:** arquitetura implementada por nós e pesos iniciados aleatoriamente e treinados por nós.
-- **Pesos derivados de uma base licenciada:** modelo de terceiros cuja licença permite o uso pretendido, adaptado por nós e identificado como derivado dessa base.
-
-As duas opções podem resultar em um produto legítimo, mas não são a mesma coisa. A decisão ainda não está tomada. Nenhum peso de terceiros será tratado como peso original da Kellvyn.
+O cérebro será um modelo próprio: arquitetura especificada para Kellvyn, código neural escrito no repositório, tokenizer próprio, pesos inicializados aleatoriamente e treinamento próprio. Não haverá base pré-treinada, pesos importados, adaptadores ou fallback de terceiros. Técnicas matemáticas publicadas podem ser estudadas e citadas, mas a implementação e as escolhas do modelo serão desenvolvidas especificamente para este projeto.
 
 ### 4.2 Orquestrador
 
@@ -236,15 +232,15 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 
 **Gate:** cada componente proposto tem origem, versão, licença e justificativa. “Vi no README” não é investigação suficiente.
 
-### Fase 2 — decisão do modelo neural
-**Saídas:** comparação de pesos próprios versus base aberta licenciada; tokenizer; arquitetura; dados; custo/limite de treinamento; formato de inferência.
+### Fase 2 — especificação autoral do cérebro
+**Saídas:** arquitetura própria, tokenizer próprio, operações matemáticas, inicialização aleatória, pipeline de dados e estratégia de treinamento integral do zero.
 
-**Gate:** decisão documentada e aprovada antes de baixar, treinar ou integrar pesos.
+**Gate:** nenhuma dependência de modelo, peso, tokenizer ou código neural de terceiros; especificação e testes próprios revisados.
 
 ### Fase 3 — prova neural mínima
-**Saídas:** tokenizador treinável; modelo pequeno inicializado por nós ou derivado conforme a decisão; treinamento reproduzível; checkpoint; inferência; benchmarks.
+**Saídas:** tokenizer próprio; modelo pequeno com pesos inicializados aleatoriamente; passagem direta e retropropagação próprias; treinamento reproduzível; checkpoint autoral; inferência; testes de qualidade.
 
-**Gate:** loss, perplexidade/qualidade, memória, latência e testes registrados. Um modelo que apenas emite texto não é automaticamente conversacional ou inteligente.
+**Gate:** loss, gradientes, mudança dos parâmetros, perplexidade/qualidade, memória e latência registrados. Um protótipo que prevê sequência não será apresentado como assistente conversacional geral.
 
 ### Fase 4 — runtime no Poco F6
 **Saídas:** uma única implementação de inferência Android; carregamento/descarga; quantização se aplicável; streaming; cancelamento; uso de RAM; recuperação após erro.
@@ -311,7 +307,7 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 
 ## 10. Estado de partida
 
-A branch atual é um rascunho de remoção/transição do runtime Gemma. Foram removidos dela `LocalBrain.kt`, `NativeModelPolicy.java`, o teste desse downloader e a primeira ferramenta experimental que estava acoplada à API LiteRT-LM. As chamadas antigas em `MainActivity.java` e `BotRuntimeService.kt` ainda precisam ser substituídas; o Gradle ainda inclui a biblioteca LiteRT-LM. Portanto, a branch não está pronta para build, não deve ser mesclada nem usada para gerar APK pessoal até a substituição do runtime e dos contratos antigos. O branch `main` de produção não foi modificado.
+A branch removeu a implementação anterior baseada em Gemma e não declara LiteRT-LM no Gradle. Há uma fronteira temporária `KellvynRuntime.kt` que informa que a inferência própria ainda não está pronta, e o agente de ferramentas não possui backend neural conectado. A proteção de interface está divergente porque `MainActivity.java` foi alterado apesar do hash bloqueado; o workflow deve continuar falhando nesse ponto até que a interface protegida seja restaurada ou exista autorização explícita para atualizar seu bloqueio. O branch `main` de produção não foi modificado.
 
 A próxima etapa segura é fechar a auditoria e decidir o contrato de integração do novo modelo/agente antes de substituir as chamadas antigas.
 
