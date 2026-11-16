@@ -12,6 +12,7 @@ on:
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynAgentLimits.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynTaskPlanner.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynMemory.kt'
+      - 'android/app/src/main/java/com/kellvyn/assistant/KellvynContextAssembler.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynEncryptedMemoryRepository.kt'
       - 'android/app/src/test/java/com/kellvyn/assistant/KellvynMemoryTest.kt'
       - 'android/app/src/main/AndroidManifest.xml'
