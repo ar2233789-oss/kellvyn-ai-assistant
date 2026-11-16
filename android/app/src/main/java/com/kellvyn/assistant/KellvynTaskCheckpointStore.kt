@@ -54,7 +54,9 @@ internal class KellvynTaskCheckpointStore(
         require(createdAtMillis > 0L) { "Data do checkpoint inválida." }
 
         val taskId = state.plan.id
-        val taskDirectory = taskDirectory(taskId, create = true)
+        val taskDirectory = requireNotNull(taskDirectory(taskId, create = true)) {
+            "Não foi possível resolver a pasta privada da tarefa."
+        }
         val history = readChain(taskId, taskDirectory)
         check(history.size < MAX_CHECKPOINTS_PER_TASK) {
             "O histórico desta tarefa atingiu o limite de checkpoints."
@@ -620,7 +622,7 @@ internal class KellvynTaskCheckpointStore(
         private const val MAX_FAILURE_BYTES = 2_000
         private const val MAX_ATTEMPTS = 1_000
         private const val MAX_TASK_ID_CHARS = 80
-        private const val ZERO_HASH = "0".repeat(HASH_HEX_LENGTH)
+        private val ZERO_HASH = "0".repeat(HASH_HEX_LENGTH)
         private val UTF8: Charset = Charsets.UTF_8
         private val TASK_ID = Regex("[A-Za-z0-9_-]{1,$MAX_TASK_ID_CHARS}")
         private val STEP_ID = Regex("[A-Za-z0-9_-]{1,64}")
