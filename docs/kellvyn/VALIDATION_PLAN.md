@@ -1,51 +1,54 @@
 # Kellvyn — plano de validação
 
-## Gate A: build e regressão
+## Gate A: integridade e interface
 
-- [ ] `testDebugUnitTest` passa na branch de laboratório.
-- [ ] `assembleDebug` produz APK nativo válido.
-- [ ] O workflow de interface confirma que os arquivos protegidos não mudaram.
-- [ ] Nenhum WebView foi introduzido.
-- [ ] O repositório de distribuição não recebe alterações.
+- [ ] Testes unitários passam na branch de laboratório.
+- [ ] Build Android produz APK nativo válido.
+- [ ] O workflow confirma os hashes dos arquivos protegidos.
+- [ ] Nenhum WebView é introduzido.
+- [ ] O repositório de distribuição permanece intocado.
+- [ ] Nenhuma alteração visual é feita fora de autorização.
 
-## Gate B: ferramentas locais
+## Gate B: fundação neural própria
 
-- [ ] `listLocalProjects` devolve apenas metadados do workspace privado.
-- [ ] `listProjectFiles` devolve caminhos relativos, sem caminhos absolutos do telefone.
-- [ ] `readProjectFile` lê apenas extensões textuais permitidas.
-- [ ] Caminhos fora do projeto são recusados pelo `ProjectWorkspaceStore`.
-- [ ] `searchProjectFiles` respeita limite de arquivos e ocorrências.
-- [ ] O orçamento de ferramentas reseta por mensagem e bloqueia chamadas extras.
-- [ ] Erro numa ferramenta é devolvido como erro observado; não vira sucesso.
+- [ ] Tokenizer próprio codifica e decodifica português, acentos, símbolos, emojis e código sem perda.
+- [ ] Inicialização aleatória é reproduzível com seed registrada.
+- [ ] O modelo não aceita carregar pesos de formato ou origem externa.
+- [ ] Passagem direta produz tensores finitos.
+- [ ] A loss de previsão é finita e calculada corretamente.
+- [ ] Retropropagação produz gradientes finitos e coerentes com testes numéricos.
+- [ ] O treino altera parâmetros próprios.
+- [ ] Um corpus de teste pequeno demonstra redução de loss sem ser confundido com qualidade conversacional.
+- [ ] Checkpoint próprio salva/restaura configuração e parâmetros com integridade e hash.
 
-## Gate C: uso real do modelo
+## Gate C: dados e treinamento
 
-- [ ] Gemma 4 E2B produz uma chamada estruturada de ferramenta no formato esperado.
-- [ ] O LiteRT-LM 0.18.0 executa a ferramenta registrada e devolve o resultado ao modelo.
-- [ ] A resposta final distingue resultado da ferramenta de suposição.
-- [ ] Se o modelo não chamar a ferramenta, Kellvyn não inventa o resultado.
-- [ ] Testar o mesmo pedido na GPU e no fallback CPU, quando disponível.
+- [ ] Cada fonte do corpus possui origem, licença/consentimento, escopo e hash.
+- [ ] Treino, validação e teste não se sobrepõem.
+- [ ] Dados pessoais, segredos e conteúdo não autorizado são removidos.
+- [ ] Seeds, hiperparâmetros, passos, loss e checkpoints são registrados.
+- [ ] Não há pesos, tokenizers, adaptadores ou saídas de outro modelo.
+- [ ] Métricas de idioma, continuidade, raciocínio e programação são reportadas separadamente.
 
-O código do LiteRT-LM 0.18.0 inclui implementação e dados de teste de tool calls para Gemma 4; isso sustenta a hipótese técnica, mas não substitui o teste do arquivo quantizado específico no Poco F6.
+## Gate D: agente e ferramentas
 
-## Gate D: Poco F6 (dispositivo real)
+- [ ] O agente não confunde ferramenta, memória e modelo neural.
+- [ ] Ferramentas inexistentes ou parâmetros inválidos são recusados.
+- [ ] Ações de escrita e controle exigem autorização específica.
+- [ ] Resultados externos são tratados como dados não confiáveis.
+- [ ] O agente não declara tarefa concluída sem evidência.
+- [ ] Limites de passos, chamadas, tempo e cancelamento funcionam.
 
-- [ ] Confirmar modelo transferido e hash verificado.
-- [ ] Medir memória livre antes/depois da inicialização.
-- [ ] Medir tempo de inicialização do motor.
-- [ ] Executar ao menos 10 tarefas reais de tool calling.
-- [ ] Registrar latência, falhas, temperatura e encerramentos do processo.
-- [ ] Confirmar comportamento após fechar e abrir o app.
-- [ ] Confirmar que o motor libera recursos corretamente após falha/cancelamento.
+## Gate E: Poco F6 (dispositivo real)
 
-## Gate E: evolução do agente
-
-- [ ] Sessão consegue manter objetivo e estado entre múltiplas ferramentas.
-- [ ] Resumo de contexto não perde requisitos críticos.
-- [ ] Escrita de arquivos só entra com confirmação real e diff verificável.
-- [ ] Compilação só é relatada como concluída após artefato verificado.
-- [ ] Avaliação mede sucesso da tarefa, não apenas fluência do texto.
+- [ ] Instalação nativa verificada no Poco F6.
+- [ ] RAM de pico e armazenamento medidos.
+- [ ] Tempo de carregamento e tokens/bytes por segundo medidos.
+- [ ] Temperatura, throttling e consumo monitorados.
+- [ ] Testes repetidos sem rede confirmam inferência local.
+- [ ] Comportamento após fechar/reabrir o app verificado.
+- [ ] Cancelamento e liberação de memória verificados.
 
 ## Estado
 
-A implementação read-only inicial está sendo adicionada na branch de laboratório. Nenhum resultado de build nesta branch ou teste de inferência no Poco F6 deve ser presumido antes de receber evidência correspondente.
+Não há, nesta branch, um modelo conversacional Kellvyn treinado, um backend neural pronto, build Android aprovado ou teste físico concluído no Poco F6. Cada gate depende de evidência real; nenhum resultado será presumido.
