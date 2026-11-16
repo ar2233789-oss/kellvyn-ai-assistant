@@ -212,3 +212,64 @@ A última correção documental desta etapa também alinhou `REFERENCE_STUDY.md`
 4. Evoluir busca lexical para mapa de símbolos/imports/referências no projeto.
 5. Criar verificação independente de diff/testes e ciclo Android com build, instalação, screenshots, acessibilidade e Logcat.
 6. Integrar ao chat principal somente depois de haver backend neural autoral funcional e testes; preservar toda a interface aprovada.
+
+## 9. Continuidade — atualização do agente Plan/Build (16/11/2026)
+
+### Pesquisa técnica consolidada
+
+Fontes oficiais:
+- Replit Agent overview: https://docs.replit.com/pt/references/agent/overview
+- Replit Plan mode: https://docs.replit.com/pt/references/agent/plan-mode
+- Replit Skills: https://docs.replit.com/pt/references/agent/skills
+- Replit Code Optimizations: https://docs.replit.com/references/agent/code-optimizations
+- Replit App Testing: https://docs.replit.com/pt/references/agent/app-testing
+- Replit checkpoints: https://docs.replit.com/pt/references/version-control/checkpoints-and-rollbacks
+- Cursor Agent: https://cursor.com/help/ai-features/agent
+- Cursor Subagents: https://cursor.com/docs/subagents
+- Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
+- Android Studio Agent features: https://developer.android.com/studio/gemini/features
+
+### Código adicionado após a pesquisa
+
+1. **Skills sob demanda**
+   - `KellvynSkillRegistry.kt` com Android/build, diagnóstico, revisão, navegação Kotlin/Java, pesquisa técnica e teste funcional.
+   - `KellvynAgent.kt` seleciona no máximo duas skills e insere o procedimento no contexto SYSTEM confiável.
+   - Skills não têm poder de execução nem aumentam permissões.
+
+2. **Índice estrutural de código**
+   - `KellvynProjectCodeIndexer.kt` extrai pacote, imports, declarations Kotlin/Java e chamadas.
+   - `KellvynProjectContextRetriever.kt` usa os identificadores para melhorar ranking e o contexto devolvido ao agente.
+   - É um índice lexical limitado, não AST.
+
+3. **Plan/Build persistente**
+   - `KellvynTaskCheckpointRepository.kt` é o contrato de persistência.
+   - `KellvynRuntime.kt` liga o contrato ao store local cifrado.
+   - `KellvynAgent.kt` aceita `KellvynModelDecision.Plan`, valida ferramentas, riscos, dependências e critérios; grava o plano antes de executar.
+   - `restoreTaskPlan`, `approveTaskStep` e `executePlannedStep` recuperam, registram aprovação e executam uma etapa.
+   - A execução salva RUNNING antes da ferramenta e exige `KellvynIndependentVerifier` para salvar SUCCEEDED. Uma resposta de sucesso sem prova independente deixa a etapa FAILED.
+   - Uma ferramenta por etapa executável nesta alpha; autorização continua separada da aprovação do proprietário.
+
+4. **Testes escritos**
+   - `KellvynSkillRegistryTest.kt`
+   - `KellvynProjectCodeIndexerTest.kt`
+   - `KellvynAgentPlanTest.kt`
+
+### Validação e verdade operacional
+
+O harness Kotlin isolado do indexador passou nos casos de pacote, imports, declarações, referências, comentários, strings e limite. Um smoke test independente da seleção de skills também passou. Isso não é Gradle/JUnit do repositório. Status combinado dos commits consultados veio vazio; a consulta de runs disponível só filtra por PR e não retornou execução. Portanto CI permanece não confirmado.
+
+O backend neural não existe ainda; o chat principal não chama o agente; não houve build de APK ou teste no Poco F6. As decisões Plan/CallTool foram adicionadas ao contrato interno e ainda não são emitidas por um modelo real.
+
+### Próximas ações obrigatórias
+
+1. Conseguir execução verificável do workflow e corrigir falhas Kotlin/JUnit reais.
+2. Testar cifrador Android Keystore com instrumentation no emulador.
+3. Integrar a emissão estruturada Plan/CallTool a um backend neural Kellvyn validado.
+4. Adicionar um executor de Build que avance dependências automaticamente, respeite uma ferramenta por etapa e persista cada transição/resultado.
+5. Integrar progresso e aprovação ao chat principal sem alterar a interface.
+6. Evoluir mapa de código para índice incremental de símbolos, assinaturas e referências, preservando limites e filtro de segredos.
+7. Depois, criar especialistas internos com contexto isolado. Não chamar de subagentes enquanto não houver isolamento real.
+8. Implementar ciclo de Android device testing: build, instalação, screenshots, acessibilidade, Logcat, interação, validação e correção.
+9. Executar testes físicos no Poco F6 somente após os gates de build e segurança.
+
+Atualizar este arquivo, STATUS.md e o relatório comparativo após cada novo marco.
