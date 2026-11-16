@@ -222,7 +222,7 @@ internal data class KellvynAgentConfig(
         require(modelTimeoutMs > 0)
         require(maxToolTimeoutMs > 0)
         require(maxObservationChars > 0)
-        require(maxMemoryResults in 0..8)
+        require(maxMemoryResults in 1..8)
     }
 }
 
