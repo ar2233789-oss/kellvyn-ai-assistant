@@ -112,6 +112,35 @@ class KellvynTaskPlannerTest {
     }
 
     @Test
+    fun declaredPreconditionsCannotBeSkipped() {
+        val state = planner.createState(plan(readStep(preconditions = listOf("A raiz do projeto existe"))))
+
+        try {
+            planner.startStep(state, "read")
+            throw AssertionError("A etapa iniciou sem prova das pré-condições.")
+        } catch (_: IllegalArgumentException) {
+            assertEquals(KellvynStepStatus.READY, state.statuses["read"])
+        }
+    }
+
+    @Test
+    fun independentlyVerifiedPreconditionsAreStoredBeforeStart() {
+        val state = planner.createState(plan(readStep(preconditions = listOf("A raiz do projeto existe"))))
+        val evidence = KellvynPreconditionEvidence(
+            checkedBy = "workspace-validator",
+            verifiedConditions = setOf("A raiz do projeto existe"),
+            summary = "Diretório do projeto localizado e validado.",
+            evidenceSha256 = "c".repeat(64),
+            observedAtMillis = 4L
+        )
+
+        val running = planner.startStep(state, "read", evidence)
+
+        assertEquals(KellvynStepStatus.RUNNING, running.statuses["read"])
+        assertEquals(evidence, running.preconditionProofs["read"])
+    }
+
+    @Test
     fun failedPrerequisiteBlocksDependentWork() {
         var state = planner.createState(plan(
             readStep(),
@@ -140,13 +169,15 @@ class KellvynTaskPlannerTest {
     private fun readStep(
         id: String = "read",
         dependencies: Set<String> = emptySet(),
-        requiredTools: Set<String> = emptySet()
+        requiredTools: Set<String> = emptySet(),
+        preconditions: List<String> = emptyList()
     ) = KellvynTaskStep(
         id = id,
         title = "Inspecionar",
         objective = "Ler o recurso delimitado.",
         dependencies = dependencies,
         requiredTools = requiredTools,
+        preconditions = preconditions,
         successCriteria = listOf("O conteúdo foi lido", "A origem foi registrada")
     )
 
