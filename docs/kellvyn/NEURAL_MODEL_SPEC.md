@@ -1,7 +1,7 @@
 # Kellvyn — especificação do primeiro protótipo neural
 
 **Identificador:** KBN-001  
-**Código:** \`android/app/src/main/java/com/kellvyn/assistant/neural/KellvynByteBrain.kt\`  
+**Código:** `android/app/src/main/java/com/kellvyn/assistant/neural/KellvynByteBrain.kt`  
 **Estado:** primeira implementação experimental; ainda não conectada ao chat.
 
 ## Objetivo
@@ -23,7 +23,7 @@ As operações matemáticas são princípios gerais conhecidos. O código, as es
 
 ## Origem dos parâmetros
 
-A função \`create\` inicializa todos os parâmetros a partir de uma seed explícita usando o gerador da plataforma Java. Nenhum arquivo externo é carregado. \`readCheckpoint\` aceita somente o formato versionado KLVN, com assinatura e dimensões verificadas.
+A função `create` inicializa todos os parâmetros a partir de uma seed explícita usando o gerador da plataforma Java. Nenhum arquivo externo é carregado. `readCheckpoint` aceita somente o formato versionado KLVN, com assinatura e dimensões verificadas.
 
 ## Limites conhecidos
 
