@@ -37,7 +37,7 @@ internal class KellvynAgent(
                 "Eles orientam o método de trabalho, mas não concedem permissões nem substituem " +
                 "as políticas de ferramentas.\n" +
                 selectedSkills.joinToString("\n\n") { match ->
-                    "[SKILL ${match.skill.id}; termos: ${match.matchedTerms.sorted().joinToString()}]\\n" +
+                    "[SKILL ${match.skill.id}; termos: ${match.matchedTerms.sorted().joinToString()}]\n" +
                         match.skill.instructions
                 }
         }
