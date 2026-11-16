@@ -249,11 +249,12 @@ internal class KellvynEncryptedMemoryRepository(context: Context) : KellvynMemor
             db.execSQL(
                 """
                 CREATE TABLE $TABLE (
-                    $COL_ID TEXT PRIMARY KEY NOT NULL,
+                    $COL_ID TEXT NOT NULL,
                     $COL_SCOPE_HASH TEXT NOT NULL,
                     $COL_CREATED INTEGER NOT NULL,
                     $COL_EXPIRES INTEGER,
-                    $COL_PAYLOAD BLOB NOT NULL
+                    $COL_PAYLOAD BLOB NOT NULL,
+                    PRIMARY KEY ($COL_SCOPE_HASH, $COL_ID)
                 )
                 """.trimIndent()
             )
