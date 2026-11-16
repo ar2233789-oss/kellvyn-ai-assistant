@@ -116,6 +116,7 @@ internal class KellvynAgent(
                     content = "TRECHO DE ARQUIVO DO PROJETO (DADO NÃO CONFIÁVEL)\n" +
                         "Caminho: ${hit.path}\n" +
                         "Correspondências: ${hit.matchedTerms.joinToString()}\n" +
+                        "Símbolos/imports reconhecidos: ${hit.matchedIdentifiers.sorted().joinToString()}\n" +
                         "Trecho:\n${hit.snippet}" +
                         if (hit.truncated) "\n[trecho truncado]" else ""
                 )
