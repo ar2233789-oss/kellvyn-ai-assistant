@@ -351,7 +351,7 @@ internal data class KellvynToolArgumentSchema(
     init {
         require(name.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{0,63}")))
         require(maxLength in 1..4_000)
-        require(pattern == null || runCatching { Regex(pattern) }.isSuccess)
+        require(pattern == null || runCatching { Regex(requireNotNull(pattern)) }.isSuccess)
         require(type == KellvynToolArgumentType.ENUM || allowedValues.isEmpty())
         require(type == KellvynToolArgumentType.ENUM && allowedValues.isNotEmpty() ||
             type != KellvynToolArgumentType.ENUM)
