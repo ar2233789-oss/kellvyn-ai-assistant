@@ -1,41 +1,53 @@
-# Kellvyn — memória, aprendizado e treinamento próprios
+# Kellvyn — memória, personalização e aprendizado
 
 ## 1. Memória operacional
 
-Memória guarda fatos e preferências explicitamente autorizados para recuperar contexto. Cada registro precisa de origem, data, motivo, política de retenção e meios de consultar, corrigir e excluir. Memória altera o contexto disponível; não altera pesos neurais.
+Memória guarda informações que ajudam a dar continuidade a projetos e conversas. Cada item precisa de origem, data, motivo, política de retenção, consulta, correção e exclusão. Memória altera contexto; não altera parâmetros neurais.
 
-## 2. Aprendizado dos pesos
+## 2. Personalização sem treino de pesos
 
-O cérebro da Kellvyn será treinado do zero. A implementação deverá:
-- inicializar pesos aleatórios com seed registrada;
-- preparar dados com proveniência;
-- calcular a previsão e a loss;
-- calcular gradientes e atualizar parâmetros;
-- registrar hiperparâmetros, passos, métricas e checkpoints;
-- permitir reproduzir o treinamento;
-- comparar resultados em conjuntos de avaliação que não participaram do treino.
+A primeira evolução pode ocorrer com:
+- instruções e regras próprias;
+- skills e procedimentos versionados;
+- recuperação de documentos e código;
+- memória estruturada;
+- ferramentas e conectores;
+- contexto seletivo e compactação;
+- avaliações e correção de fluxos.
 
-Não usar modelo pré-treinado, pesos emprestados, fine-tuning, LoRA ou adaptadores derivados de outro modelo. Não usar outro modelo para gerar silenciosamente o dataset da Kellvyn.
+Isso melhora o sistema sem alterar pesos. Não será chamado de treinamento neural.
 
-## 3. Etapas de treinamento
+## 3. Personalização de um modelo aberto
 
-1. **Teste matemático:** validar operações numéricas, gradientes e estabilidade.
-2. **Protótipo de sequência:** treinar uma rede pequena com dados de teste explícitos; isso verifica o pipeline, não a inteligência geral.
-3. **Tokenização:** desenvolver e testar uma representação própria, sem importar tokenizer de modelo externo.
-4. **Corpus autorizado:** selecionar textos e código com origem, termos e escopo de uso registrados. Remover dados pessoais, segredos, duplicatas e conteúdo não autorizado.
-5. **Treino-base:** iniciar todos os pesos do zero e registrar cada checkpoint.
-6. **Treino de instrução:** preparar exemplos originais e autorizados, separados por tarefa e qualidade.
-7. **Avaliação:** medir português, continuidade, precisão factual, raciocínio, programação, uso de ferramentas, robustez e memorização indevida.
-8. **Execução móvel:** quantizar ou converter apenas pesos produzidos pelo próprio pipeline e comparar qualidade, RAM, latência, temperatura e consumo.
+Quando a fundação neural for escolhida e validada, Kellvyn poderá ser personalizada com:
+- exemplos autorais e autorizados;
+- supervised fine-tuning;
+- LoRA/adapters, se forem compatíveis com o modelo e com o runtime;
+- preferência/feedback estruturado;
+- avaliação antes/depois.
 
-## 4. Separação de dados
+O modelo-base, seus autores, licença, hashes e os dados usados permanecem registrados. Pesos/adapters produzidos por Kellvyn serão identificados como derivados desse modelo-base, nunca como pesos inteiramente originais.
 
-O conjunto de treino, validação e teste deverá ser separado. Exemplos de avaliação não podem vazar para treino. Dados privados do proprietário não entram automaticamente no corpus. Feedback e histórico só poderão virar exemplos de treino mediante autorização específica e revisão.
+## 4. Treinar um modelo integralmente do zero
 
-## 5. Limites de hardware
+KBN-001 é uma experiência própria para aprender e validar operações matemáticas, gradientes e checkpoints. Um pré-treinamento competitivo do zero exige volume de dados, aceleradores, armazenamento e tempo muito além do que o Poco F6 isoladamente oferece. O telefone é o alvo de inferência e teste; pode executar pequenos experimentos de treino, mas isso não o transforma em cluster de treinamento de fronteira.
 
-O Poco F6 é o alvo de execução local e pode ser usado para experiências pequenas. Isso não torna seu processador móvel equivalente a uma infraestrutura de pré-treinamento de grande escala. O tamanho do primeiro modelo e o volume de dados serão definidos por medições reais, sem prometer capacidade geral antes dos resultados.
+Manteremos a rota de pesquisa autoral em paralelo, sem bloquear a entrega de uma Kellvyn útil baseada em uma fundação licenciada.
 
-## 6. Evidência obrigatória
+## 5. Dados
 
-Uma etapa de aprendizado só será declarada concluída com: versão do código, configuração, seed, origem e hash do dataset, parâmetros treinados, hash do checkpoint, curvas de loss, métricas de avaliação e análise de regressões. Memória salva, prompt, ferramenta nova ou texto produzido por regras não contam como treinamento neural.
+Cada dataset deve ter fonte, autor, URL, licença/consentimento, escopo, data de captura, hash, limpeza, deduplicação e separação entre treino/validação/teste. Remover segredos e dados pessoais não autorizados. Histórico privado do proprietário não vira treino automaticamente.
+
+## 6. Critérios de evidência
+
+Qualquer afirmação de aprendizado exige:
+- versão de código;
+- modelo-base e licença, quando houver;
+- método de treino/adaptação;
+- configuração, seed e hiperparâmetros;
+- origem e hash dos dados;
+- hash dos pesos ou adapters de saída;
+- loss e métricas antes/depois;
+- testes de memorização, privacidade e regressões.
+
+Uma memória salva, prompt, skill, ferramenta ou resposta melhor não prova atualização dos pesos.
