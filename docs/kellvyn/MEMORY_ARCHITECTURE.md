@@ -1,6 +1,6 @@
 # Memória local da Kellvyn — KLM-001
 
-**Estado:** domínio e adaptador Android implementados no laboratório; integração com interface/runtime ainda pendente de validação no aparelho.  
+**Estado:** domínio, adaptador Android e fábrica do runtime implementados; integração com a conversa principal e teste no aparelho ainda pendentes.  
 **Privacidade:** dados locais, escopos isolados, conteúdo criptografado no banco SQLite.
 
 ## Objetivo
@@ -67,7 +67,7 @@ O banco `kellvyn_memory.db` foi excluído do Auto Backup e das transferências d
 - Não existe exportação/importação criptografada entre aparelhos.
 - A classificação de privacidade ainda precisa de interface e confirmação real na conversa principal.
 - Não existe ferramenta de “lembrar”/“esquecer” conectada ao chat.
-- O agente já aceita memória por injeção de dependência, mas o runtime principal ainda não instancia o repositório.
+- `KellvynRuntime` instancia o repositório local e `createAgent()` injeta a memória no agente; `MainActivity` ainda não chama essa fábrica e não há operação de lembrar/apagar na conversa.
 - A busca é lexical; embeddings e busca híbrida ficam para uma fase posterior, após benchmark de memória e RAM.
 - Não há aprendizado automático dos pesos a partir das conversas.
 
