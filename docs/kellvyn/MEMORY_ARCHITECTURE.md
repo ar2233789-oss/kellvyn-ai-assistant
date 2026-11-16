@@ -47,19 +47,19 @@ Esse mecanismo é determinístico e auditável. Não é busca semântica por emb
 
 ## 4. Persistência e segurança Android
 
-Arquivo principal: \`KellvynEncryptedMemoryRepository.kt\`.
+Arquivo principal: `KellvynEncryptedMemoryRepository.kt`.
 
 - SQLite para registros estruturados e operações parciais;
 - AES-GCM com chave de 256 bits;
 - chave gerada e mantida pelo Android Keystore;
 - conteúdo serializado fica dentro do payload autenticado e criptografado;
 - IDs de escopo são armazenados no índice como hash SHA-256;
-- leitura/escrita corre em \`Dispatchers.IO\`;
+- leitura/escrita corre em `Dispatchers.IO`;
 - até 5.000 registros por escopo; consultas leem até 500 candidatos;
 - o limite de capacidade não apaga memórias antigas silenciosamente;
 - migração e downgrade ainda não implementados; o código bloqueia uma atualização destrutiva.
 
-O banco \`kellvyn_memory.db\` foi excluído do Auto Backup e das transferências do Android. A chave Android Keystore é vinculada ao dispositivo; portanto, o banco criptografado não deve ser restaurado em outro aparelho sem um mecanismo de exportação e migração próprio. Essa exclusão evita restaurar um ciphertext sem a chave correspondente, mas também significa que uma troca de telefone exige uma futura ferramenta de migração segura.
+O banco `kellvyn_memory.db` foi excluído do Auto Backup e das transferências do Android. A chave Android Keystore é vinculada ao dispositivo; portanto, o banco criptografado não deve ser restaurado em outro aparelho sem um mecanismo de exportação e migração próprio. Essa exclusão evita restaurar um ciphertext sem a chave correspondente, mas também significa que uma troca de telefone exige uma futura ferramenta de migração segura.
 
 ## 5. Limites atuais
 
