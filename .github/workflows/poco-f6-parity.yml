@@ -28,6 +28,8 @@ jobs:
     name: Web reference build and screenshot
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    outputs:
+      artifact_url: ${{ steps.upload-web.outputs.artifact-url }}
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -257,7 +259,9 @@ jobs:
           await browser.close();
           NODE
       - name: Upload web reference capture
+        id: upload-web
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-web-reference
@@ -269,6 +273,8 @@ jobs:
     name: Android emulator boot, launch, and UI capture
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      artifact_url: ${{ steps.upload-native.outputs.artifact-url }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -765,7 +771,9 @@ jobs:
           adb shell dumpsys meminfo com.example.app > out/generated-app-meminfo.txt
           echo "PASS: generated Java project passed parser, structural validation, ECJ compilation, D8, APK signing, signature verification, installation, launch, and button interaction."
       - name: Upload native emulator capture and diagnostics
+        id: upload-native
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-native-emulator
@@ -777,7 +785,7 @@ jobs:
   compare-web-and-native-captures:
     name: Pixel-aligned web/native screenshot diff
     needs: [web-build-and-capture, native-emulator-test]
-    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' }}
+    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' && needs.web-build-and-capture.outputs.artifact_url != '' && needs.native-emulator-test.outputs.artifact_url != '' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
