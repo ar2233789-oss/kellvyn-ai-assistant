@@ -59,7 +59,7 @@ Arquivo principal: `KellvynEncryptedMemoryRepository.kt`.
 - o limite de capacidade não apaga memórias antigas silenciosamente;
 - migração e downgrade ainda não implementados; o código bloqueia uma atualização destrutiva.
 
-O banco `kellvyn_memory.db` foi excluído do Auto Backup e das transferências do Android. A chave Android Keystore é vinculada ao dispositivo; portanto, o banco criptografado não deve ser restaurado em outro aparelho sem um mecanismo de exportação e migração próprio. Essa exclusão evita restaurar um ciphertext sem a chave correspondente, mas também significa que uma troca de telefone exige uma futura ferramenta de migração segura.
+O aplicativo inteiro está com `allowBackup=false`, e as regras de backup também excluem os domínios internos de arquivo, banco, preferências e armazenamento externo do backup legado, do backup em nuvem e da transferência entre aparelhos. Isso protege não só a memória, mas também históricos e preferências locais. A chave Android Keystore é vinculada ao dispositivo; portanto, nenhum ciphertext nem preferência criptografada deve ser restaurado em outro aparelho sem um mecanismo de exportação/migração próprio. A troca de telefone exigirá uma futura exportação manual criptografada, com autorização do proprietário.
 
 ## 5. Limites atuais
 
