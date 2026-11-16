@@ -105,3 +105,25 @@ A branch principal, a interface aprovada e `.github/interface-lock.sha` não for
 Também foi criado `docs/kellvyn/APP_BUILDER_BENCHMARK.md`: uma escada de dez tarefas em português, com critérios externos por app, bloqueios de aprovação, pontuação sem autoavaliação do modelo e métricas para comparar versões do agente. Os casos que excedem o compilador Java atual estão explicitamente marcados como dependentes de novas capacidades, não como testes já aprovados.
 
 **Correção de escopo da prova:** o smoke test injeta um fixture diretamente em `LocalProjectBuilder`; não é uma tarefa gerada pelo modelo através do chat. A inspeção do `MainActivity.java` e de `KellvynRuntime.kt` confirmou que a conversa chama `KellvynRuntime.reply()`, que ainda retorna indisponibilidade de inferência. O callback legado do chat apenas grava blocos de arquivo no Editor e informa que nenhum APK foi compilado. Portanto, o compilador pode ser testado isoladamente, mas o agente principal ainda não cria/compila apps pelo chat. Essa ligação continua como bloqueio de integração, além da ausência do backend neural.
+
+## Continuidade e correções da sessão — 16/11/2026, atualização da noite
+
+O arquivo **CONTINUITY_HANDOFF.md** tornou-se a primeira leitura obrigatória ao retomar o projeto em outro chat. Ele registra as decisões vinculantes, o branch, o estado real, o último ponto de interrupção e a ordem de trabalho. Não usar apenas resumos da conversa como fonte de verdade.
+
+### Correção aplicada ao armazenamento de tarefas
+
+- O construtor de KellvynTaskCheckpointStore agora recebe explicitamente uma implementação de KellvynTaskCheckpointCipher.
+- KellvynRuntime injeta KellvynAndroidTaskCheckpointCipher, que usa AES-GCM com chave do Android Keystore.
+- Os testes unitários usam um cifrador AES-GCM exclusivo de teste; não usam a chave Keystore de produção.
+- Commits: runtime `d9fb31379a6373fe4e1082916705deb29ee23262`; testes `7fb7ba187f5bd7537c0649d0fd17f329d51ab74d`.
+- A atualização aciona o workflow de testes por push, mas a aprovação do CI ainda precisa ser consultada. Não declarar a correção validada antes do resultado.
+- O uso real do Android Keystore ainda precisa de teste instrumentado e/ou no Poco F6.
+
+### Decisão neural alinhada
+
+Os documentos ARCHITECTURE.md, MASTER_PLAN.md e NEURAL_MODEL_DECISIONS.md foram atualizados para eliminar a antiga alternativa de usar pesos externos ou LoRA. A decisão atual é cérebro neural próprio, treinado do zero. O documento NEURAL_MODEL_DECISIONS.md tem precedência sobre texto histórico que diga o contrário.
+
+### Situação sem maquiagem
+
+O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de byte, e KellvynRuntime.reply() continua sem inferência. O agente/planner/memória/contexto/checkpoints são módulos úteis, mas não conseguem substituir um modelo de linguagem treinado. Nenhum build/teste desta atualização foi confirmado; nenhum teste físico foi feito no Poco F6.
+
