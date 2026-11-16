@@ -32,6 +32,25 @@ class KellvynProjectCodeIndexerTest {
     }
 
     @Test
+    fun extractsJavaMethodDeclarationsWithoutTreatingCallsAsDeclarations() {
+        val source = listOf(
+            "package com.example.service;",
+            "public class UserService {",
+            "    public void loadUser(String id) {",
+            "        repository.findById(id);",
+            "    }",
+            "}"
+        ).joinToString("\n")
+
+        val index = KellvynProjectCodeIndexer.index("src/UserService.java", source)
+
+        assertTrue(index.declarations.any { it.name == "UserService" && it.kind == "class" })
+        assertTrue(index.declarations.any { it.name == "loadUser" && it.kind == "java-method" })
+        assertFalse(index.declarations.any { it.name == "findById" })
+        assertTrue(index.references.contains("findById"))
+    }
+
+    @Test
     fun codeStructureImprovesSearchForImportedTypesAndMethodReferences() {
         val source = """
             package com.example.profile
