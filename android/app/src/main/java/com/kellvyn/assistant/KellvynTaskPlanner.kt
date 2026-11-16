@@ -9,11 +9,20 @@ package com.kellvyn.assistant
  */
 internal class KellvynTaskPlanner {
 
-    fun validate(plan: KellvynTaskPlan): List<String> {
+    fun validate(
+        plan: KellvynTaskPlan,
+        registeredToolRisks: Map<String, KellvynStepRisk> = emptyMap()
+    ): List<String> {
         val errors = mutableListOf<String>()
 
         if (!plan.id.matches(Regex("[A-Za-z0-9_-]{1,80}"))) {
             errors += "O identificador da tarefa é inválido."
+        }
+        if (plan.schemaVersion != 1) {
+            errors += "Versão de esquema do plano não suportada."
+        }
+        if (plan.createdAtMillis <= 0L) {
+            errors += "Data de criação do plano inválida."
         }
         if (plan.goal.isBlank() || plan.goal.length > MAX_GOAL_CHARS) {
             errors += "O objetivo precisa ter entre 1 e " + MAX_GOAL_CHARS + " caracteres."
@@ -53,6 +62,22 @@ internal class KellvynTaskPlanner {
             if (step.requiredTools.any { !it.matches(TOOL_NAME) }) {
                 errors += "Nome de ferramenta inválido na etapa " + step.id + "."
             }
+            val unregisteredTools = step.requiredTools - registeredToolRisks.keys
+            if (unregisteredTools.isNotEmpty()) {
+                errors += "Ferramentas não registradas na etapa " + step.id + ": " +
+                    unregisteredTools.sorted().joinToString() + "."
+            }
+            val highestRegisteredRisk = step.requiredTools.mapNotNull { registeredToolRisks[it] }
+                .maxOfOrNull { it.ordinal } ?: KellvynStepRisk.READ_ONLY.ordinal
+            if (highestRegisteredRisk > step.risk.ordinal) {
+                errors += "O risco declarado é inferior ao risco real das ferramentas na etapa " +
+                    step.id + "."
+            }
+            if (step.preconditions.size > MAX_PRECONDITIONS ||
+                step.preconditions.any { it.isBlank() || it.length > MAX_PRECONDITION_CHARS }
+            ) {
+                errors += "Pré-condições vazias ou inválidas na etapa " + step.id + "."
+            }
             if (step.dependencies.contains(step.id)) {
                 errors += "A etapa " + step.id + " depende de si mesma."
             }
@@ -86,8 +111,11 @@ internal class KellvynTaskPlanner {
         return errors.distinct()
     }
 
-    fun createState(plan: KellvynTaskPlan): KellvynTaskState {
-        val errors = validate(plan)
+    fun createState(
+        plan: KellvynTaskPlan,
+        registeredToolRisks: Map<String, KellvynStepRisk> = emptyMap()
+    ): KellvynTaskState {
+        val errors = validate(plan, registeredToolRisks)
         require(errors.isEmpty()) { errors.joinToString(" ") }
         val initial = KellvynTaskState(
             plan = plan,
@@ -221,6 +249,8 @@ internal class KellvynTaskPlanner {
         private const val MAX_OBJECTIVE_CHARS = 1_000
         private const val MAX_CRITERIA = 12
         private const val MAX_CRITERION_CHARS = 300
+        private const val MAX_PRECONDITIONS = 12
+        private const val MAX_PRECONDITION_CHARS = 300
         private const val MAX_FAILURE_CHARS = 500
         private val TOOL_NAME = Regex("[A-Za-z][A-Za-z0-9_]{1,63}")
         private val SHA256 = Regex("[a-fA-F0-9]{64}")
