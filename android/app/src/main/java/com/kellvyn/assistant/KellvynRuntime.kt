@@ -18,8 +18,12 @@ internal class KellvynRuntime(context: Context) {
         fun onError(message: String)
     }
 
-    @Suppress("unused")
     private val appContext = context.applicationContext
+    private val memoryRepository = KellvynEncryptedMemoryRepository(appContext)
+    private val localMemory = KellvynMemory(memoryRepository)
+
+    /** Gives the agent layer access to the same app-private memory store. */
+    fun memoryStore(): KellvynMemory = localMemory
 
     fun isReady(): Boolean = false
 
@@ -37,5 +41,7 @@ internal class KellvynRuntime(context: Context) {
 
     fun resetConversationAndWait() = Unit
 
-    fun close() = Unit
+    fun close() {
+        memoryRepository.close()
+    }
 }
