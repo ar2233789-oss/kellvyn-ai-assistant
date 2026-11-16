@@ -185,3 +185,28 @@ Documento detalhado: `docs/kellvyn/AGENT_CAPABILITY_UPGRADE_2026-11-16.md`.
 
 Limite atual: `KellvynRuntime.isReady() = false`; o chat principal ainda não executa o agente com um backend neural real.
 
+## 8. Nova melhoria do agente — skills sob demanda (16/11/2026)
+
+Foi pesquisada documentação oficial atual do Replit Agent, Cursor Agent e Gemini Agent Mode no Android Studio. O comparativo e as adaptações estão em `docs/kellvyn/AGENT_CAPABILITY_UPGRADE_2026-11-16.md`.
+
+### Implementação escrita na branch
+
+- `KellvynSkillRegistry.kt`: catálogo de skills procedurais internas; seleciona por relevância lexical, com desempate determinístico e limite de caracteres.
+- `KellvynAgent.kt`: injeta até duas skills relevantes no contexto SYSTEM confiável. O texto de skill orienta o método, mas não fornece permissões nem substitui as verificações do código.
+- `KellvynSkillRegistryTest.kt`: testes para carregamento relevante, exclusão de skills irrelevantes, orçamento, determinismo e injeção confiável.
+- Workflow `neural-core-tests.yml` atualizado para observar mudanças no registro de skills.
+
+Skills iniciais: Android build/verification, diagnóstico de falhas, revisão de código, pesquisa Web e teste funcional de aplicativos.
+
+Commits de referência: `6cf8f68e772089224a8e2606c954c03470032b76`, `48936a1f59bacf1f810a763903e05635a0579762`, `e136c4d1a3cb05c8153633e8c209f907fd4fedc7`, `b640da81645d8a8606f2fae5ac97b90b8320865b`, `ee0f96ff86328d9740d53eba22c7ffa666417dab`, `b3f2804b5dcdcf919492855b557733b7f44a2e92`.
+
+Um smoke test Kotlin isolado da lógica de seleção foi compilado/executado com sucesso. **Não equivale a compilar o projeto Android.** Não há confirmação de CI/Gradle para esses novos arquivos e não houve teste no Poco F6. O runtime neural continua sem backend conversacional ligado e a conversa principal ainda não utiliza o agente.
+
+### Próxima sequência
+
+1. Confirmar execução do workflow da branch; se falhar, obter logs e corrigir.
+2. Ligar o armazenamento de checkpoints ao ciclo real: início, etapas, resultados, provas, falhas, cancelamento e retomada.
+3. Introduzir eventos de progresso auditáveis.
+4. Evoluir busca lexical para mapa de símbolos/imports/referências no projeto.
+5. Criar verificação independente de diff/testes e ciclo Android com build, instalação, screenshots, acessibilidade e Logcat.
+6. Integrar ao chat principal somente depois de haver backend neural autoral funcional e testes; preservar toda a interface aprovada.
