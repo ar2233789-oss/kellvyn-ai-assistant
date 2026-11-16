@@ -12,8 +12,8 @@ A arquitetura não consiste em ligar várias IAs como se fossem cérebros indepe
 
 ## Separação que não pode ser confundida
 
-1. **Modelo neural:** transforma contexto em linguagem e, quando treinado para isso, em chamadas estruturadas de ferramenta. No APK atual, o substrato neural é Gemma 4 E2B quantizado em LiteRT-LM.
-2. **Agente Kellvyn:** controla o ciclo de tarefa: interpretar o objetivo, escolher uma ação autorizada, observar seu resultado e decidir o próximo passo.
+1. **Modelo neural Kellvyn:** será um modelo selecionado ou treinado sob uma linhagem documentada. Nenhum modelo Gemma ou outro peso externo está aprovado como cérebro. A escolha do treinamento e do runtime permanece em aberto até benchmark.
+2. **Agente Kellvyn:** controla o ciclo de tarefa: interpretar o objetivo, planejar, escolher uma ação autorizada pelo proprietário, observar seu resultado e decidir o próximo passo.
 3. **Ferramentas:** funções Kotlin delimitadas que consultam ou, futuramente, alteram recursos concretos. O modelo não recebe acesso irrestrito ao Android.
 4. **Memória:** dados persistentes e selecionados sobre usuário, tarefas e projetos. Memória não é treinamento dos pesos do modelo.
 5. **Aprendizado do modelo:** treinamento ou adaptação efetiva dos pesos a partir de dados e avaliação. Só poderá ser anunciado quando o processo, os dados, os pesos resultantes e os testes estiverem documentados.
@@ -50,11 +50,11 @@ Resultado observado e validado
 Resposta final + evidências do que ocorreu
 ```
 
-O LiteRT-LM 0.18.0 oferece chamada automática ou manual de ferramentas. Nesta primeira implementação, as ferramentas registradas são somente de leitura; o runtime controla a repetição de tool calls e o código Kellvyn impõe um limite adicional por mensagem. A documentação oficial descreve o registro de `ToolSet`, `@Tool`, `@ToolParam` e a execução automática ou manual [1].
+Os runtimes serão comparados separadamente do modelo neural. A seleção de um runtime não define o cérebro nem escolhe pesos. Os contratos do agente Kellvyn serão próprios e independentes do executor selecionado.
 
-## Primeira fronteira funcional
+## Fronteira inicial planejada
 
-Ferramentas liberadas nesta versão de laboratório:
+Ferramentas iniciais propostas para o primeiro ciclo de execução:
 
 - `listLocalProjects`: listar projetos guardados no workspace privado;
 - `listProjectFiles`: listar caminhos relativos de um projeto selecionado;
@@ -88,11 +88,11 @@ Nenhum código desses projetos é copiado nesta primeira implementação. Os det
 
 ## Estado real em 2026-11-16
 
-- Já existe um modelo local Gemma 4 E2B no motor Android `LocalBrain.kt`.
-- A configuração existente limita o contexto a 4.096 tokens e a resposta normal a 768 tokens.
-- Já existe leitura de anexos, contexto Web opcional e pipeline específico para projetos Android/compilação.
-- Antes desta alteração, o chat chamava o modelo e apresentava a resposta; não existia um conjunto geral de ferramentas de agente no `ConversationConfig`.
-- Esta branch registra ferramentas locais de leitura no LiteRT-LM. A aprovação de compilação e o teste de tool call no Poco F6 ainda precisam ser verificados; a presença do código não prova funcionamento em dispositivo.
+- A implementação anterior `LocalBrain.kt` baseada em Gemma foi removida da branch de laboratório; ela não será recuperada.
+- `MainActivity.java` e `BotRuntimeService.kt` ainda contêm referências antigas a `LocalBrain`; a integração está incompleta e precisa de uma nova interface de runtime.
+- O Gradle ainda declara a dependência LiteRT-LM, que não foi aprovada para o modelo final e deverá ser removida ou reavaliada no benchmark de runtimes.
+- O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
+- A branch não deve ser considerada compilável até que os contratos antigos sejam substituídos e os testes/build passem.
 
 ## Próximas etapas
 
@@ -102,8 +102,8 @@ Nenhum código desses projetos é copiado nesta primeira implementação. Os det
 4. Projetar memória persistente com consentimento, origem, edição e exclusão.
 5. Adicionar ferramentas de escrita somente após um fluxo explícito de aprovação.
 6. Criar avaliações repetíveis de qualidade e segurança do agente.
-7. Planejar SFT/LoRA e, separadamente, qualquer treinamento de modelo-base.
+7. Comparar treinamento de pesos próprios e adaptação licenciada; não baixar ou integrar pesos antes da decisão documentada.
 
 ## Referência técnica primária
 
-[1] LiteRT-LM 0.18.0, código e documentação Kotlin na tag de lançamento: https://github.com/google-ai-edge/LiteRT-LM/tree/b2f686e2ed4718fb84ec398a61dd59ca0f0aff27
+A lista de runtimes e referências está em `RUNTIME_COMPARISON.md`. O runtime será selecionado só depois de o formato e a linhagem dos pesos serem definidos.
