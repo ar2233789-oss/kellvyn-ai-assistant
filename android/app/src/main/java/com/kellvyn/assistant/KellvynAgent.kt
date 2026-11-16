@@ -156,7 +156,7 @@ internal class KellvynAgent(
             role = KellvynMessageRole.TOOL,
             trust = KellvynTrustLevel.UNTRUSTED,
             source = source,
-            content = (if (success) "RESULTADO VERIFICADO\n" else "RESULTADO DE ERRO\n") + content
+            content = (if (success) "A FERRAMENTA RELATOU SUCESSO; AINDA NÃO FOI VERIFICADO INDEPENDENTEMENTE\n" else "RESULTADO DE ERRO\n") + content
         )
 
     private fun safeMessage(error: Exception): String =
