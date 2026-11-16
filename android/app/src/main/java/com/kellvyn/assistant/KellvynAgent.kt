@@ -39,7 +39,7 @@ internal class KellvynAgent(
             val recalled = try {
                 memory.recall(
                     KellvynMemoryQuery(
-                        text = normalizedGoal,
+                        text = normalizedGoal.take(160),
                         addresses = memoryAddresses,
                         nowMillis = System.currentTimeMillis(),
                         limit = config.maxMemoryResults
@@ -59,12 +59,12 @@ internal class KellvynAgent(
                 messages += KellvynAgentMessage(
                     role = KellvynMessageRole.TOOL,
                     trust = KellvynTrustLevel.UNTRUSTED,
-                    source = "memory:\${match.entry.id}",
+                    source = "memory:${match.entry.id}",
                     content = "CONTEXTO DE MEMÓRIA APROVADO PELO PROPRIETÁRIO\n" +
-                        "Tipo: \${match.entry.kind.name}\n" +
-                        "Título: \${match.entry.title}\n" +
-                        "Origem: \${match.entry.provenance}\n" +
-                        "Conteúdo: \${match.entry.content}"
+                        "Tipo: ${match.entry.kind.name}\n" +
+                        "Título: ${match.entry.title}\n" +
+                        "Origem: ${match.entry.provenance}\n" +
+                        "Conteúdo: ${match.entry.content}"
                 )
             }
         }
