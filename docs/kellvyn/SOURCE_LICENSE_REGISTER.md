@@ -1,26 +1,26 @@
 # Kellvyn — registro de origem e licenças
 
 **Data da consulta:** 16/11/2026  
-**Objetivo:** registrar as referências estudadas e evitar plágio ou atribuição falsa. Os projetos abaixo são material de pesquisa; nenhum código, modelo, peso, tokenizer ou pipeline de treinamento deles está autorizado a ser incorporado ao cérebro da Kellvyn.
+**Objetivo:** registrar origens e condições de aproveitamento. Código aberto, pesos abertos e runtimes de terceiros podem ser integrados quando licença e termos permitirem. A autoria original deve permanecer explícita; nenhuma integração transforma o componente externo em criação própria.
 
 > Este registro é uma triagem técnica, não um parecer jurídico. Antes de distribuir qualquer componente, conferir a licença do commit exato, arquivos NOTICE, dependências transitivas, marcas, modelo/pesos e datasets separadamente.
 
 ## 1. Projetos de referência
 
-| Projeto / fonte | Licença identificada na triagem | Uso permitido neste projeto | Limite |
+| Projeto / fonte | Licença identificada na triagem | Uso possível em Kellvyn | Obrigações e limites |
 |---|---|---|---|
 | Android Studio + Gemini Agent Mode | Produto/serviço proprietário; termos Google | Fluxo de planejamento, aprovações, ferramenta, teste em dispositivo, Logcat e correção iterativa como referência de produto | Não copiar código interno, modelo Gemini, prompts privados, marca/ícones ou serviços proprietários. A página de Agent Mode documenta o comportamento público |
-| OpenHands/software-agent-sdk | MIT | Estudo conceitual de sessões, eventos e workspaces | Não copiar nem incorporar código |
-| Aider | Apache 2.0 | Estudo conceitual de mapa de repositório e diffs | Não copiar nem incorporar código |
-| SWE-agent | MIT | Estudo conceitual de ciclos agente-ambiente | Não copiar nem incorporar código |
-| mini-SWE-agent | MIT | Estudo conceitual de ciclo compacto de agente | Não copiar nem incorporar código |
-| OpenCode | MIT | Estudo conceitual de permissões, sessões e contexto | Não copiar nem incorporar código ou identidade visual |
-| nanochat | MIT | Estudo conceitual da sequência de treinamento e avaliação | Não copiar código, tokenizer, dataset ou pesos |
-| OLMo-core | Apache 2.0 | Estudo conceitual de dados, treino e checkpoints | Não copiar nem incorporar infraestrutura de treinamento |
-| LiteRT-LM | Apache 2.0 | Estudo da separação entre runtime e pesos | Não incorporar ao cérebro nesta etapa |
-| ExecuTorch | BSD 3-Clause (repo principal) | Estudo conceitual de exportação e execução | Não incorporar ao cérebro nesta etapa |
-| llama.cpp | MIT (repo principal) | Estudo conceitual de kernels e execução ARM64 | Não copiar nem incorporar código ou pesos |
-| MLC-LLM | Apache 2.0 no projeto principal | Estudo conceitual de compilação de modelos | Não copiar nem incorporar código ou pesos |
+| OpenHands/software-agent-sdk | MIT | SDK/agente, sessões, eventos, workspaces e ferramentas podem ser integrados seletivamente | Preservar copyright e MIT; auditar dependências e alterações |
+| Aider | Apache 2.0 | Componentes selecionados de mapa de repositório, contexto e diff | Preservar licença/NOTICE, indicar arquivos modificados e auditar dependências |
+| SWE-agent | MIT | Ferramentas ou componentes selecionados de ciclo agente-ambiente e avaliação | Preservar aviso e licença; auditar dependências |
+| mini-SWE-agent | MIT | Implementação compacta de ciclo agente-ambiente, se tecnicamente útil | Preservar aviso e licença; auditar dependências |
+| OpenCode | MIT | Componentes selecionados de permissões, sessões, skills e contexto | Preservar aviso e licença; não reutilizar identidade visual |
+| nanochat | MIT | Código de treino/avaliação pode ser integrado se ajudar em um pipeline separado | Preservar licença; dataset e pesos precisam de verificação independente |
+| OLMo-core | Apache 2.0 | Componentes de pipeline de treino, checkpoints ou otimização podem ser integrados se necessários | Preservar Apache 2.0/NOTICE e auditar dependências |
+| LiteRT-LM | Apache 2.0 | Runtime Android/JVM candidato para pesos abertos, especialmente Gemma mobile | Preservar Apache 2.0/NOTICE e testar compatibilidade/consumo no Poco F6 |
+| ExecuTorch | BSD 3-Clause (repo principal) | Runtime/exportação de modelos próprios ou licenciados | Preservar condições e disclaimer; verificar API Android e backend |
+| llama.cpp | MIT (repo principal) | Runtime ARM64/GGUF candidato para modelos com arquitetura compatível | Preservar licença; auditar backend, kernels e dependências |
+| MLC-LLM | Apache 2.0 no projeto principal | Runtime/compilação de pesos abertos para GPU móvel, se viável | Preservar Apache 2.0/NOTICE e auditar submódulos/dependências |
 
 ## 2. Licenças conferidas em repositórios
 
@@ -39,13 +39,41 @@ Os arquivos de licença foram consultados diretamente nos repositórios:
 
 Os SHAs acima identificam os arquivos de licença consultados nessa auditoria; antes de cada release, comparar com a versão/commit realmente incluído.
 
-## 3. Regra de autoria
+## 3. Regras para integrar código e bibliotecas
 
-A regra atual é não copiar código de projetos estudados. Os arquivos serão escritos para o projeto Kellvyn, com commits, autores e testes próprios. A licença de um repositório público não transforma uma cópia em autoria original e não altera a decisão de manter o cérebro integralmente próprio.
+Antes de integrar um componente:
+1. confirmar projeto, repositório, versão e commit exatos;
+2. abrir LICENSE, NOTICE e cabeçalhos do arquivo;
+3. conferir exceções e licenças de dependências transitivas;
+4. verificar compatibilidade com o uso previsto, incluindo redistribuição no APK pessoal;
+5. preservar os avisos e atribuições exigidos;
+6. registrar caminho, versão, hash, licença, alterações e motivo técnico;
+7. testar compatibilidade, segurança e regressões.
 
-## 4. Regra para pesos e modelos
+É permitido usar código aberto de terceiros; não é permitido apagar autoria, copiar sem licença, esconder origem ou apresentar um sistema copiado como se fosse desenvolvido integralmente por Kellvyn. Não copiar código ou pesos proprietários que não tenham sido disponibilizados para esse uso.
 
-Não há modelos candidatos. Nenhum peso, modelo-base, tokenizer, adaptador, checkpoint ou saída de outra IA será baixado ou integrado. Os checkpoints aceitos serão exclusivamente os produzidos pela implementação Kellvyn a partir de pesos inicializados aleatoriamente. Cada checkpoint terá hash, configuração e linhagem de dados documentados.
+## 4. Regra para modelos e pesos
+
+Modelos de pesos abertos podem ser fundações neurais de Kellvyn. Para cada um, registrar:
+- nome, autores, versão/revisão e URL oficial;
+- licença dos pesos e termos de uso;
+- hashes dos pesos, tokenizer e arquivos auxiliares;
+- formato, quantização, runtime e conversões;
+- model card, idioma, tarefas e limitações;
+- requisitos de RAM, armazenamento, aceleração e dispositivo;
+- condições para uso privado, adaptação e redistribuição;
+- adapters/fine-tuning produzidos, método, dados e hashes.
+
+Pesos derivados continuam identificados como derivados do modelo-base. Não afirmar que foram criados integralmente do zero pela Kellvyn. A licença do código do runtime não substitui a licença dos pesos.
+
+### Modelos em avaliação (não selecionados)
+
+| Modelo | Origem/licença declarada | Observação atual |
+|---|---|---|
+| Gemma 4 E2B / mobile QAT | Google DeepMind; Apache 2.0 | Prioridade de avaliação por variante mobile, texto/imagem/áudio e tool calling. Confirmar versão exata do checkpoint mobile, hashes e desempenho no Poco F6 |
+| Qwen3.5-2B | Qwen/Alibaba Cloud; Apache 2.0 | Comparação secundária; a página atual do Qualcomm AI Hub consultada informa que o pacote ali listado não está suportado em chipsets móveis |
+
+Esses candidatos ainda não foram baixados, instalados ou medidos no Poco F6. A seleção depende de licença, benchmark e compatibilidade.
 
 ## 5. Regra para datasets
 
