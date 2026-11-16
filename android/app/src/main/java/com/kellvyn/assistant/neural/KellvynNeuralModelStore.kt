@@ -16,7 +16,7 @@ internal class KellvynNeuralModelStore(
     private val lock = Any()
 
     fun save(result: KellvynTrainingResult) = synchronized(lock) {
-        val root = prepareRoot()
+        val root = requireNotNull(prepareRoot())
         val target = checkedChild(root, MODEL_FILE)
         val temporary = checkedChild(root, TEMP_FILE)
         val backup = checkedChild(root, BACKUP_FILE)
