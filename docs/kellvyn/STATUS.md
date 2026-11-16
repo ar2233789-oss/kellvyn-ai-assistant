@@ -35,7 +35,7 @@ A pesquisa foi transformada em módulos próprios. Não foram copiados código p
 - chave composta de banco por escopo e ID;
 - inferência e conteúdo externo não entram automaticamente na memória duradoura;
 - credenciais são recusadas; dados pessoais sensíveis exigem aprovação específica;
-- backup e transferência excluem o banco cuja chave é vinculada ao aparelho;
+- backup automático e transferência D2D do app foram desativados para manter dados, históricos, tokens criptografados e memória locais; migração futura será manual e criptografada;
 - o agente consegue receber memórias explicitamente aprovadas como contexto não confiável e restrito ao projeto.
 
 ### Contexto e busca em projetos
