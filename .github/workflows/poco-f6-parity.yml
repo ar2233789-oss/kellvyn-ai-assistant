@@ -562,10 +562,13 @@ jobs:
           dump_current_ui() {
             rm -f out/current-ui.xml
             echo "[LAB] dumping current Android accessibility tree"
-            timeout 30s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
-              echo "[LAB] timed out while dumping Android UI tree"; return 1;
+            timeout 45s adb shell uiautomator dump --compressed /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
+              echo "[LAB] compressed UI dump timed out; retrying uncompressed tree"
+              timeout 45s adb shell uiautomator dump /sdcard/kellvyn-lab-ui.xml >/dev/null 2>&1 || {
+                echo "[LAB] timed out while dumping Android UI tree"; return 1;
+              }
             }
-            timeout 20s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
+            timeout 25s adb pull /sdcard/kellvyn-lab-ui.xml out/current-ui.xml >/dev/null 2>&1 || {
               echo "[LAB] timed out while pulling Android UI tree"; return 1;
             }
             test -s out/current-ui.xml
