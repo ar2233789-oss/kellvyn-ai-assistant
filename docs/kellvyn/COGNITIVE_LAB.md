@@ -68,7 +68,9 @@ A interface neural permanece desacoplada: o modelo pode propor planos e chamadas
 Código: \`KellvynTaskPlanner.kt\`.
 
 O módulo implementa:
-- planos com objetivo, restrições, etapas, dependências, ferramentas, risco e critérios de sucesso;
+- planos com objetivo, restrições, etapas, dependências, ferramentas, risco, pré-condições e critérios de sucesso;
+- conferência de risco declarado contra o catálogo confiável de ferramentas, recusando ferramentas ausentes ou risco subestimado;
+- prova separada das pré-condições antes de iniciar uma etapa;
 - validação de IDs, limites, dependências inexistentes, ciclos e metadados;
 - estados explícitos: aguardando, pronto, aguardando aprovação, executando, concluído, falhou, bloqueado e cancelado;
 - aprovação obrigatória para tarefas não somente de leitura;
