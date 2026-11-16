@@ -307,3 +307,18 @@ Atualizar este arquivo, STATUS.md e o relatório comparativo após cada novo mar
 4. Fazer o modelo neural próprio emitir decisões Plan, Delegate e CallTool somente após a interface de inferência ser validada.
 5. Criar ferramentas autorizadas de build e teste no laboratório, incluindo device install, screenshots, acessibilidade e Logcat.
 6. Não afirmar subagentes paralelos nem funcionamento no chat até que sejam implementados e testados.
+
+## 11. Executor incremental do plano — 16/11/2026
+
+`KellvynAgent.executeReadySteps()` foi adicionado para percorrer etapas READY de um plano persistido:
+- recupera checkpoint mais recente;
+- seleciona a próxima etapa pronta em ordem;
+- exige exatamente uma ferramenta por etapa e verificador independente por ID;
+- usa argumentos fornecidos por etapa e valida o schema da ferramenta;
+- chama `executePlannedStep`, que persiste RUNNING antes da ação e finaliza após verificação;
+- para quando nenhuma etapa READY existe (por exemplo, AWAITING_APPROVAL), falha ou limite de etapas é atingido;
+- a nova chamada após a aprovação continua do estado persistido.
+
+Teste novo em `KellvynAgentPlanTest.kt` cobre leitura → espera de aprovação → aprovação → gravação. Teste apenas escrito, ainda sem Gradle/CI confirmado.
+
+**Estado real permanece:** backend neural ausente, chat principal não conectado a `createAgent`, sem build APK e sem teste Poco F6. O agente e suas decisões estruturadas são fundação de código, não ainda uma capacidade operacional no app.
