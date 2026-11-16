@@ -16,6 +16,7 @@ class KellvynAgentDelegationTest {
                 context = "Trecho selecionado: KellvynAgentLimits.",
                 allowedTools = setOf("read_source", "delete_source")
             ),
+            KellvynModelDecision.CallTool("read_source", mapOf("path" to "src/KellvynAgentLimits.kt")),
             KellvynModelDecision.Final("A função fica em KellvynAgentLimits."),
             KellvynModelDecision.Final("Revisei o resultado do especialista.")
         )
@@ -41,19 +42,24 @@ class KellvynAgentDelegationTest {
         val result = agent.run("Analise um segredo do contexto principal sem expô-lo.")
 
         assertTrue(result is KellvynAgentResult.Completed)
-        assertEquals(3, engine.histories.size)
+        assertEquals(4, engine.histories.size)
         assertEquals(setOf("read_source", "delete_source"), engine.toolsSeen[0].map { it.name }.toSet())
         assertEquals(listOf("read_source"), engine.toolsSeen[1].map { it.name })
+        assertEquals(listOf("read_source"), engine.toolsSeen[2].map { it.name })
         assertTrue(engine.histories[1].first().content.contains("especialista interno"))
         assertTrue(engine.histories[1].first().content.contains("Explorador de código"))
         assertFalse(engine.histories[1].any { it.content.contains("segredo do contexto principal") })
         assertTrue(engine.histories[2].any {
+            it.source == "tool:read_source" &&
+                it.trust == KellvynTrustLevel.UNTRUSTED
+        })
+        assertTrue(engine.histories[3].any {
             it.source == "specialist:code_explorer" &&
                 it.trust == KellvynTrustLevel.UNTRUSTED &&
                 it.content.contains("A função fica")
         })
         assertEquals(0, deleteTool.executions)
-        assertEquals(0, readTool.executions)
+        assertEquals(1, readTool.executions)
     }
 
     @Test
