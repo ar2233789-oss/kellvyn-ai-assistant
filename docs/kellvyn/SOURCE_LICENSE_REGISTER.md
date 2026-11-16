@@ -1,7 +1,7 @@
 # Kellvyn — registro de origem e licenças
 
 **Data da consulta:** 16/11/2026  
-**Objetivo:** impedir cópia indevida, atribuição falsa e surpresas na publicação comercial.
+**Objetivo:** manter a origem correta dos componentes e evitar plágio, atribuição falsa ou uso incompatível com as licenças, mesmo em uma instalação privada.
 
 > Este registro é uma triagem técnica, não um parecer jurídico. Antes de distribuir qualquer componente, conferir a licença do commit exato, arquivos NOTICE, dependências transitivas, marcas, modelo/pesos e datasets separadamente.
 
@@ -47,7 +47,7 @@ Antes de qualquer cópia:
 3. verificar cabeçalhos de copyright do próprio arquivo;
 4. verificar se ele tem licença diferente da raiz;
 5. verificar licenças das dependências que ele importa;
-6. confirmar compatibilidade com distribuição gratuita e comercial na Play Store;
+6. confirmar que o uso privado e as modificações previstas são permitidos pelos termos;
 7. copiar somente o mínimo necessário;
 8. manter avisos legais;
 9. anotar mudanças realizadas;
@@ -77,21 +77,18 @@ Um modelo aberto pode ter pesos disponíveis sem ter todos os dados e processos 
 
 Cada dataset precisa de registro próprio: autor/fonte, URL, licença/termos, uso comercial, atribuição, data de captura, processamento e possibilidade de redistribuição. Excluir dados pessoais e segredos. Não usar conversas do usuário para treinamento sem consentimento específico e informado.
 
-## 6. Artefatos necessários para Google Play
+## 6. Instalação privada
 
-Antes de publicar:
-- inventário/SBOM das bibliotecas incluídas;
-- diretório `THIRD_PARTY_NOTICES` com licenças e avisos;
-- registro de modelo e pesos;
-- registro de datasets e direitos de uso;
-- política de privacidade;
-- Data Safety verdadeira, incluindo coleta e compartilhamento por SDKs;
-- declaração de permissões e disclosure;
-- recursos gráficos originais ou licenciados;
-- documentação de marca e nome do app.
+A aplicação será de uso exclusivo do proprietário e não será preparada para publicação pública. Antes de instalar versões pessoais:
+- manter cópia das licenças dos componentes efetivamente incluídos;
+- registrar versões e hashes;
+- verificar os termos específicos dos pesos e datasets usados;
+- documentar os dados acessados e as conexões externas;
+- proteger tokens e dados pessoais;
+- permitir ao proprietário apagar memórias, projetos e credenciais.
 
-A política do Google Play proíbe conteúdo que viole direitos autorais, marcas, patentes ou outros direitos; exige trabalho original ou licenças/permissões necessárias. O app e o listing precisam estar de acordo.
-
+A privacidade do produto não transforma código de terceiros em código próprio. Os avisos e as condições das licenças aplicáveis continuarão sendo respeitados.
+ 
 ## 7. Fontes oficiais
 
 - Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
