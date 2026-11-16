@@ -8,6 +8,35 @@ import java.io.ByteArrayOutputStream
 
 class KellvynAttentionLanguageModelTest {
     @Test
+    fun tokenizerAndNeuralModelCanTrainTogetherFromOwnVocabulary() {
+        val corpus = listOf(
+            "Kellvyn aprende português do zero.",
+            "O modelo aprende a prever o próximo token."
+        )
+        val tokenizer = KellvynBpeTokenizer.train(corpus, maxMerges = 48)
+        val model = KellvynAttentionLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 8,
+            embeddingSize = 8,
+            seed = 20261116L
+        )
+        val report = model.trainText(
+            text = corpus.joinToString(" "),
+            tokenizer = tokenizer,
+            epochs = 2
+        )
+
+        assertTrue(report.initialLoss.isFinite())
+        assertTrue(report.finalLoss.isFinite())
+        assertTrue(report.totalSteps > 0L)
+        assertEquals(tokenizer.vocabularySize, model.config.vocabularySize)
+        assertEquals(
+            corpus.joinToString(" "),
+            tokenizer.decode(tokenizer.encode(corpus.joinToString(" ")))
+        )
+    }
+
+    @Test
     fun analyticGradientsMatchFiniteDifferences() {
         val model = KellvynAttentionLanguageModel.create(
             KellvynAttentionLanguageModel.Config(
