@@ -6,7 +6,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:label="Kellvyn IA"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:fullBackupContent="@xml/kellvyn_backup_rules"
         android:dataExtractionRules="@xml/kellvyn_data_extraction_rules"
         android:hardwareAccelerated="true"
