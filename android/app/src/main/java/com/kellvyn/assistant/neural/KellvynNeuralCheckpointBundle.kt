@@ -22,11 +22,11 @@ internal object KellvynNeuralCheckpointBundle {
     private const val MAGIC = 0x4B56424E // "KVBN"
     private const val VERSION = 1
     private const val CHECKSUM_BYTES = 32
-    private const val MAX_BUNDLE_BYTES = 65 * 1024 * 1024
+    private const val MAX_BUNDLE_BYTES = 70 * 1024 * 1024
     private const val MAX_MODEL_BYTES = 64 * 1024 * 1024
     private const val MAX_TOKENIZER_BYTES = 64 * 1024
     private const val MAX_MANIFEST_BYTES = 4 * 1024 * 1024
-    private const val MAX_ENTRIES = 10_000
+    private const val MAX_ENTRIES = 1_000
     private const val MAX_ID_BYTES = 80
     private const val MAX_LICENSE_BYTES = 120
     private const val MAX_REFERENCE_BYTES = 500
