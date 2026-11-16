@@ -202,6 +202,8 @@ Commits de referência: `6cf8f68e772089224a8e2606c954c03470032b76`, `48936a1f59b
 
 Um smoke test Kotlin isolado da lógica de seleção foi compilado/executado com sucesso. **Não equivale a compilar o projeto Android.** Não há confirmação de CI/Gradle para esses novos arquivos e não houve teste no Poco F6. O runtime neural continua sem backend conversacional ligado e a conversa principal ainda não utiliza o agente.
 
+A última correção documental desta etapa também alinhou `REFERENCE_STUDY.md` à decisão de pesos próprios: `0c7ce817ede6d1ff3f42fc40de39b98580b376dd`.
+
 ### Próxima sequência
 
 1. Confirmar execução do workflow da branch; se falhar, obter logs e corrigir.
