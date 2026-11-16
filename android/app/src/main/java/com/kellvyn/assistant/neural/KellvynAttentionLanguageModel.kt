@@ -118,6 +118,20 @@ internal class KellvynAttentionLanguageModel private constructor(
         private const val ADAM_EPSILON = 1.0e-8
         private const val DEFAULT_WEIGHT_DECAY = 0.01f
 
+        fun createForTokenizer(
+            tokenizer: KellvynBpeTokenizer,
+            contextLength: Int = 32,
+            embeddingSize: Int = 32,
+            seed: Long = 20261116L
+        ): KellvynAttentionLanguageModel = create(
+            Config(
+                vocabularySize = tokenizer.vocabularySize,
+                contextLength = contextLength,
+                embeddingSize = embeddingSize,
+                seed = seed
+            )
+        )
+
         fun create(config: Config = Config()): KellvynAttentionLanguageModel {
             val random = Random(config.seed)
             val d = config.embeddingSize
