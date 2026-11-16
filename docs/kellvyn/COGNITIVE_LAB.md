@@ -1,7 +1,7 @@
 # Laboratório cognitivo da Kellvyn
 
 **Identificador:** KCL-001  
-**Branch:** \`lab/kellvyn-intelligence-core-20261116\`  
+**Branch:** `lab/kellvyn-intelligence-core-20261116`  
 **Escopo:** pesquisa, prototipagem, comparação e validação da inteligência. Não altera a interface protegida nem a branch de produção.
 
 ## 1. Objetivo
@@ -33,7 +33,7 @@ Estas referências são guias de capacidade, não autorização para copiar impl
 
 ## 3. Arquitetura original em construção
 
-\`\`\`text
+```text
 Pedido do proprietário
         |
         v
@@ -59,13 +59,13 @@ Verificador independente
         |
         v
 Memória de evidências + resposta
-\`\`\`
+```
 
 A interface neural permanece desacoplada: o modelo pode propor planos e chamadas, mas não pode ignorar validação, permissões ou critérios de conclusão.
 
 ## 4. Primeiro módulo autoral: planejador estruturado
 
-Código: \`KellvynTaskPlanner.kt\`.
+Código: `KellvynTaskPlanner.kt`.
 
 O módulo implementa:
 - planos com objetivo, restrições, etapas, dependências, ferramentas, risco, pré-condições e critérios de sucesso;
@@ -158,9 +158,9 @@ Na Kellvyn, isso foi traduzido para planejamento estruturado, aprovação de ope
 ## 7.1. Contexto e recuperação KCP-001
 
 Código:
-- \`KellvynContextAssembler.kt\`;
-- \`KellvynProjectContextRetriever.kt\`;
-- leitura limitada em \`ProjectWorkspaceStore.readFileExcerpt()\`.
+- `KellvynContextAssembler.kt`;
+- `KellvynProjectContextRetriever.kt`;
+- leitura limitada em `ProjectWorkspaceStore.readFileExcerpt()`.
 
 A pesquisa do projeto ativo é opcional e só ocorre quando um identificador de projeto é explicitamente passado ao agente. Não percorre todos os projetos do aparelho.
 
