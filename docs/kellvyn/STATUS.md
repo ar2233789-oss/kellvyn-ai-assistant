@@ -1,66 +1,55 @@
 # Kellvyn — registro do laboratório
 
 **Data:** 16/11/2026  
-**Branch:** `lab/kellvyn-intelligence-core-20261116`  
-**Repositório:** `ar2233789-oss/kellvyn-ai-assistant`
+**Branch:** \`lab/kellvyn-intelligence-core-20261116\`  
+**Repositório:** \`ar2233789-oss/kellvyn-ai-assistant\`
 
-## Decisão irrevogável sobre o cérebro
+## Decisão atual sobre o cérebro
 
-O cérebro será criado do zero neste projeto:
-- arquitetura e código neural próprios;
-- tokenizer desenvolvido no projeto;
-- pesos inicializados aleatoriamente;
-- treinamento e checkpoints próprios;
-- nenhuma base pré-treinada, pesos externos, fine-tuning, LoRA, adaptador ou fallback de outra IA;
-- projetos públicos podem ser estudados como referências conceituais, sem copiar código, pesos, tokenizers ou datasets.
+Kellvyn será um sistema próprio e pode aproveitar modelos de pesos abertos, bibliotecas e código de terceiros quando isso for permitido e melhorar o resultado. Cada origem será identificada e creditada. Não haverá cópia disfarçada nem atribuição falsa de pesos ou código. Modelos proprietários serão usados como referência pelas capacidades publicamente documentadas; APIs externas não serão dependência obrigatória do uso offline.
 
-O uso privado não torna plágio aceitável. Toda origem dos dados e toda etapa de treino serão documentadas.
+## Pesquisa recente
 
-## Trabalho executado nesta branch
+Foi criada a matriz \`CAPABILITY_RESEARCH_2026-11-16.md\`, reunindo:
+- Claude Code: instruções, rules, skills, subagentes, hooks e gestão de contexto;
+- ChatGPT/OpenAI Agents: function calling, ferramentas Web/arquivos/código/computer use/MCP;
+- Replit: Plan/Build, planejamento, testes visuais, autocorreção e checkpoints;
+- Cursor: agentes coordenadores, delegação, busca no projeto, terminal, revisão e debugging;
+- Android Studio Gemini: plano multi-etapas, alterações em vários arquivos, build, dispositivo, screenshots, Logcat e ADB;
+- OpenHands: sessões, eventos, workspaces e ferramentas.
 
-- Criada a fronteira temporária `KellvynRuntime`, sem provedor ou peso externo.
-- Criado `KellvynAgent` como controlador do ciclo de ferramentas; não é o cérebro neural.
-- Removida a implementação anterior de cérebro baseada em Gemma da branch de laboratório.
-- Removida a dependência LiteRT-LM do Gradle desta branch.
-- Criado o primeiro protótipo neural autoral `KellvynByteBrain.kt`: tokenizer UTF-8 por bytes, inicialização aleatória, embeddings treináveis, camada oculta, softmax, loss de próximo byte, retropropagação, atualização de pesos e checkpoint próprio.
-- Criados testes de tokenizer, redução de loss em sequência sintética, alteração de pesos e persistência exata de checkpoint.
-- Corrigido um teste preexistente do agente que tentava chamar `toList()` no resultado de `repeat()`.
-- Criado workflow isolado de testes neurais, sem gerar APK nem publicar release.
-- Documentada a especificação KBN-001.
+Modelos em investigação:
+- Gemma 4 E2B mobile QAT: primeira prioridade de teste devido à variante móvel e às capacidades documentadas de visão, áudio e tool calling;
+- Qwen3.5-2B: comparação secundária; a página Qualcomm AI Hub consultada informa que o pacote ali listado não é suportado atualmente em chipsets móveis.
 
-## Validação atual
+Nenhum modelo foi selecionado como vencedor.
 
-- Uma execução anterior de `testDebugUnitTest` concluiu com sucesso, cobrindo o protótipo inicial e os testes do agente.
-- Foi adicionada agora uma verificação numérica da retropropagação por diferenças finitas. A execução dessa nova verificação está em andamento.
-- O teste inicial só mede o aprendizado sobre sequência sintética repetitiva. Não demonstra compreensão geral, diálogo ou raciocínio.
-- Nenhum APK desta branch foi validado.
-- Nenhum teste físico no Poco F6 foi executado nesta etapa.
+## Código existente
 
-## Bloqueios conhecidos
+- \`KellvynRuntime.kt\`: fronteira temporária; não contém inferência.
+- \`KellvynAgent.kt\`: ciclo experimental de ferramentas; não é o cérebro neural.
+- \`KellvynByteBrain.kt\`: KBN-001, pequeno preditor de próximo byte com pesos inicializados aleatoriamente, gradientes e checkpoint próprios. É pesquisa experimental, não assistente conversacional.
+- Testes iniciais do KBN-001 e do agente passaram em uma execução CI anterior.
+- Verificação numérica dos gradientes por diferenças finitas foi adicionada depois e ainda depende de resultado CI confirmado.
 
-- `MainActivity.java` diverge do hash fixado em `.github/interface-lock.sha`. O arquivo teve alterações apenas na ligação de runtime e no texto de estado, mas o mecanismo de proteção continua exigindo correspondência exata. O bloqueio não será enfraquecido nem o hash será alterado sem autorização explícita.
-- A integração definitiva do cérebro com o chat ainda não foi feita.
-- O agente não possui backend neural e não deve ser apresentado como pronto.
-- O protótipo KBN-001 é uma pequena rede preditora de bytes; não é ainda uma arquitetura conversacional completa.
+## Limitações e bloqueios
 
-## Próximas etapas técnicas
+- Não há modelo final conectado à conversa.
+- Não há teste físico no Poco F6.
+- Não há benchmark comparativo no telefone.
+- Não há memória persistente cognitiva integrada ao agente.
+- Não há ferramentas de escrita/terminal/build completas ligadas ao agente.
+- \`MainActivity.java\` diverge do hash protegido em \`.github/interface-lock.sha\`. A proteção não será enfraquecida e o hash não será alterado sem autorização explícita.
+- A branch é experimental; nenhum APK dela está validado para instalação.
 
-1. Aprovar os gradientes analíticos por comparação numérica.
-2. Fortalecer formato de checkpoint, limites de memória e testes com múltiplas seeds.
-3. Construir avaliação separada de treino, validação e teste.
-4. Especificar uma arquitetura sequencial mais capaz, escrita e testada no projeto, sem reproduzir um modelo público.
-5. Desenvolver um pipeline de corpus com origem e autorização verificadas.
-6. Medir o que o Poco F6 consegue treinar e executar; só então definir escala e otimizações.
-7. Integrar o cérebro ao agente e à interface somente após os gates neurais.
+## Próximas etapas
 
-## Não declarar como concluído
+1. Finalizar a verificação matemática do KBN-001.
+2. Construir um benchmark local reprodutível para Gemma 4 E2B mobile QAT e alternativas compatíveis.
+3. Verificar licença, modelo, runtime e suporte real para o Poco F6 antes de incorporar pesos.
+4. Fortalecer o agente Kellvyn com planner estruturado, memória, skills, delegação interna, ferramentas tipadas e verificação independente.
+5. Conectar uma fundação neural aprovada ao agente próprio.
+6. Testar tarefas reais de conversa, código, arquivos, documentos e construção Android.
+7. Só depois validar o pacote completo no Poco F6.
 
-- IA conversacional Kellvyn;
-- raciocínio geral ou programação autônoma;
-- memória inteligente treinada;
-- agente geral com ferramentas;
-- controle do Android;
-- criador universal de APKs;
-- build final ou teste físico no Poco F6.
-
-Cada capacidade depende de implementação e evidência próprias.
+Cada capacidade será declarada como concluída somente com evidência.
