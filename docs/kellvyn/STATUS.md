@@ -89,3 +89,15 @@ A execução `43928133784` passou após corrigir a interpolação do trecho com 
 9. build, teste de instalação e execução real no Poco F6 em etapas independentes.
 
 Cada capacidade só será declarada concluída com código, testes e evidência correspondente.
+
+## Validação funcional do construtor de aplicativos — 16/11/2026
+
+Foi acrescentado ao laboratório um teste instrumentado que fornece um projeto Android Java determinístico ao mesmo fluxo de saída usado pelo construtor: parser, validador estrutural, workspace privado, compilador ECJ, D8, manifesto binário, assinatura com Android Keystore e verificação com ApkVerifier. O teste guarda o APK produzido para a etapa seguinte do workflow instalar no emulador e tocar no botão de incremento, exigindo a mudança observável de `Contagem: 0` para `Contagem: 1`.
+
+O workflow `.github/workflows/poco-f6-parity.yml` agora também é disparado por push na branch de laboratório. A configuração de build adiciona AndroidJUnitRunner e as dependências instrumentadas de teste. A estratégia, as limitações e os comandos estão em `docs/kellvyn/APP_BUILDER_QUALITY_GATE.md`.
+
+**Execução observada nesta atualização:** o workflow `43938924136` começou para o commit `cdb805ac427aaa3b4b3c169918169909d6bee73c`. No job web, os testes, o build web, a captura da interface e os oito fluxos de interação concluíram com sucesso e sem erros JavaScript. O upload dos artefatos falhou porque a cota de armazenamento de artefatos do GitHub Actions foi atingida. O job Android estava em execução durante a última inspeção; compilação/instalação/interação do APK de demonstração ainda não estavam confirmadas.
+
+**Limite essencial:** o teste usa uma saída de código fixa, não uma resposta produzida por inferência neural. Ele verifica o mecanismo real de compilação e execução, mas não mede se o cérebro já consegue projetar e gerar apps complexos. O backend neural ainda não está ligado ao chat principal. O teste de emulador também não substitui validação física no Poco F6.
+
+A branch principal, a interface aprovada e `.github/interface-lock.sha` não foram alteradas.
