@@ -82,9 +82,9 @@ public class MainActivity extends Activity {
     private ObjectAnimator thinkingAnimator;
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
-    private LocalBrain brain;
+    private KellvynRuntime brain;
     private boolean waitingForReply = false;
-    private String engineLabel = "MOTOR LOCAL PENDENTE";
+    private String engineLabel = "KELLVYN EM CONSTRUÇÃO";
     private int accent = EMERALD;
 
     @Override public void onCreate(Bundle state) {
@@ -94,7 +94,7 @@ public class MainActivity extends Activity {
         getWindow().setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE);
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         activeHistoryId = prefs.getString("active_history_id", "current");
-        brain = new LocalBrain(getApplicationContext());
+        brain = new KellvynRuntime(getApplicationContext());
         textToSpeech = new TextToSpeech(this, result -> {
             if (result == TextToSpeech.SUCCESS && textToSpeech != null) {
                 textToSpeech.setLanguage(new Locale("pt", "BR"));
@@ -548,13 +548,11 @@ public class MainActivity extends Activity {
             prompt = promptWithProjectGuidelines(userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.");
         }
 
-        if (!brain.hasModel()) {
+        if (!brain.isReady()) {
             new AlertDialog.Builder(this)
-                    .setTitle("Preparar o cérebro local")
-                    .setMessage("Para ativar respostas reais no aparelho, é necessário baixar o modelo Gemma local (aproximadamente 2,01 GB). O download usa a conexão atual do celular e pode ser retomado se for interrompido. Depois de instalado, as respostas são processadas no aparelho, sem enviar suas mensagens a um serviço de IA na nuvem. Libere pelo menos 2,2 GB de espaço livre. Deseja baixar o modelo e enviar esta mensagem?")
-                    .setNegativeButton("Agora não", null)
-                    .setPositiveButton("Baixar e enviar", (dialog, which) ->
-                            startBrainRequest(displayText, prompt, fileUri, fileName))
+                    .setTitle("Cérebro Kellvyn em construção")
+                    .setMessage("O núcleo neural próprio da Kellvyn ainda está em desenvolvimento. Nenhum modelo de outra IA será baixado como substituto. Esta mensagem não foi enviada.")
+                    .setPositiveButton("Entendi", null)
                     .show();
             return;
         }
@@ -577,12 +575,12 @@ public class MainActivity extends Activity {
         selectedAttachmentUri = null;
         saveTranscript();
 
-        activeReplyBubble = addMessageView(false, "Preparando o cérebro local…");
+        activeReplyBubble = addMessageView(false, "Preparando o núcleo neural da Kellvyn…");
         showThinkingIndicator();
-        engineLabel = "PREPARANDO MOTOR";
+        engineLabel = "KELLVYN EM CONSTRUÇÃO";
         updateStatus();
 
-        brain.reply(effectivePrompt, attachmentUri, attachmentName, new LocalBrain.Listener() {
+        brain.reply(effectivePrompt, attachmentUri, attachmentName, new KellvynRuntime.Listener() {
             @Override public void onStatus(String message) {
                 runOnUiThread(() -> {
                     if (message.startsWith("BAIXANDO MODELO LOCAL")) {
@@ -964,7 +962,7 @@ public class MainActivity extends Activity {
     private String botStatusText(String platform, boolean enabled, boolean tokenPresent) {
         String runtime = prefs.getString("bot_status_" + platform, "");
         if (!tokenPresent) return "Sem token. Configure pelo chat principal.";
-        if (!brain.hasModel()) return "O cérebro local precisa ser preparado no chat principal.";
+        if (!brain.isReady()) return "O núcleo neural próprio da Kellvyn ainda está em construção.";
         if (!enabled) return "Desativado";
         if (runtime == null || runtime.isEmpty() || runtime.equals("Desativado")) return "Iniciando…";
         return runtime;
@@ -1020,7 +1018,7 @@ public class MainActivity extends Activity {
                 toggle = new Switch(MainActivity.this);
                 boolean enabled = supportsRuntime && prefs.getBoolean("bot_enabled_" + platform, false);
                 toggle.setChecked(enabled);
-                toggle.setEnabled(supportsRuntime && tokenPresent && brain.hasModel());
+                toggle.setEnabled(supportsRuntime && tokenPresent && brain.isReady());
                 row.addView(toggle, new LinearLayout.LayoutParams(-2, -2));
                 botsContainer.addView(row, new LinearLayout.LayoutParams(-1, -2));
 
@@ -1034,9 +1032,9 @@ public class MainActivity extends Activity {
                     toggle.setEnabled(false);
                 }
                 toggle.setOnCheckedChangeListener((button, checked) -> {
-                    if (checked && !brain.hasModel()) {
+                    if (checked && !brain.isReady()) {
                         toggle.setChecked(false);
-                        toast("Abra o chat principal, autorize e conclua o download do cérebro local antes de ativar bots.");
+                        toast("O núcleo neural próprio ainda não foi conectado; os bots permanecem desativados até a validação do agente.");
                         return;
                     }
                     if (checked && !BotTokenStore.hasToken(MainActivity.this, platform)) {
@@ -1050,7 +1048,7 @@ public class MainActivity extends Activity {
                     toggle.setEnabled(false);
                     button.postDelayed(() -> {
                         boolean stillConfigured = supportsRuntime && BotTokenStore.hasToken(MainActivity.this, platform);
-                        toggle.setEnabled(stillConfigured && brain.hasModel());
+                        toggle.setEnabled(stillConfigured && brain.isReady());
                         refreshBotStatus(status, platform, prefs.getBoolean("bot_enabled_" + platform, false), stillConfigured);
                     }, 1200L);
                 });
