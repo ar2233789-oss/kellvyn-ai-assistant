@@ -2,6 +2,12 @@ package com.kellvyn.assistant
 
 import android.content.Context
 import android.net.Uri
+import com.kellvyn.assistant.neural.KellvynNeuralModelStore
+import com.kellvyn.assistant.neural.KellvynTrainingConfig
+import com.kellvyn.assistant.neural.KellvynTrainingDocument
+import com.kellvyn.assistant.neural.KellvynTrainingManifest
+import com.kellvyn.assistant.neural.KellvynTrainingPipeline
+import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -27,6 +33,9 @@ internal class KellvynRuntime(context: Context) {
     private val localMemory = KellvynMemory(memoryRepository)
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
+    private val neuralModelStore = KellvynNeuralModelStore(
+        File(appContext.filesDir, "neural")
+    )
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
@@ -75,6 +84,37 @@ internal class KellvynRuntime(context: Context) {
         taskId: String
     ): List<KellvynTaskCheckpointMetadata> = withContext(Dispatchers.IO) {
         taskCheckpointStore.history(taskId)
+    }
+
+    /**
+     * Trains the original Kellvyn model only from explicit local samples and saves the
+     * tokenizer, weights, optimizer state and provenance manifest in app-private storage.
+     *
+     * This does not enable chat inference; evaluation and runtime integration remain separate gates.
+     */
+    suspend fun trainOwnNeuralModel(
+        documents: List<KellvynTrainingDocument>,
+        config: KellvynTrainingConfig = KellvynTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTrainingManifest {
+        val trained = withContext(Dispatchers.Default) {
+            KellvynTrainingPipeline.train(documents, config, createdAtMillis)
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.save(trained)
+        }
+        return trained.manifest
+    }
+
+    /** Loads the last integrity-checked local tokenizer/model bundle, if one exists. */
+    suspend fun loadOwnNeuralModel(): KellvynRestoredNeuralBundle? =
+        withContext(Dispatchers.IO) {
+            neuralModelStore.load()
+        }
+
+    /** Deletes the locally trained model and all recovery files. */
+    suspend fun deleteOwnNeuralModel() = withContext(Dispatchers.IO) {
+        neuralModelStore.delete()
     }
 
     /**
