@@ -4,7 +4,7 @@
 
 ## O que a esteira prova
 
-O gate usa um aplicativo Java Android de demonstração, gerado como dados de saída no mesmo formato consumido pelo chat principal. O teste instrumentado passa por:
+O gate usa um aplicativo Java Android de demonstração, fornecido como fixture determinístico no formato esperado pelo parser. O teste chama diretamente o parser e o construtor local; não passa pelo fluxo do chat principal. O teste instrumentado passa por:
 
 1. `GeneratedProjectOutputParser`: extração dos arquivos e validação de caminhos;
 2. `GeneratedAndroidProjectValidator`: verificação do perfil estrutural suportado;
@@ -19,6 +19,7 @@ O artefato de teste inclui o APK gerado, capturas, árvore de acessibilidade e d
 ## O que ainda não prova
 
 - A saída do modelo é um fixture determinístico; isso valida o parser, builder e compilador, mas não mede a qualidade de geração de um cérebro neural.
+- O fluxo do chat ainda não encaminha a resposta para `LocalProjectBuilder.compileGeneratedProject()`. `MainActivity` chama `KellvynRuntime.reply()`; o runtime atual responde que a inferência está indisponível. O callback legado de salvamento apenas guarda arquivos no Editor e informa que nenhum APK foi compilado.
 - O backend de inferência conversacional ainda não está conectado ao runtime principal. Portanto, não se pode afirmar que a IA já gera aplicativos corretos de forma autônoma.
 - O teste roda num emulador Android 15 com resolução/densidade semelhantes às usadas pelo laboratório; não substitui teste físico no Poco F6/HyperOS.
 - Um único app mínimo prova o caminho de ponta a ponta, não compatibilidade universal nem qualidade de aplicações complexas.
