@@ -134,16 +134,26 @@ Não confundir:
 
 ## 7. Próximas camadas em ordem
 
-1. Planejador estruturado KCL-001 e testes unitários.
-2. Verificador de evidências independente do modelo.
-3. Memória local com proveniência, confiança, escopo, consentimento e exclusão.
+1. Planejador estruturado KCL-001 e testes unitários — implementado e testado.
+2. Verificador de evidências independente do modelo — contrato e gates iniciais implementados no planejador; verificador real por executor ainda pendente.
+3. Memória local KLM-001 — domínio, política de consentimento, recuperação lexical, armazenamento AES-GCM/Android Keystore e exclusão de backup implementados; integração real e teste físico ainda pendentes.
 4. Indexador de projetos e busca contextual.
 5. Registro tipado de ferramentas com esquemas reais e permissões.
 6. Workspace isolado, diffs e rollback.
 7. Avaliação de tarefas multi-etapas e testes de regressão.
 8. Auditoria de dependências e SBOM.
-9. Benchmark de candidatos neurais e runtimes somente após fechar os requisitos de qualidade, licença e execução local.
+9. Benchmark de arquiteturas neurais e runtimes, sem selecionar base externa como cérebro da Kellvyn nesta etapa.
 10. Integração Android e medição no Poco F6.
+
+### Aprendizados adicionais do Replit
+
+A documentação pública do Replit acrescenta quatro padrões úteis:
+- Plan Mode discute e decompõe o trabalho sem alterar o app; a construção ocorre depois da aprovação.
+- App Testing executa testes autônomos e permite assumir o controle quando uma etapa exige autenticação humana; mantém replay da sessão para inspeção.
+- Checkpoints podem guardar arquivos, configuração, contexto de conversa e memória do Agent; rollback recupera um estado anterior.
+- A documentação para criar agentes sugere persistência de estado entre execuções por banco de dados e habilidades versionadas em arquivos de instrução.
+
+Na Kellvyn, isso foi traduzido para planejamento estruturado, aprovação de operações, evidência de teste, memória local criptografada e recuperação por checkpoints/estado Git. Não foram copiados código, prompts privados ou mecanismo interno do Replit.
 
 ## 8. Estado de execução
 
@@ -161,6 +171,9 @@ Não confundir:
 - Claude Code — instruções, skills, hooks e subagentes: https://claude.com/resources/articles/steering-claude-code-skills-hooks-rules-subagents-and-more
 - Replit Agent: https://docs.replit.com/pt/references/agent/overview
 - Replit Plan Mode: https://docs.replit.com/pt/references/agent/plan-mode
+- Replit App Testing: https://docs.replit.com/pt/references/agent/app-testing
+- Replit Checkpoints and Rollbacks: https://docs.replit.com/pt/references/version-control/checkpoints-and-rollbacks
+- Replit Build an Agent: https://docs.replit.com/pt/build/build-an-agent
 - OpenAI Agents SDK: https://developers.openai.com/api/docs/guides/agents/sdk
 - OpenHands Software Agent SDK: https://github.com/OpenHands/software-agent-sdk
 - Aider: https://github.com/Aider-AI/aider
@@ -169,6 +182,9 @@ Não confundir:
 - OpenCode: https://github.com/anomalyco/opencode
 - Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
 - Android Studio build/test/device agent tools: https://developer.android.com/studio/run
+- Android SQLite: https://developer.android.com/training/data-storage/sqlite
+- Android cryptography / Keystore: https://developer.android.com/privacy-and-security/cryptography
+- Android Auto Backup: https://developer.android.com/identity/data/autobackup
 - Android DataStore: https://developer.android.com/topic/libraries/architecture/datastore
 - Android Keystore: https://developer.android.com/privacy-and-security/keystore
 - REUSE compliance: https://reuse.software/tutorial/
