@@ -61,13 +61,29 @@ class KellvynAgentPlanTest {
             ),
             KellvynToolResult(true, "gravado")
         )
-        val agent = agent(engine, repository, listOf(writeTool))
+        val allowApprovedWrites = object : KellvynToolAuthorization {
+            override suspend fun authorize(
+                spec: KellvynToolSpec,
+                arguments: Map<String, String>,
+                task: String
+            ): Boolean = true
+        }
+        val agent = agent(engine, repository, listOf(writeTool), allowApprovedWrites)
 
         val first = agent.run("Grave a alteração.")
 
         assertTrue(first is KellvynAgentResult.Planned)
         val waiting = first as KellvynAgentResult.Planned
         assertEquals(KellvynStepStatus.AWAITING_APPROVAL, waiting.state.statuses["work"])
+        assertEquals(0, writeTool.executions)
+        val premature = agent.executePlannedStep(
+            "agent-plan-001",
+            "work",
+            "write_note",
+            emptyMap(),
+            verifier()
+        )
+        assertTrue(premature is KellvynAgentResult.Failed)
         assertEquals(0, writeTool.executions)
 
         val approved = agent.approveTaskStep("agent-plan-001", "work")
@@ -79,6 +95,47 @@ class KellvynAgentPlanTest {
         )
         assertEquals(2, repository.appendCount)
         assertFalse(repository.latest!!.metadata.sha256 == waiting.checkpoint.sha256)
+
+        val executed = agent.executePlannedStep(
+            "agent-plan-001",
+            "work",
+            "write_note",
+            emptyMap(),
+            verifier()
+        )
+        assertTrue(executed is KellvynAgentResult.Planned)
+        val finalState = (executed as KellvynAgentResult.Planned).state
+        assertEquals(KellvynStepStatus.SUCCEEDED, finalState.statuses["work"])
+        assertEquals(1, (executed as KellvynAgentResult.Planned).steps)
+        assertEquals(1, executed.toolCalls)
+        assertEquals(1, writeTool.executions)
+        assertEquals(4, repository.appendCount)
+    }
+
+    @Test
+    fun toolReportedSuccessWithoutIndependentProofCannotCompleteStep() = runBlocking {
+        val repository = FakeCheckpointRepository()
+        val engine = PlanFakeEngine(KellvynModelDecision.Plan(plan()))
+        val tool = FakePlanTool(
+            KellvynToolSpec("read_note", "Lê uma nota"),
+            KellvynToolResult(true, "A ferramenta informou sucesso.")
+        )
+        val agent = agent(engine, repository, listOf(tool))
+        val planned = agent.run("Leia a nota.") as KellvynAgentResult.Planned
+
+        val result = agent.executePlannedStep(
+            planned.state.plan.id,
+            "work",
+            "read_note",
+            emptyMap(),
+            KellvynIndependentVerifier { _, _ -> null }
+        )
+
+        assertTrue(result is KellvynAgentResult.Planned)
+        val state = (result as KellvynAgentResult.Planned).state
+        assertEquals(KellvynStepStatus.FAILED, state.statuses["work"])
+        assertFalse(state.proofs.containsKey("work"))
+        assertEquals(1, tool.executions)
     }
 
     @Test
@@ -97,13 +154,25 @@ class KellvynAgentPlanTest {
     private fun agent(
         engine: PlanFakeEngine,
         repository: FakeCheckpointRepository,
-        tools: List<KellvynAgentTool>
+        tools: List<KellvynAgentTool>,
+        authorization: KellvynToolAuthorization = ReadOnlyKellvynAuthorization
     ) = KellvynAgent(
         inference = engine,
         tools = KellvynToolRegistry(tools),
+        authorization = authorization,
         taskCheckpoints = repository,
         skillRegistry = KellvynSkillRegistry.empty()
     )
+
+    private fun verifier() = KellvynIndependentVerifier { step, _ ->
+        KellvynStepProof(
+            verifiedBy = "independent-test-verifier",
+            verifiedCriteria = step.successCriteria.toSet(),
+            summary = "Os critérios foram verificados pelo teste.",
+            evidenceSha256 = "a".repeat(64),
+            observedAtMillis = System.currentTimeMillis()
+        )
+    }
 
     private fun plan(
         requiredTool: String = "read_note",
