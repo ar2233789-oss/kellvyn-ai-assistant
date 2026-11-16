@@ -19,6 +19,13 @@ internal enum class KellvynMemorySource {
     EXTERNAL_CONTENT
 }
 
+internal enum class KellvynMemoryPrivacyClass {
+    NON_SENSITIVE,
+    SENSITIVE_PERSONAL,
+    CREDENTIAL,
+    UNKNOWN
+}
+
 internal enum class KellvynMemoryScope {
     GLOBAL,
     PROJECT,
@@ -59,6 +66,8 @@ internal data class KellvynMemoryEntry(
     val confidence: Double,
     val createdAtMillis: Long,
     val expiresAtMillis: Long? = null,
+    val privacyClass: KellvynMemoryPrivacyClass = KellvynMemoryPrivacyClass.UNKNOWN,
+    val sensitiveDataApproved: Boolean = false,
     val userApproved: Boolean
 )
 
@@ -123,6 +132,15 @@ internal object KellvynMemoryPolicy {
             return "Inferências e conteúdo externo não podem virar memória duradoura automaticamente."
         }
         if (!entry.userApproved) return "É necessária aprovação explícita do proprietário."
+        if (entry.privacyClass == KellvynMemoryPrivacyClass.UNKNOWN) {
+            return "A classificação de privacidade não foi definida; o conteúdo não será guardado."
+        }
+        if (entry.privacyClass == KellvynMemoryPrivacyClass.CREDENTIAL) {
+            return "Credenciais nunca podem ser guardadas como memória comum."
+        }
+        if (entry.privacyClass == KellvynMemoryPrivacyClass.SENSITIVE_PERSONAL && !entry.sensitiveDataApproved) {
+            return "Dados pessoais sensíveis exigem autorização específica."
+        }
         val searchable = entry.title + "\n" + entry.content + "\n" + entry.tags.joinToString(" ")
         if (secretAssignments.containsMatchIn(searchable) ||
             bearerSecret.containsMatchIn(searchable) ||
