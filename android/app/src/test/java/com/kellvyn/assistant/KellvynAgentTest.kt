@@ -25,6 +25,7 @@ class KellvynAgentTest {
         assertEquals(1, (result as KellvynAgentResult.Completed).toolCalls)
         assertEquals(2, model.calls)
         assertTrue(model.historySeen.last().any { it.role == KellvynMessageRole.TOOL && it.trust == KellvynTrustLevel.UNTRUSTED })
+        assertTrue(model.historySeen.last().any { it.content.contains("AINDA NÃO FOI VERIFICADO INDEPENDENTEMENTE") })
         assertEquals(1, tool.executions)
     }
 
