@@ -10,6 +10,18 @@ import java.util.Locale
  * into trusted system context only when a task matches the skill. Skill text is authored
  * for Kellvyn and cannot grant tools or override the authorization layer.
  */
+
+private fun tokenizeSkillText(value: String): Set<String> =
+    Regex("[\\p{L}\\p{N}]{2,}")
+        .findAll(normalizeSkillText(value))
+        .map { it.value }
+        .toSet()
+
+private fun normalizeSkillText(value: String): String =
+    Normalizer.normalize(value, Normalizer.Form.NFD)
+        .replace(Regex("\\p{Mn}+"), "")
+        .lowercase(Locale.ROOT)
+
 internal data class KellvynSkillDefinition(
     val id: String,
     val description: String,
@@ -20,7 +32,7 @@ internal data class KellvynSkillDefinition(
         require(id.matches(Regex("[a-z0-9][a-z0-9-]{1,63}")))
         require(description.isNotBlank() && description.length <= 240)
         require(triggerTerms.isNotEmpty() && triggerTerms.size <= 40)
-        require(triggerTerms.all { normalize(it).isNotBlank() && normalize(it).length <= 48 })
+        require(triggerTerms.all { normalizeSkillText(it).isNotBlank() && normalizeSkillText(it).length <= 48 })
         require(instructions.isNotBlank() && instructions.length <= 8_000)
     }
 }
@@ -46,11 +58,11 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
         require(maxChars in 0..MAX_SKILL_CONTEXT_CHARS)
         if (limit == 0 || maxChars == 0 || goal.isBlank()) return emptyList()
 
-        val goalTerms = tokenize(goal)
+        val goalTerms = tokenizeSkillText(goal)
         if (goalTerms.isEmpty()) return emptyList()
 
         val ranked = registered.values.mapNotNull { skill ->
-            val matched = skill.triggerTerms.map(::normalize).toSet().intersect(goalTerms)
+            val matched = skill.triggerTerms.map(::normalizeSkillText).toSet().intersect(goalTerms)
             if (matched.isEmpty()) null else KellvynSkillMatch(skill, matched)
         }.sortedWith(
             compareByDescending<KellvynSkillMatch> { it.matchedTerms.size }
@@ -175,15 +187,5 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
             )
         )
 
-        private fun tokenize(value: String): Set<String> =
-            Regex("[\\p{L}\\p{N}]{2,}")
-                .findAll(normalize(value))
-                .map { it.value }
-                .toSet()
-
-        private fun normalize(value: String): String =
-            Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replace(Regex("\\p{Mn}+"), "")
-                .lowercase(Locale.ROOT)
     }
 }
