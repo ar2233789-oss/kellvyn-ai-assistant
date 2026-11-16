@@ -12,11 +12,21 @@ A arquitetura não consiste em ligar várias IAs como se fossem cérebros indepe
 
 ## Separação que não pode ser confundida
 
-1. **Modelo neural Kellvyn:** será criado do zero, com arquitetura e código próprios, tokenizer próprio, pesos inicializados aleatoriamente e treinamento próprio. Nenhum modelo-base, peso, adaptador ou fallback de terceiros será usado.
+1. **Fundação neural:** um modelo aberto licenciado pode fornecer a capacidade linguística; a versão e a origem dos pesos serão declaradas. A arquitetura cognitiva e a integração em torno dele serão próprias da Kellvyn. KBN-001 permanece como pesquisa neural autoral, não como cérebro final.
 2. **Agente Kellvyn:** controla o ciclo de tarefa: interpretar o objetivo, planejar, escolher uma ação autorizada pelo proprietário, observar seu resultado e decidir o próximo passo.
 3. **Ferramentas:** funções Kotlin delimitadas que consultam ou, futuramente, alteram recursos concretos. O modelo não recebe acesso irrestrito ao Android.
 4. **Memória:** dados persistentes e selecionados sobre usuário, tarefas e projetos. Memória não é treinamento dos pesos do modelo.
 5. **Aprendizado do modelo:** treinamento ou adaptação efetiva dos pesos a partir de dados e avaliação. Só poderá ser anunciado quando o processo, os dados, os pesos resultantes e os testes estiverem documentados.
+
+## Linhagem e autoria
+
+- Pesos-base abertos podem ser aproveitados sob licença compatível.
+- Fine-tuning/adapters podem gerar uma versão derivada com proveniência preservada.
+- Código aberto de runtimes e ferramentas pode ser integrado seletivamente, com avisos e auditoria.
+- Não atribuir à Kellvyn pesos ou código alheios; não copiar sistemas proprietários.
+- API remota proprietária não será requisito para a execução offline.
+
+O agente, o planejador, a memória, as skills, o registro de ferramentas, as políticas, o workspace, o verificador e a integração Android são componentes do sistema Kellvyn e serão desenvolvidos e mantidos neste projeto.
 
 ## Fluxo planejado
 
@@ -76,21 +86,20 @@ As ações com efeitos colaterais só entram numa etapa futura, com confirmaçã
 
 ## Como as referências influenciam a arquitetura
 
-- Android Studio/Gemini: ciclo objetivo → plano → ferramentas → edição/testes → leitura dos resultados → correção; aprovações de operações sensíveis.
-- OpenHands: agente desacoplado da interface, sessões, eventos, workspace e execução em ambiente controlado.
-- Aider: mapa de repositório, seleção consciente de contexto, separação entre investigar e editar, diffs e validação.
-- SWE-agent: ciclos explícitos de observação/ação em tarefas de engenharia e tratamento de histórico.
-- OpenCode: distinção entre planejar e executar, permissões por ferramenta e compactação de contexto.
-- nanochat: decomposição do caminho de treinamento neural, do tokenizer até inferência e avaliação.
-- OLMo-core: engenharia de treinamento, checkpoints, otimização e avaliação reproduzível.
+- Claude Code: instruções em camadas, skills, hooks, subagentes isolados e compactação.
+- ChatGPT/OpenAI Agents: function calling, ferramentas de Web/arquivos/código/computer use e MCP.
+- Replit: Plan/Build, tarefas ordenadas, testes visuais, autocorreção e checkpoints.
+- Cursor: coordenador, delegação, mapa de repositório, terminal, diff e revisão.
+- Android Studio/Gemini: ciclo objetivo → plano → ferramentas → edição/build → dispositivo → screenshots/Logcat → correção.
+- OpenHands/Aider/SWE-agent/OpenCode: sessões, workspace, busca de código, diffs, loops de ação, permissões e avaliação.
 
-Nenhum código desses projetos é copiado nesta primeira implementação. Os detalhes de origem e as páginas de referência ficam em [REFERENCE_STUDY.md](REFERENCE_STUDY.md).
+Esses conceitos orientam o projeto; código aberto pode ser integrado seletivamente quando a licença permitir. A origem e as alterações devem ficar registradas. As referências estão em [REFERENCE_STUDY.md](REFERENCE_STUDY.md) e [CAPABILITY_RESEARCH_2026-11-16.md](CAPABILITY_RESEARCH_2026-11-16.md).
 
 ## Estado real em 2026-11-16
 
 - A implementação anterior `LocalBrain.kt` baseada em Gemma foi removida da branch de laboratório; ela não será recuperada.
 - `MainActivity.java` e `BotRuntimeService.kt` já apontam para a fronteira temporária `KellvynRuntime`; ela ainda não contém inferência neural.
-- O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo externo.
+- O Gradle desta branch não declara LiteRT-LM nem outro runtime de modelo. A integração de um runtime licenciado será avaliada junto com a fundação neural e o benchmark do Poco F6.
 - O workspace privado, o compilador Android restrito, o chat e a interface aprovada existem no código-base original.
 - A alteração de `MainActivity.java` diverge do hash protegido em `.github/interface-lock.sha`, embora o objetivo tenha sido trocar apenas a fronteira de runtime e mensagens de estado. O gate de APK deve permanecer bloqueado até resolver essa divergência sem redesenhar a interface.
 
@@ -102,7 +111,7 @@ Nenhum código desses projetos é copiado nesta primeira implementação. Os det
 4. Projetar memória persistente com consentimento, origem, edição e exclusão.
 5. Adicionar ferramentas de escrita somente após um fluxo explícito de aprovação.
 6. Criar avaliações repetíveis de qualidade e segurança do agente.
-7. Expandir o treinamento integral do zero e medir a qualidade antes de conectar o modelo ao agente.
+7. Benchmark de fundações abertas e integração do modelo aprovado com o agente próprio; manter KBN-001 como rota de treinamento experimental independente.
 
 ## Referência técnica primária
 
