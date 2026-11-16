@@ -1,6 +1,6 @@
 # Kellvyn — estudo das referências
 
-**Princípio:** estudar publicações e projetos para compreender problemas e resultados, mas escrever a implementação Kellvyn do zero. Nenhum código, peso, tokenizer, dataset, adaptador ou arquitetura de modelo de terceiros será copiado ou incorporado ao cérebro.
+**Princípio:** estudar capacidades e engenharia de sistemas existentes, aproveitando código aberto, bibliotecas, runtimes e pesos quando a licença permitir. Kellvyn não será uma cópia: a identidade, o sistema cognitivo, a integração, as políticas, os fluxos e a verificação serão próprios; toda contribuição externa terá origem e autoria declaradas.
 
 ## 1. Android Studio + Gemini
 
@@ -112,17 +112,97 @@ Fontes:
 - Repositório: https://github.com/allenai/OLMo-core
 - Documentação: https://olmo-core.readthedocs.io/
 
-## 8. Como aproveitar sem plagiar
 
-- Implementar em Kotlin os componentes de rede neural, tokenização, treinamento, checkpoint e inferência, com autoria e testes próprios.
-- Usar os repositórios apenas como material de estudo conceitual; não copiar arquivos, blocos de código, pesos, tokenizer ou pipeline de treino.
-- Não utilizar qualquer modelo-base, pesos pré-treinados, fine-tuning, LoRA ou fallback de outra IA.
-- Não alegar que o código interno do Gemini ou de outros sistemas proprietários foi estudado.
-- Registrar as fontes consultadas e explicar o que foi aprendido, separando a ideia pública da implementação escrita para Kellvyn.
-- Dependências genéricas do aplicativo não podem introduzir um modelo ou pesos externos.
 
-## Fontes adicionais
+## 8. Claude Code
+
+**Papel:** referência para manter contexto e procedimentos em tarefas longas.
+
+O que estudar e transformar em implementação Kellvyn:
+- regras persistentes e regras específicas por diretório;
+- skills sob demanda para tarefas repetíveis;
+- subagentes em contextos isolados para pesquisa, revisão, logs e auditoria;
+- hooks determinísticos para bloquear comandos, rodar testes e validar alterações;
+- política de compactação que preserve objetivo e restrições.
+
+Fontes:
+- Artigo oficial sobre CLAUDE.md, rules, skills, subagents e hooks: https://claude.com/resources/articles/steering-claude-code-skills-hooks-rules-subagents-and-more
+- Documentação: https://code.claude.com/docs
+
+A implementação interna e os pesos do Claude são proprietários. A referência é o comportamento documentado, não código privado.
+
+## 9. ChatGPT / OpenAI Agents
+
+**Papel:** referência para capacidades gerais de agentes e ferramentas.
+
+O que estudar:
+- function calling para executar funções próprias;
+- busca Web e busca de arquivos;
+- execução de código em ambiente restrito;
+- computer use com ciclo ação → observação → próxima ação;
+- MCP para conectores;
+- seleção dinâmica de ferramentas e compactação de contexto.
+
+Fontes:
+- Ferramentas oficiais: https://developers.openai.com/api/docs/guides/tools
+- Construção de agentes: https://developers.openai.com/tracks/building-agents
+
+As ferramentas hospedadas pela OpenAI/API não serão dependência obrigatória de Kellvyn offline. As capacidades equivalentes serão implementadas localmente quando possível e com conectores opcionais quando autorizado.
+
+## 10. Replit Agent
+
+**Papel:** referência para transformar um pedido em aplicativo funcional, e não apenas gerar código.
+
+O que estudar:
+- Plan antes de Build;
+- decomposição em tarefas ordenadas;
+- iteração do código com testes;
+- simulação visual de uso real;
+- autocorreção de falhas;
+- checkpoints e retorno a um estado anterior.
+
+Fontes:
+- Replit Agent: https://docs.replit.com/references/agent/overview
+- Plan mode: https://docs.replit.com/references/agent/plan-mode
+- App testing: https://docs.replit.com/references/agent/app-testing
+
+Replit é uma referência de fluxo. O sistema nativo final continua sendo Android local e APK, sem depender da hospedagem do Replit.
+
+## 11. Cursor Agent
+
+**Papel:** referência para engenharia de software em repositórios grandes.
+
+O que estudar:
+- agente coordenador que planeja e delega;
+- regras e skills por projeto;
+- indexação e busca de código;
+- leitura/escrita em vários arquivos;
+- terminal, diffs, revisão, debugging;
+- agentes especializados e isolamento de contexto.
+
+Fontes:
+- Visão geral oficial: https://cursor.com/docs/agent/overview
+- Agent mode: https://cursor.com/help/ai-features/agent
+
+Os mecanismos públicos inspiram requisitos; não copiar marca, interface ou código proprietário.
+
+## 12. Como aproveitar sem plagiar
+
+- Quando o componente for uma ideia ou padrão público, estudar, documentar a fonte e implementar o comportamento de forma compatível com a arquitetura Kellvyn.
+- Quando uma biblioteca ou trecho de código aberto for realmente vantajoso, verificar licença e avisos no commit exato, incluir atribuição e documentar mudanças.
+- Pesos abertos podem ser utilizados como fundação neural; registrar modelo-base, versão, autores, licença, hashes, tokenizer, quantização e restrições.
+- Fine-tuning/adapters são permitidos quando os termos autorizarem; o resultado permanece identificado como derivado.
+- Não copiar código interno ou pesos proprietários de Claude, ChatGPT, Gemini ou Replit.
+- Não atribuir à Kellvyn a autoria original de uma biblioteca, modelo, peso, dataset ou implementação externa.
+- Não usar conversas privadas do proprietário como treino sem consentimento específico.
+- Manter inventário de fontes, dependências e modelos dentro do projeto.
+
+## Fontes principais já consultadas
 
 [1] Android Studio Gemini Agent Mode: https://developer.android.com/studio/gemini/agent-mode
-
-As fontes listadas são referências de estudo. Nenhuma delas fornece código, pesos ou componentes neurais incorporados ao cérebro da Kellvyn.
+[2] OpenHands SDK: https://github.com/OpenHands/software-agent-sdk
+[3] Aider: https://github.com/Aider-AI/aider
+[4] SWE-agent: https://github.com/SWE-agent/SWE-agent
+[5] OpenCode: https://github.com/anomalyco/opencode
+[6] nanochat: https://github.com/karpathy/nanochat
+[7] OLMo-core: https://github.com/allenai/OLMo-core
