@@ -47,7 +47,7 @@ Regras obrigatórias:
 ## 3. Restrições que orientam todas as decisões
 
 1. Uma única inteligência chamada Kellvyn; não montar uma coleção de IAs com identidades concorrentes.
-2. Não tratar nenhum modelo de terceiros como se fosse criado por Kellvyn. Modelos de pesos abertos, inclusive Gemma e Qwen, podem ser avaliados e utilizados se passarem pelos gates técnicos e de licença.
+2. Não tratar modelos, pesos, códigos ou produtos de terceiros como se fossem criados por Kellvyn. Nenhuma fundação neural externa está selecionada; qualquer componente futuro exige auditoria, origem e atribuição preservadas.
 3. Não alegar treinamento, raciocínio, execução, pesquisa, compilação, instalação ou teste que não tenha ocorrido e sido verificado.
 4. Funcionamento local como objetivo principal; Web opcional pela conexão do telefone.
 5. Alvo de execução: Poco F6, Snapdragon 8s Gen 3, 8 GB de RAM.
@@ -317,7 +317,7 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 
 ## 10. Estado de partida
 
-A branch removeu a implementação anterior de runtime e mantém uma fronteira temporária `KellvynRuntime.kt` sem inferência. O agente de ferramentas ainda não possui backend neural conectado. A pesquisa atual permite avaliar modelos de pesos abertos e runtimes licenciados, com prioridade para Gemma 4 E2B mobile QAT e comparação técnica com outras opções. A proteção de interface está divergente porque `MainActivity.java` foi alterado apesar do hash bloqueado; o workflow de APK deve continuar bloqueado até resolver isso sem redesenho e sem enfraquecer a proteção. O branch `main` de produção não foi modificado.
+A branch de laboratório mantém `KellvynRuntime.kt` sem inferência neural funcional. O agente experimental tem ciclo de ferramentas, planejamento estruturado, recuperação de contexto e memória local em implementação; ainda não está conectado a um modelo conversacional funcional. Nenhuma base neural externa está selecionada. A proteção da interface permanece divergente porque `MainActivity.java` difere do hash bloqueado; o workflow de APK continua bloqueado até resolver isso sem redesenho e sem enfraquecer a proteção. A branch `main` de produção não foi modificada.
 
 A próxima etapa segura é fechar a auditoria e decidir o contrato de integração do novo modelo/agente antes de substituir as chamadas antigas.
 
