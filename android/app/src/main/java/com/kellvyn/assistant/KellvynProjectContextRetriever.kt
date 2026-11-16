@@ -83,7 +83,7 @@ internal object KellvynProjectSearchRanker {
         val start = (selected - 1).coerceAtLeast(0)
         val end = (selected + 2).coerceAtMost(lines.lastIndex)
         return (start..end).joinToString("\n") { lineIndex ->
-            "\${lineIndex + 1}: \${lines[lineIndex]}"
+            "${lineIndex + 1}: ${lines[lineIndex]}"
         }
     }
 }
