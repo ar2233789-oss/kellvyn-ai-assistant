@@ -150,20 +150,38 @@ internal class KellvynPersistentTaskQueue(
 
     /** Claims one ready task atomically in priority-descending, FIFO-within-priority order. */
     @Synchronized
-    fun claimNext(nowMillis: Long): KellvynQueuedTask? {
+    fun claimNext(
+        nowMillis: Long,
+        allowHeavyWorkload: Boolean = true
+    ): KellvynQueuedTask? {
         require(nowMillis > 0L)
         val db = writableDatabase
         db.beginTransaction()
         try {
-            val task = db.query(
-                TABLE_TASKS,
-                null,
-                "$COL_STATE IN (?, ?) AND $COL_NOT_BEFORE <= ?",
+            val selection = if (allowHeavyWorkload) {
+                "$COL_STATE IN (?, ?) AND $COL_NOT_BEFORE <= ?"
+            } else {
+                "$COL_STATE IN (?, ?) AND $COL_NOT_BEFORE <= ? AND $COL_WORKLOAD != ?"
+            }
+            val selectionArgs = if (allowHeavyWorkload) {
                 arrayOf(
                     KellvynQueuedTaskState.QUEUED.name,
                     KellvynQueuedTaskState.WAITING_RESOURCES.name,
                     nowMillis.toString()
-                ),
+                )
+            } else {
+                arrayOf(
+                    KellvynQueuedTaskState.QUEUED.name,
+                    KellvynQueuedTaskState.WAITING_RESOURCES.name,
+                    nowMillis.toString(),
+                    KellvynWorkloadClass.HEAVY.name
+                )
+            }
+            val task = db.query(
+                TABLE_TASKS,
+                null,
+                selection,
+                selectionArgs,
                 null,
                 null,
                 "$COL_PRIORITY DESC, $COL_CREATED ASC",
@@ -319,6 +337,59 @@ internal class KellvynPersistentTaskQueue(
 
     @Synchronized
     fun pendingCount(): Int = pendingCountInternal(readableDatabase)
+
+    @Synchronized
+    fun markHandlerAvailable(handlerId: String, nowMillis: Long): Int {
+        require(handlerId.matches(Regex("[a-z][a-z0-9_.-]{1,79}")) && nowMillis > 0L)
+        val values = ContentValues().apply {
+            put(COL_STATE, KellvynQueuedTaskState.QUEUED.name)
+            put(COL_NOT_BEFORE, nowMillis)
+            putNull(COL_ERROR)
+            put(COL_UPDATED, nowMillis)
+        }
+        return writableDatabase.update(
+            TABLE_TASKS,
+            values,
+            "$COL_HANDLER = ? AND $COL_STATE = ? AND $COL_ERROR = ?",
+            arrayOf(
+                handlerId,
+                KellvynQueuedTaskState.WAITING_RESOURCES.name,
+                "HANDLER_UNAVAILABLE"
+            )
+        )
+    }
+
+    /** Delay until the next eligible short task; HEAVY work is reserved for foreground execution. */
+    @Synchronized
+    fun nextRunnableDelayMillis(
+        nowMillis: Long,
+        allowHeavyWorkload: Boolean
+    ): Long? {
+        require(nowMillis > 0L)
+        val workloadFilter = if (allowHeavyWorkload) "" else " AND $COL_WORKLOAD != ?"
+        val args = if (allowHeavyWorkload) {
+            arrayOf(
+                KellvynQueuedTaskState.QUEUED.name,
+                KellvynQueuedTaskState.WAITING_RESOURCES.name,
+                "HANDLER_UNAVAILABLE"
+            )
+        } else {
+            arrayOf(
+                KellvynQueuedTaskState.QUEUED.name,
+                KellvynQueuedTaskState.WAITING_RESOURCES.name,
+                "HANDLER_UNAVAILABLE",
+                KellvynWorkloadClass.HEAVY.name
+            )
+        }
+        return readableDatabase.rawQuery(
+            "SELECT MIN($COL_NOT_BEFORE) FROM $TABLE_TASKS " +
+                "WHERE $COL_STATE IN (?, ?) AND ($COL_ERROR IS NULL OR $COL_ERROR != ?)$workloadFilter",
+            args
+        ).use { cursor ->
+            if (!cursor.moveToFirst() || cursor.isNull(0)) null
+            else (cursor.getLong(0) - nowMillis).coerceAtLeast(0L)
+        }
+    }
 
     private fun pendingCountInternal(db: SQLiteDatabase): Int =
         db.rawQuery(
