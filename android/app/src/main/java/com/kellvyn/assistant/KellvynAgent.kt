@@ -3,6 +3,8 @@ package com.kellvyn.assistant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
@@ -189,8 +191,6 @@ internal class KellvynAgent(
                 1,
                 0
             )
-        } catch (timeout: TimeoutCancellationException) {
-            KellvynToolResult(false, "A ferramenta excedeu o tempo limite.")
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 val cancelledState = taskPlanner.cancel(running)
@@ -800,8 +800,13 @@ internal class KellvynAgent(
         requestId: String
     ): KellvynModelDecision {
         val executeWithTimeout: suspend () -> KellvynModelDecision = {
-            withTimeout(config.modelTimeoutMs) {
-                inference.next(history, tools.descriptions())
+            try {
+                withTimeout(config.modelTimeoutMs) {
+                    inference.next(history, tools.descriptions())
+                }
+            } catch (timeout: TimeoutCancellationException) {
+                currentCoroutineContext().ensureActive()
+                throw IllegalStateException("O modelo neural excedeu o tempo de inferência permitido.", timeout)
             }
         }
         val broker = taskBroker ?: return executeWithTimeout()
@@ -821,8 +826,13 @@ internal class KellvynAgent(
         requestId: String
     ): KellvynToolResult {
         val executeWithTimeout: suspend () -> KellvynToolResult = {
-            withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                tool.execute(arguments)
+            try {
+                withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
+                    tool.execute(arguments)
+                }
+            } catch (timeout: TimeoutCancellationException) {
+                currentCoroutineContext().ensureActive()
+                KellvynToolResult(false, "A ferramenta excedeu o tempo limite depois de obter os recursos necessários.")
             }
         }
         val broker = taskBroker ?: return executeWithTimeout()
