@@ -39,7 +39,7 @@ Quando um código aberto for incorporado, registrar:
 
 Código proprietário não será copiado. Ideias gerais e técnicas publicadas serão reimplementadas de forma independente. Não usar acesso não autorizado, engenharia reversa proibida ou prompts internos vazados.
 
-## 4. Arquitetura neural de trabalho — KBN-002 (proposta de implementação)
+## 4. Arquitetura neural de trabalho — KN-002 (proposta de implementação)
 
 A próxima geração não será somente um preditor de byte. A proposta técnica é um pequeno modelo autoregressivo decoder-only, inicialmente treinado em escala experimental:
 
@@ -53,7 +53,7 @@ A próxima geração não será somente um preditor de byte. A proposta técnica
 
 A primeira versão deve ser deliberadamente pequena. Dimensões, parâmetros, comprimento de contexto e precisão numérica serão escolhidos depois de medir uso real de RAM, tempo, calor e bateria no Poco F6.
 
-**KBN-002 ainda é uma especificação de trabalho, não código concluído.** Nenhuma arquitetura Transformer completa, tokenizer BPE, treino em corpus real ou geração conversacional de qualidade foi validada neste estado.
+**KN-002 ainda é uma especificação de trabalho, não código concluído.** Nenhuma arquitetura Transformer completa, tokenizer BPE, treino em corpus real ou geração conversacional de qualidade foi validada neste estado.
 
 ## 5. Dados e treinamento
 
@@ -81,7 +81,7 @@ A estratégia é construir uma sequência verificável:
 
 Ferramentas, memória, pesquisa e compilação aumentam a utilidade prática do agente, mas não transformam um modelo pequeno em um LLM avançado nem substituem aprendizagem neural.
 
-## 7. Implementação KBN-002 alpha
+## 7. Implementação KN-002 alpha
 
 Foram acrescentados ao projeto:
 - `KellvynBpeTokenizer.kt`: BPE byte-fallback com treinamento explícito, codificação reversível UTF-8, desempate determinístico, checkpoint versionado e SHA-256;
@@ -100,12 +100,12 @@ Isso não é execução do código Kotlin, não é resultado do GitHub Actions e
 
 ## 8. Situação técnica confirmada em 16/11/2026
 
-- KellvynByteBrain.kt (KBN-001) existe e inicializa seus próprios pesos;
-- KellvynBpeTokenizer.kt foi acrescentado como primeiro componente do KBN-002: aprende merges BPE de um corpus passado explicitamente, mantém fallback de byte UTF-8, checkpoint versionado com SHA-256 e limites experimentais de CPU/memória;
+- KellvynByteModel.kt (KN-001) existe e inicializa seus próprios pesos;
+- KellvynBpeTokenizer.kt foi acrescentado como primeiro componente do KN-002: aprende merges BPE de um corpus passado explicitamente, mantém fallback de byte UTF-8, checkpoint versionado com SHA-256 e limites experimentais de CPU/memória;
 - KellvynBpeTokenizerTest.kt cobre ida e volta Unicode/português, determinismo, restauração e rejeição de checkpoint alterado; a execução CI desta atualização ainda não foi confirmada;
 - o modelo prevê o próximo byte com rede rasa, janela curta, embeddings, gradientes e checkpoints;
 - os testes anteriores verificam UTF-8, redução de loss em dados sintéticos repetidos, gradientes por diferenças finitas e restauração de checkpoint;
-- KBN-001 não possui tokenizer subword, Transformer, corpus de treinamento de linguagem, diálogo multi-turno, capacidade de seguir instruções ou integração com o chat;
+- KN-001 não possui tokenizer subword, Transformer, corpus de treinamento de linguagem, diálogo multi-turno, capacidade de seguir instruções ou integração com o chat;
 - KellvynAgent, planner, memória, recuperação de contexto e ferramentas estão separados do modelo;
 - KellvynRuntime.reply() ainda informa que a inferência não está conectada;
 - nenhum peso de modelo externo foi selecionado ou integrado;
@@ -132,7 +132,7 @@ Antes de propor qualquer modelo, peso ou adapter, reler este documento. A decis�
 
 ## 10. Treinamento supervisionado de instruções — 17/11/2026
 
-Foi implementada uma primitiva inicial de SFT própria sobre KBN-002 alpha:
+Foi implementada uma primitiva inicial de SFT própria sobre KN-002 alpha:
 - `trainCompletion(promptTokenIds, completionTokenIds)` condiciona a resposta no prompt, mas atualiza os pesos somente nos tokens da completion.
 - `evaluateCompletionLoss()` mede somente a loss da resposta.
 - `KellvynInstructionTrainingExample` registra prompt, resposta, partição e proveniência.
@@ -145,9 +145,9 @@ Testes foram adicionados para queda de loss, contagem dos passos apenas da respo
 **Limites:** esse SFT é apenas um mecanismo de aprendizagem, não demonstra qualidade conversacional. Não existe corpus de escala, benchmark em português, generalização, diálogo multi-turno ou execução de ferramentas validada. O modelo continua single-head alpha e o chat principal segue desconectado. A arquitetura Transformer completa continua como próximo marco obrigatório.
 
 
-## 11. Transformer KBN-003 e parada aprendida — 17/11/2026
+## 11. Transformer KN-003 e parada aprendida — 17/11/2026
 
-A implementação experimental KBN-003 foi adicionada em código próprio:
+A implementação experimental KN-003 foi adicionada em código próprio:
 - decoder-only autoregressivo;
 - atenção causal multi-head com RoPE;
 - Pre-LayerNorm, conexões residuais e MLP SwiGLU;
@@ -164,7 +164,7 @@ O tokenizer BPE passou a reservar um ID dedicado de fim de sequência:
 - não é emitido pela função encode(text) e não representa bytes UTF-8;
 - checkpoints do tokenizer foram atualizados para versão 2;
 - leitores mantêm compatibilidade com checkpoints versão 1, que não possuem EOS;
-- o pipeline KBN-003 adiciona EOS ao alvo supervisionado de cada resposta e o inclui na loss de validação/teste;
+- o pipeline KN-003 adiciona EOS ao alvo supervisionado de cada resposta e o inclui na loss de validação/teste;
 - a geração para quando prevê EOS, sem incluir o token de controle no texto retornado;
 - o adaptador mantém fallback textual END somente para checkpoints legados sem EOS.
 
@@ -182,7 +182,7 @@ O teste do laboratório virtual é um workflow separado. No último estado regis
 - ainda não existe prova de conversa coerente/multi-turno ou raciocínio geral;
 - o protocolo KELLVYN/1 exige exemplos de treinamento específicos para FINAL/PLAN/DELEGATE/CALL_TOOL;
 - contexto 256 e geração limitada são pequenos para o prompt completo do agente;
-- KBN-003 tem um bloco, sem pilha profunda;
+- KN-003 tem um bloco, sem pilha profunda;
 - geração recalcula chaves/valores por token; KV cache ainda não foi implementado;
 - backend de inferência não está conectado ao chat: KellvynRuntime.isReady() permanece falso e reply() permanece bloqueado;
 - sem teste de inferência sustentada, RAM, latência, temperatura ou bateria no Poco F6.
@@ -192,7 +192,7 @@ Próximo foco neural: avaliar a viabilidade de profundidade multi-bloco e custo 
 
 ## 12. Cache KV incremental para inferência — 17/11/2026
 
-A sessão de geração KBN-003 agora mantém um cache de chaves e valores do bloco Transformer:
+A sessão de geração KN-003 agora mantém um cache de chaves e valores do bloco Transformer:
 - o prefixo é processado uma vez para preencher o cache;
 - cada novo token calcula seus próprios Q/K/V e acrescenta K/V ao cache;
 - a consulta do token atual usa as chaves/valores já calculados, sem reprojetar todos os tokens anteriores;
@@ -201,7 +201,7 @@ A sessão de geração KBN-003 agora mantém um cache de chaves e valores do blo
 - o adaptador local de inferência passou a gerar por meio dessa sessão;
 - o token EOS é identificado antes de ser inserido no texto retornado.
 
-**Escopo real:** o cache atende ao único bloco existente em KBN-003. Não é um cache multi-camada. A geração de treinamento/avaliação continua usando o caminho de referência completo, e a sessão cacheada é usada na inferência incremental.
+**Escopo real:** o cache atende ao único bloco existente em KN-003. Não é um cache multi-camada. A geração de treinamento/avaliação continua usando o caminho de referência completo, e a sessão cacheada é usada na inferência incremental.
 
 ### Testes e validação
 - comparação das probabilidades da sessão cacheada com o forward completo em cada token;
@@ -234,3 +234,8 @@ O cérebro Kellvyn deve ser uma implementação própria, não uma cópia ou col
 - Se a melhor solução exigir código de terceiro, não o copiar escondido: interromper essa integração, apresentar fonte/licença/razão e manter alternativa autoral.
 
 **Esta regra prevalece sobre qualquer texto ambíguo que possa ser entendido como autorização para copiar. A referência ensina; a implementação Kellvyn é própria.**
+
+
+## 12. Nomenclatura oficial — 17/11/2026
+
+Os protótipos neurais da Kellvyn usam exclusivamente os identificadores técnicos **KN-001**, **KN-002** e **KN-003** nesta sequência histórica. Não expandir a sigla, não criar uma identidade separada e não usar nomes alternativos para o núcleo neural. O protótipo inicial de previsão de bytes chama-se `KellvynByteModel`. Esta regra substitui qualquer nomenclatura anterior inconsistente.
