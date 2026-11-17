@@ -167,7 +167,8 @@ class KellvynStudioModuleManagerTest {
                 KellvynToolSpec(
                     name = toolName,
                     description = "Ferramenta de teste",
-                    risk = KellvynToolRisk.READ_ONLY
+                    risk = KellvynToolRisk.READ_ONLY,
+                    capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
                 )
             )
         )
