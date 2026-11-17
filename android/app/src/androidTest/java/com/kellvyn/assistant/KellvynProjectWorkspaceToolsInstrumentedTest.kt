@@ -163,12 +163,13 @@ class KellvynProjectWorkspaceToolsInstrumentedTest {
             assertFalse(denied.success)
             assertEquals("Original content", workspace.readFile(project.id, "README.md"))
 
-            val writeApproval = approvals.approveWrite(project.id, "README.md", newContent)
+            // The app records approval after owner confirmation; the model does not need
+            // to invent or reproduce the random approval identifier.
+            approvals.approveWrite(project.id, "README.md", newContent)
             val writeArguments = mapOf(
                 "project_id" to project.id,
                 "path" to "README.md",
-                "content" to newContent,
-                "approval_id" to writeApproval
+                "content" to newContent
             )
             val authorization = KellvynProjectWorkspaceTools.authorization(approvals)
             assertTrue(authorization.authorize(writeTool.spec, writeArguments, "update approved file"))
@@ -184,11 +185,10 @@ class KellvynProjectWorkspaceToolsInstrumentedTest {
             assertFalse(specialistTools.names().contains("workspace_write_file"))
             assertFalse(specialistTools.names().contains("workspace_delete_file"))
 
-            val deleteApproval = approvals.approveDelete(project.id, "README.md")
+            approvals.approveDelete(project.id, "README.md")
             val deleteArguments = mapOf(
                 "project_id" to project.id,
-                "path" to "README.md",
-                "approval_id" to deleteApproval
+                "path" to "README.md"
             )
             assertTrue(authorization.authorize(deleteTool.spec, deleteArguments, "delete approved file"))
             val deleted = deleteTool.execute(deleteArguments)
