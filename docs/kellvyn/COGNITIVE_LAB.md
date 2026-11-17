@@ -180,7 +180,7 @@ O módulo não executa código dos arquivos, não chama terminal e não escreve 
 
 - A implementação KCL-001 é código original escrito para este repositório.
 - O agente experimental existente ainda não está ligado a um modelo neural funcional.
-- KBN-001 é um protótipo didático de previsão de bytes, não uma IA conversacional pronta.
+- KN-001 é um protótipo didático de previsão de bytes, não uma IA conversacional pronta.
 - Nenhum teste físico no Poco F6 foi realizado nesta etapa.
 - A interface permanece fora do escopo.
 - Nenhum código ou peso dos sistemas citados foi copiado ou incorporado nesta etapa.
