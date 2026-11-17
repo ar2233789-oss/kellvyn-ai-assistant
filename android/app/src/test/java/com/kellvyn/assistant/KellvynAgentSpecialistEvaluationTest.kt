@@ -19,22 +19,20 @@ class KellvynAgentSpecialistEvaluationTest {
     @Test
     fun everySpecialistReceivesOnlyItsTaskAndReadOnlyTools() = runBlocking {
         val roleCases = listOf(
-            RoleCase(
-                role = KellvynSpecialistRole.RESEARCHER,
-                expectedInstruction = "Pesquisador interno"
-            ),
-            RoleCase(
-                role = KellvynSpecialistRole.CODE_EXPLORER,
-                expectedInstruction = "Explorador de código"
-            ),
-            RoleCase(
-                role = KellvynSpecialistRole.REVIEWER,
-                expectedInstruction = "Revisor interno"
-            ),
-            RoleCase(
-                role = KellvynSpecialistRole.TEST_ANALYST,
-                expectedInstruction = "Analista de testes"
-            )
+            RoleCase(KellvynSpecialistRole.RESEARCHER, "Pesquisador:"),
+            RoleCase(KellvynSpecialistRole.CODE_EXPLORER, "Explorador de código:"),
+            RoleCase(KellvynSpecialistRole.REVIEWER, "Revisor:"),
+            RoleCase(KellvynSpecialistRole.TEST_ANALYST, "Analista de testes:"),
+            RoleCase(KellvynSpecialistRole.REASONING_ANALYST, "Analista de raciocínio:"),
+            RoleCase(KellvynSpecialistRole.LEARNING_ANALYST, "Analista de aprendizado:"),
+            RoleCase(KellvynSpecialistRole.PROGRAMMING_ARCHITECT, "Arquiteto de programação:"),
+            RoleCase(KellvynSpecialistRole.MEMORY_ANALYST, "Analista de memória:"),
+            RoleCase(KellvynSpecialistRole.SECURITY_ANALYST, "Analista de segurança:"),
+            RoleCase(KellvynSpecialistRole.PLANNING_ANALYST, "Analista de planejamento:"),
+            RoleCase(KellvynSpecialistRole.DEBUGGER, "Depurador:"),
+            RoleCase(KellvynSpecialistRole.AUDITOR, "Auditor independente:"),
+            RoleCase(KellvynSpecialistRole.OPERATIONS_ANALYST, "Analista de operações:"),
+            RoleCase(KellvynSpecialistRole.VISUAL_ANALYST, "Analista visual:")
         )
 
         for (roleCase in roleCases) {
