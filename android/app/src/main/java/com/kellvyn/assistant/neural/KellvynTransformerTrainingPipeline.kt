@@ -3,7 +3,7 @@ package com.kellvyn.assistant.neural
 import java.security.MessageDigest
 
 internal data class KellvynTransformerTrainingConfig(
-    val contextLength: Int = 64,
+    val contextLength: Int = 256,
     val embeddingSize: Int = 32,
     val headCount: Int = 4,
     val feedForwardSize: Int = 64,
