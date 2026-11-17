@@ -474,7 +474,16 @@ jobs:
               SETTINGS_READY=1
               break
             fi
-            sleep 1
+            # The first tap can be dropped while Android finishes its cold-start UI work.
+            # Retry only when the accessibility tree still shows the home screen; never
+            # tap the close control after the settings sheet has actually appeared.
+            if grep -q 'text="Kellvyn Assistente"' out/native-settings-ui.xml 2>/dev/null; then
+              echo "[LAB] settings tap did not open the sheet; retry $attempt"
+              adb shell input tap "$SETTINGS_X" "$SETTINGS_Y" || true
+              sleep 1
+            else
+              sleep 1
+            fi
           done
           adb shell screencap -p /sdcard/native-settings.png
           adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
