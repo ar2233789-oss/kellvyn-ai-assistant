@@ -63,21 +63,30 @@ internal class KellvynTransformerInferenceEngine(
 
         val complete = prefix.toMutableList()
         val generated = ArrayList<Int>(generationBudget)
+        val endOfSequenceTokenId = tokenizer.endOfSequenceTokenId
         var terminated = false
 
         for (index in 0 until generationBudget) {
             coroutine.ensureActive()
             val context = complete.takeLast(model.config.contextLength).toIntArray()
             val token = model.predictNext(context)
+
+            // New KBN-003 checkpoints learn a dedicated EOS token. Version-1 tokenizer
+            // checkpoints remain readable and retain their legacy textual END fallback.
+            if (endOfSequenceTokenId != null && token == endOfSequenceTokenId) {
+                terminated = true
+                break
+            }
+
             complete += token
             generated += token
 
-            // Arbitrary text fields are encoded as hexadecimal, so the literal END marker
-            // is reserved for protocol termination rather than natural-language content.
-            val partial = tokenizer.decode(generated.toIntArray())
-            if (partial.trimEnd() == "END" || partial.trimEnd().endsWith("\nEND")) {
-                terminated = true
-                break
+            if (endOfSequenceTokenId == null) {
+                val partial = tokenizer.decode(generated.toIntArray())
+                if (partial.trimEnd() == "END" || partial.trimEnd().endsWith("\nEND")) {
+                    terminated = true
+                    break
+                }
             }
         }
 
