@@ -502,3 +502,25 @@ Usar somente **KN-001 / KN-002 / KN-003** como identificadores técnicos das ver
 - Limites Android permanecem explícitos: ADB/UIAutomator, instalação de APK e Accessibility Service não são poderes implícitos de um APK comum. Cada capacidade exige mecanismo e autorização adequados.
 - **Estado desta entrega:** pesquisa e especificação documental concluídas nesta etapa; nenhum motor novo ou agente foi implementado, nenhum layout foi alterado e nenhuma medição física de desempenho foi realizada.
 - Próximo passo obrigatório: rever a especificação e transformá-la em contratos de ferramenta, Resource Governor e Task Broker com testes unitários/instrumentais. Antes de cada alteração, confirmar o HEAD e preservar a interface bloqueada.
+
+ 
+## Fundação avançada de recursos do laboratório — 17/11/2026
+
+- Direção confirmada: laboratório headless, sem UI de Studio exposta ao usuário; motores Android internos sob demanda, compartilhados pelos 14 papéis existentes. Não transportar IDEs desktop inteiros.
+- Especificação atualizada em `docs/kellvyn/ANDROID_HEADLESS_STUDIO_SPEC_2026-11-17.md`, commit `2cea7175a22131b0f51e4dbbef86e506af3e0c62`.
+- Resource Governor implementado em Kotlin puro: admite LIGHT/STANDARD/HEAVY com base em memória disponível, working set estimado, heap, thermal status/headroom, battery saver e nível de bateria.
+- Task Broker compartilhado usa dois permits FIFO: tarefas leves podem dividir um permit quando há folga; STANDARD/HEAVY são exclusivos. Reamostra o estado do dispositivo após espera; fila com 10 s padrão retorna deferral, não inicia trabalho quando ocupada; libera permits parciais em timeout/cancelamento.
+- Monitor Android sob demanda coleta ActivityManager.MemoryInfo, heap Runtime, Debug.getPss, PowerManager thermal/power saver, Thermal Headroom com cache mínimo de 1s e BatteryManager. Sem polling permanente.
+- Singleton application-scoped `KellvynResourceRuntime` unifica recursos entre KellvynRuntime, agentes e LocalProjectBuilderBridge.
+- Agente: metadados workload/working set em KellvynToolSpec; inferência classificada STANDARD (128 MiB inicial); indexação de projeto STANDARD (64 MiB inicial); chamadas de ferramentas passam pelo broker. Timeout de ferramenta começa depois da admissão. Cancelamento de chamador permanece cancelamento.
+- Três pipelines de treinamento neural próprio passam como HEAVY; construção e retomada de APK local passam como HEAVY (768 MiB inicial).
+- Nova ferramenta READ_ONLY `device_resource_snapshot` permite a OPERATIONS_ANALYST inspecionar RAM, heap, PSS, estado térmico e bateria.
+- Deferral de etapa planejada persiste estado READY, mantém aprovação e tentativa, descarta evidência de pré-condições que deve ser verificada novamente.
+- Testes puros Resource Governor/Broker: 8 testes executados com Kotlin/JVM local e passaram em harness: `RESOURCE_GOVERNOR_UNIT_TESTS_PASS`.
+- Monitor Android compilado isoladamente contra stubs de API Android; não substitui Gradle real.
+- Testes instrumentais/Planner adicionados, mas não têm execução Gradle/AVD válida ainda.
+- CI atual: runs `44062178882` neural e `44062178854` Poco/AVD falharam sem steps/logs_url; API de logs retorna BlobNotFound. Nenhuma conclusão de falha de código pode ser feita; causa do bloqueio dos runners não comprovada.
+- Limiares e estimativas são provisórios, não calibrados no Poco F6 físico. Não há medição real de RAM, bateria, temperatura ou latência do aparelho.
+- Commits relevantes de código nesta sequência: Governor `322a0b84e8bf4d41f903ffb94009a918b0d15c4f`; monitor `51e197ab1bb4ac1b25ed1e72f662b9591d0fbdcc`; Agent `9a6840e2b6665d8c6ee6c23b41dadb7494d97677`; Broker queue timeout fix `4a46e2e53cf5d12a74cbbd6977a481ec01a70036`; ResourceRuntime `a5e75a578e561f6fea62362d6c1a86c7e936842d`; ResourceTools `8688e8e4ec899b7ccfeeca7d18d31c5781a43b7c`; APK bridge gate `36516acbc7754acdabe63ad30f0c957bac37b073`.
+- Próxima sequência: fila persistente/prioridades e retomada; onTrimMemory + descarte central de caches; manifests de módulos com carregamento lazy; ferramentas por capacidade e por papel; métricas por tarefa; validação real Gradle/AVD e Poco F6 físico.
+- Estado: primeira fundação de admissão/controle compartilhado escrita; laboratório inteiro e os estúdios de design/imagem/3D ainda não implementados. Cérebro conversacional continua sem inferência aprovada ligada ao chat. Interface não foi alterada.
