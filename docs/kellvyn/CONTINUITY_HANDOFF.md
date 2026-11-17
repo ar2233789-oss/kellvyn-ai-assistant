@@ -359,3 +359,60 @@ No commit `f2a892c7`, o Gradle compilou e executou 136 testes; 135 passaram e o 
 5. Só depois integrar ao chat; preservar a interface aprovada.
 
 Não apresentar a nova primitiva de SFT como inteligência conversacional pronta.
+
+
+## 13. Continuidade da etapa neural — EOS e próximo marco (17/11/2026)
+
+**Branch:** lab/kellvyn-intelligence-core-20261116  
+**Último commit de código neural validado:** f32bca0d1b2e14541ed7a52f8c0bd414f685084e  
+**Commit posterior de documentação:** cbdac5a4d673b4e080b3fa386d970ace8725d37a  
+**Não alterar a interface aprovada.**
+
+### Trabalho realizado
+1. Tokenizador BPE atualizado com um ID especial EOS que não representa bytes UTF-8 e não aparece no encode de texto normal.
+2. Checkpoint do tokenizer passou para versão 2; leitura versão 1 continua válida e retorna ausência de EOS para manter compatibilidade com bundles antigos.
+3. Pipeline KBN-003 acrescenta EOS ao final de cada completion usada em treino, validação e teste. Portanto, a loss agora ensina não só o conteúdo da resposta como também quando parar.
+4. Geração do Transformer pode interromper no ID EOS sem incluí-lo no texto devolvido.
+5. Adapter KBN-003 verifica EOS nos bundles novos. Para tokenizer/checkpoint legado sem EOS, mantém o antigo marcador textual END.
+6. Foi adicionado teste de contrato: o modelo pequeno aprende EOS para um prompt controlado, prevê o token e encerra a geração antes de expor esse ID.
+7. Testes do tokenizador cobrem EOS dedicado e compatibilidade com checkpoint v1.
+
+### Commits da sequência
+- Tokenizador EOS e compatibilidade v1: 89b37687609034959ea550a4b2b796db9ccd5ce8
+- geração configurável com parada EOS: 8ed02f873e5fa660973c45ec695943edaddc6f9b
+- supervisão de EOS no pipeline KBN-003: 181842fd9add2da92f97ba9817adabd4e70c2668
+- adapter para parar no EOS: 550e5b47e719952f650dde157782c352762dd4d3
+- testes do tokenizer e checkpoint legado: d04ffa531a2c9044b8e5d6ef021f5c56a4fd69a9
+- contagem de EOS na loss/steps: 9297515456dfa2e1e4b61656c5d135b30a85788b
+- teste de geração EOS: b82ae229c1d46b1f0e4bc844500fe41deaf0737b
+- passo de diferenças finitas float32: f32bca0d1b2e14541ed7a52f8c0bd414f685084e
+- decisão neural documentada: 9e5852c412c1640ab568bb6799186268f1725448
+- status documentado: cbdac5a4d673b4e080b3fa386d970ace8725d37a
+
+### CI confirmado
+Workflow neural core tests run 44005947968 no commit f32bca0d1b2e14541ed7a52f8c0bd414f685084e terminou com sucesso. O log confirma Gradle testDebugUnitTest e BUILD SUCCESSFUL em 2m09s. A suíte inclui o teste dos quatro papéis internos criado nesta sessão anterior, testes do agente, tokenizer, modelo, treino e checkpoints.
+
+O laboratório Poco F6 virtual run 44005947963 não estava concluído na última consulta. Não atribuir sucesso visual ou de dispositivo. Mesmo um AVD aprovado não substitui teste no Poco F6 físico.
+
+### Correção durante a validação
+A primeira execução após EOS reportou uma falha no teste de gradientes. Aumentar o tamanho do vocabulário em uma classe altera o softmax e torna a diferença finita float32 mais sensível ao passo. O passo passou de 0,001 para 0,005, mantendo os limites absolutos e relativos do teste. O CI posterior ficou verde. O teste de round-trip foi atualizado para contar o ID EOS adicional (256 bytes + merges + 1 EOS); o round-trip dos bytes continuou exato.
+
+### Estado real do cérebro
+- KBN-003 é um decoder-only Transformer próprio com atenção causal multi-head/RoPE, Pre-LN, residual e SwiGLU.
+- A implementação atual tem **um único bloco**, embeddingSize padrão 32, feedForwardSize padrão 64 e contexto máximo 256 tokens.
+- Não há KV cache; chaves/valores são recalculados em cada token.
+- O pipeline de treino e os dados são experimentais; exemplos sintéticos pequenos não estabelecem qualidade linguística.
+- Não há prova de diálogo natural multi-turno, raciocínio geral, planejamento de qualidade ou programação autônoma.
+- O adapter não está conectado ao chat principal. KellvynRuntime.isReady() segue falso e reply() segue bloqueado.
+- Não houve validação física no Poco F6 ou medição prolongada de RAM, latência, calor e bateria.
+
+### Próximo passo obrigatório do cérebro
+A próxima mudança estrutural deve investigar e prototipar **profundidade multi-bloco** com:
+1. estruturas de parâmetros separadas por bloco;
+2. forward causal de múltiplas camadas;
+3. retropropagação através de todos os blocos;
+4. gradientes comparados por diferenças finitas em cada bloco;
+5. teste de overfit sintético e checkpoint restaurável;
+6. benchmark de RAM/tempo no Android antes de elevar dimensões.
+
+Não conectar o chat nem promover APK nesta etapa. Depois da profundidade, revisar contexto e KV cache. Montar corpus de português e protocolo KELLVYN/1 autorizado com treino/validação/teste separados. Preservar todo o layout da IA sem alterações.
