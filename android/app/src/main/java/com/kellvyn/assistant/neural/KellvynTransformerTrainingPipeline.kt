@@ -157,8 +157,12 @@ internal object KellvynTransformerTrainingPipeline {
             partition.map { example ->
                 cancellationCheck()
                 val prompt = tokenizer.encode(example.prompt)
-                val completion = tokenizer.encode(example.completion)
-                require(prompt.isNotEmpty() && completion.isNotEmpty()) {
+                val completionTextTokens = tokenizer.encode(example.completion)
+                val endOfSequenceTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
+                    "O tokenizer KBN-003 não reservou o token de encerramento."
+                }
+                val completion = completionTextTokens + intArrayOf(endOfSequenceTokenId)
+                require(prompt.isNotEmpty() && completionTextTokens.isNotEmpty()) {
                     "O exemplo Transformer precisa conter prompt e resposta tokenizáveis."
                 }
                 require(prompt.size.toLong() + completion.size.toLong() <= MAX_TOKENIZED_EXAMPLE) {
