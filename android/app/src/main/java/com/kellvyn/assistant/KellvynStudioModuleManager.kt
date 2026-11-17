@@ -20,7 +20,10 @@ internal enum class KellvynStudioCapability {
     NEURAL_TRAINING,
     NEURAL_INFERENCE,
     DEVICE_DIAGNOSTICS,
-    WORKFLOW_AUTOMATION
+    WORKFLOW_AUTOMATION,
+    WEB_RESEARCH,
+    MEMORY_READ,
+    SECURITY_AUDIT
 }
 
 internal enum class KellvynStudioPermission {
