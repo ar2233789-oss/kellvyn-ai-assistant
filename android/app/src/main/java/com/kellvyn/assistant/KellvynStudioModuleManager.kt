@@ -62,6 +62,11 @@ internal data class KellvynStudioModuleManifest(
         require(toolSpecs.isNotEmpty())
         require(toolNames.size == toolSpecs.size) { "O manifesto contém nomes de ferramenta duplicados." }
         require(toolSpecs.all { it.name.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}")) })
+        require(toolSpecs.all { spec ->
+            spec.capabilities.isNotEmpty() && spec.capabilities.all { it in capabilities }
+        }) {
+            "Cada ferramenta precisa declarar capacidades contidas no manifesto do estúdio."
+        }
         toolRisks.forEach { (name, risk) ->
             val requiredPermission = when (risk) {
                 KellvynToolRisk.READ_ONLY -> null
