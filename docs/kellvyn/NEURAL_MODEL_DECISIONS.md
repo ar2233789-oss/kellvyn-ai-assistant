@@ -188,3 +188,34 @@ O teste do laboratório virtual é um workflow separado. No último estado regis
 - sem teste de inferência sustentada, RAM, latência, temperatura ou bateria no Poco F6.
 
 Próximo foco neural: avaliar a viabilidade de profundidade multi-bloco e custo de memória/gradientes; depois melhorar o comprimento de contexto e a inferência incremental com cache; construir conjunto supervisionado de decisões do protocolo com direitos documentados; medir generalização antes de integrar ao agente e ao chat.
+
+
+## 12. Cache KV incremental para inferência — 17/11/2026
+
+A sessão de geração KBN-003 agora mantém um cache de chaves e valores do bloco Transformer:
+- o prefixo é processado uma vez para preencher o cache;
+- cada novo token calcula seus próprios Q/K/V e acrescenta K/V ao cache;
+- a consulta do token atual usa as chaves/valores já calculados, sem reprojetar todos os tokens anteriores;
+- o cache mantém no máximo contextLength entradas e remove a mais antiga ao ultrapassar a janela;
+- as posições RoPE permanecem absolutas durante a sessão; a diferença relativa entre posições é preservada na janela deslizante;
+- o adaptador local de inferência passou a gerar por meio dessa sessão;
+- o token EOS é identificado antes de ser inserido no texto retornado.
+
+**Escopo real:** o cache atende ao único bloco existente em KBN-003. Não é um cache multi-camada. A geração de treinamento/avaliação continua usando o caminho de referência completo, e a sessão cacheada é usada na inferência incremental.
+
+### Testes e validação
+- comparação das probabilidades da sessão cacheada com o forward completo em cada token;
+- repetição suficiente para provocar expulsão de tokens da janela;
+- verificação do limite máximo de entradas no cache;
+- verificação de que cada token só é processado uma vez no ciclo incremental;
+- comparação da sequência greedy da sessão com uma referência que recalcula o contexto completo a cada token.
+
+No commit de código 895eca04525b65b6c7c17175e42ff4d126d1e5ae, o workflow neural core tests run 44007839790 terminou com sucesso. O log confirma gradle testDebugUnitTest e BUILD SUCCESSFUL em 1m40s.
+
+### O que ainda não foi demonstrado
+- não há medição real de latência/throughput antes e depois;
+- não houve benchmark de RAM, calor, bateria ou sessões longas no Poco F6;
+- o cache não possui ainda um caminho de invalidação para treino concorrente sobre o mesmo objeto de modelo; a aplicação deve treinar um modelo separado e só promover o checkpoint após validação;
+- o modelo continua com um único bloco, contexto máximo de 256 e sem evidência de qualidade conversacional.
+
+Próximo marco arquitetural: profundidade multi-bloco com parâmetros independentes por bloco, forward causal para todas as posições e retropropagação completa através de todas as camadas. Cada bloco futuro precisará do seu próprio cache KV. Não promover crescimento de contexto ou largura sem testes de memória/desempenho.
