@@ -48,13 +48,13 @@ Se qualquer documento antigo contradisser a decisão de pesos próprios, a decis
 - KellvynRuntime.kt: fábrica do agente, memória e checkpoint; ainda sem motor de inferência.
 
 ### Protótipo neural
-KellvynByteBrain.kt, nome de laboratório KBN-001:
+KellvynByteModel.kt, nome de laboratório KN-001:
 - rede rasa que prevê o próximo byte UTF-8;
 - pesos próprios inicializados no código;
 - embeddings, forward, softmax, gradientes, atualização de parâmetros e checkpoint;
 - testes de UTF-8, loss em padrão repetido, diferenças finitas e restauração de pesos.
 
-**Limite:** KBN-001 não é uma IA conversacional. Não possui Transformer, tokenizer subword, corpus de linguagem suficiente, raciocínio multi-turno ou capacidade geral de seguir instruções. Não apresentar isso como cérebro pronto.
+**Limite:** KN-001 não é uma IA conversacional. Não possui Transformer, tokenizer subword, corpus de linguagem suficiente, raciocínio multi-turno ou capacidade geral de seguir instruções. Não apresentar isso como cérebro pronto.
 
 ### Construção e testes de aplicativos
 Existe um quality gate que injeta um projeto Android Java de teste no construtor local, compila, assina, valida, instala em emulador e interage com a tela. É uma prova do pipeline do construtor com fixture determinístico, não uma prova de que o cérebro criou o app pelo chat.
@@ -74,10 +74,10 @@ Commits mais importantes desta correção:
 - arquitetura: 90b7c83a0fad1623012d21823a9545a86b965f5a
 - decisão neural: f400ffa0ab1f34237f5ed1bdb8e131c6f04d3536
 - plano mestre: 1f443eee9b9f900e000bb881957666f1f647a11e
-- tokenizer KBN-002: a0704eba6815d2410a720d0ae5dd60ff0b0ab98d
+- tokenizer KN-002: a0704eba6815d2410a720d0ae5dd60ff0b0ab98d
 - teste do tokenizer: 5cbf434850c80aea48178b635c31115b061ab74b
 - limites do tokenizer: 61b382636a536cd627b162390ab39be37ab6005b e 5239dc19fd9eb368a690d254d60189fcac083571
-- modelo atenção KBN-002 alpha: e96ad13856bf2aa9d47e9b21bae8ee79f67bfc2b
+- modelo atenção KN-002 alpha: e96ad13856bf2aa9d47e9b21bae8ee79f67bfc2b
 - testes modelo: be2584b7724bbfcf3c917368a45b63d32cf86178
 - fábrica tokenizer/modelo: de900376672b009bc94401784b333fbdac7cd7e8
 - integração BPE/modelo em teste: 7ecd8c26792f2336204bc8a38de099b932b0a075
@@ -94,7 +94,7 @@ Commits mais importantes desta correção:
 - verificar importações, versão Kotlin/Gradle e se os testes cobrem AAD, alteração de payload e sequência;
 - planejar teste instrumentado Android Keystore; não confundir o cifrador de teste JVM com o Keystore real.
 
-### Passo 2 — construir o cérebro próprio KBN-002
+### Passo 2 — construir o cérebro próprio KN-002
 Já existe o tokenizer BPE próprio e a primeira alpha neural `KellvynAttentionLanguageModel.kt`, com atenção autoregressiva de uma cabeça, gradientes, AdamW e checkpoint. Testes foram escritos e a ligação BPE→modelo foi adicionada. A revisão matemática de referência em NumPy float32 encontrou erro absoluto máximo ≈9,6e-7 em 21 coordenadas e reduziu loss de padrão alternado de 5,49 para 0,00392 em 1.100 atualizações simuladas; **isso não é build nem teste Kotlin**. Falta obter CI verificável.
 
 Já existe o primeiro componente: KellvynBpeTokenizer.kt, com teste separado. Ele ainda não foi validado por CI. A implementação aplica a sequência de merges de forma simples e precisa de otimização antes de treinar em corpus grande. A base de implementação planejada está no NEURAL_MODEL_DECISIONS.md:
@@ -109,7 +109,7 @@ Já existe o primeiro componente: KellvynBpeTokenizer.kt, com teste separado. El
 Não começar por uma promessa de modelo enorme. Primeiro provar cada bloco matemático e o pipeline de aprendizagem com testes. Depois medir no Poco F6 RAM, latência, temperatura, bateria e estabilidade. Um modelo minúsculo treinado do zero não será equivalente a ChatGPT ou Claude; capacidade cresce com dados, parâmetros e computação. Dizer a verdade sobre isso.
 
 ### Passo 3 — ligar o cérebro ao agente
-Só conectar KBN-002 ao KellvynRuntime quando houver geração conversacional testada. Depois integrar o mesmo modelo ao agente, com uso de ferramentas estruturadas e permissões aplicadas pelo código. Nunca criar um fallback oculto de modelo externo.
+Só conectar KN-002 ao KellvynRuntime quando houver geração conversacional testada. Depois integrar o mesmo modelo ao agente, com uso de ferramentas estruturadas e permissões aplicadas pelo código. Nunca criar um fallback oculto de modelo externo.
 
 ### Passo 4 — testar criação de apps pelo chat principal
 Separar:
@@ -371,16 +371,16 @@ Não apresentar a nova primitiva de SFT como inteligência conversacional pronta
 ### Trabalho realizado
 1. Tokenizador BPE atualizado com um ID especial EOS que não representa bytes UTF-8 e não aparece no encode de texto normal.
 2. Checkpoint do tokenizer passou para versão 2; leitura versão 1 continua válida e retorna ausência de EOS para manter compatibilidade com bundles antigos.
-3. Pipeline KBN-003 acrescenta EOS ao final de cada completion usada em treino, validação e teste. Portanto, a loss agora ensina não só o conteúdo da resposta como também quando parar.
+3. Pipeline KN-003 acrescenta EOS ao final de cada completion usada em treino, validação e teste. Portanto, a loss agora ensina não só o conteúdo da resposta como também quando parar.
 4. Geração do Transformer pode interromper no ID EOS sem incluí-lo no texto devolvido.
-5. Adapter KBN-003 verifica EOS nos bundles novos. Para tokenizer/checkpoint legado sem EOS, mantém o antigo marcador textual END.
+5. Adapter KN-003 verifica EOS nos bundles novos. Para tokenizer/checkpoint legado sem EOS, mantém o antigo marcador textual END.
 6. Foi adicionado teste de contrato: o modelo pequeno aprende EOS para um prompt controlado, prevê o token e encerra a geração antes de expor esse ID.
 7. Testes do tokenizador cobrem EOS dedicado e compatibilidade com checkpoint v1.
 
 ### Commits da sequência
 - Tokenizador EOS e compatibilidade v1: 89b37687609034959ea550a4b2b796db9ccd5ce8
 - geração configurável com parada EOS: 8ed02f873e5fa660973c45ec695943edaddc6f9b
-- supervisão de EOS no pipeline KBN-003: 181842fd9add2da92f97ba9817adabd4e70c2668
+- supervisão de EOS no pipeline KN-003: 181842fd9add2da92f97ba9817adabd4e70c2668
 - adapter para parar no EOS: 550e5b47e719952f650dde157782c352762dd4d3
 - testes do tokenizer e checkpoint legado: d04ffa531a2c9044b8e5d6ef021f5c56a4fd69a9
 - contagem de EOS na loss/steps: 9297515456dfa2e1e4b61656c5d135b30a85788b
@@ -398,7 +398,7 @@ O laboratório Poco F6 virtual run 44005947963 não estava concluído na última
 A primeira execução após EOS reportou uma falha no teste de gradientes. Aumentar o tamanho do vocabulário em uma classe altera o softmax e torna a diferença finita float32 mais sensível ao passo. O passo passou de 0,001 para 0,005, mantendo os limites absolutos e relativos do teste. O CI posterior ficou verde. O teste de round-trip foi atualizado para contar o ID EOS adicional (256 bytes + merges + 1 EOS); o round-trip dos bytes continuou exato.
 
 ### Estado real do cérebro
-- KBN-003 é um decoder-only Transformer próprio com atenção causal multi-head/RoPE, Pre-LN, residual e SwiGLU.
+- KN-003 é um decoder-only Transformer próprio com atenção causal multi-head/RoPE, Pre-LN, residual e SwiGLU.
 - A implementação atual tem **um único bloco**, embeddingSize padrão 32, feedForwardSize padrão 64 e contexto máximo 256 tokens.
 - Não há KV cache; chaves/valores são recalculados em cada token.
 - O pipeline de treino e os dados são experimentais; exemplos sintéticos pequenos não estabelecem qualidade linguística.
@@ -447,7 +447,7 @@ Não conectar o chat nem promover APK nesta etapa. Depois da profundidade, revis
 A primeira versão do teste tentou iniciar com prefixo maior que o contextLength de 8 tokens; o construtor rejeitou corretamente a entrada na linha do teste. O prefixo foi reduzido para "Kellvyn" (no máximo 7 bytes UTF-8), mantendo 8 como janela. A execução seguinte passou. Não houve falha de equivalência numérica registrada na execução aprovada.
 
 ### Limites
-- Cache é de um único bloco, porque KBN-003 ainda tem um único bloco.
+- Cache é de um único bloco, porque KN-003 ainda tem um único bloco.
 - Sem benchmark de velocidade real, RAM, bateria, calor ou teste físico Poco F6.
 - O modelo continua com um bloco e contexto de até 256; não há conversa geral validada.
 - Evitar treino concorrente no mesmo objeto usado por uma sessão cacheada; treinar em outra instância e promover bundle depois de validação.
@@ -477,7 +477,12 @@ O proprietário reiterou que Kellvyn é um cérebro próprio e não deve ser pl�
 1. Confirmar o CI `neural-core-tests` no commit com o enum expandido e o teste com 14 papéis.
 2. Se falhar, ler o log, corrigir o menor defeito e repetir CI.
 3. Retomar o próximo marco neural já previsto: projetar e implementar profundidade multi-bloco no Transformer próprio, com parâmetros independentes por camada, forward causal em todas as posições, backpropagation entre blocos, gradient checks por bloco, overfit sintético, checkpoint versionado e cache KV por camada.
-4. Preservar o KBN-003 atual e seus checkpoints; não substituir até a nova arquitetura provar compatibilidade, treinamento e avaliação.
+4. Preservar o KN-003 atual e seus checkpoints; não substituir até a nova arquitetura provar compatibilidade, treinamento e avaliação.
 5. Não conectar ao chat principal nem editar a interface ainda.
 
 **Regra de continuidade:** na próxima conversa, ler este arquivo, `STATUS.md`, `NEURAL_MODEL_DECISIONS.md` e conferir o HEAD real antes de agir. Não recomeçar estudos, papéis ou cache KV já implementados.
+
+
+## 17. Nomenclatura oficial — 17/11/2026
+
+Usar somente **KN-001 / KN-002 / KN-003** como identificadores técnicos das versões neurais. O primeiro protótipo chama-se `KellvynByteModel`. Não criar, usar ou sugerir uma entidade/identidade adicional com nome em inglês para o núcleo. Kellvyn é a única IA. A sigla KN é apenas nomenclatura técnica do projeto, sem expansão inventada.
