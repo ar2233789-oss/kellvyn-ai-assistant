@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.kellvyn.assistant.workspace.LocalProjectBuilder
 
 /**
@@ -46,16 +47,20 @@ class LocalProjectBuilderBridge(
         }
         scope.launch {
             try {
-                val result = builder.compileGeneratedProject(
-                    prompt = prompt,
-                    response = response,
-                    onBeforeBuild = {
-                        listener.onProgress("Preparando a compilação Android local…")
-                    },
-                    onProgress = { message ->
-                        scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
-                    }
-                )
+                val result = withContext(Dispatchers.IO) {
+                    builder.compileGeneratedProject(
+                        prompt = prompt,
+                        response = response,
+                        onBeforeBuild = {
+                            withContext(Dispatchers.Main.immediate) {
+                                listener.onProgress("Preparando a compilação Android local…")
+                            }
+                        },
+                        onProgress = { message ->
+                            scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
+                        }
+                    )
+                }
                 listener.onComplete(
                     result ?: "O compilador local não reconheceu esta solicitação como um pedido de APK."
                 )
@@ -78,15 +83,19 @@ class LocalProjectBuilderBridge(
         if (!builder.hasPendingLicenseAcceptance(prompt)) return false
         scope.launch {
             try {
-                val result = builder.handleSdkLicenseAcceptance(
-                    prompt = prompt,
-                    onBeforeBuild = {
-                        listener.onProgress("Licença aceita. Preparando o compilador Android local…")
-                    },
-                    onProgress = { message ->
-                        scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
-                    }
-                )
+                val result = withContext(Dispatchers.IO) {
+                    builder.handleSdkLicenseAcceptance(
+                        prompt = prompt,
+                        onBeforeBuild = {
+                            withContext(Dispatchers.Main.immediate) {
+                                listener.onProgress("Licença aceita. Preparando o compilador Android local…")
+                            }
+                        },
+                        onProgress = { message ->
+                            scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
+                        }
+                    )
+                }
                 listener.onComplete(
                     result ?: "Não há um projeto aguardando aceite da licença do Android SDK."
                 )
