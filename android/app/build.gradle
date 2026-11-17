@@ -32,6 +32,8 @@ dependencies {
     androidTestImplementation 'androidx.test:core:1.6.1'
     androidTestImplementation 'androidx.test.ext:junit:1.2.1'
     implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2'
+    // Persistent local task scheduling; adapted to minSdk 24 and Android background limits.
+    implementation 'androidx.work:work-runtime-ktx:2.12.0'
     implementation 'org.jsoup:jsoup:1.23.2'
     implementation 'org.java-websocket:Java-WebSocket:1.6.0'
     // On-device project compiler: Java source -> DEX -> signed native APK.
