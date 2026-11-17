@@ -1,6 +1,7 @@
 package com.kellvyn.assistant
 
 import android.app.ActivityManager
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -9,6 +10,7 @@ import android.os.Build
 import android.os.Debug
 import android.os.PowerManager
 import android.os.SystemClock
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Reads Android resource state only when a task is about to start or resume.
@@ -26,6 +28,28 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
     private val thermalLock = Any()
     private var cachedHeadroomSampleAt = 0L
     private var cachedHeadroom: Float? = null
+    private val memoryPressure = AtomicReference(KellvynMemoryPressure.NORMAL)
+
+    /** Called by the application-scoped ComponentCallbacks2 listener, never polled. */
+    fun recordTrimMemory(level: Int) {
+        val incoming = when (level) {
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> KellvynMemoryPressure.MODERATE
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> KellvynMemoryPressure.HIGH
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> KellvynMemoryPressure.CRITICAL
+            else -> if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
+                KellvynMemoryPressure.HIGH
+            } else {
+                null
+            }
+        } ?: return
+        memoryPressure.updateAndGet { current ->
+            if (incoming.ordinal > current.ordinal) incoming else current
+        }
+    }
+
+    fun recordLowMemory() {
+        memoryPressure.set(KellvynMemoryPressure.CRITICAL)
+    }
 
     fun snapshot(): KellvynResourceSnapshot {
         val memoryInfo = ActivityManager.MemoryInfo().also(activityManager::getMemoryInfo)
@@ -34,6 +58,9 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
         val heapMax = runtime.maxMemory().coerceAtLeast(1L)
         val totalMemory = memoryInfo.totalMem.takeIf { it > 0L } ?: heapMax
         val availableMemory = memoryInfo.availMem.coerceIn(0L, totalMemory)
+        if (!memoryInfo.lowMemory && availableMemory.toDouble() / totalMemory.toDouble() >= MEMORY_PRESSURE_RESET_FRACTION) {
+            memoryPressure.set(KellvynMemoryPressure.NORMAL)
+        }
         val pssBytes = runCatching { Debug.getPss().coerceAtLeast(0L) * BYTES_PER_KILOBYTE }
             .getOrDefault(0L)
         val batteryIntent = runCatching {
@@ -58,7 +85,8 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
             thermalHeadroomForecast = readThermalHeadroomCached(),
             powerSaveMode = powerManager?.isPowerSaveMode ?: false,
             batteryPercent = batteryPercent,
-            charging = charging
+            charging = charging,
+            memoryPressure = memoryPressure.get()
         )
     }
 
@@ -100,5 +128,6 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
         const val BYTES_PER_KILOBYTE = 1024L
         const val THERMAL_SAMPLE_INTERVAL_MS = 1_000L
         const val THERMAL_FORECAST_SECONDS = 10
+        const val MEMORY_PRESSURE_RESET_FRACTION = 0.20
     }
 }
