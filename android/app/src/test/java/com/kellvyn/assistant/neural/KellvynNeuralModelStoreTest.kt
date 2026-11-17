@@ -75,7 +75,7 @@ class KellvynNeuralModelStoreTest {
     }
 
     @Test
-    fun savesAndRestoresKbn003TransformerBundleIndependently() {
+    fun savesAndRestoresKn003TransformerBundleIndependently() {
         val trained = trainTransformerSample()
 
         store.saveTransformer(trained)
@@ -89,7 +89,7 @@ class KellvynNeuralModelStoreTest {
     }
 
     @Test
-    fun verifiedKbn003BackupRecoversCorruptedCurrentBundle() {
+    fun verifiedKn003BackupRecoversCorruptedCurrentBundle() {
         val trained = trainTransformerSample()
         store.saveTransformer(trained)
 
