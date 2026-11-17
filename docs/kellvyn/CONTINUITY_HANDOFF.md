@@ -416,3 +416,41 @@ A próxima mudança estrutural deve investigar e prototipar **profundidade multi
 6. benchmark de RAM/tempo no Android antes de elevar dimensões.
 
 Não conectar o chat nem promover APK nesta etapa. Depois da profundidade, revisar contexto e KV cache. Montar corpus de português e protocolo KELLVYN/1 autorizado com treino/validação/teste separados. Preservar todo o layout da IA sem alterações.
+
+
+## 14. Continuidade — cache KV incremental concluído no CI (17/11/2026)
+
+**Commit de código validado:** 895eca04525b65b6c7c17175e42ff4d126d1e5ae  
+**Workflow neural:** run 44007839790 — SUCCESS  
+**Última atualização documental nesta sequência:** 36301de2f5e9ccbf05a19ba98940a043ac4a06ad  
+**Escopo:** cérebro/inferência; nenhuma mudança de layout.
+
+### Código adicionado
+- `GenerationSession` interno em `KellvynTransformerLanguageModel`.
+- Preenchimento inicial do cache KV a partir do prefixo.
+- Projeção Q/K/V apenas para cada token que entra.
+- Consulta do token atual reutilizando K/V anteriores.
+- Janela deslizante limitada a contextLength, com remoção da entrada mais antiga.
+- Posições RoPE absolutas para preservar relações relativas na janela.
+- `KellvynTransformerInferenceEngine` agora utiliza a sessão em vez de recalcular todo o contexto a cada token.
+- Geração para no EOS antes de expor o token de controle.
+
+### Testes
+- Probabilidades da sessão incremental comparadas com o forward completo.
+- Teste percorre vários passos após expulsão de tokens antigos da janela.
+- Tamanho do cache limitado por contextLength.
+- Contador de tokens processados confirma uma única projeção K/V por token inserido.
+- Geração greedy da sessão comparada com referência que recalcula contexto completo a cada token.
+- Run 44007839790 executou `gradle testDebugUnitTest` e terminou `BUILD SUCCESSFUL` em 1m40s.
+
+### Falha e correção
+A primeira versão do teste tentou iniciar com prefixo maior que o contextLength de 8 tokens; o construtor rejeitou corretamente a entrada na linha do teste. O prefixo foi reduzido para "Kellvyn" (no máximo 7 bytes UTF-8), mantendo 8 como janela. A execução seguinte passou. Não houve falha de equivalência numérica registrada na execução aprovada.
+
+### Limites
+- Cache é de um único bloco, porque KBN-003 ainda tem um único bloco.
+- Sem benchmark de velocidade real, RAM, bateria, calor ou teste físico Poco F6.
+- O modelo continua com um bloco e contexto de até 256; não há conversa geral validada.
+- Evitar treino concorrente no mesmo objeto usado por uma sessão cacheada; treinar em outra instância e promover bundle depois de validação.
+
+### Próximo passo
+Implementar uma pilha causal multi-bloco real com parâmetros independentes, sequência completa de estados por bloco e backpropagation de todas as posições/camadas. Cada bloco deverá possuir cache KV independente. Validar gradientes de cada bloco por diferenças finitas, overfit sintético, checkpoint/restauração e custo de Android antes de aumentar dimensões. Não conectar ao chat nem alterar o layout nesta etapa.
