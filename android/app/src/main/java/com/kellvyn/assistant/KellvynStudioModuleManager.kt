@@ -336,11 +336,16 @@ internal class KellvynStudioModuleManager(
         }
     }
 
-    /** Close only idle engines. Active leases are never evicted in the middle of a task. */
+    /**
+     * Trim transient caches in every loaded engine, including leased engines, then close only
+     * idle engines. Reclaimers are required to be thread-safe and non-blocking; durable state
+     * and active operation inputs must not be invalidated.
+     */
     fun trimIdleModules(level: KellvynCachePressure): Int {
         val toClose = mutableListOf<Loaded>()
         loaded.entries.toList().forEach { entry ->
             val state = entry.value
+            runCatching { state.module.trimTransientResources(level) }
             val mayRemove = synchronized(state.lock) {
                 if (state.activeLeases == 0 && !state.evicted) {
                     state.evicted = true
@@ -351,7 +356,6 @@ internal class KellvynStudioModuleManager(
             }
             if (mayRemove) {
                 loaded.remove(entry.key, state)
-                runCatching { state.module.trimTransientResources(level) }
                 toClose += state
             }
         }
