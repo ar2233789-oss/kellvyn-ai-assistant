@@ -49,8 +49,8 @@ A pesquisa foi transformada em módulos próprios. Não foram copiados código p
 - o orçamento de contexto usa estimativa de caracteres, não contagem exata de tokens; o tokenizer real só poderá ser usado após integração neural.
 
 ### Protótipo neural
-- `KellvynByteBrain.kt`: KBN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
-- KBN-001 demonstra mecânica de treino, não é um cérebro conversacional nem um modelo de linguagem avançado.
+- `KellvynByteModel.kt`: KN-001, preditor experimental de próximo byte com pesos inicializados, gradientes, atualização de parâmetros e checkpoint próprios;
+- KN-001 demonstra mecânica de treino, não é um cérebro conversacional nem um modelo de linguagem avançado.
 
 ## Validação automatizada
 
@@ -59,7 +59,7 @@ As execuções concluídas do GitHub Actions passaram para:
 - política de memória, escopo e recuperação lexical;
 - agente com memória injetada como contexto não confiável;
 - montagem/limite de contexto;
-- protótipo KBN-001 e verificação de gradientes em execuções anteriores.
+- protótipo KN-001 e verificação de gradientes em execuções anteriores.
 
 A execução `43928133784` passou após corrigir a interpolação do trecho com número de linha. A execução `43928462023` passou com a fábrica do runtime. A execução mais recente `43929599677`, no commit `adaf662112f946e4447669d9e3305206b3aa0f1e`, também passou após desativar o backup automático no manifesto. O workflow executa testes unitários e compila as fontes; não produz APK nem comprova execução no aparelho.
 
@@ -125,9 +125,9 @@ Os documentos ARCHITECTURE.md, MASTER_PLAN.md e NEURAL_MODEL_DECISIONS.md foram 
 
 ### Situação sem maquiagem
 
-O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de byte, e KellvynRuntime.reply() continua sem inferência. O agente/planner/memória/contexto/checkpoints são módulos úteis, mas não conseguem substituir um modelo de linguagem treinado. Nenhum build/teste desta atualização foi confirmado; nenhum teste físico foi feito no Poco F6.
+O cérebro conversacional ainda NÃO está entregue: KN-001 é um preditor de byte, e KellvynRuntime.reply() continua sem inferência. O agente/planner/memória/contexto/checkpoints são módulos úteis, mas não conseguem substituir um modelo de linguagem treinado. Nenhum build/teste desta atualização foi confirmado; nenhum teste físico foi feito no Poco F6.
 
-### Primeiro componente KBN-002 escrito — tokenizer BPE próprio
+### Primeiro componente KN-002 escrito — tokenizer BPE próprio
 
 - Criado `KellvynBpeTokenizer.kt` com fallback nos 256 bytes UTF-8, aprendizado de pares frequentes, desempate determinístico, codificação/decodificação e checkpoint versionado com SHA-256.
 - O corpus só é lido quando passado explicitamente a `train()`; não há scraping, coleta oculta nem uso automático de conversas privadas.
@@ -137,7 +137,7 @@ O cérebro conversacional ainda NÃO está entregue: KBN-001 é um preditor de b
 - A implementação é experimental e ainda não foi aprovada pelo CI nem medida no Poco F6. É um tokenizer, não um modelo neural completo. O caminho de codificação aplica merges em sequência e precisa ser otimizado antes de uso em corpus grande.
 - Os status/checks de CI consultados para esses commits retornaram vazios; não há evidência suficiente para dizer que os testes passaram.
 
-### Modelo neural KBN-002 alpha escrito — 16/11/2026
+### Modelo neural KN-002 alpha escrito — 16/11/2026
 
 - Criado `KellvynAttentionLanguageModel.kt`: modelo original com inicialização aleatória própria, atenção causal de uma cabeça para previsão do próximo token, embeddings de token/posição, projeções Q/K/V, softmax, tanh de saída, cross-entropy, gradientes manuais, AdamW, clipping, geração greedy e checkpoint de pesos/momentos.
 - Criado `KellvynAttentionLanguageModelTest.kt`: testes para gradientes por diferenças finitas, aprendizagem de padrão sintético, checkpoint e entrada fora do vocabulário, além de integração BPE→modelo.
@@ -246,14 +246,14 @@ O modelo ainda é uma alpha de atenção causal com uma cabeça, não um Transfo
 O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be43afd1cbffd48` concluiu com sucesso: run `43986427597` (`https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/43986427597`). O log registra compilação Kotlin, compilação Java, compilação dos testes e `BUILD SUCCESSFUL` em `testDebugUnitTest`. A falha anterior de UTF-8 foi corrigida antes desse commit. O laboratório virtual Android é outro workflow e ainda não tinha conclusão confirmada nesta atualização.
 
 
-## Atualização neural — KBN-003 + EOS — 17/11/2026
+## Atualização neural — KN-003 + EOS — 17/11/2026
 
 **HEAD de código validado:** f32bca0d1b2e14541ed7a52f8c0bd414f685084e.
 
 ### Alterações desta sequência
 - Tokenizador BPE com token EOS dedicado e checkpoint versão 2.
 - Compatibilidade de leitura preservada para checkpoint de tokenizer versão 1 sem EOS.
-- Pipeline KBN-003 passa a anexar EOS a cada completion de treino, validação e teste; a loss supervisiona a parada.
+- Pipeline KN-003 passa a anexar EOS a cada completion de treino, validação e teste; a loss supervisiona a parada.
 - O Transformer pode encerrar a geração ao prever o ID EOS, sem expor o token de controle.
 - O adaptador usa EOS em checkpoints novos e mantém fallback textual END para bundles legados.
 - Testes cobrem round-trip Unicode, token EOS dedicado, compatibilidade de checkpoint antigo, EOS aprendido e parada de geração.
@@ -267,7 +267,7 @@ O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be4
 - Workflow Poco F6 virtual comparison lab: run 44005947963 estava em andamento na última consulta. Não registrar como aprovado até ver o resultado. Mesmo que passe, é um AVD, não o aparelho físico.
 
 ### Limites reais
-- KBN-003 ainda tem um único bloco Transformer, embeddings 32 por padrão e contexto máximo de 256 tokens.
+- KN-003 ainda tem um único bloco Transformer, embeddings 32 por padrão e contexto máximo de 256 tokens.
 - Sem KV cache; o runtime recalcula chaves/valores durante a geração.
 - O corpus de testes continua sintético e pequeno; não existe corpus linguístico grande com direitos documentados.
 - A geração tem como alvo o protocolo KELLVYN/1; ainda não demonstra diálogo natural geral, planejamento confiável ou programação autônoma.
