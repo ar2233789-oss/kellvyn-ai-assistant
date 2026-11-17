@@ -80,15 +80,16 @@ class KellvynProjectWorkspaceToolsInstrumentedTest {
             val approvals = KellvynProjectWriteApprovalGate()
             val registry = KellvynToolRegistry(KellvynProjectWorkspaceTools.create(workspace, approvals))
             val newContent = "Written by the approved coordinator tool."
-            val approvalId = approvals.approveWrite(project.id, "README.md", newContent)
+            // The trusted application records the approval; inference receives no
+            // random approval token and can only propose the exact approved content.
+            approvals.approveWrite(project.id, "README.md", newContent)
             val inference = WorkspaceAgentFakeEngine(
                 KellvynModelDecision.CallTool(
                     "workspace_write_file",
                     mapOf(
                         "project_id" to project.id,
                         "path" to "README.md",
-                        "content" to newContent,
-                        "approval_id" to approvalId
+                        "content" to newContent
                     )
                 ),
                 KellvynModelDecision.Final("Arquivo atualizado e verificado.")
