@@ -506,13 +506,18 @@ jobs:
             sleep 1
             remote_png="/sdcard/native-settings-scroll-${scroll_pass}.png"
             local_png="out/native-settings-scroll-${scroll_pass}.png"
-            timeout 10s adb shell screencap -p "$remote_png" || {
-              echo "[LAB] screenshot failed while scanning settings (pass $scroll_pass)"; exit 1;
-            }
-            timeout 10s adb pull "$remote_png" "$local_png" >/dev/null || {
-              echo "[LAB] screenshot pull failed while scanning settings (pass $scroll_pass)"; exit 1;
-            }
-            cp "$local_png" out/native-settings-scrolled.png
+            if timeout 10s adb exec-out screencap -p >"$local_png" 2>"/tmp/settings-screencap-${scroll_pass}.log" \
+                && [ -s "$local_png" ]; then
+              cp "$local_png" out/native-settings-scrolled.png
+            elif timeout 10s adb shell screencap -p "$remote_png" >"/tmp/settings-screencap-shell-${scroll_pass}.log" 2>&1 \
+                && timeout 10s adb pull "$remote_png" "$local_png" >/dev/null 2>&1 \
+                && [ -s "$local_png" ]; then
+              cp "$local_png" out/native-settings-scrolled.png
+            else
+              echo "[LAB] warning: settings screenshot failed on both exec-out and shell capture (pass $scroll_pass); continuing with accessibility tree inspection."
+              cat "/tmp/settings-screencap-${scroll_pass}.log" 2>/dev/null || true
+              cat "/tmp/settings-screencap-shell-${scroll_pass}.log" 2>/dev/null || true
+            fi
             remote_xml="/sdcard/settings-window-scrolled-${scroll_pass}.xml"
             local_xml="out/native-settings-ui-scroll-${scroll_pass}.xml"
             if timeout 20s adb shell uiautomator dump "$remote_xml" >/tmp/settings-scrolled-dump.log 2>&1 \
