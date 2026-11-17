@@ -43,20 +43,20 @@ class KellvynTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun instructionPipelineRejectsSamePromptAndCompletionAcrossSplits() {
+    fun instructionPipelineRejectsPromptLeakageAcrossSplitsEvenWhenAnswersDiffer() {
         val first = instruction(
-            "train-1", "Pergunta: repita.", "Mesmo texto.",
+            "train-1", "Pergunta: repita.", "Primeira resposta.",
             KellvynTrainingSplit.TRAIN
         )
-        val duplicate = instruction(
-            "validation-1", "Pergunta: repita.", "Mesmo texto.",
+        val duplicatePrompt = instruction(
+            "validation-1", "Pergunta: repita.", "Outra resposta.",
             KellvynTrainingSplit.VALIDATION
         )
         val test = instruction(
             "test-1", "Pergunta: termine.", "Concluído.",
             KellvynTrainingSplit.TEST
         )
-        KellvynTrainingPipeline.trainInstructions(listOf(first, duplicate, test))
+        KellvynTrainingPipeline.trainInstructions(listOf(first, duplicatePrompt, test))
     }
 
     private fun instruction(
