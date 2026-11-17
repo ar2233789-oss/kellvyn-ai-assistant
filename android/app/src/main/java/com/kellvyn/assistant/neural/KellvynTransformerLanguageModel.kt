@@ -15,11 +15,11 @@ import kotlin.math.max
 import kotlin.math.sqrt
 
 /**
- * KBN-003 experimental decoder-only Transformer built from random Kellvyn-owned weights.
+ * KN-003 experimental decoder-only Transformer built from random Kellvyn-owned weights.
  *
  * This first trainable block has causal multi-head self-attention with RoPE, Pre-LayerNorm,
  * residual paths and a SwiGLU feed-forward sub-layer. It intentionally remains small and
- * separate from KBN-002 until gradient, learning, checkpoint and Android runtime gates pass.
+ * separate from KN-002 until gradient, learning, checkpoint and Android runtime gates pass.
  *
  * The implementation computes only the final position for next-token prediction. Keys and
  * values are recomputed for each step; a KV cache is a later optimization, not yet implemented.
@@ -207,14 +207,14 @@ internal class KellvynTransformerLanguageModel private constructor(
         fun readCheckpoint(input: InputStream): KellvynTransformerLanguageModel {
             val bytes = readBounded(input)
             require(bytes.size in (CHECKSUM_BYTES + 48)..MAX_CHECKPOINT_BYTES) {
-                "Checkpoint KBN-003 inválido ou acima do limite."
+                "Checkpoint KN-003 inválido ou acima do limite."
             }
             val payloadSize = bytes.size - CHECKSUM_BYTES
             val payload = bytes.copyOfRange(0, payloadSize)
             val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
             val actualDigest = MessageDigest.getInstance("SHA-256").digest(payload)
             require(MessageDigest.isEqual(storedDigest, actualDigest)) {
-                "A integridade do checkpoint KBN-003 não confere."
+                "A integridade do checkpoint KN-003 não confere."
             }
 
             val data = DataInputStream(ByteArrayInputStream(payload))
@@ -222,7 +222,7 @@ internal class KellvynTransformerLanguageModel private constructor(
                 "Checkpoint não pertence ao Transformer Kellvyn."
             }
             require(data.readInt() == CHECKPOINT_VERSION) {
-                "Versão do checkpoint KBN-003 não suportada."
+                "Versão do checkpoint KN-003 não suportada."
             }
             val config = Config(
                 vocabularySize = data.readInt(),
@@ -235,14 +235,14 @@ internal class KellvynTransformerLanguageModel private constructor(
             val trainingSteps = data.readLong()
             val optimizerSteps = data.readLong()
             require(trainingSteps >= 0L && optimizerSteps == trainingSteps) {
-                "Contadores do checkpoint KBN-003 inválidos."
+                "Contadores do checkpoint KN-003 inválidos."
             }
 
             val parameters = readParameterSet(data, config)
             val firstMoment = readParameterSet(data, config)
             val secondMoment = readParameterSet(data, config)
             require(data.available() == 0) {
-                "Checkpoint KBN-003 contém dados extras."
+                "Checkpoint KN-003 contém dados extras."
             }
             return KellvynTransformerLanguageModel(
                 config,
@@ -307,7 +307,7 @@ internal class KellvynTransformerLanguageModel private constructor(
                     total++
                 } else {
                     require(total <= MAX_CHECKPOINT_BYTES - count) {
-                        "Checkpoint KBN-003 acima do limite."
+                        "Checkpoint KN-003 acima do limite."
                     }
                     output.write(buffer, 0, count)
                     total += count
@@ -329,12 +329,12 @@ internal class KellvynTransformerLanguageModel private constructor(
         private fun readFloatArray(data: DataInputStream, expectedSize: Int): FloatArray {
             val count = data.readInt()
             require(count == expectedSize) {
-                "Dimensão de parâmetro inválida no checkpoint KBN-003."
+                "Dimensão de parâmetro inválida no checkpoint KN-003."
             }
             return FloatArray(count) {
                 data.readFloat().also { value ->
                     require(value.isFinite()) {
-                        "Checkpoint KBN-003 contém parâmetro não finito."
+                        "Checkpoint KN-003 contém parâmetro não finito."
                     }
                 }
             }
@@ -472,7 +472,7 @@ internal class KellvynTransformerLanguageModel private constructor(
     /**
      * Incremental decoder session with a real per-layer key/value cache.
      *
-     * The current KBN-003 architecture has one Transformer block. The session stores the
+     * The current KN-003 architecture has one Transformer block. The session stores the
      * rotated keys and values for prior tokens and computes projections only for each new
      * token. RoPE positions remain absolute; a sliding context window preserves relative
      * position differences when the oldest cached token is evicted.
@@ -1269,10 +1269,10 @@ internal class KellvynTransformerLanguageModel private constructor(
             d, d, d, d, d * f, d * f, f * d, d * v, v
         )
         require(set.arrays().map { it.size } == expected) {
-            "Dimensões do conjunto de parâmetros KBN-003 inválidas."
+            "Dimensões do conjunto de parâmetros KN-003 inválidas."
         }
         require(set.arrays().all { values -> values.all(Float::isFinite) }) {
-            "Parâmetros KBN-003 contêm valores não finitos."
+            "Parâmetros KN-003 contêm valores não finitos."
         }
     }
 
