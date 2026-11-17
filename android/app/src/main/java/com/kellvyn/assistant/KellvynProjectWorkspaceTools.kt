@@ -89,34 +89,43 @@ internal class KellvynProjectWriteApprovalGate(
         return id
     }
 
-    private fun matches(arguments: Map<String, String>, operation: Operation): Boolean {
-        val id = arguments["approval_id"] ?: return false
-        val projectId = arguments["project_id"] ?: return false
-        val path = arguments["path"]?.let { runCatching { normalizePath(it) }.getOrNull() }
-            ?: return false
-        val approval = approvals[id] ?: return false
-        if (approval.expiresAtMillis <= clock()) return false
-        if (approval.operation != operation ||
-            approval.projectId != projectId ||
-            approval.path != path
-        ) return false
+    private fun matches(arguments: Map<String, String>, operation: Operation): Boolean =
+        matchingApprovalId(arguments, operation) != null
 
-        return when (operation) {
-            Operation.WRITE -> {
-                val content = arguments["content"] ?: return false
-                content.length in 1..MAX_CONTENT_CHARS &&
-                    approval.contentSha256 == sha256(content)
-            }
-            Operation.DELETE -> true
+    private fun matchingApprovalId(
+        arguments: Map<String, String>,
+        operation: Operation
+    ): String? {
+        val projectId = arguments["project_id"] ?: return null
+        val path = arguments["path"]?.let { runCatching { normalizePath(it) }.getOrNull() }
+            ?: return null
+        val suppliedId = arguments["approval_id"]
+        val candidates = if (suppliedId != null) {
+            listOfNotNull(suppliedId to approvals[suppliedId])
+        } else {
+            approvals.entries.map { it.key to it.value }
         }
+
+        return candidates.firstOrNull { (_, approval) ->
+            if (approval == null || approval.expiresAtMillis <= clock() ||
+                approval.operation != operation ||
+                approval.projectId != projectId ||
+                approval.path != path
+            ) return@firstOrNull false
+
+            when (operation) {
+                Operation.WRITE -> {
+                    val content = arguments["content"] ?: return@firstOrNull false
+                    content.length in 1..MAX_CONTENT_CHARS &&
+                        approval.contentSha256 == sha256(content)
+                }
+                Operation.DELETE -> true
+            }
+        }?.first
     }
 
     private fun consume(arguments: Map<String, String>, operation: Operation): Boolean {
-        val id = arguments["approval_id"] ?: return false
-        if (!matches(arguments, operation)) {
-            approvals.remove(id)
-            return false
-        }
+        val id = matchingApprovalId(arguments, operation) ?: return false
         return approvals.remove(id) != null
     }
 
@@ -256,7 +265,8 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_write_file",
                 description = "Cria ou substitui um arquivo somente após aprovação única do proprietário vinculada ao conteúdo exato.",
-                requiredArguments = setOf("project_id", "path", "content", "approval_id"),
+                requiredArguments = setOf("project_id", "path", "content"),
+                optionalArguments = setOf("approval_id"),
                 risk = KellvynToolRisk.REVERSIBLE_WRITE,
                 timeoutMs = 10_000L,
                 argumentSchemas = listOf(
@@ -279,6 +289,7 @@ internal object KellvynProjectWorkspaceTools {
                     KellvynToolArgumentSchema(
                         name = "approval_id",
                         type = KellvynToolArgumentType.TEXT,
+                        required = false,
                         maxLength = 48,
                         pattern = "^[a-f0-9]{48}$"
                     )
@@ -308,7 +319,8 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_delete_file",
                 description = "Remove um arquivo do projeto somente após aprovação única do proprietário para o caminho exato.",
-                requiredArguments = setOf("project_id", "path", "approval_id"),
+                requiredArguments = setOf("project_id", "path"),
+                optionalArguments = setOf("approval_id"),
                 risk = KellvynToolRisk.DESTRUCTIVE,
                 timeoutMs = 10_000L,
                 argumentSchemas = listOf(
@@ -326,6 +338,7 @@ internal object KellvynProjectWorkspaceTools {
                     KellvynToolArgumentSchema(
                         name = "approval_id",
                         type = KellvynToolArgumentType.TEXT,
+                        required = false,
                         maxLength = 48,
                         pattern = "^[a-f0-9]{48}$"
                     )
