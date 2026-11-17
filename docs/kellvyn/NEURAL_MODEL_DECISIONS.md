@@ -219,3 +219,18 @@ No commit de código 895eca04525b65b6c7c17175e42ff4d126d1e5ae, o workflow neural
 - o modelo continua com um único bloco, contexto máximo de 256 e sem evidência de qualidade conversacional.
 
 Próximo marco arquitetural: profundidade multi-bloco com parâmetros independentes por bloco, forward causal para todas as posições e retropropagação completa através de todas as camadas. Cada bloco futuro precisará do seu próprio cache KV. Não promover crescimento de contexto ou largura sem testes de memória/desempenho.
+
+
+## 10. Regra vinculante de originalidade e não plágio — confirmada em 17/11/2026
+
+O cérebro Kellvyn deve ser uma implementação própria, não uma cópia ou colagem disfarçada de outra IA ou repositório.
+
+- Não copiar código de Android Studio/Gemini, Replit, ChatGPT, Claude, Cursor, OpenHands, Aider, SWE-agent, OpenCode, nanochat, OLMo ou qualquer outro projeto para apresentar como código autoral.
+- Não usar pesos pré-treinados, adapters ou checkpoints alheios como cérebro da Kellvyn.
+- É permitido estudar artigos, documentação, algoritmos e código público para compreender conceitos. Princípios matemáticos publicados (atenção, Transformer, BPE, backpropagation, AdamW, RoPE, etc.) não são propriedade exclusiva de um produto; a implementação concreta deve ser escrita e mantida no projeto, com proveniência clara.
+- Bibliotecas auxiliares externas só podem ser integradas mediante auditoria do commit, licença, NOTICE, dependências e atribuição. Sua autoria continua sendo de seus autores.
+- Toda nova implementação neural deve registrar: autor/commit Kellvyn, objetivo, fontes conceituais, arquivos alterados, testes, e se qualquer código externo foi incorporado. Por padrão, declarar explicitamente “nenhum código externo incorporado” quando isso for verdadeiro.
+- Não alegar uma auditoria de similaridade completa sem executá-la. A revisão de origem de cada componente e comparação de código são obrigações separadas.
+- Se a melhor solução exigir código de terceiro, não o copiar escondido: interromper essa integração, apresentar fonte/licença/razão e manter alternativa autoral.
+
+**Esta regra prevalece sobre qualquer texto ambíguo que possa ser entendido como autorização para copiar. A referência ensina; a implementação Kellvyn é própria.**
