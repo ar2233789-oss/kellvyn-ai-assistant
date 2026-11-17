@@ -614,7 +614,7 @@ jobs:
           # render a separate CheckBox. Tap the actual checkbox inside the matching row.
           tap_row_text() {
             local value="$1"
-            echo "[LAB] tap row checkbox for text=$value"
+            echo "[LAB] tap row control for text=$value"
             local point
             point="$(python3 - "$value" out/current-ui.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
@@ -625,25 +625,42 @@ jobs:
           targets = [node for node in root.iter("node")
                      if node.attrib.get("text", "").strip().casefold() == expected]
           for target in targets:
-              ancestor = parents.get(target)
-              while ancestor is not None:
-                  if ancestor.attrib.get("class") == "android.widget.LinearLayout":
-                      checkbox = next((node for node in ancestor.iter("node")
-                                       if node.attrib.get("class") == "android.widget.CheckBox"
-                                       and node.attrib.get("enabled", "true") == "true"), None)
-                      candidate = checkbox if checkbox is not None else ancestor
-                      bounds = candidate.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
-                      if len(bounds) == 4:
-                          x1, y1, x2, y2 = map(int, bounds)
-                          print((x1+x2)//2, (y1+y2)//2)
-                          sys.exit(0)
-                  ancestor = parents.get(ancestor)
-          print(f"Could not find an enabled checkbox row for {value}", file=sys.stderr)
+              # Prefer a directly clickable label (e.g. an AlertDialog multi-choice row).
+              if target.attrib.get("clickable") == "true" and target.attrib.get("enabled", "true") == "true":
+                  candidate = target
+              else:
+                  candidate = None
+                  ancestor = parents.get(target)
+                  while ancestor is not None:
+                      descendants = list(ancestor.iter("node"))
+                      checkbox = next((node for node in descendants
+                                       if node.attrib.get("class") in (
+                                           "android.widget.CheckBox",
+                                           "android.widget.RadioButton"
+                                       ) and node.attrib.get("enabled", "true") == "true"), None)
+                      if checkbox is not None:
+                          candidate = checkbox
+                          break
+                      if ancestor.attrib.get("clickable") == "true" and ancestor.attrib.get("enabled", "true") == "true":
+                          candidate = ancestor
+                          break
+                      ancestor = parents.get(ancestor)
+                  # Last resort: tapping the center of the visible row label dispatches
+                  # to Android's parent row even when the label itself is non-clickable.
+                  if candidate is None:
+                      candidate = target
+              bounds = candidate.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+              if len(bounds) == 4:
+                  x1, y1, x2, y2 = map(int, bounds)
+                  if x2 > x1 and y2 > y1:
+                      print((x1+x2)//2, (y1+y2)//2)
+                      sys.exit(0)
+          print(f"Could not find visible row control for {value}", file=sys.stderr)
           sys.exit(2)
           PY
-            )" || { echo "Could not locate checkbox row: $value"; cat out/current-ui.xml; exit 1; }
+            )" || { echo "Could not locate row control: $value"; cat out/current-ui.xml; exit 1; }
             read -r tx ty <<< "$point"
-            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping checkbox row=$value"; exit 1; }
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping row=$value"; exit 1; }
             sleep 1
             dump_current_ui
           }
