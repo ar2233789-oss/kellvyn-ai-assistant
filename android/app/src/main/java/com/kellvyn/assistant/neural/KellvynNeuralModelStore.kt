@@ -85,14 +85,90 @@ internal class KellvynNeuralModelStore(
         null
     }
 
+    /** Saves an independently versioned KBN-003 Transformer bundle. */
+    fun saveTransformer(result: KellvynTransformerTrainingResult) = synchronized(lock) {
+        val root = requireNotNull(prepareRoot())
+        val target = checkedChild(root, TRANSFORMER_MODEL_FILE)
+        val temporary = checkedChild(root, TRANSFORMER_TEMP_FILE)
+        val backup = checkedChild(root, TRANSFORMER_BACKUP_FILE)
+
+        if (temporary.exists() && !temporary.delete()) {
+            error("Não foi possível remover o pacote Transformer temporário anterior.")
+        }
+        FileOutputStream(temporary).use { output ->
+            KellvynTransformerCheckpointBundle.writeCheckpoint(result, output)
+            output.fd.sync()
+        }
+        check(temporary.isFile && temporary.length() in 1..MAX_BUNDLE_BYTES.toLong()) {
+            "O pacote Transformer temporário ficou vazio ou excedeu o limite."
+        }
+
+        if (backup.exists() && !backup.delete()) {
+            temporary.delete()
+            error("Não foi possível preparar o backup Transformer anterior.")
+        }
+        if (target.exists() && !target.renameTo(backup)) {
+            temporary.delete()
+            error("Não foi possível preservar o último pacote Transformer válido.")
+        }
+        if (!temporary.renameTo(target)) {
+            if (backup.exists()) backup.renameTo(target)
+            temporary.delete()
+            error("Não foi possível confirmar o pacote Transformer.")
+        }
+        if (backup.exists() && !backup.delete()) {
+            // The new bundle is already committed; keep the stale backup for next cleanup.
+        }
+    }
+
+    /** Loads KBN-003 only after validating checksum, tokenizer, dimensions and manifest. */
+    fun loadTransformer(): KellvynRestoredTransformerBundle? = synchronized(lock) {
+        val root = prepareRoot(create = false) ?: return@synchronized null
+        val target = checkedChild(root, TRANSFORMER_MODEL_FILE)
+        val backup = checkedChild(root, TRANSFORMER_BACKUP_FILE)
+
+        if (target.isFile) {
+            try {
+                return@synchronized readTransformerBundle(target)
+            } catch (primaryError: Exception) {
+                if (!backup.isFile) throw primaryError
+                val restored = readTransformerBundle(backup)
+                val damaged = checkedChild(root, TRANSFORMER_DAMAGED_FILE)
+                if (damaged.exists()) damaged.delete()
+                if (!target.renameTo(damaged)) return@synchronized restored
+                if (!backup.renameTo(target)) {
+                    damaged.renameTo(target)
+                    return@synchronized restored
+                }
+                damaged.delete()
+                return@synchronized restored
+            }
+        }
+
+        if (backup.isFile) {
+            val restored = readTransformerBundle(backup)
+            if (!backup.renameTo(target)) return@synchronized restored
+            return@synchronized restored
+        }
+        null
+    }
+
+    private fun readTransformerBundle(file: File): KellvynRestoredTransformerBundle {
+        require(file.isFile && file.length() in 1..MAX_BUNDLE_BYTES.toLong()) {
+            "O pacote Transformer salvo está vazio ou excedeu o limite."
+        }
+        return FileInputStream(file).use(KellvynTransformerCheckpointBundle::readCheckpoint)
+    }
+
     fun exists(): Boolean = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized false
-        checkedChild(root, MODEL_FILE).isFile || checkedChild(root, BACKUP_FILE).isFile
+        checkedChild(root, MODEL_FILE).isFile || checkedChild(root, BACKUP_FILE).isFile ||
+            checkedChild(root, TRANSFORMER_MODEL_FILE).isFile || checkedChild(root, TRANSFORMER_BACKUP_FILE).isFile
     }
 
     fun delete() = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized
-        listOf(MODEL_FILE, TEMP_FILE, BACKUP_FILE, DAMAGED_FILE).forEach { name ->
+        listOf(MODEL_FILE, TEMP_FILE, BACKUP_FILE, DAMAGED_FILE, TRANSFORMER_MODEL_FILE, TRANSFORMER_TEMP_FILE, TRANSFORMER_BACKUP_FILE, TRANSFORMER_DAMAGED_FILE).forEach { name ->
             val file = checkedChild(root, name)
             if (file.exists() && !file.delete()) {
                 error("Não foi possível remover o arquivo neural $name.")
@@ -129,6 +205,10 @@ internal class KellvynNeuralModelStore(
         const val TEMP_FILE = "kellvyn-kbn-002.bundle.tmp"
         const val BACKUP_FILE = "kellvyn-kbn-002.bundle.bak"
         const val DAMAGED_FILE = "kellvyn-kbn-002.bundle.damaged"
+        const val TRANSFORMER_MODEL_FILE = "kellvyn-kbn-003.bundle"
+        const val TRANSFORMER_TEMP_FILE = "kellvyn-kbn-003.bundle.tmp"
+        const val TRANSFORMER_BACKUP_FILE = "kellvyn-kbn-003.bundle.bak"
+        const val TRANSFORMER_DAMAGED_FILE = "kellvyn-kbn-003.bundle.damaged"
         const val MAX_BUNDLE_BYTES = 70 * 1024 * 1024
     }
 }
