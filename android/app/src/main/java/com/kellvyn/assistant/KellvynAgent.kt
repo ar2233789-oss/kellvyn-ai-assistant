@@ -837,6 +837,9 @@ internal class KellvynAgent(
         arguments: Map<String, String>,
         requestId: String
     ): KellvynToolResult {
+        if (tool is KellvynResourceManagedAgentTool) {
+            return tool.executeWithResourceControl(arguments)
+        }
         val executeWithTimeout: suspend () -> KellvynToolResult = {
             try {
                 withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
@@ -1125,6 +1128,11 @@ internal data class KellvynToolResult(
 internal interface KellvynAgentTool {
     val spec: KellvynToolSpec
     suspend fun execute(arguments: Map<String, String>): KellvynToolResult
+}
+
+/** Tools that own their resource admission across module loading and execution. */
+internal interface KellvynResourceManagedAgentTool {
+    suspend fun executeWithResourceControl(arguments: Map<String, String>): KellvynToolResult
 }
 
 internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
