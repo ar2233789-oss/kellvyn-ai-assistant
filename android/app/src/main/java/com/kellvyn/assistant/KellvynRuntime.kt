@@ -178,9 +178,11 @@ internal class KellvynRuntime(context: Context) {
     ): KellvynTransformerInferenceEngine? {
         val bundle = loadOwnTransformerModel() ?: return null
         val contextLength = bundle.model.config.contextLength
-        // Tiny experimental windows are useful for unit tests but cannot hold a real
-        // agent prompt plus a useful decision. Do not expose a misleading engine.
+        // This is only an entry gate for the stricter KELLVYN/1 protocol benchmark. It does
+        // not establish conversational ability or production readiness.
         if (contextLength < 128) return null
+        val quality = KellvynTransformerTrainingQualityGate.evaluate(bundle.manifest)
+        if (!quality.eligibleForProtocolBenchmark) return null
         val safeDefault = KellvynTransformerInferenceEngine.Config(
             maxGenerationTokens = minOf(64, (contextLength / 4).coerceAtLeast(16))
         )
