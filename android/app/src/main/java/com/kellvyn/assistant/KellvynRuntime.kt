@@ -39,6 +39,7 @@ internal class KellvynRuntime(context: Context) {
     private val memoryRepository = KellvynEncryptedMemoryRepository(appContext)
     private val localMemory = KellvynMemory(memoryRepository)
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
+    private val projectWriteApprovalGate = KellvynProjectWriteApprovalGate()
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
@@ -206,6 +207,40 @@ internal class KellvynRuntime(context: Context) {
     suspend fun deleteOwnNeuralModel() = withContext(Dispatchers.IO) {
         neuralModelStore.delete()
     }
+
+    /**
+     * Records owner approval for one exact file write. The returned one-use ID must be
+     * attached to the same project/path/content; changing any field invalidates it.
+     * The UI must call this only after the owner explicitly confirms the proposed diff.
+     */
+    fun approveProjectFileWrite(projectId: String, path: String, content: String): String =
+        projectWriteApprovalGate.approveWrite(projectId, path, content)
+
+    /** Records a separate one-use owner approval for deleting one exact file. */
+    fun approveProjectFileDeletion(projectId: String, path: String): String =
+        projectWriteApprovalGate.approveDelete(projectId, path)
+
+    /** Builds the local workspace tool catalogue. Specialist delegation filters this to READ_ONLY. */
+    fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry =
+        KellvynToolRegistry(
+            KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
+        )
+
+    /**
+     * Creates the coordinator with local project tools. Read-only specialists inherit only
+     * the read subset; mutations require an exact short-lived approval issued by the owner.
+     */
+    fun createProjectWorkspaceAgent(
+        inference: KellvynInferenceEngine,
+        activeProjectId: String? = null,
+        config: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynAgent = createAgent(
+        inference = inference,
+        tools = createProjectWorkspaceToolRegistry(),
+        activeProjectId = activeProjectId,
+        authorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate),
+        config = config
+    )
 
     /**
      * Creates the same Kellvyn agent with local memory and optional active-project context.
