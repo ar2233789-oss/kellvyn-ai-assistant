@@ -101,6 +101,11 @@ internal class KellvynPersistentTaskQueue(
     @Synchronized
     fun enqueue(spec: KellvynQueuedTaskSpec, nowMillis: Long): String {
         require(nowMillis > 0L)
+        val db = writableDatabase
+        pruneCompleted(db, nowMillis - FINISHED_RETENTION_MILLIS)
+        check(pendingCountInternal(db) < MAX_PENDING_TASKS) {
+            "A fila local atingiu o limite de tarefas pendentes."
+        }
         val id = UUID.randomUUID().toString()
         val values = ContentValues().apply {
             put(COL_ID, id)
@@ -118,7 +123,7 @@ internal class KellvynPersistentTaskQueue(
             putNull(COL_RESULT)
             put(COL_UPDATED, nowMillis)
         }
-        check(writableDatabase.insertOrThrow(TABLE_TASKS, null, values) > 0L) {
+        check(db.insertOrThrow(TABLE_TASKS, null, values) > 0L) {
             "Não foi possível persistir a tarefa."
         }
         return id
@@ -259,24 +264,25 @@ internal class KellvynPersistentTaskQueue(
             put(COL_ERROR, "PROCESS_INTERRUPTED; handler deve ser idempotente ou validar checkpoint.")
             put(COL_UPDATED, nowMillis)
         }
-        return writableDatabase.update(
+        val db = writableDatabase
+        val requeued = db.update(
             TABLE_TASKS,
             values,
             "$COL_STATE = ? AND $COL_ATTEMPTS < $COL_MAX_ATTEMPTS",
             arrayOf(KellvynQueuedTaskState.RUNNING.name)
-        ).also {
-            val exhausted = ContentValues().apply {
-                put(COL_STATE, KellvynQueuedTaskState.FAILED.name)
-                put(COL_ERROR, "PROCESS_INTERRUPTED; limite de tentativas atingido.")
-                put(COL_UPDATED, nowMillis)
-            }
-            writableDatabase.update(
-                TABLE_TASKS,
-                exhausted,
-                "$COL_STATE = ? AND $COL_ATTEMPTS >= $COL_MAX_ATTEMPTS",
-                arrayOf(KellvynQueuedTaskState.RUNNING.name)
-            )
+        )
+        val exhausted = ContentValues().apply {
+            put(COL_STATE, KellvynQueuedTaskState.FAILED.name)
+            put(COL_ERROR, "PROCESS_INTERRUPTED; limite de tentativas atingido.")
+            put(COL_UPDATED, nowMillis)
         }
+        val failed = db.update(
+            TABLE_TASKS,
+            exhausted,
+            "$COL_STATE = ? AND $COL_ATTEMPTS >= $COL_MAX_ATTEMPTS",
+            arrayOf(KellvynQueuedTaskState.RUNNING.name)
+        )
+        requeued + failed
     }
 
     @Synchronized
@@ -286,11 +292,26 @@ internal class KellvynPersistentTaskQueue(
         ).use { cursor -> if (cursor.moveToFirst()) cursor.toTask() else null }
 
     @Synchronized
-    fun pendingCount(): Int =
-        readableDatabase.rawQuery(
+    fun pendingCount(): Int = pendingCountInternal(readableDatabase)
+
+    private fun pendingCountInternal(db: SQLiteDatabase): Int =
+        db.rawQuery(
             "SELECT COUNT(*) FROM $TABLE_TASKS WHERE $COL_STATE IN (?, ?)",
             arrayOf(KellvynQueuedTaskState.QUEUED.name, KellvynQueuedTaskState.WAITING_RESOURCES.name)
         ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+
+    private fun pruneCompleted(db: SQLiteDatabase, cutoffMillis: Long) {
+        db.delete(
+            TABLE_TASKS,
+            "$COL_STATE IN (?, ?, ?) AND $COL_UPDATED < ?",
+            arrayOf(
+                KellvynQueuedTaskState.SUCCEEDED.name,
+                KellvynQueuedTaskState.FAILED.name,
+                KellvynQueuedTaskState.CANCELLED.name,
+                cutoffMillis.toString()
+            )
+        )
+    }
 
     private fun Cursor.toTask(): KellvynQueuedTask {
         val workload = runCatching {
@@ -333,6 +354,8 @@ internal class KellvynPersistentTaskQueue(
         private const val TABLE_TASKS = "kellvyn_tasks"
         private const val MAX_SUMMARY_CHARS = 4_000
         private const val MAX_ERROR_CHARS = 500
+        private const val MAX_PENDING_TASKS = 500
+        private const val FINISHED_RETENTION_MILLIS = 30L * 24L * 60L * 60L * 1_000L
         private const val BASE_RETRY_MILLIS = 5_000L
         private const val MAX_RETRY_MILLIS = 300_000L
 
