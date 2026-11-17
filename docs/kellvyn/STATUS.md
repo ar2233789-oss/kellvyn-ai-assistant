@@ -402,16 +402,16 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 ### Implementado no código
 - Novo catálogo local com cinco ferramentas: listar projetos, listar arquivos, ler arquivo, gravar/substituir arquivo e remover arquivo.
 - As três operações de leitura são `READ_ONLY`; especialistas recebem somente esse subconjunto.
-- Gravação e exclusão têm riscos separados (`REVERSIBLE_WRITE` e `DESTRUCTIVE`) e exigem token de aprovação de uso único.
-- Tokens vinculam projeto, caminho relativo normalizado e, em gravação, SHA-256 do conteúdo exato. Expiram após 120 segundos, não são reutilizáveis e são perdidos ao encerrar o processo.
+- Gravação e exclusão têm riscos separados (`REVERSIBLE_WRITE` e `DESTRUCTIVE`) e exigem aprovação de uso único mantida pelo app.
+- A autorização vincula projeto, caminho relativo normalizado e, em gravação, SHA-256 do conteúdo exato. Expira após 120 segundos, não é reutilizável e é perdida ao encerrar o processo. O modelo não recebe nem gera token secreto; o argumento de ID é opcional para chamadas confiáveis.
 - `KellvynRuntime` agora expõe `createProjectWorkspaceToolRegistry()`, `createProjectWorkspaceAgent()`, `approveProjectFileWrite()` e `approveProjectFileDeletion()`.
 - O prompt de sistema do coordenador explicita que ele nunca deve inventar, alterar ou reutilizar tokens de aprovação.
 - Documento de referência: `docs/kellvyn/WORKSPACE_AGENT_TOOLS.md`.
 
 ### Testes escritos
 - Unitários da autorização: projeto/caminho/conteúdo divergentes, replay, expiração, separação escrita/exclusão, caminhos inseguros e bloqueio de rede/controle de dispositivo.
-- Instrumentais Android: leitura real, gravação aprovada, recusa sem aprovação, exclusão aprovada e filtro READ_ONLY.
-- Instrumentais do agente: especialista lê arquivo real sem receber ferramentas de mutação; coordenador grava com aprovação exata.
+- Instrumentais Android: leitura real, gravação aprovada sem token no prompt, recusa sem autorização, exclusão aprovada sem token no prompt e filtro READ_ONLY.
+- Instrumentais do agente: especialista lê arquivo real sem receber ferramentas de mutação; coordenador grava com aprovação exata sem receber token secreto.
 - Esses testes ainda não têm resultado Gradle/Android válido. Não registrar como aprovados enquanto não executarem em um runner.
 
 ### Verificação local independente
@@ -438,3 +438,10 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - Runs `44027697451` (neural) e `44027697495` (Poco/AVD), no commit `ca01f8304d49742216479710268d2fea69b31106`, falharam em ~2 segundos: `runner_id=0`, runner vazio, zero etapas e sem logs.
 - Isso não é falha dos testes de código; os testes nem chegaram a iniciar. Também não prova, por si só, qual limite/condição impediu a alocação do runner.
 - Nenhuma cobrança, cartão, plano ou mudança de visibilidade foi ativada. Nenhuma alternativa paga é necessária para manter o projeto privado.
+
+### Correção de desenho da aprovação — 17/11/2026
+- A primeira versão exigia que o modelo reproduzisse um ID aleatório guardado no app; isso não era viável para uma inferência real.
+- O gate foi corrigido: se um ID confiável opcional não vier nos argumentos, a ferramenta local procura uma aprovação pendente que corresponda exatamente a projeto, caminho, operação e (para escrita) hash SHA-256 do conteúdo.
+- O ID aleatório continua sob controle do app e pode ser usado por chamadas confiáveis, mas não é exposto ao modelo.
+- Os testes unitários e instrumentais foram atualizados para cobrir aprovação sem token no prompt. Escrita e exclusão seguem de uso único e expiram após 120 segundos.
+- Limite de integração: ainda não existe no chat principal uma tela/ação de confirmação para emitir essas aprovações; a API de runtime está disponível, mas a confirmação do proprietário precisa ser conectada antes de oferecer edição autônoma no chat.
