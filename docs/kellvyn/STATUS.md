@@ -341,7 +341,7 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 
 ### Código e testes confirmados
 - Branch de laboratório: `lab/kellvyn-intelligence-core-20261116`.
-- Último commit desta sequência (inclui esta atualização de status): `b785c31c1bd7d6c1ea41ffc05a9af6a7fd58fb69`.
+- Último commit da branch no momento desta revisão: `65a65dcffeb56e5631b224e99726e0ca7b297316`.
 - KN-003 preservado como modelo de um bloco; documentação agora reconhece corretamente o cache KV incremental já existente.
 - Adicionado teste que treina um fixture pequeno, salva e restaura o checkpoint e compara as probabilidades cacheadas com o forward integral por 16 passos, inclusive depois de a janela deslizante atingir o limite.
 - Workflow neural core tests no run 44019204700: `gradle testDebugUnitTest` terminou com `BUILD SUCCESSFUL` em 2m19s.
@@ -363,3 +363,24 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - Auditoria integral de proveniência, licenças e similaridade ainda não foi concluída.
 
 **Conclusão:** a base estrutural e os testes unitários do cérebro passaram; a Kellvyn ainda não está pronta como assistente operacional. Não ativar o runtime com pesos aleatórios nem declarar a construção autônoma de apps como concluída.
+
+## Integração do chat com o compilador Android local — 17/11/2026
+
+### Alterações escritas
+- Adicionada a ponte `LocalProjectBuilderBridge`, que executa o compilador em coroutine de fundo e devolve progresso/resultado ao chat na thread principal.
+- Pedidos explícitos de APK Android recebem o contrato do primeiro compilador: projeto Java nativo, sete arquivos obrigatórios, sem Kotlin/Compose, WebView ou dependências externas.
+- Quando o modelo devolver arquivos completos, `MainActivity` encaminha a resposta para `LocalProjectBuilder`; o caminho de APK deixa de ser confundido com o antigo salvamento de arquivos no Editor.
+- Se o compilador pedir consentimento, a frase exata de aceite do Android SDK retoma o projeto pendente antes da checagem do cérebro. A saída só é chamada de APK pronto depois de compilação, assinatura e verificação confirmadas pelo compilador.
+- O teste instrumental `GeneratedAppBuildSmokeTest` foi alterado para usar a mesma ponte que o chat chama, em vez de invocar o compilador diretamente.
+
+### Validação real desta integração
+- Código da ponte, integração Java e teste instrumental foram escritos nos commits `9a2fc45`, `d264a42`, `69fb6ae` e `327184d`.
+- A workflow neural foi atualizada para compilar `MainActivity.java`, a ponte Kotlin e o pacote workspace.
+- Run neural `44023311758` no commit `65a65dcffeb56e5631b224e99726e0ca7b297316`: falhou em aproximadamente 2 segundos, com `runner_id=0` e zero etapas. A repetição também falhou antes de iniciar etapas.
+- Run do laboratório `44023141961` no commit `327184df16c8991241db0f578a562071a97f289f`: jobs web e Android terminaram em aproximadamente 2 segundos, ambos com `runner_id=0` e zero etapas. Portanto, nenhum dos dois verificou a compilação da nova integração.
+- Não declarar a ponte compilada ou testada até uma execução de CI com runner e etapas reais.
+
+### Limite que continua bloqueando o uso
+`KellvynRuntime.isReady()` continua falso e `reply()` continua devolvendo indisponibilidade. Portanto, embora o caminho chat → compilador esteja ligado no código, ele só poderá receber código do modelo quando existir um modelo conversacional treinado e aprovado. A ponte, por si só, não dá inteligência à IA nem prova que o modelo consiga gerar um aplicativo funcional.
+
+**Estado:** integração escrita; validação pendente; cérebro neural conversacional ainda não operacional.
