@@ -20,6 +20,13 @@ internal enum class KellvynThermalBand {
     UNKNOWN
 }
 
+internal enum class KellvynMemoryPressure {
+    NORMAL,
+    MODERATE,
+    HIGH,
+    CRITICAL
+}
+
 /** A point-in-time snapshot. Values are sampled on demand; this class has no polling loop. */
 internal data class KellvynResourceSnapshot(
     val totalSystemMemoryBytes: Long,
@@ -32,7 +39,8 @@ internal data class KellvynResourceSnapshot(
     val thermalHeadroomForecast: Float?,
     val powerSaveMode: Boolean,
     val batteryPercent: Int?,
-    val charging: Boolean
+    val charging: Boolean,
+    val memoryPressure: KellvynMemoryPressure = KellvynMemoryPressure.NORMAL
 ) {
     init {
         require(totalSystemMemoryBytes > 0L)
@@ -136,6 +144,24 @@ internal class KellvynResourceGovernor(
                 "O Android sinalizou pressão de memória; a tarefa foi adiada para proteger o aplicativo.",
                 config.lowMemoryRetryMillis
             )
+        }
+        when (snapshot.memoryPressure) {
+            KellvynMemoryPressure.NORMAL -> Unit
+            KellvynMemoryPressure.MODERATE -> if (request.workload == KellvynWorkloadClass.HEAVY) {
+                return deferred(
+                    "MEMORY_TRIM_MODERATE",
+                    "O Android pediu redução de caches; o trabalho pesado aguardará a liberação de memória.",
+                    config.lowMemoryRetryMillis
+                )
+            }
+            KellvynMemoryPressure.HIGH,
+            KellvynMemoryPressure.CRITICAL -> if (request.workload != KellvynWorkloadClass.LIGHT) {
+                return deferred(
+                    "MEMORY_TRIM_CRITICAL",
+                    "O Android sinalizou pressão elevada de memória; a tarefa foi adiada.",
+                    config.lowMemoryRetryMillis
+                )
+            }
         }
 
         if (snapshot.availableSystemMemoryBytes < reserve + estimate) {
