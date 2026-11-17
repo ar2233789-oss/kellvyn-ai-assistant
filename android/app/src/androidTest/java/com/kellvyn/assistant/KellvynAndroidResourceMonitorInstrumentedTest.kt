@@ -28,6 +28,26 @@ class KellvynAndroidResourceMonitorInstrumentedTest {
     }
 
     @Test
+    fun criticalTrimReleasesRegisteredTransientCaches() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val runtime = KellvynResourceRuntime.get(context)
+        val cache = KellvynManagedMemoryCache<String, ByteArray>(
+            reclaimerId = "instrumented-preview-cache",
+            reclaimPriority = 100,
+            maxBytes = 4L * 1024L * 1024L,
+            sizeOf = { _, value -> value.size.toLong() }
+        )
+        cache.put("preview", ByteArray(512 * 1024))
+        val registration = runtime.registerMemoryReclaimer(cache)
+        try {
+            runtime.onTrimMemory(android.content.ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+            assertTrue(cache.sizeBytes() == 0L)
+        } finally {
+            registration.close()
+        }
+    }
+
+    @Test
     fun runtimeAndBuilderShareOneApplicationScopedBroker() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val first = KellvynResourceRuntime.get(context)
