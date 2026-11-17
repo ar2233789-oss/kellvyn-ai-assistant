@@ -12,8 +12,8 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 
 /**
- * Integrity-checked KBN-003 bundle: own tokenizer, Transformer weights/optimizer and
- * non-text provenance/metrics manifest. It is versioned separately from the KBN-002 bundle.
+ * Integrity-checked KN-003 bundle: own tokenizer, Transformer weights/optimizer and
+ * non-text provenance/metrics manifest. It is versioned separately from the KN-002 bundle.
  */
 internal object KellvynTransformerCheckpointBundle {
     private const val MAGIC = 0x4B564E33 // "KVN3"
@@ -61,23 +61,23 @@ internal object KellvynTransformerCheckpointBundle {
     fun readCheckpoint(input: InputStream): KellvynRestoredTransformerBundle {
         val bytes = readBounded(input)
         require(bytes.size in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
-            "Pacote KBN-003 vazio, truncado ou acima do limite."
+            "Pacote KN-003 vazio, truncado ou acima do limite."
         }
         val payloadSize = bytes.size - CHECKSUM_BYTES
         val payload = bytes.copyOfRange(0, payloadSize)
         val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
         val calculatedDigest = MessageDigest.getInstance("SHA-256").digest(payload)
         require(MessageDigest.isEqual(storedDigest, calculatedDigest)) {
-            "A integridade do pacote KBN-003 não confere."
+            "A integridade do pacote KN-003 não confere."
         }
 
         val data = DataInputStream(ByteArrayInputStream(payload))
-        require(data.readInt() == MAGIC) { "O pacote não pertence à Kellvyn KBN-003." }
-        require(data.readInt() == VERSION) { "Versão do pacote KBN-003 não suportada." }
+        require(data.readInt() == MAGIC) { "O pacote não pertence à Kellvyn KN-003." }
+        require(data.readInt() == VERSION) { "Versão do pacote KN-003 não suportada." }
         val tokenizerBytes = readBlob(data, MAX_TOKENIZER_BYTES, "tokenizer")
         val modelBytes = readBlob(data, MAX_MODEL_BYTES, "modelo")
         val manifestBytes = readBlob(data, MAX_MANIFEST_BYTES, "manifesto")
-        require(data.available() == 0) { "O pacote KBN-003 contém campos extras." }
+        require(data.available() == 0) { "O pacote KN-003 contém campos extras." }
 
         val tokenizer = KellvynBpeTokenizer.readCheckpoint(ByteArrayInputStream(tokenizerBytes))
         val model = KellvynTransformerLanguageModel.readCheckpoint(ByteArrayInputStream(modelBytes))
@@ -171,7 +171,7 @@ internal object KellvynTransformerCheckpointBundle {
                 contentSha256 = readString(data, HASH_HEX_LENGTH)
             )
         }
-        require(data.available() == 0) { "O manifesto KBN-003 contém dados extras." }
+        require(data.available() == 0) { "O manifesto KN-003 contém dados extras." }
         return KellvynTransformerTrainingManifest(
             createdAtMillis = createdAtMillis,
             entries = entries,
@@ -240,7 +240,7 @@ internal object KellvynTransformerCheckpointBundle {
         return try {
             decoder.decode(ByteBuffer.wrap(bytes)).toString()
         } catch (_: java.nio.charset.CharacterCodingException) {
-            throw IllegalArgumentException("O manifesto KBN-003 contém UTF-8 inválido.")
+            throw IllegalArgumentException("O manifesto KN-003 contém UTF-8 inválido.")
         }
     }
 
