@@ -343,6 +343,87 @@ internal class KellvynAttentionLanguageModel private constructor(
         )
     }
 
+    /**
+     * Supervised completion training. The prompt is used as context but only completion
+     * tokens contribute to the loss and parameter updates.
+     */
+    fun trainCompletion(
+        promptTokenIds: IntArray,
+        completionTokenIds: IntArray,
+        epochs: Int,
+        learningRate: Float = 0.003f,
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
+    ): TrainingReport {
+        require(promptTokenIds.isNotEmpty()) { "O prompt supervisionado está vazio." }
+        require(completionTokenIds.isNotEmpty()) { "A resposta supervisionada está vazia." }
+        require(promptTokenIds.size.toLong() + completionTokenIds.size.toLong() <= MAX_TRAINING_TOKENS) {
+            "Prompt e resposta excedem o limite de tokens por exemplo."
+        }
+        require((promptTokenIds + completionTokenIds).all { it in 0 until config.vocabularySize }) {
+            "O exemplo supervisionado contém ID de token inválido."
+        }
+        require(epochs in 1..10_000) { "Número de épocas fora do limite." }
+        require(completionTokenIds.size.toLong() * epochs.toLong() <= MAX_TRAINING_STEPS_PER_CALL) {
+            "A chamada excederia o orçamento de passos de treinamento supervisionado."
+        }
+        require(learningRate.isFinite() && learningRate in 0.000001f..0.05f) {
+            "Taxa de aprendizado fora do limite."
+        }
+        require(weightDecay.isFinite() && weightDecay in 0.0f..0.1f) {
+            "Weight decay fora do limite."
+        }
+
+        val combined = promptTokenIds + completionTokenIds
+        cancellationCheck?.invoke()
+        val initialLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
+        repeat(epochs) {
+            for (targetIndex in promptTokenIds.size until combined.size) {
+                if ((targetIndex - promptTokenIds.size) and 31 == 0) cancellationCheck?.invoke()
+                val start = max(0, targetIndex - config.contextLength)
+                trainOne(
+                    contextTokenIds = combined.copyOfRange(start, targetIndex),
+                    targetTokenId = combined[targetIndex],
+                    learningRate = learningRate,
+                    weightDecay = weightDecay
+                )
+            }
+        }
+        cancellationCheck?.invoke()
+        val finalLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
+        return TrainingReport(
+            initialLoss = initialLoss,
+            finalLoss = finalLoss,
+            examples = completionTokenIds.size,
+            epochs = epochs,
+            totalSteps = trainingSteps
+        )
+    }
+
+    /** Evaluates only the completion, conditioning every target on the preceding prompt. */
+    fun evaluateCompletionLoss(
+        promptTokenIds: IntArray,
+        completionTokenIds: IntArray
+    ): Double {
+        require(promptTokenIds.isNotEmpty() && completionTokenIds.isNotEmpty())
+        require(promptTokenIds.size.toLong() + completionTokenIds.size.toLong() <= MAX_TRAINING_TOKENS)
+        val combined = promptTokenIds + completionTokenIds
+        require(combined.all { it in 0 until config.vocabularySize }) {
+            "O exemplo supervisionado contém ID de token inválido."
+        }
+        var totalLoss = 0.0
+        for (targetIndex in promptTokenIds.size until combined.size) {
+            val start = max(0, targetIndex - config.contextLength)
+            val context = combined.copyOfRange(start, targetIndex)
+            val probability = max(
+                forward(context).probabilities[combined[targetIndex]].toDouble(),
+                1.0e-12
+            )
+            totalLoss -= ln(probability)
+        }
+        return totalLoss / completionTokenIds.size.toDouble()
+    }
+
     fun trainText(
         text: String,
         tokenizer: KellvynBpeTokenizer,
