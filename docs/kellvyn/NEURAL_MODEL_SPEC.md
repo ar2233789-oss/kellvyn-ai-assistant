@@ -1,7 +1,7 @@
 # Kellvyn — especificação do primeiro protótipo neural
 
-**Identificador:** KBN-001  
-**Código:** `android/app/src/main/java/com/kellvyn/assistant/neural/KellvynByteBrain.kt`  
+**Identificador:** KN-001  
+**Código:** `android/app/src/main/java/com/kellvyn/assistant/neural/KellvynByteModel.kt`  
 **Estado:** primeira implementação experimental; ainda não conectada ao chat.
 
 ## Objetivo
