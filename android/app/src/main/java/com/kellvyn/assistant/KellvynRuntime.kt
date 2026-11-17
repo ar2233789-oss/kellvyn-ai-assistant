@@ -9,6 +9,10 @@ import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
 import com.kellvyn.assistant.neural.KellvynTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
+import com.kellvyn.assistant.neural.KellvynTransformerTrainingConfig
+import com.kellvyn.assistant.neural.KellvynTransformerTrainingManifest
+import com.kellvyn.assistant.neural.KellvynTransformerTrainingPipeline
+import com.kellvyn.assistant.neural.KellvynRestoredTransformerBundle
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -138,6 +142,37 @@ internal class KellvynRuntime(context: Context) {
         }
         return trained.manifest
     }
+
+    /**
+     * Trains the original KBN-003 decoder-only Transformer from authorized local instruction
+     * examples and stores its own tokenizer, weights, optimizer moments and manifest.
+     * This does not connect the model to chat or silently replace the KBN-002 experiment.
+     */
+    suspend fun trainOwnTransformerModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTransformerTrainingConfig = KellvynTransformerTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTransformerTrainingManifest {
+        val trained = withContext(Dispatchers.Default) {
+            val trainingContext = currentCoroutineContext()
+            KellvynTransformerTrainingPipeline.train(
+                examples = examples,
+                config = config,
+                createdAtMillis = createdAtMillis,
+                cancellationCheck = { trainingContext.ensureActive() }
+            )
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveTransformer(trained)
+        }
+        return trained.manifest
+    }
+
+    /** Loads the KBN-003 bundle only after validating its checksum and manifest. */
+    suspend fun loadOwnTransformerModel(): KellvynRestoredTransformerBundle? =
+        withContext(Dispatchers.IO) {
+            neuralModelStore.loadTransformer()
+        }
 
     /** Loads the last integrity-checked local tokenizer/model bundle, if one exists. */
     suspend fun loadOwnNeuralModel(): KellvynRestoredNeuralBundle? =
