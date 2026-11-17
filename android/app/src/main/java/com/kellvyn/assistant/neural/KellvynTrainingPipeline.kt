@@ -168,10 +168,10 @@ internal object KellvynTrainingPipeline {
             val sampleBytes = example.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
                 example.completion.toByteArray(Charsets.UTF_8).size.toLong()
             require(sampleBytes in 2..MAX_DOCUMENT_BYTES.toLong()) {
-                "O exemplo \${example.id} excede o limite individual de bytes."
+                "O exemplo " + example.id + " excede o limite individual de bytes."
             }
             require(!containsSecretMaterial(example.prompt) && !containsSecretMaterial(example.completion)) {
-                "O exemplo \${example.id} parece conter credenciais ou chave privada; foi recusado."
+                "O exemplo " + example.id + " parece conter credenciais ou chave privada; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
@@ -179,7 +179,7 @@ internal object KellvynTrainingPipeline {
             }
             val contentHash = sha256(example.prompt + "\u0000" + example.completion)
             require(hashes.add(contentHash)) {
-                "Exemplo supervisionado duplicado entre partições: \${example.id}."
+                "Exemplo supervisionado duplicado entre partições: " + example.id + "."
             }
         }
 
@@ -197,7 +197,6 @@ internal object KellvynTrainingPipeline {
         )
 
         data class EncodedExample(
-            val source: KellvynInstructionTrainingExample,
             val prompt: IntArray,
             val completion: IntArray
         )
@@ -208,12 +207,12 @@ internal object KellvynTrainingPipeline {
                 val promptTokens = tokenizer.encode(example.prompt)
                 val completionTokens = tokenizer.encode(example.completion)
                 require(promptTokens.isNotEmpty() && completionTokens.isNotEmpty()) {
-                    "O exemplo \${example.id} não produziu tokens para prompt e resposta."
+                    "O exemplo " + example.id + " não produziu tokens para prompt e resposta."
                 }
                 require(promptTokens.size.toLong() + completionTokens.size.toLong() <= 100_000L) {
-                    "O exemplo \${example.id} excede o limite tokenizado."
+                    "O exemplo " + example.id + " excede o limite tokenizado."
                 }
-                EncodedExample(example, promptTokens, completionTokens)
+                EncodedExample(promptTokens, completionTokens)
             }
 
         val trainEncoded = encode(train)
