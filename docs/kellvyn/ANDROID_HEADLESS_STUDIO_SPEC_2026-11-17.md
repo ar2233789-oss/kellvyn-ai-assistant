@@ -616,3 +616,76 @@ A pesquisa foi feita a partir de documentação e repositórios públicos. São 
 - Keras custom layers: https://keras.io/guides/making_new_layers_and_models_via_subclassing/
 
 **Próximo marco:** converter esta especificação em contratos e testes dos serviços compartilhados antes de expandir os motores individuais. Não criar uma coleção de editores visuais; criar uma oficina interna que faça o trabalho.
+
+---
+
+## 13. Implementação inicial da fundação de recursos — 17/11/2026
+
+Esta seção registra o que foi escrito depois da especificação. Ela não substitui os critérios de aceitação nem declara o laboratório inteiro concluído.
+
+### Implementado no código
+
+**Resource Governor puro (Kotlin):**
+- Tipos explícitos para classe de trabalho LIGHT, STANDARD e HEAVY.
+- Snapshot com RAM total/disponível, heap usado/máximo, PSS, pressão de memória, faixa térmica, previsão térmica, economia de energia, bateria e carregamento.
+- Admissão baseada em reserva de memória + working set estimado, pressão do heap, estado térmico e bateria.
+- Limites configuráveis, em vez de espalhar constantes por cada agente.
+- Os thresholds atuais (reserva de 6%/192 MiB, heap soft 82%/hard 93%, estimativas 16/128/512 MiB) são **pontos de partida conservadores**, não medições nem valores finais do Poco F6.
+
+**Task Broker compartilhado:**
+- Dois permits de execução com fila FIFO da Semaphore de coroutines.
+- LIGHT pode reservar um permit e coexistir somente com folga de memória/heap/temperatura.
+- STANDARD e HEAVY reservam ambos os permits e não se sobrepõem a outra execução que use o mesmo broker.
+- O broker mede novamente o aparelho depois de adquirir os permits; ele não confia na leitura anterior.
+- Espera de fila tem timeout independente (10 s por padrão). Se não houver slot, retorna RESOURCE_QUEUE_BUSY e não inicia a operação.
+- Permits parciais são liberados em timeout/cancelamento.
+- Isto é uma trava/admissor de concorrência, **não** ainda uma fila persistente com retomada automática e prioridades por deadline.
+
+**Monitor Android sob demanda:**
+- ActivityManager.MemoryInfo para RAM/low-memory.
+- Runtime para heap Java/Kotlin.
+- Debug.getPss() para PSS do processo.
+- PowerManager para economia de energia e estado térmico.
+- Thermal headroom consultado no máximo uma vez por segundo e reutilizado no cache.
+- BatteryManager + ACTION_BATTERY_CHANGED para percentual/carga.
+- Nenhum loop de polling constante: amostra só quando a tarefa é avaliada ou quando diagnóstico é solicitado.
+
+**Integrações:**
+- ResourceRuntime application-scoped faz agente e APK Builder compartilhar o mesmo broker.
+- As três rotas de treinamento neural próprio entram como HEAVY.
+- A compilação e a retomada do construtor Android entram como HEAVY, com estimativa inicial de 768 MiB.
+- A inferência usa STANDARD (estimativa inicial de 128 MiB).
+- Indexação/busca estrutural do projeto usa STANDARD (estimativa inicial de 64 MiB).
+- Ferramentas têm metadados de workload e working set estimado.
+- Ferramenta READ_ONLY device_resource_snapshot permite ao agente de operações inspecionar as condições atuais.
+- Quando um passo planejado é adiado por recursos, seu estado volta a READY e é persistido; a aprovação e o contador de tentativas permanecem, mas as evidências de pré-condições são descartadas para nova checagem.
+- Timeout de execução começa somente depois que o broker concede recursos; timeout de fila não vira falha de compilação.
+- Cancelamento do chamador não deve ser absorvido como timeout interno da ferramenta.
+
+### Testes e verificações executados
+
+- 8 testes puros do Resource Governor/Broker executados com Kotlin/JVM local: RESOURCE_GOVERNOR_UNIT_TESTS_PASS. Cobrem admissão por memória, heap, temperatura e bateria, exclusividade de trabalhos pesados, revalidação de snapshot e adiamento por fila ocupada.
+- KellvynAndroidResourceMonitor.kt compilado isoladamente contra stubs das APIs Android usadas. Isso valida sintaxe/contratos de chamadas simuladas, **não** substitui compilação Android real.
+- Foram adicionados testes unitários de retorno seguro de etapa a READY e instrumentais para snapshot Android e compartilhamento do singleton. Esses testes estão escritos, mas ainda aguardam execução Gradle/Android real.
+- Workflow Kellvyn neural core tests no run 44062178882 e Poco F6 virtual comparison lab no run 44062178854 terminaram em falha sem steps nem logs_url; a consulta de logs retorna BlobNotFound. A evidência indica que o job não chegou a disponibilizar etapas/logs. Não comprova falha no código e também não prova a causa exata da falha de alocação.
+- Nenhum APK, build Gradle completo ou teste físico no Poco F6 foi validado nesta sequência.
+
+### Valores que exigem calibração física
+
+- working set do compilador (768 MiB), treino (512 MiB padrão), inferência (128 MiB) e indexação (64 MiB);
+- reserva de memória, limites de heap e número de tarefas leves simultâneas;
+- efeito de renderização, buffers nativos e GPU no PSS;
+- resposta térmica e consumo de bateria em sessões prolongadas;
+- política de descarregamento de motores e cache após tarefas.
+
+### Próximas lacunas de engenharia
+
+1. Substituir o broker inicial por fila persistente com prioridades, cancelamento, checkpoint e retomada automática quando o Android permitir.
+2. Adicionar registro de pressão por onTrimMemory e política central de descarte de caches/motores.
+3. Introduzir métricas por operação e calibrar estimativas com traces do Poco F6 físico.
+4. Criar manifests de capacidades por estúdio e carregamento lazy dos motores.
+5. Equipar cada um dos 14 agentes com catálogos de ferramentas, skills, permissões e verificadores adequados.
+6. Expandir o indexador sintático além do extrator lexical atual.
+7. Implementar e validar os motores de UI/UX, imagem, 3D/CAD e dados, seguindo esta especificação.
+8. Resolver o bloqueio de CI/runner antes de declarar testes Android aprovados.
+
