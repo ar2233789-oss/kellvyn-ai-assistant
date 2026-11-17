@@ -241,7 +241,14 @@ internal class KellvynRuntime(context: Context) {
         tools = createProjectWorkspaceToolRegistry(),
         activeProjectId = activeProjectId,
         authorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate),
-        config = config
+        config = config.copy(
+            systemInstruction = config.systemInstruction +
+                "\n\nWORKSPACE LOCAL: use workspace_list_projects, workspace_list_files e " +
+                "workspace_read_file para inspecionar. workspace_write_file e workspace_delete_file " +
+                "só podem ser chamadas quando o aplicativo fornecer um approval_id válido para " +
+                "o mesmo projeto, caminho e conteúdo/operação. Nunca invente, altere ou reutilize " +
+                "approval_id. Se não houver aprovação, pare e solicite autorização explícita."
+        )
     )
 
     /**
