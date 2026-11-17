@@ -335,4 +335,31 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - O teste de contrato não comprova competência cognitiva. Isso dependerá de avaliação com modelo treinado e tarefas holdout.
 
 ### Validação
-**Estado no momento do commit:** código e testes escritos/enviados; CI específico da matriz de 14 papéis ainda precisa ser consultado. Não declarar os papéis aprovados até observar `gradle testDebugUnitTest` verde no commit que contém a implementação e o teste atualizado.
+**Validação posterior:** a suíte completa `gradle testDebugUnitTest` passou no run 44019204700, no commit `a778637606e2af6210805f7774ccfbac251b180c`; por incluir a suíte unitária do projeto, ela também executa o contrato dos 14 papéis. Isso comprova contrato, isolamento e permissões, não competência cognitiva.
+
+## Estado consolidado da sequência — 17/11/2026
+
+### Código e testes confirmados
+- Branch de laboratório: `lab/kellvyn-intelligence-core-20261116`.
+- Último commit desta sequência: `2992b0008f18ba48c5d32a64c1a73abdc627ead4`.
+- KN-003 preservado como modelo de um bloco; documentação agora reconhece corretamente o cache KV incremental já existente.
+- Adicionado teste que treina um fixture pequeno, salva e restaura o checkpoint e compara as probabilidades cacheadas com o forward integral por 16 passos, inclusive depois de a janela deslizante atingir o limite.
+- Workflow neural core tests no run 44019204700: `gradle testDebugUnitTest` terminou com `BUILD SUCCESSFUL` em 2m19s.
+- Alterações de interface/layout: nenhuma nesta sequência.
+
+### Laboratório Android
+- No run 44019205073, o Gradle compilou os testes e o APK nativo; o emulador Android 15 instalou e abriu a Kellvyn. A navegação por Histórico, Anexos/Web, Navegador (sem abrir endereço externo), Editor, Bots e Terminal passou antes de a automação parar ao procurar um CheckBox inexistente para o chip clicável `Raios`.
+- O workflow foi ajustado para tratar labels clicáveis corretamente, repetir a abertura de Configurações após cold start e separar a captura visual preliminar da interação funcional obrigatória.
+- O run 44021575534 no commit `2992b0008f18ba48c5d32a64c1a73abdc627ead4` terminou antes de qualquer etapa dos jobs; a API não disponibilizou logs nem etapas. Portanto, a versão mais recente do laboratório ainda não tem resultado funcional verificável.
+- O upload de artefatos também já encontrou limite de quota do GitHub Actions. A captura comparativa de pixels não foi concluída.
+
+### Bloqueios que permanecem
+- KN-004 multicamadas ainda não foi implementado.
+- Não existe corpus português grande, licenciado e treinado que sustente um assistente geral.
+- `KellvynRuntime.isReady()` permanece falso e `reply()` permanece bloqueado. O Transformer experimental não foi ligado ao chat.
+- Os 14 papéis compartilham uma mesma inferência; são contratos de especialistas, não 14 modelos. Sem modelo conversacional treinado, não há prova de desempenho cognitivo.
+- O construtor local tem um smoke test com saída Java determinística, não gerada pelo modelo; compilação ponta a ponta por um agente autônomo ainda não foi comprovada.
+- Não há teste no Poco F6 físico, medições de RAM/latência/temperatura/bateria, nem APK final de lançamento.
+- Auditoria integral de proveniência, licenças e similaridade ainda não foi concluída.
+
+**Conclusão:** a base estrutural e os testes unitários do cérebro passaram; a Kellvyn ainda não está pronta como assistente operacional. Não ativar o runtime com pesos aleatórios nem declarar a construção autônoma de apps como concluída.
