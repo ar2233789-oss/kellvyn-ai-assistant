@@ -5,6 +5,7 @@ import android.net.Uri
 import com.kellvyn.assistant.neural.KellvynNeuralModelStore
 import com.kellvyn.assistant.neural.KellvynTrainingConfig
 import com.kellvyn.assistant.neural.KellvynTrainingDocument
+import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
 import com.kellvyn.assistant.neural.KellvynTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
@@ -103,6 +104,30 @@ internal class KellvynRuntime(context: Context) {
             val trainingContext = currentCoroutineContext()
             KellvynTrainingPipeline.train(
                 documents = documents,
+                config = config,
+                createdAtMillis = createdAtMillis,
+                cancellationCheck = { trainingContext.ensureActive() }
+            )
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.save(trained)
+        }
+        return trained.manifest
+    }
+
+    /**
+     * Trains the original Kellvyn model from explicitly authorized prompt/response examples.
+     * Only response tokens are optimized; the prompt is used as conditioning context.
+     */
+    suspend fun trainOwnInstructionModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTrainingConfig = KellvynTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTrainingManifest {
+        val trained = withContext(Dispatchers.Default) {
+            val trainingContext = currentCoroutineContext()
+            KellvynTrainingPipeline.trainInstructions(
+                examples = examples,
                 config = config,
                 createdAtMillis = createdAtMillis,
                 cancellationCheck = { trainingContext.ensureActive() }
