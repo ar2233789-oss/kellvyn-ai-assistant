@@ -99,12 +99,12 @@ Aplicação Kellvyn:
 2. Os checkpoints salvam plano/estado, mas ainda precisam anexar referências de evidência produzida pelo executor e replay determinístico das ações.
 3. A ferramenta de build precisa retornar artefatos e resultados verificáveis (compilação, APK, assinatura, instalação, crash log, interação).
 4. O indexador do projeto ainda é sobretudo lexical; precisa de símbolos/imports e atualização incremental.
-5. A inferência KBN-003 acabou de ganhar adaptador estrito, mas continua sem dados de qualidade suficientes e não está ligada ao chat principal.
+5. A inferência KN-003 acabou de ganhar adaptador estrito, mas continua sem dados de qualidade suficientes e não está ligada ao chat principal.
 6. A UI não deve mudar durante esse trabalho cognitivo.
 
 ## 6. Ordem recomendada de implementação
 
-1. Teste e estabilização do adaptador KBN-003; garantir que peso aleatório falha fechado.
+1. Teste e estabilização do adaptador KN-003; garantir que peso aleatório falha fechado.
 2. Tracing local com eventos tipados e redaction, ligado a checkpoints de tarefas.
 3. Ferramentas locais de build, instalação, UIAutomator, screenshot e Logcat com contratos de saída.
 4. Replay/verificação independente de critérios por etapa.
