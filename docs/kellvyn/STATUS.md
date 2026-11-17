@@ -212,3 +212,30 @@ Foi adicionado `KellvynToolRegistry.readOnlySubset()` e criado `KellvynAgentDele
 Adicionada `KellvynAgent.executeReadySteps()`: avança as etapas READY em ordem, usando ferramenta única e argumentos por etapa, exige verificador independente, persiste cada RUNNING/final e pára em aprovação pendente, falha ou orçamento de etapas. Ao chamar novamente depois da aprovação, continua do último checkpoint, sem repetir etapa já SUCCEEDED. O cancelamento durante a verificação tenta registrar o estado CANCELLED em contexto não cancelável.
 
 Foi acrescentado teste de cadeia: inspeção somente leitura → parada aguardando aprovação → aprovação → etapa mutável concluída com prova. O teste está escrito, mas não foi executado pelo Gradle/CI.
+
+
+## Atualização do cérebro próprio — 17/11/2026
+
+### Implementado nesta sessão
+- Corrigido o bloco duplicado no adaptador local que causava erros de sintaxe.
+- Corrigido o índice da última mensagem do usuário no truncamento do histórico e exigida a presença de mensagem USER.
+- Adicionados `trainCompletion()` e `evaluateCompletionLoss()`: o prompt condiciona a saída, mas somente os tokens da resposta recebem loss/atualização.
+- Adicionados `KellvynInstructionTrainingExample` e `KellvynTrainingPipeline.trainInstructions()`, com tokenizer treinado apenas em TRAIN, partições de validação/teste, proveniência, limites, filtro de dados sensíveis e hashes.
+- Bloqueado o uso do mesmo prompt em partições diferentes, mesmo quando as respostas forem diferentes.
+- Adicionado `KellvynRuntime.trainOwnInstructionModel()` para treinar em Dispatchers.Default e persistir o bundle local.
+- Adicionados testes para redução de loss supervisionada, contagem de passos, checkpoint e prevenção de vazamento.
+- Corrigido o parser para converter UTF-8 malformado em rejeição controlada.
+
+### Validação
+HEAD consultado: `57ac899e98062ebd304927762be43afd1cbffd48`.
+A execução no commit `f2a892c7` compilou Kotlin e executou 136 testes: 135 passaram e 1 falhou em UTF-8 malformado. A falha foi corrigida no commit `529d6287`. A execução do workflow neural no HEAD `57ac899e` e o laboratório virtual no mesmo HEAD estavam em andamento na última consulta. **Não há aprovação final confirmada neste registro.**
+
+### Limites
+O modelo ainda é uma alpha de atenção causal com uma cabeça, não um Transformer completo. O treino supervisionado é uma primitiva experimental; não comprova conversa, raciocínio ou uso de ferramentas. Os exemplos usados são pequenos e sintéticos. O adaptador ainda não está ligado ao chat principal; `KellvynRuntime.isReady()` continua falso e `reply()` bloqueado. Não houve teste físico no Poco F6 nem APK de entrega.
+
+### Próximos passos
+1. Fechar CI e laboratório no HEAD atual, corrigindo qualquer falha observada.
+2. Implementar Transformer decoder-only próprio com atenção causal multi-head, residual, normalização e MLP gated, acompanhado de testes numéricos de gradiente.
+3. Reduzir custo do protocolo e implementar EOS/decodificação controlada.
+4. Construir corpus de instruções de português com direitos documentados e avaliação separada.
+5. Só então ligar inferência treinada ao agente e ao chat, sem mudar a interface aprovada.
