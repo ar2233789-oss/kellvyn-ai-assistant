@@ -1073,7 +1073,8 @@ internal data class KellvynToolSpec(
     val timeoutMs: Long = 15_000L,
     val argumentSchemas: List<KellvynToolArgumentSchema> = emptyList(),
     val workloadClass: KellvynWorkloadClass = KellvynWorkloadClass.LIGHT,
-    val estimatedWorkingSetBytes: Long = 0L
+    val estimatedWorkingSetBytes: Long = 0L,
+    val capabilities: Set<KellvynStudioCapability> = emptySet()
 ) {
     init {
         require(name.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{1,63}")))
