@@ -408,7 +408,7 @@ internal class KellvynAgent(
             normalizedGoal.trim().length >= 2
         ) {
             val projectContext = try {
-                val search: suspend () -> KellvynProjectSearchResult = {
+                val search: suspend () -> KellvynProjectSearchReport = {
                     projectContextRetriever.search(
                         KellvynProjectSearchRequest(
                             projectId = activeProjectId,
