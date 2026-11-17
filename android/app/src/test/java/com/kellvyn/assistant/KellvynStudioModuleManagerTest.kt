@@ -163,8 +163,13 @@ class KellvynStudioModuleManagerTest {
             estimatedLoadWorkingSetBytes = loadBytes,
             estimatedResidentBytes = residentBytes,
             permissions = setOf(KellvynStudioPermission.PRIVATE_WORKSPACE_READ),
-            toolNames = setOf(toolName),
-            toolRisks = mapOf(toolName to KellvynToolRisk.READ_ONLY)
+            toolSpecs = listOf(
+                KellvynToolSpec(
+                    name = toolName,
+                    description = "Ferramenta de teste",
+                    risk = KellvynToolRisk.READ_ONLY
+                )
+            )
         )
         val moduleManifest = manifest
         return KellvynStudioModuleDefinition(moduleManifest) {
