@@ -144,9 +144,9 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Trains the original KBN-003 decoder-only Transformer from authorized local instruction
+     * Trains the original KN-003 decoder-only Transformer from authorized local instruction
      * examples and stores its own tokenizer, weights, optimizer moments and manifest.
-     * This does not connect the model to chat or silently replace the KBN-002 experiment.
+     * This does not connect the model to chat or silently replace the KN-002 experiment.
      */
     suspend fun trainOwnTransformerModel(
         examples: List<KellvynInstructionTrainingExample>,
@@ -169,7 +169,7 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Restores a locally trained KBN-003 model and wraps it in the strict inference adapter.
+     * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
     suspend fun createOwnTransformerInferenceEngine(
@@ -190,7 +190,7 @@ internal class KellvynRuntime(context: Context) {
         )
     }
 
-    /** Loads the KBN-003 bundle only after validating its checksum and manifest. */
+    /** Loads the KN-003 bundle only after validating its checksum and manifest. */
     suspend fun loadOwnTransformerModel(): KellvynRestoredTransformerBundle? =
         withContext(Dispatchers.IO) {
             neuralModelStore.loadTransformer()
