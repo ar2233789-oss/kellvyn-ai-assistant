@@ -45,9 +45,10 @@ internal data class KellvynStudioModuleManifest(
     val estimatedLoadWorkingSetBytes: Long,
     val estimatedResidentBytes: Long,
     val permissions: Set<KellvynStudioPermission>,
-    val toolNames: Set<String>,
-    val toolRisks: Map<String, KellvynToolRisk> = emptyMap()
+    val toolSpecs: List<KellvynToolSpec>
 ) {
+    val toolNames: Set<String> get() = toolSpecs.map { it.name }.toSet()
+    val toolRisks: Map<String, KellvynToolRisk> get() = toolSpecs.associate { it.name to it.risk }
     init {
         require(moduleId.matches(Regex("[a-z][a-z0-9-]{1,47}")))
         require(version > 0)
@@ -55,12 +56,9 @@ internal data class KellvynStudioModuleManifest(
         require(supportedExtensions.all { it.matches(Regex("[a-z0-9]{1,12}")) })
         require(minSdk in 24..100)
         require(estimatedLoadWorkingSetBytes >= 0L && estimatedResidentBytes >= 0L)
-        require(toolNames.isNotEmpty() && toolNames.all {
-            it.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}"))
-        })
-        require(toolRisks.keys == toolNames) {
-            "O manifesto precisa declarar o risco de cada ferramenta."
-        }
+        require(toolSpecs.isNotEmpty())
+        require(toolNames.size == toolSpecs.size) { "O manifesto contém nomes de ferramenta duplicados." }
+        require(toolSpecs.all { it.name.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}")) })
         toolRisks.forEach { (name, risk) ->
             val requiredPermission = when (risk) {
                 KellvynToolRisk.READ_ONLY -> null
@@ -156,6 +154,55 @@ internal class KellvynStudioModuleManager(
             .sortedWith(compareBy<KellvynStudioModuleManifest> { it.estimatedResidentBytes }
                 .thenBy { it.moduleId })
 
+    /**
+     * Creates lightweight tool adapters from registered manifests. The engine itself remains
+     * unloaded until the selected tool is actually executed; each call holds a lease for safety.
+     */
+    fun toolsForCapabilities(capabilities: Set<KellvynStudioCapability>): List<KellvynAgentTool> {
+        if (capabilities.isEmpty()) return emptyList()
+        val selected = definitions.values.map { it.manifest }
+            .filter { manifest -> manifest.capabilities.any { it in capabilities } }
+            .sortedBy { it.moduleId }
+        val adapters = selected.flatMap { manifest ->
+            manifest.toolSpecs.map { declaredSpec ->
+                object : KellvynAgentTool {
+                    override val spec = declaredSpec
+
+                    override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                        val lease = acquire(manifest.moduleId)
+                        try {
+                            val delegate = lease.tools.singleOrNull { it.spec.name == declaredSpec.name }
+                                ?: return KellvynToolResult(false, "A ferramenta declarada não existe no motor carregado.")
+                            if (delegate.spec != declaredSpec) {
+                                return KellvynToolResult(false, "O contrato da ferramenta mudou após o carregamento.")
+                            }
+                            return delegate.execute(arguments)
+                        } finally {
+                            lease.close()
+                        }
+                    }
+                }
+            }
+        }
+        val duplicateNames = adapters.groupingBy { it.spec.name }.eachCount()
+            .filterValues { it > 1 }.keys
+        require(duplicateNames.isEmpty()) {
+            "Há ferramentas duplicadas entre os estúdios: " + duplicateNames.sorted().joinToString()
+        }
+        return adapters
+    }
+
+    fun registerIfAbsent(definition: KellvynStudioModuleDefinition) {
+        val existing = definitions[definition.manifest.moduleId]
+        if (existing != null) {
+            require(existing.manifest == definition.manifest) {
+                "O módulo já existe com um manifesto diferente: " + definition.manifest.moduleId
+            }
+            return
+        }
+        register(definition)
+    }
+
     suspend fun acquire(moduleId: String): KellvynStudioModuleLease {
         val definition = definitions[moduleId]
             ?: throw IllegalArgumentException("Módulo não registrado: " + moduleId)
@@ -201,15 +248,12 @@ internal class KellvynStudioModuleManager(
                 runCatching { created.close() }
                 error("O módulo contém ferramentas duplicadas: " + duplicateToolNames.sorted().joinToString() + ".")
             }
-            val actualToolSet = actualNames.toSet()
-            val undeclaredTools = actualToolSet - manifest.toolNames
-            val missingTools = manifest.toolNames - actualToolSet
-            val riskMismatches = created.tools.filter { tool ->
-                manifest.toolRisks[tool.spec.name] != tool.spec.risk
-            }.map { it.spec.name }.toSet()
-            if (undeclaredTools.isNotEmpty() || missingTools.isNotEmpty() || riskMismatches.isNotEmpty()) {
+            val actualSpecs = created.tools.map { it.spec }
+            if (actualSpecs.toSet() != manifest.toolSpecs.toSet() ||
+                actualSpecs.size != manifest.toolSpecs.size
+            ) {
                 runCatching { created.close() }
-                error("As ferramentas ou os riscos carregados divergem do manifesto do módulo.")
+                error("Os contratos de ferramenta carregados divergem do manifesto do módulo.")
             }
 
             val state = Loaded(created, now).also { it.activeLeases = 1 }
