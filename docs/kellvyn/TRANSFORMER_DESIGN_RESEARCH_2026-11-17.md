@@ -1,7 +1,7 @@
 # Kellvyn — pesquisa técnica para a próxima arquitetura neural
 
 **Data:** 17/11/2026  
-**Objetivo:** sair do KBN-002 alpha de uma cabeça e construir um decoder-only treinável, preservando pesos próprios e execução local primeiro.
+**Objetivo:** sair do KN-002 alpha de uma cabeça e construir um decoder-only treinável, preservando pesos próprios e execução local primeiro.
 
 ## Decisões de arquitetura
 
@@ -24,7 +24,7 @@ A MLP deve ser position-wise e testável de forma independente. SwiGLU é uma ca
 Fonte: https://arxiv.org/abs/2002.05202
 
 ### 5. Codificação posicional
-RoPE é candidata para a arquitetura KBN-003: aplica rotação a pares de dimensões de Q/K e representa posição relativa na atenção. Não é magia para contexto infinito; extrapolação de comprimento exige avaliação própria. A primeira versão pode começar com RoPE em contexto curto e testes manuais de posição antes de ampliar a janela.
+RoPE é candidata para a arquitetura KN-003: aplica rotação a pares de dimensões de Q/K e representa posição relativa na atenção. Não é magia para contexto infinito; extrapolação de comprimento exige avaliação própria. A primeira versão pode começar com RoPE em contexto curto e testes manuais de posição antes de ampliar a janela.
 
 Fonte: https://arxiv.org/abs/2104.09864
 
@@ -35,7 +35,7 @@ Fonte: https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md
 
 ## Plano de implementação em código
 
-1. Criar `KellvynTransformerLanguageModel` sem remover o KBN-002 alpha atual.
+1. Criar `KellvynTransformerLanguageModel` sem remover o KN-002 alpha atual.
 2. Implementar e testar isoladamente operações numéricas: LayerNorm forward/backward, RoPE, softmax estável, projeções e SwiGLU.
 3. Implementar um bloco Pre-LN com causal multi-head attention, residuals, MLP gated e cabeça de próximo token.
 4. Implementar backpropagation manual e comparar gradientes analíticos contra diferenças finitas em coordenadas selecionadas.
