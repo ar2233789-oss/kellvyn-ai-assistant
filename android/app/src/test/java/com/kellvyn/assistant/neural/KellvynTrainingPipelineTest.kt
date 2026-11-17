@@ -8,6 +8,76 @@ import java.io.ByteArrayOutputStream
 
 class KellvynTrainingPipelineTest {
     @Test
+    fun instructionPipelineOptimizesOnlyCompletionAndMeasuresHeldOutExamples() {
+        val examples = listOf(
+            instruction("train-1", "Pergunta: diga olá.\nResposta:", "Olá.", KellvynTrainingSplit.TRAIN),
+            instruction("validation-1", "Pergunta: diga bom dia.\nResposta:", "Bom dia.", KellvynTrainingSplit.VALIDATION),
+            instruction("test-1", "Pergunta: diga até logo.\nResposta:", "Até logo.", KellvynTrainingSplit.TEST)
+        )
+        val config = KellvynTrainingConfig(
+            contextLength = 24,
+            embeddingSize = 8,
+            seed = 773L,
+            maxMerges = 12,
+            epochsPerDocument = 2,
+            maxTotalTrainingSteps = 10_000L,
+            weightDecay = 0.0f
+        )
+
+        val result = KellvynTrainingPipeline.trainInstructions(
+            examples = examples,
+            config = config,
+            createdAtMillis = 1_800_000_300_000L
+        )
+        val expectedCompletionSteps = examples
+            .filter { it.split == KellvynTrainingSplit.TRAIN }
+            .sumOf { result.tokenizer.encode(it.completion).size.toLong() * config.epochsPerDocument }
+
+        assertEquals(expectedCompletionSteps, result.model.trainingSteps)
+        assertEquals(expectedCompletionSteps, result.manifest.totalTrainingSteps)
+        assertEquals(3, result.manifest.entries.size)
+        assertEquals(1, result.manifest.entries.count { it.split == KellvynTrainingSplit.TRAIN })
+        assertTrue(result.manifest.initialValidationLoss.isFinite())
+        assertTrue(result.manifest.finalValidationLoss.isFinite())
+        assertTrue(result.manifest.heldOutTestLoss.isFinite())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun instructionPipelineRejectsSamePromptAndCompletionAcrossSplits() {
+        val first = instruction(
+            "train-1", "Pergunta: repita.", "Mesmo texto.",
+            KellvynTrainingSplit.TRAIN
+        )
+        val duplicate = instruction(
+            "validation-1", "Pergunta: repita.", "Mesmo texto.",
+            KellvynTrainingSplit.VALIDATION
+        )
+        val test = instruction(
+            "test-1", "Pergunta: termine.", "Concluído.",
+            KellvynTrainingSplit.TEST
+        )
+        KellvynTrainingPipeline.trainInstructions(listOf(first, duplicate, test))
+    }
+
+    private fun instruction(
+        id: String,
+        prompt: String,
+        completion: String,
+        split: KellvynTrainingSplit
+    ) = KellvynInstructionTrainingExample(
+        id = id,
+        prompt = prompt,
+        completion = completion,
+        split = split,
+        provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kellvyn-instruction-test/$id",
+            rightsEvidence = "Exemplo de instrução criado pelo proprietário para teste."
+        )
+    )
+
+    @Test
     fun trainsTokenizerOnlyOnTrainAndMeasuresHeldOutSplits() {
         val documents = sampleDocuments()
         val config = KellvynTrainingConfig(
