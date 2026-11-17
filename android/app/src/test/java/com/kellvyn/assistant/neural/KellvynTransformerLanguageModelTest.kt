@@ -1,5 +1,6 @@
 package com.kellvyn.assistant.neural
 
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -100,6 +101,38 @@ class KellvynTransformerLanguageModelTest {
         assertEquals(
             model.predictNext(tokenizer.encode("Oi")),
             restored.predictNext(tokenizer.encode("Oi"))
+        )
+    }
+
+
+    @Test
+    fun modelCanLearnAndStopAtDedicatedEndOfSequenceToken() {
+        val promptText = "Kellvyn resposta:"
+        val tokenizer = KellvynBpeTokenizer.train(listOf(promptText), maxMerges = 0)
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 4104L
+        )
+        val prompt = tokenizer.encode(promptText)
+        val endTokenId = requireNotNull(tokenizer.endOfSequenceTokenId)
+
+        model.trainCompletion(
+            promptTokenIds = prompt,
+            completionTokenIds = intArrayOf(endTokenId),
+            epochs = 400,
+            learningRate = 0.01f,
+            weightDecay = 0.0f
+        )
+
+        assertEquals(endTokenId, model.predictNext(prompt))
+        assertArrayEquals(
+            "A sequência retornada deve excluir o token de controle EOS.",
+            prompt,
+            model.generate(prompt, maxNewTokens = 8, endTokenId = endTokenId)
         )
     }
 
