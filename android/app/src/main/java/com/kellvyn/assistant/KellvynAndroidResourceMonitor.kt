@@ -34,13 +34,12 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
     fun recordTrimMemory(level: Int) {
         val incoming = when (level) {
             ComponentCallbacks2.TRIM_MEMORY_RUNNING_MODERATE -> KellvynMemoryPressure.MODERATE
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW -> KellvynMemoryPressure.HIGH
-            ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> KellvynMemoryPressure.CRITICAL
-            else -> if (level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND) {
-                KellvynMemoryPressure.HIGH
-            } else {
-                null
-            }
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW,
+            ComponentCallbacks2.TRIM_MEMORY_BACKGROUND,
+            ComponentCallbacks2.TRIM_MEMORY_MODERATE -> KellvynMemoryPressure.HIGH
+            ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL,
+            ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> KellvynMemoryPressure.CRITICAL
+            else -> null
         } ?: return
         memoryPressure.updateAndGet { current ->
             if (incoming.ordinal > current.ordinal) incoming else current
