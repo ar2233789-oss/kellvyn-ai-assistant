@@ -8,11 +8,11 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Adapter for the original KBN-003 decoder-only Transformer.
+ * Adapter for the original KN-003 decoder-only Transformer.
  *
  * The model must emit a complete KELLVYN/1 message. No text is shown or tool is executed
  * until the strict parser accepts the entire result. This adapter is deliberately separate
- * from KBN-002 and is not connected to the main chat/runtime yet.
+ * from KN-002 and is not connected to the main chat/runtime yet.
  */
 internal class KellvynTransformerInferenceEngine(
     private val model: KellvynTransformerLanguageModel,
@@ -38,7 +38,7 @@ internal class KellvynTransformerInferenceEngine(
 
     init {
         require(tokenizer.vocabularySize == model.config.vocabularySize) {
-            "Tokenizer e Transformer KBN-003 usam vocabulários diferentes."
+            "Tokenizer e Transformer KN-003 usam vocabulários diferentes."
         }
         require(config.maxGenerationTokens < model.config.contextLength) {
             "A geração precisa reservar espaço de contexto para o Transformer."
@@ -70,7 +70,7 @@ internal class KellvynTransformerInferenceEngine(
             coroutine.ensureActive()
             val token = session.predictNext()
 
-            // New KBN-003 checkpoints learn a dedicated EOS token. Version-1 tokenizer
+            // New KN-003 checkpoints learn a dedicated EOS token. Version-1 tokenizer
             // checkpoints remain readable and retain their legacy textual END fallback.
             if (endOfSequenceTokenId != null && token == endOfSequenceTokenId) {
                 terminated = true
@@ -92,7 +92,7 @@ internal class KellvynTransformerInferenceEngine(
         coroutine.ensureActive()
         if (!terminated) {
             throw IllegalArgumentException(
-                "O Transformer KBN-003 atingiu o limite de geração sem terminar com END."
+                "O Transformer KN-003 atingiu o limite de geração sem terminar com END."
             )
         }
 
@@ -132,7 +132,7 @@ internal class KellvynTransformerInferenceEngine(
 
         while (true) {
             val prompt = buildString {
-                append("KELLVYN AGENT KBN-003\n")
+                append("KELLVYN AGENT KN-003\n")
                 append(terminationInstruction)
                 append("Tipos: FINAL, CALL_TOOL, PLAN, DELEGATE.\n")
                 append("Todo texto livre deve ser UTF-8 em hexadecimal. Sem Markdown.\n")
@@ -163,7 +163,7 @@ internal class KellvynTransformerInferenceEngine(
             val removable = retained.indices.firstOrNull { it != latestUserIndex }
             if (removable == null) {
                 throw IllegalArgumentException(
-                    "As regras, ferramentas e última solicitação não cabem na janela KBN-003."
+                    "As regras, ferramentas e última solicitação não cabem na janela KN-003."
                 )
             }
             retained.removeAt(removable)
