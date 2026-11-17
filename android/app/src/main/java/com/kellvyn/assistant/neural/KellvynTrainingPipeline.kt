@@ -163,6 +163,7 @@ internal object KellvynTrainingPipeline {
 
         var totalBytes = 0L
         val hashes = mutableSetOf<String>()
+        val promptPartition = mutableMapOf<String, KellvynTrainingSplit>()
         for (example in examples) {
             cancellationCheck()
             val sampleBytes = example.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
@@ -176,6 +177,11 @@ internal object KellvynTrainingPipeline {
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
                 "O corpus supervisionado excede o limite experimental de bytes."
+            }
+            val promptHash = sha256(example.prompt)
+            val previousPartition = promptPartition.putIfAbsent(promptHash, example.split)
+            require(previousPartition == null || previousPartition == example.split) {
+                "O mesmo prompt apareceu em partições diferentes de treino: " + example.id + "."
             }
             val contentHash = sha256(example.prompt + "\u0000" + example.completion)
             require(hashes.add(contentHash)) {
