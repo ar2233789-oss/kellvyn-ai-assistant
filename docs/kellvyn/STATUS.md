@@ -384,3 +384,16 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 `KellvynRuntime.isReady()` continua falso e `reply()` continua devolvendo indisponibilidade. Portanto, embora o caminho chat → compilador esteja ligado no código, ele só poderá receber código do modelo quando existir um modelo conversacional treinado e aprovado. A ponte, por si só, não dá inteligência à IA nem prova que o modelo consiga gerar um aplicativo funcional.
 
 **Estado:** integração escrita; validação pendente; cérebro neural conversacional ainda não operacional.
+
+### Revisão de concorrência / thread — 17/11/2026
+- O bridge mantém compilação/validação do workspace em `Dispatchers.IO`, não na thread da interface.
+- Atualizações de progresso retornam para `Dispatchers.Main.immediate`; a conclusão também é entregue pelo escopo principal.
+- O escopo é cancelado junto ao ciclo de vida da Activity. A compilação pode ser cancelada se a Activity for destruída; ainda não existe serviço persistente de build.
+- Esta correção foi escrita nos commits `fbef033fe1796df2748d36916a2b6b82caf1399a` e `7ee1f68c312d314f9372bbb3ef46f0c9e3fd5322`. Não houve build Android de CI posterior válido para comprová-la.
+
+### Diagnóstico do bloqueio de CI — 17/11/2026
+- Os workflows mais recentes `44024582833` (neural) e `44024582640` (Poco/AVD), no commit `7ee1f68c312d314f9372bbb3ef46f0c9e3fd5322`, terminaram em ~2 segundos, com `runner_id=0`, nome de runner vazio e zero etapas. Não há logs; a repetição dos jobs reproduz o bloqueio.
+- O repositório é privado e a conta usa GitHub Free. A documentação atual do GitHub informa US$ 12/mês de computação incluída para runners padrão de repositórios privados; a cota pode ser bloqueada quando consumida sem método de pagamento válido. A documentação também informa que runners padrão de repositórios públicos e self-hosted não consomem essa cota.
+- Há um relato público de 15/11/2026 com assinatura de falha idêntica (`runner_id=0`, zero etapas, `BlobNotFound`) e bloqueio de Actions depois de atingir a franquia Free. Isso torna o limite de cobrança uma hipótese forte, não uma causa confirmada para esta conta.
+- A integração disponível não expõe o painel de faturamento/consumo desta conta. É necessário conferir em GitHub → Settings → Billing and licensing → Usage e verificar GitHub Actions included compute usage, spending limit e método de pagamento. Nenhuma alteração de visibilidade ou cobrança foi feita.
+
