@@ -111,7 +111,7 @@ Esses conceitos orientam o projeto; código aberto pode ser integrado seletivame
 4. Projetar memória persistente com consentimento, origem, edição e exclusão.
 5. Adicionar ferramentas de escrita somente após um fluxo explícito de aprovação.
 6. Criar avaliações repetíveis de qualidade e segurança do agente.
-7. Evoluir KBN-001 para um modelo autoral de linguagem decoder-only, com tokenizer treinável, atenção causal, retropropagação, otimizador, checkpoints e avaliação; conectar ao agente somente após os gates de qualidade e desempenho.
+7. Evoluir KN-001 para um modelo autoral de linguagem decoder-only, com tokenizer treinável, atenção causal, retropropagação, otimizador, checkpoints e avaliação; conectar ao agente somente após os gates de qualidade e desempenho.
 
 ## Referência técnica primária
 
