@@ -203,7 +203,8 @@ class KellvynStudioModuleManagerTest {
                         override val spec = KellvynToolSpec(
                             name = actualToolName,
                             description = "Ferramenta de teste",
-                            risk = actualToolRisk
+                            risk = actualToolRisk,
+                            capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
                         )
                         override suspend fun execute(arguments: Map<String, String>) =
                             KellvynToolResult(true, "ok")
