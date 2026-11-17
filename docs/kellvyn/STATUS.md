@@ -239,3 +239,8 @@ O modelo ainda é uma alpha de atenção causal com uma cabeça, não um Transfo
 3. Reduzir custo do protocolo e implementar EOS/decodificação controlada.
 4. Construir corpus de instruções de português com direitos documentados e avaliação separada.
 5. Só então ligar inferência treinada ao agente e ao chat, sem mudar a interface aprovada.
+
+
+### CI atualizado — 17/11/2026
+
+O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be43afd1cbffd48` concluiu com sucesso: run `43986427597` (`https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/43986427597`). O log registra compilação Kotlin, compilação Java, compilação dos testes e `BUILD SUCCESSFUL` em `testDebugUnitTest`. A falha anterior de UTF-8 foi corrigida antes desse commit. O laboratório virtual Android é outro workflow e ainda não tinha conclusão confirmada nesta atualização.
