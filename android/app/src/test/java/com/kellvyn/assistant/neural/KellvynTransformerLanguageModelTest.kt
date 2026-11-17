@@ -153,7 +153,8 @@ class KellvynTransformerLanguageModelTest {
             feedForwardSize = 12,
             seed = 4105L
         )
-        val prefix = tokenizer.encode("Kellvyn inicia.")
+        // At most seven UTF-8 byte tokens, leaving room for the 8-token test window.
+        val prefix = tokenizer.encode("Kellvyn")
         val session = model.newGenerationSession(prefix)
         val generated = mutableListOf<Int>()
 
