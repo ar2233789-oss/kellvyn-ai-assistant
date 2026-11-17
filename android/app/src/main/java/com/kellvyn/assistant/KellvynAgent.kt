@@ -531,8 +531,17 @@ internal class KellvynAgent(
                         continue
                     }
 
+                    val permittedToolNames = KellvynSpecialistToolPolicy.permittedReadOnlyToolNames(
+                        decision.role,
+                        tools.descriptions()
+                    )
+                    val deniedToolNames = KellvynSpecialistToolPolicy.deniedRequestedNames(
+                        decision.role,
+                        decision.allowedTools,
+                        tools.descriptions()
+                    )
                     val specialistTools = try {
-                        tools.readOnlySubset(decision.allowedTools)
+                        tools.readOnlySubset(decision.allowedTools.intersect(permittedToolNames))
                     } catch (error: Exception) {
                         messages += observation(
                             source = "specialist:${decision.role.name.lowercase()}",
@@ -593,7 +602,10 @@ internal class KellvynAgent(
                             systemInstruction = "Você é um especialista interno da única IA Kellvyn. " +
                                 roleInstruction + " Trabalhe apenas na subtarefa, use somente ferramentas de leitura " +
                                 "disponibilizadas e retorne uma síntese curta com evidências e incertezas. " +
-                                "Não delegue, não proponha planos e não modifique recursos."
+                                "Não delegue, não proponha planos e não modifique recursos. " +
+                                if (deniedToolNames.isEmpty()) "" else
+                                    "Solicitações de ferramenta recusadas por política para este papel: " +
+                                        deniedToolNames.sorted().joinToString() + "."
                         ),
                         projectContextRetriever = null,
                         activeProjectId = null,
