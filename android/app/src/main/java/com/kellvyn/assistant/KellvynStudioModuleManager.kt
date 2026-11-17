@@ -45,7 +45,8 @@ internal data class KellvynStudioModuleManifest(
     val estimatedLoadWorkingSetBytes: Long,
     val estimatedResidentBytes: Long,
     val permissions: Set<KellvynStudioPermission>,
-    val toolNames: Set<String>
+    val toolNames: Set<String>,
+    val toolRisks: Map<String, KellvynToolRisk> = emptyMap()
 ) {
     init {
         require(moduleId.matches(Regex("[a-z][a-z0-9-]{1,47}")))
@@ -57,6 +58,21 @@ internal data class KellvynStudioModuleManifest(
         require(toolNames.isNotEmpty() && toolNames.all {
             it.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}"))
         })
+        require(toolRisks.keys == toolNames) {
+            "O manifesto precisa declarar o risco de cada ferramenta."
+        }
+        toolRisks.forEach { (name, risk) ->
+            val requiredPermission = when (risk) {
+                KellvynToolRisk.READ_ONLY -> null
+                KellvynToolRisk.NETWORK_READ -> KellvynStudioPermission.NETWORK_ACCESS
+                KellvynToolRisk.REVERSIBLE_WRITE,
+                KellvynToolRisk.DESTRUCTIVE -> KellvynStudioPermission.PRIVATE_WORKSPACE_WRITE
+                KellvynToolRisk.DEVICE_CONTROL -> KellvynStudioPermission.ACCESSIBILITY_CONTROL
+            }
+            require(requiredPermission == null || requiredPermission in permissions) {
+                "A ferramenta " + name + " não declara a permissão necessária para seu risco."
+            }
+        }
         if (requiresNetwork) require(KellvynStudioPermission.NETWORK_ACCESS in permissions)
         if (workloadClass != KellvynWorkloadClass.HEAVY) {
             require(maxOf(estimatedLoadWorkingSetBytes, estimatedResidentBytes) <= 512L * MEBIBYTE) {
@@ -188,9 +204,12 @@ internal class KellvynStudioModuleManager(
             val actualToolSet = actualNames.toSet()
             val undeclaredTools = actualToolSet - manifest.toolNames
             val missingTools = manifest.toolNames - actualToolSet
-            if (undeclaredTools.isNotEmpty() || missingTools.isNotEmpty()) {
+            val riskMismatches = created.tools.filter { tool ->
+                manifest.toolRisks[tool.spec.name] != tool.spec.risk
+            }.map { it.spec.name }.toSet()
+            if (undeclaredTools.isNotEmpty() || missingTools.isNotEmpty() || riskMismatches.isNotEmpty()) {
                 runCatching { created.close() }
-                error("As ferramentas carregadas divergem do manifesto do módulo.")
+                error("As ferramentas ou os riscos carregados divergem do manifesto do módulo.")
             }
 
             val state = Loaded(created, now).also { it.activeLeases = 1 }
