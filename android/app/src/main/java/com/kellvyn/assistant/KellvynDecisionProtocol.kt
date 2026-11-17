@@ -3,6 +3,7 @@ package com.kellvyn.assistant
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
+import java.nio.charset.CharacterCodingException
 import java.nio.charset.StandardCharsets
 
 /**
@@ -233,7 +234,11 @@ internal object KellvynDecisionProtocol {
         val decoder = StandardCharsets.UTF_8.newDecoder()
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
-        val decoded = decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString()
+        val decoded = try {
+            decoder.decode(ByteBuffer.wrap(bytes.toByteArray())).toString()
+        } catch (_: CharacterCodingException) {
+            throw IllegalArgumentException("Texto UTF-8 inválido.")
+        }
         require(decoded.none { it == '\u0000' }) { "Texto contém byte nulo." }
         return decoded
     }
