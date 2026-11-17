@@ -99,7 +99,7 @@ A arquitetura deve ser modular por responsabilidade, mas o usuário conversa sem
 
 ### 4.1 Fundação neural
 
-**Decisão vinculante: a fundação neural será criada do zero.** O plano é evoluir KBN-001 para um modelo autoregressivo decoder-only próprio, com tokenizer treinado em corpus autorizado, blocos de atenção causal, parâmetros inicializados pelo projeto, retropropagação, otimizador, checkpoints e avaliação. Nenhum peso pré-treinado externo ou adapter será importado como cérebro.
+**Decisão vinculante: a fundação neural será criada do zero.** O plano é evoluir KN-001 para um modelo autoregressivo decoder-only próprio, com tokenizer treinado em corpus autorizado, blocos de atenção causal, parâmetros inicializados pelo projeto, retropropagação, otimizador, checkpoints e avaliação. Nenhum peso pré-treinado externo ou adapter será importado como cérebro.
 
 As dimensões iniciais serão pequenas e medidas no Poco F6. Um protótipo treinável não equivale a ChatGPT/Claude: modelos avançados exigem dados e computação em escala muito maior. A entrega será incremental e baseada em testes, sem promessas de paridade que o hardware/dados não sustentem.
 
@@ -244,9 +244,9 @@ A pesquisa não termina na leitura do README. Cada referência será examinada e
 **Gate:** forward/backward numericamente verificados; overfit intencional em corpus minúsculo; validação separada e checkpoints reproduzíveis. Nenhum peso externo.
 
 ### Fase 3 — cérebro treinável e integração cognitiva
-**Saídas:** evolução do KBN para modelo de linguagem original, agente com planner, memória, contexto, ferramentas e verificação ligados ao mesmo motor de inferência próprio.
+**Saídas:** evolução do KN para modelo de linguagem original, agente com planner, memória, contexto, ferramentas e verificação ligados ao mesmo motor de inferência próprio.
 
-**Gate:** modelo gera respostas em português em corpus não visto, passa por testes de instrução e conversa multi-turno, integra-se ao runtime e não chama ferramentas fora da política. KBN-001 fica como referência histórica de protótipo, não como cérebro final.
+**Gate:** modelo gera respostas em português em corpus não visto, passa por testes de instrução e conversa multi-turno, integra-se ao runtime e não chama ferramentas fora da política. KN-001 fica como referência histórica de protótipo, não como cérebro final.
 
 ### Fase 4 — runtime no Poco F6
 **Saídas:** uma única implementação de inferência Android; carregamento/descarga; quantização se aplicável; streaming; cancelamento; uso de RAM; recuperação após erro.
@@ -315,7 +315,7 @@ Nenhuma meta numérica será inventada. Primeiro coletaremos uma linha de base n
 
 A branch de laboratório mantém `KellvynRuntime.kt` sem inferência neural funcional. O agente experimental tem ciclo de ferramentas, planejamento estruturado, recuperação de contexto e memória local em implementação; ainda não está conectado a um modelo conversacional funcional. Nenhuma base neural externa está selecionada. A proteção da interface permanece divergente porque `MainActivity.java` difere do hash bloqueado; o workflow de APK continua bloqueado até resolver isso sem redesenho e sem enfraquecer a proteção. A branch `main` de produção não foi modificada.
 
-A próxima etapa é estabilizar o checkpoint criptografado e iniciar KBN-002: tokenizer e modelo autoregressivo próprio. O chat principal só será conectado depois que existir inferência funcional e testes aprovados.
+A próxima etapa é estabilizar o checkpoint criptografado e iniciar KN-002: tokenizer e modelo autoregressivo próprio. O chat principal só será conectado depois que existir inferência funcional e testes aprovados.
 
 ---
 
