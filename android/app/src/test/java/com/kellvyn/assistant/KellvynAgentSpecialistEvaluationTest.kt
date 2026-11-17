@@ -132,7 +132,7 @@ class KellvynAgentSpecialistEvaluationTest {
 
         override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
             executions++
-            return KellvynToolResult(success = true, output = "resultado de teste")
+            return KellvynToolResult(true, "resultado de teste")
         }
     }
 }
