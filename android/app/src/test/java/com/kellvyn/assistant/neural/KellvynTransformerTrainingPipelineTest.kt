@@ -54,7 +54,7 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test
-    fun kbn003BundleRestoresTokenizerTransformerOptimizerAndProvenance() {
+    fun kn003BundleRestoresTokenizerTransformerOptimizerAndProvenance() {
         val trained = KellvynTransformerTrainingPipeline.train(
             examples = sampleExamples(),
             config = KellvynTransformerTrainingConfig(
@@ -84,7 +84,7 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun kbn003BundleRejectsPayloadMutation() {
+    fun kn003BundleRejectsPayloadMutation() {
         val trained = KellvynTransformerTrainingPipeline.train(
             sampleExamples(),
             KellvynTransformerTrainingConfig(
@@ -104,7 +104,7 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun kbn003TrainingRejectsTheSamePromptAcrossDifferentSplits() {
+    fun kn003TrainingRejectsTheSamePromptAcrossDifferentSplits() {
         val examples = listOf(
             instruction("train", "Pergunta repetida", "Resposta A", KellvynTrainingSplit.TRAIN),
             instruction("validation", "Pergunta repetida", "Resposta B", KellvynTrainingSplit.VALIDATION),
@@ -167,7 +167,7 @@ class KellvynTransformerTrainingPipelineTest {
         provenance = KellvynTrainingProvenance(
             permission = KellvynTrainingPermission.OWNER_CREATED,
             licenseId = "owner-created",
-            sourceReference = "owner://kbn003-training-test/$id",
+            sourceReference = "owner://kn003-training-test/$id",
             rightsEvidence = "Exemplo sintético criado pelo proprietário para teste."
         )
     )
