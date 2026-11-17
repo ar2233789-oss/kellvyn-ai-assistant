@@ -85,7 +85,7 @@ internal class KellvynNeuralModelStore(
         null
     }
 
-    /** Saves an independently versioned KBN-003 Transformer bundle. */
+    /** Saves an independently versioned KN-003 Transformer bundle. */
     fun saveTransformer(result: KellvynTransformerTrainingResult) = synchronized(lock) {
         val root = requireNotNull(prepareRoot())
         val target = checkedChild(root, TRANSFORMER_MODEL_FILE)
@@ -121,7 +121,7 @@ internal class KellvynNeuralModelStore(
         }
     }
 
-    /** Loads KBN-003 only after validating checksum, tokenizer, dimensions and manifest. */
+    /** Loads KN-003 only after validating checksum, tokenizer, dimensions and manifest. */
     fun loadTransformer(): KellvynRestoredTransformerBundle? = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized null
         val target = checkedChild(root, TRANSFORMER_MODEL_FILE)
@@ -201,14 +201,14 @@ internal class KellvynNeuralModelStore(
     }
 
     private companion object {
-        const val MODEL_FILE = "kellvyn-kbn-002.bundle"
-        const val TEMP_FILE = "kellvyn-kbn-002.bundle.tmp"
-        const val BACKUP_FILE = "kellvyn-kbn-002.bundle.bak"
-        const val DAMAGED_FILE = "kellvyn-kbn-002.bundle.damaged"
-        const val TRANSFORMER_MODEL_FILE = "kellvyn-kbn-003.bundle"
-        const val TRANSFORMER_TEMP_FILE = "kellvyn-kbn-003.bundle.tmp"
-        const val TRANSFORMER_BACKUP_FILE = "kellvyn-kbn-003.bundle.bak"
-        const val TRANSFORMER_DAMAGED_FILE = "kellvyn-kbn-003.bundle.damaged"
+        const val MODEL_FILE = "kellvyn-kn-002.bundle"
+        const val TEMP_FILE = "kellvyn-kn-002.bundle.tmp"
+        const val BACKUP_FILE = "kellvyn-kn-002.bundle.bak"
+        const val DAMAGED_FILE = "kellvyn-kn-002.bundle.damaged"
+        const val TRANSFORMER_MODEL_FILE = "kellvyn-kn-003.bundle"
+        const val TRANSFORMER_TEMP_FILE = "kellvyn-kn-003.bundle.tmp"
+        const val TRANSFORMER_BACKUP_FILE = "kellvyn-kn-003.bundle.bak"
+        const val TRANSFORMER_DAMAGED_FILE = "kellvyn-kn-003.bundle.damaged"
         const val MAX_BUNDLE_BYTES = 70 * 1024 * 1024
     }
 }
