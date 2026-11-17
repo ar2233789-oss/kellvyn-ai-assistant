@@ -549,10 +549,13 @@ internal class KellvynTaskScheduler(
     @Volatile
     private var recoveryCompleted = false
 
-    fun registerHandler(handlerId: String, handler: KellvynScheduledTaskHandler) {
+    suspend fun registerHandler(handlerId: String, handler: KellvynScheduledTaskHandler) {
         require(handlerId.matches(Regex("[a-z][a-z0-9_.-]{1,79}")))
         require(handlers.putIfAbsent(handlerId, handler) == null) {
             "Handler de tarefa duplicado: $handlerId"
+        }
+        withContext(Dispatchers.IO) {
+            queue.markHandlerAvailable(handlerId, clock())
         }
     }
 
@@ -571,9 +574,11 @@ internal class KellvynTaskScheduler(
         }
     }
 
-    suspend fun runNext(): KellvynScheduledTaskResult? {
+    suspend fun runNext(allowHeavyWorkload: Boolean = true): KellvynScheduledTaskResult? {
         ensureRecovered()
-        val task = withContext(Dispatchers.IO) { queue.claimNext(clock()) } ?: return null
+        val task = withContext(Dispatchers.IO) {
+            queue.claimNext(clock(), allowHeavyWorkload)
+        } ?: return null
         val handler = handlers[task.handlerId]
         if (handler == null) {
             val reason = "HANDLER_UNAVAILABLE: handler ainda não registrado nesta sessão."
@@ -626,19 +631,30 @@ internal class KellvynTaskScheduler(
         }
     }
 
-    suspend fun runReady(maxTasks: Int = 4): List<KellvynScheduledTaskResult> {
+    suspend fun runReady(
+        maxTasks: Int = 4,
+        allowHeavyWorkload: Boolean = true
+    ): List<KellvynScheduledTaskResult> {
         require(maxTasks in 1..16)
         val results = mutableListOf<KellvynScheduledTaskResult>()
         repeat(maxTasks) {
-            when (val result = runNext()) {
+            when (val result = runNext(allowHeavyWorkload)) {
                 null -> return results
                 is KellvynScheduledTaskResult.Deferred -> {
                     results += result
+                    // An unavailable handler must not block unrelated ready work.
+                    if (result.reason.startsWith("HANDLER_UNAVAILABLE")) return@repeat
                     return results
                 }
                 else -> results += result
             }
         }
         return results
+    }
+
+    suspend fun nextRunnableDelayMillis(
+        allowHeavyWorkload: Boolean = false
+    ): Long? = withContext(Dispatchers.IO) {
+        queue.nextRunnableDelayMillis(clock(), allowHeavyWorkload)
     }
 }
