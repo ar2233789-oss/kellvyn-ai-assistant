@@ -83,6 +83,7 @@ public class MainActivity extends Activity {
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
     private KellvynRuntime brain;
+    private LocalProjectBuilderBridge projectBuilderBridge;
     private boolean waitingForReply = false;
     private String engineLabel = "KELLVYN EM CONSTRUÇÃO";
     private int accent = EMERALD;
@@ -95,6 +96,17 @@ public class MainActivity extends Activity {
         prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
         activeHistoryId = prefs.getString("active_history_id", "current");
         brain = new KellvynRuntime(getApplicationContext());
+        projectBuilderBridge = new LocalProjectBuilderBridge(
+                getApplicationContext(),
+                new LocalProjectBuilderBridge.Listener() {
+                    @Override public void onProgress(String message) {
+                        runOnUiThread(() -> updateLocalBuilderProgress(message));
+                    }
+
+                    @Override public void onComplete(String message) {
+                        finishLocalBuilderRequest(message);
+                    }
+                });
         textToSpeech = new TextToSpeech(this, result -> {
             if (result == TextToSpeech.SUCCESS && textToSpeech != null) {
                 textToSpeech.setLanguage(new Locale("pt", "BR"));
@@ -539,13 +551,27 @@ public class MainActivity extends Activity {
                 ? userText
                 : (userText.isEmpty() ? "Anexo selecionado: " + fileName
                 : userText + "\n\nAnexo selecionado: " + fileName);
-        final String prompt;
+        final String basePrompt;
         if (fileName == null) {
-            prompt = promptWithProjectGuidelines(userText);
+            basePrompt = promptWithProjectGuidelines(userText);
         } else if (userText.isEmpty()) {
-            prompt = "Analise o arquivo anexado chamado " + fileName + ". Se o aplicativo não tiver enviado conteúdo legível, diga isso claramente e não invente seu conteúdo.";
+            basePrompt = "Analise o arquivo anexado chamado " + fileName + ". Se o aplicativo não tiver enviado conteúdo legível, diga isso claramente e não invente seu conteúdo.";
         } else {
-            prompt = promptWithProjectGuidelines(userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.");
+            basePrompt = promptWithProjectGuidelines(userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.");
+        }
+        final String prompt = projectBuilderBridge == null
+                ? basePrompt
+                : projectBuilderBridge.addCompilerContract(basePrompt);
+
+        // A previous native-APK request may be waiting for the user's explicit Android SDK
+        // license acceptance. Resume that local build before consulting the neural runtime.
+        if (fileName == null && projectBuilderBridge != null &&
+                projectBuilderBridge.hasPendingLicenseAcceptance(userText)) {
+            startLocalBuilderRequest(displayText, "Retomando a compilação Android local…");
+            if (!projectBuilderBridge.acceptSdkLicense(userText)) {
+                finishLocalBuilderRequest("Não há projeto aguardando aceite da licença do Android SDK.");
+            }
+            return;
         }
 
         if (!brain.isReady()) {
@@ -607,6 +633,17 @@ public class MainActivity extends Activity {
 
             @Override public void onComplete(String text, String backend) {
                 runOnUiThread(() -> {
+                    // Native APK requests go through the real local validator/compiler/signing
+                    // pipeline. The generic file saver is deliberately not treated as a build.
+                    if (projectBuilderBridge != null &&
+                            projectBuilderBridge.isNativeApkRequest(prompt)) {
+                        hideThinkingIndicator();
+                        if (activeReplyBubble != null) {
+                            activeReplyBubble.setText("Arquivos recebidos. Validando o projeto antes de compilar…");
+                        }
+                        projectBuilderBridge.compileGeneratedProject(prompt, text);
+                        return;
+                    }
                     hideThinkingIndicator();
                     waitingForReply = false;
                     String finalAnswer = text;
@@ -637,6 +674,50 @@ public class MainActivity extends Activity {
                     activeReplyBubble = null;
                 });
             }
+        });
+    }
+
+    private void startLocalBuilderRequest(String displayText, String initialStatus) {
+        if (waitingForReply) return;
+        waitingForReply = true;
+        if (messages.getChildCount() == 1 && messages.getChildAt(0).getTag() == null) messages.removeAllViews();
+        transcript.add("U|" + displayText);
+        addMessageView(true, displayText);
+        composer.setText("");
+        selectedAttachment = null;
+        selectedAttachmentUri = null;
+        saveTranscript();
+
+        activeReplyBubble = addMessageView(false, initialStatus);
+        showThinkingIndicator();
+        engineLabel = "COMPILADOR ANDROID LOCAL";
+        updateStatus();
+    }
+
+    private void updateLocalBuilderProgress(String message) {
+        if (isFinishing() || isDestroyed()) return;
+        engineLabel = "COMPILADOR ANDROID LOCAL";
+        updateStatus();
+        if (activeReplyBubble != null) activeReplyBubble.setText(message);
+        if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
+    }
+
+    private void finishLocalBuilderRequest(String message) {
+        runOnUiThread(() -> {
+            if (isFinishing() || isDestroyed()) return;
+            hideThinkingIndicator();
+            waitingForReply = false;
+            String finalAnswer = message == null || message.trim().isEmpty()
+                    ? "O construtor local terminou sem fornecer um resultado verificável."
+                    : message;
+            if (activeReplyBubble != null) activeReplyBubble.setText(finalAnswer);
+            transcript.add("S|" + finalAnswer);
+            saveTranscript();
+            engineLabel = finalAnswer.contains("APK Android nativo compilado localmente, assinado e verificado.")
+                    ? "APK LOCAL VERIFICADO"
+                    : "CONSTRUTOR LOCAL";
+            updateStatus();
+            activeReplyBubble = null;
         });
     }
 
@@ -1947,6 +2028,10 @@ public class MainActivity extends Activity {
             textToSpeech.stop();
             textToSpeech.shutdown();
             textToSpeech = null;
+        }
+        if (projectBuilderBridge != null) {
+            projectBuilderBridge.close();
+            projectBuilderBridge = null;
         }
         if (brain != null) brain.close();
         super.onDestroy();
