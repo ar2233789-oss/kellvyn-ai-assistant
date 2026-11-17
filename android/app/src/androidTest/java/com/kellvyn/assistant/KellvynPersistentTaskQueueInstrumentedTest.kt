@@ -133,6 +133,64 @@ class KellvynPersistentTaskQueueInstrumentedTest {
     }
 
     @Test
+    fun backgroundClaimSkipsHeavyTasksAndLeavesThemForForegroundExecution() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = databaseName()
+        val queue = KellvynPersistentTaskQueue(context, database)
+        try {
+            val heavy = queue.enqueue(
+                KellvynQueuedTaskSpec(
+                    handlerId = "test.heavy",
+                    payload = "local-build",
+                    priority = 100,
+                    workloadClass = KellvynWorkloadClass.HEAVY
+                ),
+                1_000L
+            )
+            val standard = queue.enqueue(
+                KellvynQueuedTaskSpec(
+                    handlerId = "test.standard",
+                    payload = "small-index",
+                    priority = 10,
+                    workloadClass = KellvynWorkloadClass.STANDARD
+                ),
+                1_001L
+            )
+
+            assertEquals(standard, queue.claimNext(1_002L, allowHeavyWorkload = false)!!.id)
+            queue.complete(standard, "indexed", 1_003L)
+            assertNull(queue.nextRunnableDelayMillis(1_004L, allowHeavyWorkload = false))
+            assertEquals(heavy, queue.claimNext(1_005L, allowHeavyWorkload = true)!!.id)
+        } finally {
+            queue.close()
+            context.deleteDatabase(database)
+        }
+    }
+
+    @Test
+    fun registeringHandlerReleasesOnlyItsPreviouslyUnavailableTasks() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val database = databaseName()
+        val queue = KellvynPersistentTaskQueue(context, database)
+        try {
+            val taskA = queue.enqueue(KellvynQueuedTaskSpec("test.handler.a", "a"), 1_000L)
+            val taskB = queue.enqueue(KellvynQueuedTaskSpec("test.handler.b", "b"), 1_001L)
+            assertEquals(taskA, queue.claimNext(1_002L)!!.id)
+            queue.defer(taskA, 60_000L, "HANDLER_UNAVAILABLE", 1_003L)
+            assertEquals(taskB, queue.claimNext(1_004L)!!.id)
+            queue.defer(taskB, 60_000L, "HANDLER_UNAVAILABLE", 1_005L)
+
+            assertEquals(1, queue.markHandlerAvailable("test.handler.a", 2_000L))
+            assertEquals("QUEUED", queue.get(taskA)!!.state.name)
+            assertEquals(KellvynQueuedTaskState.WAITING_RESOURCES, queue.get(taskB)!!.state)
+            assertEquals(taskA, queue.claimNext(2_001L)!!.id)
+        } finally {
+            queue.close()
+            context.deleteDatabase(database)
+        }
+    }
+
+    @Test
     fun processRecoveryRequeuesInterruptedTaskAndFailsExhaustedAttempts() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val database = databaseName()
