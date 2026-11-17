@@ -34,7 +34,7 @@ internal class KellvynTransformerLanguageModel private constructor(
 ) {
     data class Config(
         val vocabularySize: Int = 512,
-        val contextLength: Int = 64,
+        val contextLength: Int = 256,
         val embeddingSize: Int = 32,
         val headCount: Int = 4,
         val feedForwardSize: Int = 64,
@@ -154,7 +154,7 @@ internal class KellvynTransformerLanguageModel private constructor(
 
         fun createForTokenizer(
             tokenizer: KellvynBpeTokenizer,
-            contextLength: Int = 64,
+            contextLength: Int = 256,
             embeddingSize: Int = 32,
             headCount: Int = 4,
             feedForwardSize: Int = 64,
