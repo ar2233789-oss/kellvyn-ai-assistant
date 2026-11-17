@@ -486,3 +486,19 @@ O proprietário reiterou que Kellvyn é um cérebro próprio e não deve ser pl�
 ## 17. Nomenclatura oficial — 17/11/2026
 
 Usar somente **KN-001 / KN-002 / KN-003** como identificadores técnicos das versões neurais. O primeiro protótipo chama-se `KellvynByteModel`. Não criar, usar ou sugerir uma entidade/identidade adicional com nome em inglês para o núcleo. Kellvyn é a única IA. A sigla KN é apenas nomenclatura técnica do projeto, sem expansão inventada.
+
+
+## Laboratório Android invisível — especificação inicial — 17/11/2026
+
+- Correção de direção confirmada pelo proprietário: não transportar IDEs/estúdios desktop completos para o telefone. Construir motores Android próprios e adaptados, sem UI de Studio exposta ao usuário.
+- A oficina é interna e headless: ferramentas estruturadas chamadas pelos 14 agentes existentes. A conversa principal continua sendo a única superfície visível.
+- Não criar novos agentes apenas para cada estúdio. Equipar os papéis atuais com ferramentas, skills, contratos, permissões, critérios e evidências adequados.
+- Criada a especificação `docs/kellvyn/ANDROID_HEADLESS_STUDIO_SPEC_2026-11-17.md` no commit `1b3d5678960fcdfb3031a8d75eba9c35d6102000`.
+- A especificação cobre núcleo compartilhado, Tool Registry, Task Broker, workspace/artefatos, parsing e indexação, Android Build & Test, UI/UX estruturado, Image Studio, 3D/CAD, Neural Studio próprio, Data/Architecture e Automation.
+- Motores devem ser carregados sob demanda, não mantidos todos ativos. A ausência de UI reduz custo de interface e renderização persistente, mas o processamento real continua sujeito a RAM/CPU/GPU/temperatura/bateria.
+- Foi definido Resource Governor com medições no Poco F6, fila, prioridade, cancelamento, checkpoint, cache limitado, parsing incremental e exclusão mútua de tarefas pesadas.
+- Candidatos técnicos estudados: Tree-sitter/KTreeSitter, Android graphics APIs/BitmapRegionDecoder, AndroidSVG, Filament/SceneView e LiteRT/ExecuTorch como possíveis runtimes para pesos próprios. Nenhuma dessas dependências foi automaticamente aprovada; exige auditoria de licença, ABI, tamanho, manutenção e benchmark.
+- NNAPI não será a base de aceleração, pois foi descontinuada no Android 15.
+- Limites Android permanecem explícitos: ADB/UIAutomator, instalação de APK e Accessibility Service não são poderes implícitos de um APK comum. Cada capacidade exige mecanismo e autorização adequados.
+- **Estado desta entrega:** pesquisa e especificação documental concluídas nesta etapa; nenhum motor novo ou agente foi implementado, nenhum layout foi alterado e nenhuma medição física de desempenho foi realizada.
+- Próximo passo obrigatório: rever a especificação e transformá-la em contratos de ferramenta, Resource Governor e Task Broker com testes unitários/instrumentais. Antes de cada alteração, confirmar o HEAD e preservar a interface bloqueada.
