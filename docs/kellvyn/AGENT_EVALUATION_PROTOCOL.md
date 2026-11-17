@@ -168,18 +168,31 @@ A branch já possui:
 - `KellvynAgentPlanTest.kt`: planos persistidos, aprovação, execução incremental e verificação independente;
 - `KellvynAgentTest.kt`, `KellvynAgentLimitsTest.kt`, `KellvynDecisionProtocolTest.kt` e `KellvynTaskPlannerTest.kt`: partes do contrato central.
 
-Em 17/11/2026 foi adicionado `KellvynAgentSpecialistEvaluationTest.kt`, que percorre todos os quatro papéis existentes e verifica:
-- instrução específica do papel;
-- subtarefa e contexto explícitos;
-- ausência do pedido privado original do coordenador;
-- exposição apenas de ferramentas READ_ONLY;
-- retorno marcado como dado não confiável.
+Em 17/11/2026, o catálogo foi ampliado para 14 papéis delegáveis e o teste `KellvynAgentSpecialistEvaluationTest.kt` foi expandido para percorrer todos eles:
+- pesquisador;
+- explorador de código;
+- revisor;
+- analista de testes;
+- analista de raciocínio;
+- analista de aprendizado;
+- arquiteto de programação;
+- analista de memória;
+- analista de segurança;
+- analista de planejamento;
+- depurador;
+- auditor independente;
+- analista de operações;
+- analista visual.
 
-**Estado desta nova prova:** escrita e enviada ao branch; aguarda execução Gradle/CI após o commit. Mesmo aprovada, demonstra contrato e isolamento, não qualidade cognitiva de um modelo treinado.
+O teste verifica instrução específica, subtarefa/contexto explícitos, isolamento do pedido privado do coordenador, exposição somente de ferramentas READ_ONLY e retorno marcado como dado não confiável.
+
+**Limite de permissão:** mesmo os papéis de programação, aprendizado, operações e visual são atualmente especialistas de análise. Eles não recebem escrita, treino de pesos, controle de dispositivo nem ações operacionais. A inteligência central executa alterações apenas por ferramentas próprias registradas e com as aprovações/verificações aplicáveis.
+
+**Estado desta nova prova:** código e teste foram enviados à branch; a aprovação da suíte ampliada depende de CI verificável. Mesmo aprovada, demonstra contrato e isolamento, não competência cognitiva de um modelo treinado.
 
 ## 8. Papéis futuros
 
-Especialista de implementação e especialista visual/animação são candidatos para evolução. Não devem receber permissões de escrita ou acesso ao Studio só por existirem. Antes de entrar na equipe, cada papel precisará:
+Permissões elevadas para implementação de código, edição visual/animação e operações mutáveis continuam como evolução futura. Os analistas correspondentes já existem como papéis de leitura, mas não devem receber permissões de escrita ou acesso ao Studio só por existirem. Antes de conceder qualquer permissão mutável, cada papel precisará:
 - contrato e fronteira de permissão;
 - conjunto próprio de tarefas de avaliação;
 - ambiente isolado;
