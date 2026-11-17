@@ -104,7 +104,8 @@ internal class KellvynLocalNeuralInferenceEngine(
         }
         val systems = history.filter { it.role == KellvynMessageRole.SYSTEM }
         val otherMessages = history.filter { it.role != KellvynMessageRole.SYSTEM }
-        val latestUserIndex = otherMessages.indexOfLast { it.role == KellvynMessageRole.USER }
+        var latestUserIndex = otherMessages.indexOfLast { it.role == KellvynMessageRole.USER }
+        require(latestUserIndex >= 0) { "A inferência exige a última mensagem do usuário." }
         val retained = otherMessages.toMutableList()
         val toolCatalog = renderTools(availableTools)
         val systemContext = systems.joinToString("\n") { message ->
