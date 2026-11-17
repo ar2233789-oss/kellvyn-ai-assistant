@@ -100,7 +100,7 @@ internal class KellvynProjectWriteApprovalGate(
         val path = arguments["path"]?.let { runCatching { normalizePath(it) }.getOrNull() }
             ?: return null
         val suppliedId = arguments["approval_id"]
-        val candidates = if (suppliedId != null) {
+        val candidates: List<Pair<String, Approval?>> = if (suppliedId != null) {
             listOfNotNull(suppliedId to approvals[suppliedId])
         } else {
             approvals.entries.map { it.key to it.value }
