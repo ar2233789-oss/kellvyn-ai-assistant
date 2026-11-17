@@ -243,8 +243,11 @@ internal class KellvynRuntime(context: Context) {
     fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry {
         val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
         val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
+        val registeredCapabilities = resourceRuntime.studioModules.manifests()
+            .flatMap { it.capabilities }
+            .toSet()
         val studioTools = resourceRuntime.studioModules.toolsForCapabilities(
-            setOf(KellvynStudioCapability.CODE_NAVIGATION)
+            registeredCapabilities
         )
         return KellvynToolRegistry(workspaceTools + resourceTools + studioTools)
     }
