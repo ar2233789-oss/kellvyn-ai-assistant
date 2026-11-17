@@ -109,7 +109,7 @@ class KellvynTransformerLanguageModelTest {
             vocabularySize = 256,
             contextLength = 16,
             embeddingSize = 12,
-            headCount = 3,
+            headCount = 4,
             feedForwardSize = 16
         )
     }
