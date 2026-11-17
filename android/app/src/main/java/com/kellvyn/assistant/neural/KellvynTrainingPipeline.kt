@@ -47,6 +47,19 @@ internal data class KellvynTrainingDocument(
     }
 }
 
+internal data class KellvynInstructionTrainingExample(
+    val id: String,
+    val prompt: String,
+    val completion: String,
+    val split: KellvynTrainingSplit,
+    val provenance: KellvynTrainingProvenance
+) {
+    init {
+        require(id.matches(Regex("[A-Za-z0-9_-]{1,80}")))
+        require(prompt.isNotBlank() && completion.isNotBlank())
+    }
+}
+
 internal data class KellvynTrainingManifestEntry(
     val id: String,
     val split: KellvynTrainingSplit,
@@ -128,6 +141,160 @@ internal object KellvynTrainingPipeline {
     private val BEARER_TOKEN = Regex("""(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}""")
     private val PRIVATE_KEY = Regex("""-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----""")
     private val KNOWN_TOKEN = Regex("""\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\b""")
+
+    /**
+     * Supervised training for instruction/decision examples. Only completion tokens
+     * contribute to the objective; prompts condition the response but are not targets.
+     */
+    fun trainInstructions(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTrainingConfig = KellvynTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        cancellationCheck: () -> Unit = {}
+    ): KellvynTrainingResult {
+        cancellationCheck()
+        require(createdAtMillis > 0L)
+        require(examples.size in 3..MAX_DOCUMENTS) {
+            "Forneça exemplos supervisionados de treino, validação e teste."
+        }
+        require(examples.map { it.id }.distinct().size == examples.size) {
+            "Há IDs de exemplos supervisionados duplicados."
+        }
+
+        var totalBytes = 0L
+        val hashes = mutableSetOf<String>()
+        for (example in examples) {
+            cancellationCheck()
+            val sampleBytes = example.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                example.completion.toByteArray(Charsets.UTF_8).size.toLong()
+            require(sampleBytes in 2..MAX_DOCUMENT_BYTES.toLong()) {
+                "O exemplo \${example.id} excede o limite individual de bytes."
+            }
+            require(!containsSecretMaterial(example.prompt) && !containsSecretMaterial(example.completion)) {
+                "O exemplo \${example.id} parece conter credenciais ou chave privada; foi recusado."
+            }
+            totalBytes += sampleBytes
+            require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
+                "O corpus supervisionado excede o limite experimental de bytes."
+            }
+            val contentHash = sha256(example.prompt + "\u0000" + example.completion)
+            require(hashes.add(contentHash)) {
+                "Exemplo supervisionado duplicado entre partições: \${example.id}."
+            }
+        }
+
+        val train = examples.filter { it.split == KellvynTrainingSplit.TRAIN }
+        val validation = examples.filter { it.split == KellvynTrainingSplit.VALIDATION }
+        val test = examples.filter { it.split == KellvynTrainingSplit.TEST }
+        require(train.isNotEmpty() && validation.isNotEmpty() && test.isNotEmpty()) {
+            "As três partições são obrigatórias: TRAIN, VALIDATION e TEST."
+        }
+
+        val tokenizer = KellvynBpeTokenizer.train(
+            corpus = train.flatMap { listOf(it.prompt, it.completion) },
+            maxMerges = config.maxMerges,
+            cancellationCheck = cancellationCheck
+        )
+
+        data class EncodedExample(
+            val source: KellvynInstructionTrainingExample,
+            val prompt: IntArray,
+            val completion: IntArray
+        )
+
+        fun encode(partition: List<KellvynInstructionTrainingExample>): List<EncodedExample> =
+            partition.map { example ->
+                cancellationCheck()
+                val promptTokens = tokenizer.encode(example.prompt)
+                val completionTokens = tokenizer.encode(example.completion)
+                require(promptTokens.isNotEmpty() && completionTokens.isNotEmpty()) {
+                    "O exemplo \${example.id} não produziu tokens para prompt e resposta."
+                }
+                require(promptTokens.size.toLong() + completionTokens.size.toLong() <= 100_000L) {
+                    "O exemplo \${example.id} excede o limite tokenizado."
+                }
+                EncodedExample(example, promptTokens, completionTokens)
+            }
+
+        val trainEncoded = encode(train)
+        val validationEncoded = encode(validation)
+        val testEncoded = encode(test)
+        val plannedSteps = trainEncoded.sumOf { it.completion.size.toLong() * config.epochsPerDocument }
+        require(plannedSteps in 1..config.maxTotalTrainingSteps) {
+            "O treino supervisionado excederia o orçamento total de passos."
+        }
+        require(trainEncoded.all {
+            it.completion.size.toLong() * config.epochsPerDocument <= MAX_STEPS_PER_MODEL_CALL
+        }) {
+            "Uma resposta supervisionada ultrapassaria o limite de passos por chamada."
+        }
+
+        val model = KellvynAttentionLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            seed = config.seed
+        )
+
+        fun meanCompletionLoss(partition: List<EncodedExample>): Double {
+            var total = 0.0
+            var tokenCount = 0L
+            for (example in partition) {
+                cancellationCheck()
+                total += model.evaluateCompletionLoss(example.prompt, example.completion) *
+                    example.completion.size.toDouble()
+                tokenCount += example.completion.size.toLong()
+            }
+            require(tokenCount > 0L)
+            return total / tokenCount.toDouble()
+        }
+
+        val initialValidationLoss = meanCompletionLoss(validationEncoded)
+        for (example in trainEncoded) {
+            cancellationCheck()
+            model.trainCompletion(
+                promptTokenIds = example.prompt,
+                completionTokenIds = example.completion,
+                epochs = config.epochsPerDocument,
+                learningRate = config.learningRate,
+                weightDecay = config.weightDecay,
+                cancellationCheck = cancellationCheck
+            )
+        }
+        cancellationCheck()
+        val finalValidationLoss = meanCompletionLoss(validationEncoded)
+        val heldOutTestLoss = meanCompletionLoss(testEncoded)
+        cancellationCheck()
+
+        val entries = examples.map { example ->
+            KellvynTrainingManifestEntry(
+                id = example.id,
+                split = example.split,
+                permission = example.provenance.permission,
+                licenseId = example.provenance.licenseId,
+                sourceReference = example.provenance.sourceReference,
+                rightsEvidence = example.provenance.rightsEvidence,
+                contentSha256 = sha256(example.prompt + "\u0000" + example.completion)
+            )
+        }
+        val manifest = KellvynTrainingManifest(
+            createdAtMillis = createdAtMillis,
+            entries = entries,
+            maxMerges = tokenizer.mergeCount,
+            contextLength = model.config.contextLength,
+            embeddingSize = model.config.embeddingSize,
+            seed = model.config.seed,
+            epochsPerDocument = config.epochsPerDocument,
+            learningRate = config.learningRate,
+            weightDecay = config.weightDecay,
+            initialValidationLoss = initialValidationLoss,
+            finalValidationLoss = finalValidationLoss,
+            heldOutTestLoss = heldOutTestLoss,
+            totalTrainingSteps = model.trainingSteps,
+            vocabularySize = model.config.vocabularySize
+        )
+        return KellvynTrainingResult(tokenizer, model, manifest)
+    }
 
     fun train(
         documents: List<KellvynTrainingDocument>,
