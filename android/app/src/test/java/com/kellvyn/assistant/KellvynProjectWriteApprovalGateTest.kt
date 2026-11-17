@@ -53,6 +53,21 @@ class KellvynProjectWriteApprovalGateTest {
     }
 
     @Test
+    fun appIssuedApprovalAuthorizesExactOperationWithoutModelGeneratedToken() {
+        val gate = KellvynProjectWriteApprovalGate()
+        gate.approveWrite("sample-app", "src/Feature.kt", "approved body")
+        val arguments = mapOf(
+            "project_id" to "sample-app",
+            "path" to "src/Feature.kt",
+            "content" to "approved body"
+        )
+
+        assertTrue(gate.authorizesWrite(arguments))
+        assertTrue(gate.consumeWrite(arguments))
+        assertFalse(gate.authorizesWrite(arguments))
+    }
+
+    @Test
     fun deleteApprovalCannotAuthorizeWriteAndMustMatchExactPath() = runBlocking {
         val gate = KellvynProjectWriteApprovalGate()
         val id = gate.approveDelete("sample-app", "README.md")
