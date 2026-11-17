@@ -61,15 +61,14 @@ internal class KellvynTransformerInferenceEngine(
                 "Reduza histórico/ferramentas ou treine um modelo com contexto maior."
         }
 
-        val complete = prefix.toMutableList()
         val generated = ArrayList<Int>(generationBudget)
         val endOfSequenceTokenId = tokenizer.endOfSequenceTokenId
+        val session = model.newGenerationSession(prefix)
         var terminated = false
 
         for (index in 0 until generationBudget) {
             coroutine.ensureActive()
-            val context = complete.takeLast(model.config.contextLength).toIntArray()
-            val token = model.predictNext(context)
+            val token = session.predictNext()
 
             // New KBN-003 checkpoints learn a dedicated EOS token. Version-1 tokenizer
             // checkpoints remain readable and retain their legacy textual END fallback.
@@ -78,8 +77,8 @@ internal class KellvynTransformerInferenceEngine(
                 break
             }
 
-            complete += token
             generated += token
+            session.appendToken(token)
 
             if (endOfSequenceTokenId == null) {
                 val partial = tokenizer.decode(generated.toIntArray())
