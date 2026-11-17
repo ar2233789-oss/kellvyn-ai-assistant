@@ -165,9 +165,7 @@ internal class KellvynAgent(
         }
 
         val toolResult = try {
-            withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                executeTool(tool, arguments, "${taskId}-${stepId}")
-            }
+            executeTool(tool, arguments, "${taskId}-${stepId}")
         } catch (deferred: KellvynTaskDeferredException) {
             val retryState = taskPlanner.returnStepToReady(running, stepId)
             try {
@@ -739,9 +737,7 @@ internal class KellvynAgent(
                     }
 
                     val result = try {
-                        withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                            executeTool(tool, decision.arguments, "run-${step}-${toolCalls}-${tool.spec.name}")
-                        }
+                        executeTool(tool, decision.arguments, "run-${step}-${toolCalls}-${tool.spec.name}")
                     } catch (deferred: KellvynTaskDeferredException) {
                         return KellvynAgentResult.LimitReached(
                             "A ferramenta foi adiada pelo gerenciador de recursos (${deferred.reasonCode}). " +
@@ -779,16 +775,20 @@ internal class KellvynAgent(
         arguments: Map<String, String>,
         requestId: String
     ): KellvynToolResult {
-        val broker = taskBroker ?: return tool.execute(arguments)
+        val executeWithTimeout: suspend () -> KellvynToolResult = {
+            withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
+                tool.execute(arguments)
+            }
+        }
+        val broker = taskBroker ?: return executeWithTimeout()
         return broker.execute(
             KellvynResourceRequest(
                 taskId = requestId.take(96),
                 workload = tool.spec.workloadClass,
                 estimatedWorkingSetBytes = tool.spec.estimatedWorkingSetBytes
-            )
-        ) {
-            tool.execute(arguments)
-        }
+            ),
+            operation = executeWithTimeout
+        )
     }
 
     private fun observation(source: String, success: Boolean, content: String) =
