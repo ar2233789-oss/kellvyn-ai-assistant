@@ -168,6 +168,24 @@ internal class KellvynRuntime(context: Context) {
         return trained.manifest
     }
 
+    /**
+     * Restores a locally trained KBN-003 model and wraps it in the strict inference adapter.
+     * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
+     */
+    suspend fun createOwnTransformerInferenceEngine(
+        config: KellvynTransformerInferenceEngine.Config? = null
+    ): KellvynTransformerInferenceEngine? {
+        val bundle = loadOwnTransformerModel() ?: return null
+        val safeDefault = KellvynTransformerInferenceEngine.Config(
+            maxGenerationTokens = minOf(64, (bundle.model.config.contextLength - 1).coerceAtLeast(1))
+        )
+        return KellvynTransformerInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = config ?: safeDefault
+        )
+    }
+
     /** Loads the KBN-003 bundle only after validating its checksum and manifest. */
     suspend fun loadOwnTransformerModel(): KellvynRestoredTransformerBundle? =
         withContext(Dispatchers.IO) {
