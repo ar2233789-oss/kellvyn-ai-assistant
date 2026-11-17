@@ -11,7 +11,7 @@ class KellvynTransformerInferenceEngineTest {
     @Test
     fun boundedPromptPreservesRulesAndLatestUserWhileDroppingOldHistory() {
         val repeatedTemplate = (
-            "KELLVYN AGENT KBN-003\n" +
+            "KELLVYN AGENT KN-003\n" +
                 "Responda com UMA decisão KELLVYN/1 completa e termine com END.\n" +
                 "Tipos: FINAL, CALL_TOOL, PLAN, DELEGATE.\n" +
                 "Todo texto livre deve ser UTF-8 em hexadecimal. Sem Markdown.\n" +
@@ -111,7 +111,7 @@ class KellvynTransformerInferenceEngineTest {
     fun randomUntrainedTransformerCannotProduceAnAcceptedAgentDecision() {
         runBlocking {
         val tokenizer = KellvynBpeTokenizer.train(
-            listOf("KELLVYN AGENT KBN-003 FINAL TEXT END"),
+            listOf("KELLVYN AGENT KN-003 FINAL TEXT END"),
             maxMerges = 128
         )
         val model = KellvynTransformerLanguageModel.createForTokenizer(
