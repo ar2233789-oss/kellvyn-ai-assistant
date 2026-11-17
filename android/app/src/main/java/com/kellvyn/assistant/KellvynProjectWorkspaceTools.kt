@@ -188,7 +188,8 @@ internal object KellvynProjectWorkspaceTools {
         object : KellvynAgentTool {
             override val spec = KellvynToolSpec(
                 name = "workspace_list_projects",
-                description = "Lista os projetos que já existem no workspace local privado."
+                description = "Lista os projetos que já existem no workspace local privado.",
+                capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
             )
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
@@ -207,6 +208,7 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_list_files",
                 description = "Lista os caminhos relativos dos arquivos de um projeto.",
+                capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION),
                 requiredArguments = setOf("project_id"),
                 argumentSchemas = listOf(
                     KellvynToolArgumentSchema(
@@ -232,6 +234,9 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_read_file",
                 description = "Lê um trecho UTF-8 limitado de um arquivo do projeto privado.",
+                capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION),
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 8L * 1024L * 1024L,
                 requiredArguments = setOf("project_id", "path"),
                 argumentSchemas = listOf(
                     KellvynToolArgumentSchema(
@@ -265,6 +270,9 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_write_file",
                 description = "Cria ou substitui um arquivo somente após aprovação única do proprietário vinculada ao conteúdo exato.",
+                capabilities = setOf(KellvynStudioCapability.CODE_EDITING),
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 8L * 1024L * 1024L,
                 requiredArguments = setOf("project_id", "path", "content"),
                 optionalArguments = setOf("approval_id"),
                 risk = KellvynToolRisk.REVERSIBLE_WRITE,
@@ -319,6 +327,8 @@ internal object KellvynProjectWorkspaceTools {
             override val spec = KellvynToolSpec(
                 name = "workspace_delete_file",
                 description = "Remove um arquivo do projeto somente após aprovação única do proprietário para o caminho exato.",
+                capabilities = setOf(KellvynStudioCapability.CODE_EDITING),
+                workloadClass = KellvynWorkloadClass.LIGHT,
                 requiredArguments = setOf("project_id", "path"),
                 optionalArguments = setOf("approval_id"),
                 risk = KellvynToolRisk.DESTRUCTIVE,
