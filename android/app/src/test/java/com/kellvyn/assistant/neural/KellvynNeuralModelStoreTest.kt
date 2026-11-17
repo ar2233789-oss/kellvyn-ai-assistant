@@ -74,6 +74,77 @@ class KellvynNeuralModelStoreTest {
         assertEquals(null, store.load())
     }
 
+    @Test
+    fun savesAndRestoresKbn003TransformerBundleIndependently() {
+        val trained = trainTransformerSample()
+
+        store.saveTransformer(trained)
+        val restored = store.loadTransformer()
+
+        assertTrue(store.exists())
+        assertNotNull(restored)
+        assertEquals(trained.model.parameterFingerprint(), restored!!.model.parameterFingerprint())
+        assertEquals(trained.model.config, restored.model.config)
+        assertEquals(trained.manifest, restored.manifest)
+    }
+
+    @Test
+    fun verifiedKbn003BackupRecoversCorruptedCurrentBundle() {
+        val trained = trainTransformerSample()
+        store.saveTransformer(trained)
+
+        val current = File(root, "kellvyn-kbn-003.bundle")
+        val backup = File(root, "kellvyn-kbn-003.bundle.bak")
+        current.copyTo(backup)
+        val damagedBytes = current.readBytes()
+        damagedBytes[18] = (damagedBytes[18].toInt() xor 1).toByte()
+        current.writeBytes(damagedBytes)
+
+        val restored = store.loadTransformer()
+
+        assertNotNull(restored)
+        assertEquals(trained.model.parameterFingerprint(), restored!!.model.parameterFingerprint())
+        assertTrue(current.isFile)
+        assertFalse(backup.exists())
+    }
+
+    private fun trainTransformerSample() = KellvynTransformerTrainingPipeline.train(
+        examples = listOf(
+            transformerInstruction("train", "Pergunta: diga olá.", "Olá.", KellvynTrainingSplit.TRAIN),
+            transformerInstruction("validation", "Pergunta: diga bom dia.", "Bom dia.", KellvynTrainingSplit.VALIDATION),
+            transformerInstruction("test", "Pergunta: termine.", "Até logo.", KellvynTrainingSplit.TEST)
+        ),
+        config = KellvynTransformerTrainingConfig(
+            contextLength = 24,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 3033L,
+            maxMerges = 8,
+            epochsPerExample = 1,
+            weightDecay = 0.0f
+        ),
+        createdAtMillis = 1_800_000_300_033L
+    )
+
+    private fun transformerInstruction(
+        id: String,
+        prompt: String,
+        completion: String,
+        split: KellvynTrainingSplit
+    ) = KellvynInstructionTrainingExample(
+        id = id,
+        prompt = prompt,
+        completion = completion,
+        split = split,
+        provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kbn003-store-test/$id",
+            rightsEvidence = "Conteúdo sintético para teste de armazenamento Transformer."
+        )
+    )
+
     private fun trainSample() = KellvynTrainingPipeline.train(
         documents = listOf(
             document("train", "Kellvyn aprende português com treino próprio.", KellvynTrainingSplit.TRAIN),
