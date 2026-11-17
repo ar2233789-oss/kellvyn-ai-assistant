@@ -305,3 +305,34 @@ O cache é apenas para o único bloco Transformer atual. Ainda não foi medido g
 
 ### Próximo trabalho neural
 Construir profundidade multi-bloco com parâmetros independentes por bloco, forward causal de todas as posições, retropropagação completa entre camadas, gradient checks por camada e checkpoint versionado. Cada camada deverá ter seu próprio cache KV. Preservar a interface.
+
+
+## Expansão dos especialistas internos — 17/11/2026
+
+### Alterações no código
+O enum `KellvynSpecialistRole` e as instruções específicas agora cobrem 14 papéis:
+1. pesquisador;
+2. explorador de código;
+3. revisor;
+4. analista de testes;
+5. analista de raciocínio;
+6. analista de aprendizado;
+7. arquiteto de programação;
+8. analista de memória;
+9. analista de segurança;
+10. analista de planejamento;
+11. depurador;
+12. auditor independente;
+13. analista de operações;
+14. analista visual.
+
+O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14 papéis. Para cada papel verifica instrução correta, contexto e tarefa delegados, isolamento do pedido privado do coordenador, ferramentas somente READ_ONLY e retorno classificado como não confiável.
+
+### Supervisão e limites
+- O coordenador é o próprio `KellvynAgent`; não foi criado um segundo modelo nem outra identidade.
+- Especialistas compartilham a mesma instância de inferência; não existe recursão ou paralelismo na delegação.
+- Os papéis de programação, aprendizado, memória, operações e visual são atualmente analistas de leitura. Não receberam permissão para editar arquivos, alterar pesos, treinar modelos, controlar o dispositivo ou executar ações operacionais.
+- O teste de contrato não comprova competência cognitiva. Isso dependerá de avaliação com modelo treinado e tarefas holdout.
+
+### Validação
+**Estado no momento do commit:** código e testes escritos/enviados; CI específico da matriz de 14 papéis ainda precisa ser consultado. Não declarar os papéis aprovados até observar `gradle testDebugUnitTest` verde no commit que contém a implementação e o teste atualizado.
