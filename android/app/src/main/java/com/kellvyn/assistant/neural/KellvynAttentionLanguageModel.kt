@@ -18,7 +18,7 @@ import kotlin.math.tanh
 /**
  * Original, randomly initialized, single-head autoregressive attention language model.
  *
- * KBN-002 alpha is intentionally small and CPU-only. It learns next-token prediction
+ * KN-002 alpha is intentionally small and CPU-only. It learns next-token prediction
  * from token IDs provided by the caller. It imports no pretrained parameters.
  *
  * This is an attention-model prototype, not yet a full multi-layer Transformer or a
@@ -465,7 +465,7 @@ internal class KellvynAttentionLanguageModel private constructor(
         return bestToken
     }
 
-    /** Greedy autoregressive generation for early KBN-002 experiments. */
+    /** Greedy autoregressive generation for early KN-002 experiments. */
     fun generate(prefixTokenIds: IntArray, maxNewTokens: Int): IntArray {
         require(prefixTokenIds.isNotEmpty())
         require(prefixTokenIds.size <= MAX_GENERATION_INPUT_TOKENS) {
