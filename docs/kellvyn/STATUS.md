@@ -341,7 +341,7 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 
 ### Código e testes confirmados
 - Branch de laboratório: `lab/kellvyn-intelligence-core-20261116`.
-- Último commit desta sequência: `2992b0008f18ba48c5d32a64c1a73abdc627ead4`.
+- Último commit desta sequência (inclui esta atualização de status): `b785c31c1bd7d6c1ea41ffc05a9af6a7fd58fb69`.
 - KN-003 preservado como modelo de um bloco; documentação agora reconhece corretamente o cache KV incremental já existente.
 - Adicionado teste que treina um fixture pequeno, salva e restaura o checkpoint e compara as probabilidades cacheadas com o forward integral por 16 passos, inclusive depois de a janela deslizante atingir o limite.
 - Workflow neural core tests no run 44019204700: `gradle testDebugUnitTest` terminou com `BUILD SUCCESSFUL` em 2m19s.
@@ -350,7 +350,7 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 ### Laboratório Android
 - No run 44019205073, o Gradle compilou os testes e o APK nativo; o emulador Android 15 instalou e abriu a Kellvyn. A navegação por Histórico, Anexos/Web, Navegador (sem abrir endereço externo), Editor, Bots e Terminal passou antes de a automação parar ao procurar um CheckBox inexistente para o chip clicável `Raios`.
 - O workflow foi ajustado para tratar labels clicáveis corretamente, repetir a abertura de Configurações após cold start e separar a captura visual preliminar da interação funcional obrigatória.
-- O run 44021575534 no commit `2992b0008f18ba48c5d32a64c1a73abdc627ead4` terminou antes de qualquer etapa dos jobs; a API não disponibilizou logs nem etapas. Portanto, a versão mais recente do laboratório ainda não tem resultado funcional verificável.
+- O run 44021575534 no commit `2992b0008f18ba48c5d32a64c1a73abdc627ead4` e sua repetição terminaram antes de qualquer etapa dos jobs; a API não disponibilizou logs nem etapas. Portanto, a versão mais recente do laboratório ainda não tem resultado funcional verificável.
 - O upload de artefatos também já encontrou limite de quota do GitHub Actions. A captura comparativa de pixels não foi concluída.
 
 ### Bloqueios que permanecem
