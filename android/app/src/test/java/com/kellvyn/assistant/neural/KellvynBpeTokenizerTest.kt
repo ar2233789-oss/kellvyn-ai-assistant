@@ -2,10 +2,13 @@ package com.kellvyn.assistant.neural
 
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.DataOutputStream
+import java.security.MessageDigest
 
 class KellvynBpeTokenizerTest {
     @Test
@@ -21,7 +24,8 @@ class KellvynBpeTokenizerTest {
 
         assertEquals(sample, restored)
         assertTrue(tokenizer.vocabularySize >= 256)
-        assertEquals(tokenizer.mergeCount + 256, tokenizer.vocabularySize)
+        assertEquals(tokenizer.mergeCount + 257, tokenizer.vocabularySize)
+        assertEquals(tokenizer.vocabularySize - 1, tokenizer.endOfSequenceTokenId)
     }
 
     @Test
@@ -52,6 +56,47 @@ class KellvynBpeTokenizerTest {
         assertEquals(tokenizer.vocabularySize, restored.vocabularySize)
         assertArrayEquals(tokenizer.encode("treina seus próprios tokens"), restored.encode("treina seus próprios tokens"))
         assertEquals("Kellvyn é própria.", restored.decode(restored.encode("Kellvyn é própria.")))
+    }
+
+
+    @Test
+    fun endOfSequenceTokenIsDedicatedAndNeverProducedByTextEncoding() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn aprende português."), maxMerges = 24
+        )
+        val endTokenId = requireNotNull(tokenizer.endOfSequenceTokenId)
+        val encoded = tokenizer.encode("Kellvyn encerra a resposta.")
+
+        assertTrue(endTokenId !in encoded)
+        assertEquals(tokenizer.vocabularySize - 1, endTokenId)
+        assertEquals("", tokenizer.decode(intArrayOf(endTokenId)))
+        assertEquals(
+            "Resposta final.",
+            tokenizer.decode(tokenizer.encode("Resposta final."))
+        )
+    }
+
+    @Test
+    fun legacyVersionOneCheckpointRestoresWithoutInventingAnEosToken() {
+        val payload = ByteArrayOutputStream()
+        DataOutputStream(payload).use { data ->
+            data.writeInt(0x4B564250) // KVBP
+            data.writeInt(1) // legacy format
+            data.writeInt(0) // no merges
+        }
+        val body = payload.toByteArray()
+        val fullCheckpoint = ByteArrayOutputStream().apply {
+            write(body)
+            write(MessageDigest.getInstance("SHA-256").digest(body))
+        }.toByteArray()
+
+        val restored = KellvynBpeTokenizer.readCheckpoint(
+            ByteArrayInputStream(fullCheckpoint)
+        )
+
+        assertNull(restored.endOfSequenceTokenId)
+        assertEquals(256, restored.vocabularySize)
+        assertEquals("compatibilidade", restored.decode(restored.encode("compatibilidade")))
     }
 
     @Test(expected = IllegalArgumentException::class)
