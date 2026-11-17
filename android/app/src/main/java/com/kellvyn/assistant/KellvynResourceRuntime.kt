@@ -20,6 +20,8 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     val taskBroker = KellvynTaskBroker(governor) {
         withContext(Dispatchers.IO) { monitor.snapshot() }
     }
+    private val taskQueue = KellvynPersistentTaskQueue(appContext)
+    val taskScheduler = KellvynTaskScheduler(taskQueue, taskBroker)
 
     val studioModules = KellvynStudioModuleManager(
         deviceSdkInt = Build.VERSION.SDK_INT,
@@ -33,6 +35,21 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
 
     suspend fun snapshot(): KellvynResourceSnapshot =
         withContext(Dispatchers.IO) { monitor.snapshot() }
+
+    suspend fun pendingScheduledTaskCount(): Int =
+        withContext(Dispatchers.IO) { taskQueue.pendingCount() }
+
+    suspend fun enqueueScheduledTask(spec: KellvynQueuedTaskSpec): String =
+        taskScheduler.enqueue(spec)
+
+    fun registerScheduledTaskHandler(handlerId: String, handler: KellvynScheduledTaskHandler) =
+        taskScheduler.registerHandler(handlerId, handler)
+
+    suspend fun runNextScheduledTask(): KellvynScheduledTaskResult? =
+        taskScheduler.runNext()
+
+    suspend fun runReadyScheduledTasks(maxTasks: Int = 4): List<KellvynScheduledTaskResult> =
+        taskScheduler.runReady(maxTasks)
 
     fun registerMemoryReclaimer(reclaimer: KellvynMemoryReclaimer): AutoCloseable =
         cacheRegistry.register(reclaimer)
