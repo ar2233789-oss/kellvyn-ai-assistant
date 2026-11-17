@@ -57,7 +57,7 @@ internal class KellvynTransformerInferenceEngine(
         val generationBudget = config.maxGenerationTokens
         val promptBudget = model.config.contextLength - generationBudget
         require(prefix.isNotEmpty() && prefix.size <= promptBudget) {
-            "O prompt ocupa \${prefix.size} tokens; o orçamento é $promptBudget. " +
+            "O prompt ocupa ${prefix.size} tokens; o orçamento é $promptBudget. " +
                 "Reduza histórico/ferramentas ou treine um modelo com contexto maior."
         }
 
@@ -92,7 +92,7 @@ internal class KellvynTransformerInferenceEngine(
         when (val parsed = KellvynDecisionProtocol.parse(output)) {
             is KellvynDecisionProtocol.ParseResult.Accepted -> parsed.decision
             is KellvynDecisionProtocol.ParseResult.Rejected -> throw IllegalArgumentException(
-                "A decisão do Transformer foi recusada pelo protocolo: \${parsed.reason}"
+                "A decisão do Transformer foi recusada pelo protocolo: ${parsed.reason}"
             )
         }
     }
@@ -113,7 +113,7 @@ internal class KellvynTransformerInferenceEngine(
 
         val retained = otherMessages.toMutableList()
         val systemContext = systemMessages.joinToString("\n") { message ->
-            "[REGRAS TRUSTED]\n\${message.content.take(config.maxMessageChars)}"
+            "[REGRAS TRUSTED]\n${message.content.take(config.maxMessageChars)}"
         }
         val toolCatalog = renderTools(availableTools)
 
@@ -134,7 +134,7 @@ internal class KellvynTransformerInferenceEngine(
                         KellvynTrustLevel.USER_PROVIDED -> "USER_DATA"
                         KellvynTrustLevel.UNTRUSTED -> "UNTRUSTED_DATA"
                     }
-                    append("[\${message.role.name} $trust origem=\${message.source.take(80)}]\n")
+                    append("[${message.role.name} $trust origem=${message.source.take(80)}]\n")
                     append(message.content.take(config.maxMessageChars))
                     append("\n")
                 }
@@ -164,15 +164,15 @@ internal class KellvynTransformerInferenceEngine(
             val required = spec.requiredArguments.sorted().joinToString(",")
             val optional = spec.optionalArguments.sorted().joinToString(",")
             val schema = spec.argumentSchemas.joinToString(";") { argument ->
-                "\${argument.name}:\${argument.type.name.lowercase()}" +
+                "${argument.name}:${argument.type.name.lowercase()}" +
                     if (argument.type == KellvynToolArgumentType.ENUM) {
-                        "=\${argument.allowedValues.sorted().joinToString("|")}"
+                        "=${argument.allowedValues.sorted().joinToString("|")}"
                     } else {
                         ""
                     }
             }
-            "\${spec.name} r=\${spec.risk.name} req=[$required] opt=[$optional] " +
-                "schema=[$schema] \${spec.description.take(config.maxToolDescriptionChars)}"
+            "${spec.name} r=${spec.risk.name} req=[$required] opt=[$optional] " +
+                "schema=[$schema] ${spec.description.take(config.maxToolDescriptionChars)}"
         } + "\n"
     }
 }
