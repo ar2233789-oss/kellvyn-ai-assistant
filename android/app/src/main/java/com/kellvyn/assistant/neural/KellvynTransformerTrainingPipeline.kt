@@ -70,7 +70,7 @@ internal data class KellvynRestoredTransformerBundle(
 )
 
 /**
- * Local-only, provenance-aware supervised training for KBN-003.
+ * Local-only, provenance-aware supervised training for KN-003.
  * Tokenizer merges are learned from TRAIN prompts/completions only. VALIDATION and TEST
  * are used exclusively for evaluation. Only completion tokens contribute to gradients.
  */
@@ -159,7 +159,7 @@ internal object KellvynTransformerTrainingPipeline {
                 val prompt = tokenizer.encode(example.prompt)
                 val completionTextTokens = tokenizer.encode(example.completion)
                 val endOfSequenceTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
-                    "O tokenizer KBN-003 não reservou o token de encerramento."
+                    "O tokenizer KN-003 não reservou o token de encerramento."
                 }
                 val completion = completionTextTokens + intArrayOf(endOfSequenceTokenId)
                 require(prompt.isNotEmpty() && completionTextTokens.isNotEmpty()) {
@@ -178,7 +178,7 @@ internal object KellvynTransformerTrainingPipeline {
             it.completion.size.toLong() * config.epochsPerExample.toLong()
         }
         require(plannedSteps in 1..config.maxTotalTrainingSteps) {
-            "O treinamento KBN-003 excederia o orçamento de passos."
+            "O treinamento KN-003 excederia o orçamento de passos."
         }
         require(trainEncoded.all {
             it.completion.size.toLong() * config.epochsPerExample.toLong() <= MAX_STEPS_PER_EXAMPLE
