@@ -8,6 +8,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * End-to-end smoke test for the real on-device generated-project pipeline.
@@ -131,16 +134,38 @@ class GeneratedAppBuildSmokeTest {
             """)
         ).joinToString("\n\n")
 
-        val result = LocalProjectBuilder(context).compileGeneratedProject(
-            prompt = prompt,
-            response = response,
-            onBeforeBuild = {},
-            onProgress = {}
+        val completion = CountDownLatch(1)
+        val bridgeResult = AtomicReference<String>("")
+        val bridge = LocalProjectBuilderBridge(
+            context,
+            object : LocalProjectBuilderBridge.Listener {
+                override fun onProgress(message: String) = Unit
+                override fun onComplete(message: String) {
+                    bridgeResult.set(message)
+                    completion.countDown()
+                }
+            }
         )
+        try {
+            assertTrue("A ponte do chat não reconheceu o pedido nativo de APK.",
+                bridge.isNativeApkRequest(prompt))
+            assertTrue("A ponte não anexou o contrato restrito do compilador.",
+                bridge.addCompilerContract(prompt).contains("COMPILADOR LOCAL DE APK ANDROID"))
+
+            // Exercise the same Kotlin bridge that MainActivity now calls after model output.
+            bridge.compileGeneratedProject(prompt, response)
+            assertTrue(
+                "A ponte do chat não concluiu a compilação dentro do limite do teste.",
+                completion.await(8, TimeUnit.MINUTES)
+            )
+        } finally {
+            bridge.close()
+        }
+        val result = bridgeResult.get()
 
         assertTrue(
-            "O construtor não confirmou uma compilação local, assinatura e verificação reais. Resultado: " + result,
-            result.orEmpty().contains("APK Android nativo compilado localmente, assinado e verificado.")
+            "A ponte do chat não confirmou uma compilação local, assinatura e verificação reais. Resultado: " + result,
+            result.contains("APK Android nativo compilado localmente, assinado e verificado.")
         )
 
         val apkPath = preferences.getString("local_builder_last_apk_path", null)
