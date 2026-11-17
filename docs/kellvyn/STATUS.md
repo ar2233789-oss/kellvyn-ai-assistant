@@ -280,3 +280,28 @@ O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be4
 3. Dimensionar contexto real e desempenho; investigar KV cache antes de crescer a janela.
 4. Melhorar geração incremental e cancelamento.
 5. Só após evidência de qualidade e estabilidade considerar ligação ao agente; não alterar a interface.
+
+
+## Inferência incremental com cache KV — 17/11/2026
+
+### Implementação
+- `KellvynTransformerLanguageModel.GenerationSession` mantém K/V rotacionados por RoPE para o contexto ativo.
+- O prefixo é pré-processado uma vez; cada novo token calcula apenas as próprias projeções Q/K/V.
+- A atenção do token atual reutiliza K/V anteriores e respeita a janela causal.
+- O cache mantém no máximo `contextLength` tokens e remove o token mais antigo quando a janela desliza.
+- As posições RoPE continuam absolutas para conservar as diferenças relativas entre tokens mantidos.
+- `KellvynTransformerInferenceEngine` usa a sessão incremental, incluindo parada EOS.
+
+### Validação
+O workflow neural core tests run 44007839790 no commit de código 895eca04525b65b6c7c17175e42ff4d126d1e5ae passou:
+- `gradle testDebugUnitTest` executado;
+- `BUILD SUCCESSFUL` em 1m40s;
+- teste de comparação de probabilidades com forward completo;
+- teste de janela deslizante e limite do cache;
+- teste de sequência greedy cacheada versus referência com recálculo integral.
+
+### Limites
+O cache é apenas para o único bloco Transformer atual. Ainda não foi medido ganho de latência/throughput, RAM, temperatura ou bateria no Poco F6. Não existe cache por camada porque ainda não existe pilha multi-bloco. Evitar treinar e inferir simultaneamente no mesmo objeto de modelo; treinar em instância separada e promover checkpoint validado.
+
+### Próximo trabalho neural
+Construir profundidade multi-bloco com parâmetros independentes por bloco, forward causal de todas as posições, retropropagação completa entre camadas, gradient checks por camada e checkpoint versionado. Cada camada deverá ter seu próprio cache KV. Preservar a interface.
