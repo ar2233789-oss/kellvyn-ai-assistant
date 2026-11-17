@@ -244,3 +244,39 @@ O modelo ainda é uma alpha de atenção causal com uma cabeça, não um Transfo
 ### CI atualizado — 17/11/2026
 
 O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be43afd1cbffd48` concluiu com sucesso: run `43986427597` (`https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/43986427597`). O log registra compilação Kotlin, compilação Java, compilação dos testes e `BUILD SUCCESSFUL` em `testDebugUnitTest`. A falha anterior de UTF-8 foi corrigida antes desse commit. O laboratório virtual Android é outro workflow e ainda não tinha conclusão confirmada nesta atualização.
+
+
+## Atualização neural — KBN-003 + EOS — 17/11/2026
+
+**HEAD de código validado:** f32bca0d1b2e14541ed7a52f8c0bd414f685084e.
+
+### Alterações desta sequência
+- Tokenizador BPE com token EOS dedicado e checkpoint versão 2.
+- Compatibilidade de leitura preservada para checkpoint de tokenizer versão 1 sem EOS.
+- Pipeline KBN-003 passa a anexar EOS a cada completion de treino, validação e teste; a loss supervisiona a parada.
+- O Transformer pode encerrar a geração ao prever o ID EOS, sem expor o token de controle.
+- O adaptador usa EOS em checkpoints novos e mantém fallback textual END para bundles legados.
+- Testes cobrem round-trip Unicode, token EOS dedicado, compatibilidade de checkpoint antigo, EOS aprendido e parada de geração.
+- Especialistas internos: o teste de contrato que percorre RESEARCHER, CODE_EXPLORER, REVIEWER e TEST_ANALYST passou no CI anterior do mesmo branch (run 44003722972).
+
+### Validação
+- Workflow neural core tests: run 44005947968, commit f32bca0d1b2e14541ed7a52f8c0bd414f685084e — **sucesso**.
+- O log confirma execução de gradle testDebugUnitTest e BUILD SUCCESSFUL em 2m09s.
+- Teste de geração EOS e treinamento supervisionado passou dentro da suíte.
+- A verificação de gradiente mantém os limites de erro absoluto e relativo; o passo de diferença finita foi ajustado para 0,005 em float32 após aumento da dimensão do softmax.
+- Workflow Poco F6 virtual comparison lab: run 44005947963 estava em andamento na última consulta. Não registrar como aprovado até ver o resultado. Mesmo que passe, é um AVD, não o aparelho físico.
+
+### Limites reais
+- KBN-003 ainda tem um único bloco Transformer, embeddings 32 por padrão e contexto máximo de 256 tokens.
+- Sem KV cache; o runtime recalcula chaves/valores durante a geração.
+- O corpus de testes continua sintético e pequeno; não existe corpus linguístico grande com direitos documentados.
+- A geração tem como alvo o protocolo KELLVYN/1; ainda não demonstra diálogo natural geral, planejamento confiável ou programação autônoma.
+- O adaptador neural permanece separado do chat principal. KellvynRuntime.isReady() continua falso e reply() continua bloqueado.
+- Não há inferência validada no Poco F6 físico, nem medição de RAM, latência, temperatura, bateria ou sessão longa.
+
+### Próxima ordem neural
+1. Avaliar uma pilha de múltiplos blocos decoder-only com backpropagation por camada e testes numéricos independentes.
+2. Criar avaliação de capacidade do modelo em português e decisões KELLVYN/1 usando exemplos sintéticos autorizados e holdout.
+3. Dimensionar contexto real e desempenho; investigar KV cache antes de crescer a janela.
+4. Melhorar geração incremental e cancelamento.
+5. Só após evidência de qualidade e estabilidade considerar ligação ao agente; não alterar a interface.
