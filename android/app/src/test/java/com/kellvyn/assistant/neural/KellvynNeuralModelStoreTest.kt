@@ -47,8 +47,8 @@ class KellvynNeuralModelStoreTest {
         val trained = trainSample()
         store.save(trained)
 
-        val current = File(root, "kellvyn-kbn-002.bundle")
-        val backup = File(root, "kellvyn-kbn-002.bundle.bak")
+        val current = File(root, "kellvyn-kn-002.bundle")
+        val backup = File(root, "kellvyn-kn-002.bundle.bak")
         current.copyTo(backup)
         val damagedBytes = current.readBytes()
         damagedBytes[16] = (damagedBytes[16].toInt() xor 1).toByte()
@@ -93,8 +93,8 @@ class KellvynNeuralModelStoreTest {
         val trained = trainTransformerSample()
         store.saveTransformer(trained)
 
-        val current = File(root, "kellvyn-kbn-003.bundle")
-        val backup = File(root, "kellvyn-kbn-003.bundle.bak")
+        val current = File(root, "kellvyn-kn-003.bundle")
+        val backup = File(root, "kellvyn-kn-003.bundle.bak")
         current.copyTo(backup)
         val damagedBytes = current.readBytes()
         damagedBytes[18] = (damagedBytes[18].toInt() xor 1).toByte()
@@ -140,7 +140,7 @@ class KellvynNeuralModelStoreTest {
         provenance = KellvynTrainingProvenance(
             permission = KellvynTrainingPermission.OWNER_CREATED,
             licenseId = "owner-created",
-            sourceReference = "owner://kbn003-store-test/$id",
+            sourceReference = "owner://kn003-store-test/$id",
             rightsEvidence = "Conteúdo sintético para teste de armazenamento Transformer."
         )
     )
