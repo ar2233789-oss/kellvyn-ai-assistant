@@ -1,5 +1,6 @@
 package com.kellvyn.assistant.workspace
 
+import com.kellvyn.assistant.LocalProjectBuilderBridge
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
