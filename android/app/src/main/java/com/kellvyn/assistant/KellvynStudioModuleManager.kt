@@ -115,6 +115,7 @@ internal class KellvynStudioModuleManager(
         require(deviceSdkInt >= 24)
     }
 
+    @Synchronized
     fun register(definition: KellvynStudioModuleDefinition) {
         val manifest = definition.manifest
         require(manifest.minSdk <= deviceSdkInt) {
@@ -144,6 +145,7 @@ internal class KellvynStudioModuleManager(
             ?: throw IllegalArgumentException("Módulo não registrado: " + moduleId)
         return loadMutex.withLock {
             val now = clock().also { require(it > 0L) }
+            unloadExpiredModules(now)
             val existing = loaded[moduleId]
             if (existing != null) {
                 val acquired = synchronized(existing.lock) {
@@ -213,8 +215,33 @@ internal class KellvynStudioModuleManager(
                     false
                 }
             }
-            if (mayRemove && loaded.remove(entry.key, state)) {
+            if (mayRemove) {
+                loaded.remove(entry.key, state)
                 runCatching { state.module.trimTransientResources(level) }
+                toClose += state
+            }
+        }
+        toClose.forEach { runCatching { it.module.close() } }
+        return toClose.size
+    }
+
+    /** Unload modules that have been idle longer than the configured TTL; no timer/polling. */
+    fun unloadExpiredModules(nowMillis: Long = clock(), maxIdleMillis: Long = DEFAULT_IDLE_TTL_MILLIS): Int {
+        require(nowMillis > 0L && maxIdleMillis >= 0L)
+        val toClose = mutableListOf<Loaded>()
+        loaded.entries.toList().forEach { entry ->
+            val state = entry.value
+            val mayRemove = synchronized(state.lock) {
+                val idleFor = (nowMillis - state.lastUsedAtMillis).coerceAtLeast(0L)
+                if (state.activeLeases == 0 && !state.evicted && idleFor >= maxIdleMillis) {
+                    state.evicted = true
+                    true
+                } else {
+                    false
+                }
+            }
+            if (mayRemove) {
+                loaded.remove(entry.key, state)
                 toClose += state
             }
         }
@@ -237,6 +264,10 @@ internal class KellvynStudioModuleManager(
             state.activeLeases--
             state.lastUsedAtMillis = clock()
         }
+    }
+
+    private companion object {
+        const val DEFAULT_IDLE_TTL_MILLIS = 120_000L
     }
 }
 
