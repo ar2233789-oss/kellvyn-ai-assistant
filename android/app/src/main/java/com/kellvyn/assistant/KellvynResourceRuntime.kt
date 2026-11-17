@@ -4,7 +4,13 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.os.Build
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.withContext
 
 /**
@@ -39,17 +45,52 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     suspend fun pendingScheduledTaskCount(): Int =
         withContext(Dispatchers.IO) { taskQueue.pendingCount() }
 
-    suspend fun enqueueScheduledTask(spec: KellvynQueuedTaskSpec): String =
-        taskScheduler.enqueue(spec)
+    suspend fun enqueueScheduledTask(spec: KellvynQueuedTaskSpec): String {
+        val id = taskScheduler.enqueue(spec)
+        scheduleQueueDrain()
+        return id
+    }
 
-    fun registerScheduledTaskHandler(handlerId: String, handler: KellvynScheduledTaskHandler) =
+    suspend fun registerScheduledTaskHandler(
+        handlerId: String,
+        handler: KellvynScheduledTaskHandler
+    ) {
         taskScheduler.registerHandler(handlerId, handler)
+        scheduleQueueDrain()
+    }
 
-    suspend fun runNextScheduledTask(): KellvynScheduledTaskResult? =
-        taskScheduler.runNext()
+    suspend fun runNextScheduledTask(
+        allowHeavyWorkload: Boolean = true
+    ): KellvynScheduledTaskResult? = taskScheduler.runNext(allowHeavyWorkload)
 
-    suspend fun runReadyScheduledTasks(maxTasks: Int = 4): List<KellvynScheduledTaskResult> =
-        taskScheduler.runReady(maxTasks)
+    suspend fun runReadyScheduledTasks(
+        maxTasks: Int = 4,
+        allowHeavyWorkload: Boolean = true
+    ): List<KellvynScheduledTaskResult> =
+        taskScheduler.runReady(maxTasks, allowHeavyWorkload)
+
+    suspend fun nextRunnableScheduledTaskDelayMillis(
+        allowHeavyWorkload: Boolean = false
+    ): Long? = taskScheduler.nextRunnableDelayMillis(allowHeavyWorkload)
+
+    fun scheduleQueueDrain(delayMillis: Long = 0L) {
+        require(delayMillis >= 0L)
+        val request = OneTimeWorkRequestBuilder<KellvynAutomationDrainWorker>()
+            .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
+            .setConstraints(
+                Constraints.Builder()
+                    .setRequiresBatteryNotLow(true)
+                    .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .build()
+            )
+            .addTag(QUEUE_DRAIN_TAG)
+            .build()
+        WorkManager.getInstance(appContext).enqueueUniqueWork(
+            QUEUE_DRAIN_WORK_NAME,
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+            request
+        )
+    }
 
     fun registerMemoryReclaimer(reclaimer: KellvynMemoryReclaimer): AutoCloseable =
         cacheRegistry.register(reclaimer)
@@ -107,5 +148,7 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
         }
 
         private const val MEBIBYTE = 1024L * 1024L
+        const val QUEUE_DRAIN_WORK_NAME = "kellvyn-automation-queue-drain"
+        const val QUEUE_DRAIN_TAG = "kellvyn-automation-queue"
     }
 }
