@@ -15,7 +15,7 @@ import java.security.MessageDigest
  * It starts with all 256 UTF-8 byte values, so every Unicode input remains losslessly
  * representable regardless of which merges were learned.
  *
- * This is the first KBN-002 component. It is not a neural model by itself.
+ * This is the first KN-002 component. It is not a neural model by itself.
  */
 internal class KellvynBpeTokenizer private constructor(
     private val merges: List<Merge>,
