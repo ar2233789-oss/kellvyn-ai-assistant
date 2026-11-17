@@ -9,7 +9,7 @@ import java.io.ByteArrayOutputStream
 
 class KellvynTransformerTrainingPipelineTest {
     @Test
-    fun trainsKbn003OnlyOnTrainResponsesAndMeasuresHeldOutSplits() {
+    fun trainsKn003OnlyOnTrainResponsesAndMeasuresHeldOutSplits() {
         val examples = sampleExamples()
         val config = KellvynTransformerTrainingConfig(
             contextLength = 32,
@@ -114,7 +114,7 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test
-    fun tokenizerAndManifestAreBoundToKbn003Configuration() {
+    fun tokenizerAndManifestAreBoundToKn003Configuration() {
         val trained = KellvynTransformerTrainingPipeline.train(
             sampleExamples(),
             KellvynTransformerTrainingConfig(
