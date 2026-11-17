@@ -3,6 +3,7 @@ package com.kellvyn.assistant
 import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -19,6 +20,11 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     val taskBroker = KellvynTaskBroker(governor) {
         withContext(Dispatchers.IO) { monitor.snapshot() }
     }
+
+    val studioModules = KellvynStudioModuleManager(
+        deviceSdkInt = Build.VERSION.SDK_INT,
+        taskBroker = taskBroker
+    )
 
     init {
         // One application-scoped callback; no service or polling thread is kept alive.
@@ -59,11 +65,13 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
                 KellvynCachePressure.CRITICAL -> Long.MAX_VALUE
             }
         )
+        studioModules.trimIdleModules(pressure)
     }
 
     override fun onLowMemory() {
         monitor.recordLowMemory()
         cacheRegistry.reclaim(KellvynCachePressure.CRITICAL)
+        studioModules.trimIdleModules(KellvynCachePressure.CRITICAL)
     }
 
     override fun onConfigurationChanged(newConfig: Configuration) = Unit
