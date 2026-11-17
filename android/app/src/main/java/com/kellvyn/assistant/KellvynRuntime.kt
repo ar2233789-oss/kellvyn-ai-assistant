@@ -43,6 +43,12 @@ internal class KellvynRuntime(context: Context) {
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
     private val resourceRuntime = KellvynResourceRuntime.get(appContext)
     private val taskBroker = resourceRuntime.taskBroker
+
+    init {
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynCodeNavigationStudio.definition(projectWorkspace)
+        )
+    }
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
     )
@@ -237,7 +243,10 @@ internal class KellvynRuntime(context: Context) {
     fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry {
         val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
         val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
-        return KellvynToolRegistry(workspaceTools + resourceTools)
+        val studioTools = resourceRuntime.studioModules.toolsForCapabilities(
+            setOf(KellvynStudioCapability.CODE_NAVIGATION)
+        )
+        return KellvynToolRegistry(workspaceTools + resourceTools + studioTools)
     }
 
     /**
