@@ -23,7 +23,8 @@ internal class KellvynAgent(
     private val projectContextRetriever: KellvynProjectContextSearch? = null,
     private val activeProjectId: String? = null,
     private val skillRegistry: KellvynSkillRegistry = KellvynSkillRegistry.default(),
-    private val taskCheckpoints: KellvynTaskCheckpointRepository? = null
+    private val taskCheckpoints: KellvynTaskCheckpointRepository? = null,
+    private val taskBroker: KellvynTaskBroker? = null
 ) {
     private val taskPlanner = KellvynTaskPlanner()
 
@@ -165,8 +166,31 @@ internal class KellvynAgent(
 
         val toolResult = try {
             withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                tool.execute(arguments)
+                executeTool(tool, arguments, "${taskId}-${stepId}")
             }
+        } catch (deferred: KellvynTaskDeferredException) {
+            val retryState = taskPlanner.returnStepToReady(running, stepId)
+            try {
+                repository.append(
+                    state = retryState,
+                    createdAtMillis = System.currentTimeMillis(),
+                    expectedPreviousSha256 = startedCheckpoint.sha256
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                return KellvynAgentResult.Failed(
+                    "A tarefa foi adiada por recursos, mas não foi possível salvar o estado de retomada: ${safeMessage(error)}",
+                    1,
+                    0
+                )
+            }
+            return KellvynAgentResult.LimitReached(
+                "Etapa pausada pelo gerenciador de recursos (${deferred.reasonCode}). " +
+                    "${deferred.message} Tente novamente após ${deferred.retryAfterMillis} ms.",
+                1,
+                0
+            )
         } catch (timeout: TimeoutCancellationException) {
             KellvynToolResult(false, "A ferramenta excedeu o tempo limite.")
         } catch (cancelled: CancellationException) {
@@ -551,7 +575,8 @@ internal class KellvynAgent(
                         projectContextRetriever = null,
                         activeProjectId = null,
                         skillRegistry = skillRegistry,
-                        taskCheckpoints = null
+                        taskCheckpoints = null,
+                        taskBroker = taskBroker
                     )
                     val specialistResult = try {
                         withTimeout(config.maxDelegationTimeoutMs) {
@@ -715,8 +740,15 @@ internal class KellvynAgent(
 
                     val result = try {
                         withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                            tool.execute(decision.arguments)
+                            executeTool(tool, decision.arguments, "run-${step}-${toolCalls}-${tool.spec.name}")
                         }
+                    } catch (deferred: KellvynTaskDeferredException) {
+                        return KellvynAgentResult.LimitReached(
+                            "A ferramenta foi adiada pelo gerenciador de recursos (${deferred.reasonCode}). " +
+                                "${deferred.message} Tente novamente após ${deferred.retryAfterMillis} ms.",
+                            step,
+                            toolCalls
+                        )
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Exception) {
@@ -740,6 +772,23 @@ internal class KellvynAgent(
             config.maxSteps,
             toolCalls
         )
+    }
+
+    private suspend fun executeTool(
+        tool: KellvynAgentTool,
+        arguments: Map<String, String>,
+        requestId: String
+    ): KellvynToolResult {
+        val broker = taskBroker ?: return tool.execute(arguments)
+        return broker.execute(
+            KellvynResourceRequest(
+                taskId = requestId.take(96),
+                workload = tool.spec.workloadClass,
+                estimatedWorkingSetBytes = tool.spec.estimatedWorkingSetBytes
+            )
+        ) {
+            tool.execute(arguments)
+        }
     }
 
     private fun observation(source: String, success: Boolean, content: String) =
@@ -966,12 +1015,15 @@ internal data class KellvynToolSpec(
     val optionalArguments: Set<String> = emptySet(),
     val risk: KellvynToolRisk = KellvynToolRisk.READ_ONLY,
     val timeoutMs: Long = 15_000L,
-    val argumentSchemas: List<KellvynToolArgumentSchema> = emptyList()
+    val argumentSchemas: List<KellvynToolArgumentSchema> = emptyList(),
+    val workloadClass: KellvynWorkloadClass = KellvynWorkloadClass.LIGHT,
+    val estimatedWorkingSetBytes: Long = 0L
 ) {
     init {
         require(name.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{1,63}")))
         require(description.isNotBlank())
         require(timeoutMs > 0)
+        require(estimatedWorkingSetBytes >= 0L)
         require(requiredArguments.intersect(optionalArguments).isEmpty())
         require((requiredArguments + optionalArguments).all {
             it.matches(Regex("[a-zA-Z][a-zA-Z0-9_]{0,63}"))
