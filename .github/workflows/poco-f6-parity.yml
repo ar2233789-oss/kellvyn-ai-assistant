@@ -610,6 +610,43 @@ jobs:
           }
           tap_text() { tap_control text "$1"; }
           tap_desc() { tap_control desc "$1"; }
+          # Some Android ListView rows expose their title as non-clickable text and
+          # render a separate CheckBox. Tap the actual checkbox inside the matching row.
+          tap_row_text() {
+            local value="$1"
+            echo "[LAB] tap row checkbox for text=$value"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          expected = value.casefold()
+          parents = {child: parent for parent in root.iter() for child in parent}
+          targets = [node for node in root.iter("node")
+                     if node.attrib.get("text", "").strip().casefold() == expected]
+          for target in targets:
+              ancestor = parents.get(target)
+              while ancestor is not None:
+                  if ancestor.attrib.get("class") == "android.widget.LinearLayout":
+                      checkbox = next((node for node in ancestor.iter("node")
+                                       if node.attrib.get("class") == "android.widget.CheckBox"
+                                       and node.attrib.get("enabled", "true") == "true"), None)
+                      candidate = checkbox if checkbox is not None else ancestor
+                      bounds = candidate.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                      if len(bounds) == 4:
+                          x1, y1, x2, y2 = map(int, bounds)
+                          print((x1+x2)//2, (y1+y2)//2)
+                          sys.exit(0)
+                  ancestor = parents.get(ancestor)
+          print(f"Could not find an enabled checkbox row for {value}", file=sys.stderr)
+          sys.exit(2)
+          PY
+            )" || { echo "Could not locate checkbox row: $value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping checkbox row=$value"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
           assert_text() {
             echo "[LAB] assert visible text: $1"
             grep -Fqi "text=\"$1\"" out/current-ui.xml || {
@@ -619,11 +656,11 @@ jobs:
             }
           }
           read_web_pref() {
-            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml 2>/dev/null || :
             if grep -q 'name="web_access" value="true"' out/native-prefs.xml; then echo true; else echo false; fi
           }
           read_effect_pref() {
-            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml 2>/dev/null || :
             grep -o 'name="visual_effects">[^<]*' out/native-prefs.xml | sed 's/.*>//'
           }
 
@@ -649,11 +686,11 @@ jobs:
           assert_text "Plugins"
           assert_text "Acesso à Web"
           WEB_BEFORE="$(read_web_pref)"
-          tap_text "Acesso à Web"
+          tap_row_text "Acesso à Web"
           WEB_AFTER="$(read_web_pref)"
           if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
           tap_desc "Anexos e Web"
-          tap_text "Acesso à Web"
+          tap_row_text "Acesso à Web"
           WEB_RESTORED="$(read_web_pref)"
           if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
 
@@ -682,14 +719,14 @@ jobs:
             sleep 1
             dump_current_ui
           fi
-          tap_text "Raios"
+          tap_row_text "Raios"
           EFFECTS_ON="$(read_effect_pref)"
           if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
             echo "Expected rain and lightning together, got: $EFFECTS_ON"
             cat out/native-prefs.xml
             exit 1
           fi
-          tap_text "Raios"
+          tap_row_text "Raios"
           EFFECTS_RESTORED="$(read_effect_pref)"
           if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
             echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"

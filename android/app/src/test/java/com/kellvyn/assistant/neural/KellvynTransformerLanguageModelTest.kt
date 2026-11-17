@@ -218,7 +218,84 @@ class KellvynTransformerLanguageModelTest {
         assertEquals(12, cachedTokens.size)
     }
 
+    @Test
+    fun restoredCheckpointRetainsIncrementalKvCacheEquivalenceAfterWindowSlides() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn mantém o cache incremental consistente após restaurar pesos."),
+            maxMerges = 12
+        )
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 8,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 4107L
+        )
+        val prompt = tokenizer.encode("Pergunta:")
+        val completion = tokenizer.encode("sim")
+        model.trainCompletion(
+            promptTokenIds = prompt,
+            completionTokenIds = completion,
+            epochs = 2,
+            weightDecay = 0.0f
+        )
+        val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val restored = KellvynTransformerLanguageModel.readCheckpoint(
+            ByteArrayInputStream(checkpoint)
+        )
+
+        assertEquals(model.trainingSteps, restored.trainingSteps)
+        assertEquals(model.parameterFingerprint(), restored.parameterFingerprint())
+
+        val prefix = tokenizer.encode("Kellvyn")
+        assertTrue(prefix.isNotEmpty())
+        assertTrue(prefix.size <= model.config.contextLength)
+        val originalSession = model.newGenerationSession(prefix)
+        val restoredSession = restored.newGenerationSession(prefix)
+
+        repeat(16) { step ->
+            val originalProbabilities = originalSession.nextTokenProbabilities()
+            val restoredProbabilities = restoredSession.nextTokenProbabilities()
+            val fullPrefixReference = restored.evaluateNextTokenProbabilities(
+                restoredSession.contextTokenIds()
+            )
+            assertEquals(originalProbabilities.size, restoredProbabilities.size)
+            assertEquals(restoredProbabilities.size, fullPrefixReference.size)
+            for (token in fullPrefixReference.indices) {
+                assertTrue(
+                    "Restored cache diverged from KN-003 at step $step, token $token",
+                    kotlin.math.abs(
+                        restoredProbabilities[token] - fullPrefixReference[token]
+                    ) < 0.00002f
+                )
+                assertTrue(
+                    "Checkpoint changed cached probabilities at step $step, token $token",
+                    kotlin.math.abs(
+                        originalProbabilities[token] - restoredProbabilities[token]
+                    ) < 0.00002f
+                )
+            }
+
+            val next = originalProbabilities.indices.maxBy { originalProbabilities[it] }
+            originalSession.appendToken(next)
+            restoredSession.appendToken(next)
+            assertEquals(
+                originalSession.outputTokenIds().toList(),
+                restoredSession.outputTokenIds().toList()
+            )
+        }
+
+        assertEquals(prefix.size + 16, restoredSession.processedTokenCount())
+        assertEquals(model.config.contextLength, restoredSession.cachedTokenCount())
+        assertEquals(
+            restoredSession.outputTokenIds().takeLast(model.config.contextLength),
+            restoredSession.contextTokenIds().toList()
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
+    fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {    @Test(expected = IllegalArgumentException::class)
     fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {
         KellvynTransformerLanguageModel.Config(
             vocabularySize = 256,

@@ -268,7 +268,7 @@ O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be4
 
 ### Limites reais
 - KN-003 ainda tem um único bloco Transformer, embeddings 32 por padrão e contexto máximo de 256 tokens.
-- Sem KV cache; o runtime recalcula chaves/valores durante a geração.
+- `GenerationSession` já mantém cache KV incremental com janela deslizante para o bloco único; o ganho de latência/RAM ainda precisa ser medido no Poco F6.
 - O corpus de testes continua sintético e pequeno; não existe corpus linguístico grande com direitos documentados.
 - A geração tem como alvo o protocolo KELLVYN/1; ainda não demonstra diálogo natural geral, planejamento confiável ou programação autônoma.
 - O adaptador neural permanece separado do chat principal. KellvynRuntime.isReady() continua falso e reply() continua bloqueado.
@@ -277,7 +277,7 @@ O workflow **Kellvyn neural core tests** no commit `57ac899e98062ebd304927762be4
 ### Próxima ordem neural
 1. Avaliar uma pilha de múltiplos blocos decoder-only com backpropagation por camada e testes numéricos independentes.
 2. Criar avaliação de capacidade do modelo em português e decisões KELLVYN/1 usando exemplos sintéticos autorizados e holdout.
-3. Dimensionar contexto real e desempenho; investigar KV cache antes de crescer a janela.
+3. Dimensionar contexto real e desempenho; medir custo do cache KV já implementado antes de crescer a janela.
 4. Melhorar geração incremental e cancelamento.
 5. Só após evidência de qualidade e estabilidade considerar ligação ao agente; não alterar a interface.
 

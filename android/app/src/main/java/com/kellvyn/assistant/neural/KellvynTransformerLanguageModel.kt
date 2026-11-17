@@ -15,14 +15,16 @@ import kotlin.math.max
 import kotlin.math.sqrt
 
 /**
- * KN-003 experimental decoder-only Transformer built from random Kellvyn-owned weights.
+ * KN-003 experimental single-block decoder-only Transformer with Kellvyn-owned weights.
  *
- * This first trainable block has causal multi-head self-attention with RoPE, Pre-LayerNorm,
- * residual paths and a SwiGLU feed-forward sub-layer. It intentionally remains small and
- * separate from KN-002 until gradient, learning, checkpoint and Android runtime gates pass.
+ * This trainable block has causal multi-head self-attention with RoPE, Pre-LayerNorm,
+ * residual paths and a SwiGLU feed-forward sub-layer. It remains separate from KN-002
+ * until model-quality and Android runtime gates pass.
  *
- * The implementation computes only the final position for next-token prediction. Keys and
- * values are recomputed for each step; a KV cache is a later optimization, not yet implemented.
+ * Supervised training computes next-token loss at the final position. GenerationSession
+ * performs incremental inference with a sliding-window KV cache for this single block.
+ * Multi-block depth, per-layer backpropagation and per-layer caches belong to the next
+ * architecture milestone; this class must remain checkpoint-compatible with KN-003.
  */
 internal class KellvynTransformerLanguageModel private constructor(
     val config: Config,
