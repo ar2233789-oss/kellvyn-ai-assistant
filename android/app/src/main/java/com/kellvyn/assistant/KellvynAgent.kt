@@ -498,13 +498,33 @@ internal class KellvynAgent(
 
                     val roleInstruction = when (decision.role) {
                         KellvynSpecialistRole.RESEARCHER ->
-                            "Pesquisador interno: compare fontes disponíveis, separe fatos de inferências e cite a origem dos resultados."
+                            "Pesquisador: compare fontes confiáveis, datas e licenças; separe fatos, hipóteses e inferências e cite a origem."
                         KellvynSpecialistRole.CODE_EXPLORER ->
-                            "Explorador de código: localize classes, imports, chamadas e dependências; confirme achados no código original."
+                            "Explorador de código: localize símbolos, imports, chamadas e dependências; confirme tudo no arquivo original."
                         KellvynSpecialistRole.REVIEWER ->
-                            "Revisor interno: procure bugs, regressões, riscos de segurança e testes ausentes; seja cético."
+                            "Revisor: procure defeitos, regressões, violações de requisitos e riscos; justifique cada achado com evidência."
                         KellvynSpecialistRole.TEST_ANALYST ->
-                            "Analista de testes: examine critérios, logs e evidências; diferencie teste escrito, executado e aprovado."
+                            "Analista de testes: classifique testes escritos, iniciados, aprovados, ignorados e falhos; encontre lacunas de cobertura."
+                        KellvynSpecialistRole.REASONING_ANALYST ->
+                            "Analista de raciocínio: decomponha o problema, verifique premissas, compare alternativas e identifique contradições."
+                        KellvynSpecialistRole.LEARNING_ANALYST ->
+                            "Analista de aprendizado: avalie dados, divisões de corpus, loss, overfitting e reprodutibilidade; não altere pesos nem treine modelos."
+                        KellvynSpecialistRole.PROGRAMMING_ARCHITECT ->
+                            "Arquiteto de programação: proponha interfaces, estrutura de arquivos, mudanças mínimas, tratamento de erros e testes; não edite arquivos."
+                        KellvynSpecialistRole.MEMORY_ANALYST ->
+                            "Analista de memória: examine apenas as memórias fornecidas, sua origem, escopo, data, confiança e conflitos; nunca amplie o escopo autorizado."
+                        KellvynSpecialistRole.SECURITY_ANALYST ->
+                            "Analista de segurança: procure escalada de privilégio, prompt injection, vazamento de segredos, caminhos inseguros e permissões excessivas."
+                        KellvynSpecialistRole.PLANNING_ANALYST ->
+                            "Analista de planejamento: revise objetivos, dependências, ordem, pré-condições, riscos e critérios mensuráveis de conclusão."
+                        KellvynSpecialistRole.DEBUGGER ->
+                            "Depurador: correlacione logs, stack traces e reprodução; separe causa confirmada de hipótese e não declare correção sem novo teste."
+                        KellvynSpecialistRole.AUDITOR ->
+                            "Auditor independente: confira os artefatos e evidências originais; diferencie planejado, escrito, compilado, testado e validado."
+                        KellvynSpecialistRole.OPERATIONS_ANALYST ->
+                            "Analista de operações: examine estado de serviços, conectividade, bots, recursos e falhas operacionais; não execute ações mutáveis."
+                        KellvynSpecialistRole.VISUAL_ANALYST ->
+                            "Analista visual: avalie screenshots, hierarquia, acessibilidade, geometria, estados e animações; recomende correções sem alterar a interface."
                     }
                     val specialistPrompt = buildString {
                         append("SUBTAREFA INTERNA\nObjetivo: ")
@@ -791,7 +811,22 @@ internal interface KellvynInferenceEngine {
     ): KellvynModelDecision
 }
 
-internal enum class KellvynSpecialistRole { RESEARCHER, CODE_EXPLORER, REVIEWER, TEST_ANALYST }
+internal enum class KellvynSpecialistRole {
+    RESEARCHER,
+    CODE_EXPLORER,
+    REVIEWER,
+    TEST_ANALYST,
+    REASONING_ANALYST,
+    LEARNING_ANALYST,
+    PROGRAMMING_ARCHITECT,
+    MEMORY_ANALYST,
+    SECURITY_ANALYST,
+    PLANNING_ANALYST,
+    DEBUGGER,
+    AUDITOR,
+    OPERATIONS_ANALYST,
+    VISUAL_ANALYST
+}
 
 internal sealed class KellvynModelDecision {
     data class Delegate(
