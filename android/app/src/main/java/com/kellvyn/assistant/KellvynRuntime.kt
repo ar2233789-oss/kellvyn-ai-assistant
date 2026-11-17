@@ -41,6 +41,11 @@ internal class KellvynRuntime(context: Context) {
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
     private val projectWriteApprovalGate = KellvynProjectWriteApprovalGate()
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
+    private val resourceGovernor = KellvynResourceGovernor()
+    private val resourceMonitor = KellvynAndroidResourceMonitor(appContext)
+    private val taskBroker = KellvynTaskBroker(resourceGovernor) {
+        withContext(Dispatchers.IO) { resourceMonitor.snapshot() }
+    }
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
     )
@@ -67,6 +72,10 @@ internal class KellvynRuntime(context: Context) {
 
     /** Gives the agent layer access to the same app-private memory store. */
     fun memoryStore(): KellvynMemory = localMemory
+
+    /** A fresh resource snapshot for the operations specialist and diagnostics. */
+    suspend fun resourceSnapshot(): KellvynResourceSnapshot =
+        withContext(Dispatchers.IO) { resourceMonitor.snapshot() }
 
     /**
      * Persists a complete planner snapshot in app-private storage.
@@ -105,14 +114,16 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynTrainingConfig = KellvynTrainingConfig(),
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynTrainingManifest {
-        val trained = withContext(Dispatchers.Default) {
-            val trainingContext = currentCoroutineContext()
-            KellvynTrainingPipeline.train(
-                documents = documents,
-                config = config,
-                createdAtMillis = createdAtMillis,
-                cancellationCheck = { trainingContext.ensureActive() }
-            )
+        val trained = runHeavyTask("training-documents-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTrainingPipeline.train(
+                    documents = documents,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
         }
         withContext(Dispatchers.IO) {
             neuralModelStore.save(trained)
@@ -129,14 +140,16 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynTrainingConfig = KellvynTrainingConfig(),
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynTrainingManifest {
-        val trained = withContext(Dispatchers.Default) {
-            val trainingContext = currentCoroutineContext()
-            KellvynTrainingPipeline.trainInstructions(
-                examples = examples,
-                config = config,
-                createdAtMillis = createdAtMillis,
-                cancellationCheck = { trainingContext.ensureActive() }
-            )
+        val trained = runHeavyTask("training-instructions-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTrainingPipeline.trainInstructions(
+                    examples = examples,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
         }
         withContext(Dispatchers.IO) {
             neuralModelStore.save(trained)
@@ -154,14 +167,16 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynTransformerTrainingConfig = KellvynTransformerTrainingConfig(),
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynTransformerTrainingManifest {
-        val trained = withContext(Dispatchers.Default) {
-            val trainingContext = currentCoroutineContext()
-            KellvynTransformerTrainingPipeline.train(
-                examples = examples,
-                config = config,
-                createdAtMillis = createdAtMillis,
-                cancellationCheck = { trainingContext.ensureActive() }
-            )
+        val trained = runHeavyTask("training-transformer-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTransformerTrainingPipeline.train(
+                    examples = examples,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
         }
         withContext(Dispatchers.IO) {
             neuralModelStore.saveTransformer(trained)
@@ -281,9 +296,19 @@ internal class KellvynRuntime(context: Context) {
             memoryAddresses = addresses,
             projectContextRetriever = projectContextRetriever,
             activeProjectId = activeProjectId,
-            taskCheckpoints = taskCheckpointRepository
+            taskCheckpoints = taskCheckpointRepository,
+            taskBroker = taskBroker
         )
     }
+
+    private suspend fun <T> runHeavyTask(
+        taskId: String,
+        operation: suspend () -> T
+    ): T = taskBroker.execute(
+        KellvynResourceRequest(taskId = taskId.take(96), workload = KellvynWorkloadClass.HEAVY),
+        operation
+    )
+
     fun isReady(): Boolean = false
 
     fun hasActiveConversation(): Boolean = false
