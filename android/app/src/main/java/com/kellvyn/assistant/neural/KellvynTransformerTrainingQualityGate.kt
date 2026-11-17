@@ -1,7 +1,6 @@
 package com.kellvyn.assistant.neural
 
 import kotlin.math.ln
-import kotlin.math.max
 
 /**
  * Conservative training-quality gate for KN-003.
