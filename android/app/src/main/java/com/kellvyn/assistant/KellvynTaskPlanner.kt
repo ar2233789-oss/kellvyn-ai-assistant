@@ -204,6 +204,21 @@ internal class KellvynTaskPlanner {
         return refresh(updated)
     }
 
+    /**
+     * Returns a RUNNING step to READY when the resource governor defers execution.
+     * The attempt remains recorded, while precondition evidence is discarded so it must
+     * be checked again before a retry.
+     */
+    fun returnStepToReady(state: KellvynTaskState, stepId: String): KellvynTaskState {
+        requireStatus(state, stepId, KellvynStepStatus.RUNNING)
+        val reset = state.copy(
+            statuses = state.statuses + (stepId to KellvynStepStatus.WAITING),
+            preconditionProofs = state.preconditionProofs - stepId,
+            failureReasons = state.failureReasons - stepId
+        )
+        return refresh(reset)
+    }
+
     fun cancel(state: KellvynTaskState): KellvynTaskState {
         val cancellable = setOf(
             KellvynStepStatus.WAITING,
