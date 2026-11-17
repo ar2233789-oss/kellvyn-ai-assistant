@@ -322,3 +322,40 @@ Atualizar este arquivo, STATUS.md e o relatório comparativo após cada novo mar
 Teste novo em `KellvynAgentPlanTest.kt` cobre leitura → espera de aprovação → aprovação → gravação. Teste apenas escrito, ainda sem Gradle/CI confirmado.
 
 **Estado real permanece:** backend neural ausente, chat principal não conectado a `createAgent`, sem build APK e sem teste Poco F6. O agente e suas decisões estruturadas são fundação de código, não ainda uma capacidade operacional no app.
+
+
+## 12. Continuidade da sessão — 17/11/2026
+
+**HEAD confirmado na última consulta:** `57ac899e98062ebd304927762be43afd1cbffd48` na branch `lab/kellvyn-intelligence-core-20261116`.
+
+### Alterações feitas
+- `KellvynLocalNeuralInferenceEngine.kt`: removido bloco duplicado que quebrava sintaxe; índice da última solicitação USER agora é mutável e obrigatório.
+- `KellvynAttentionLanguageModel.kt`: adicionados `trainCompletion()` e `evaluateCompletionLoss()`; só a resposta supervisionada recebe loss/gradientes.
+- `KellvynTrainingPipeline.kt`: adicionados `KellvynInstructionTrainingExample` e `trainInstructions()`, com BPE aprendido apenas em TRAIN, validação/teste separados, proveniência, hashes, limites, filtros de credenciais e prevenção de prompt leakage entre splits.
+- `KellvynRuntime.kt`: adicionado `trainOwnInstructionModel()` para treino local e persistência do bundle.
+- Testes: `KellvynCompletionTrainingTest.kt` e novos casos em `KellvynTrainingPipelineTest.kt`.
+- `KellvynDecisionProtocol.kt`: UTF-8 inválido é convertido em rejeição controlada.
+
+### Commits da sequência
+`155f55a7`, `574352fb`, `f2a892c7`, `f8d371dc`, `2dacc181`, `f556f66b`, `f24a225d`, `45be9f44`, `529d6287`, `553d2760`, `57ac899e`.
+
+### CI / ambiente
+No commit `f2a892c7`, o Gradle compilou e executou 136 testes; 135 passaram e o parser falhou com `MalformedInputException`. O parser foi corrigido em `529d6287`. O workflow neural e o laboratório virtual do HEAD `57ac899e` estavam em andamento na última consulta. **Ainda não registrar CI aprovado** até consultar o resultado final. As execuções anteriores do laboratório falharam durante compilação ou antes da instalação, logo não validaram o aplicativo em emulador. Não houve teste físico no Poco F6.
+
+### Bloqueios técnicos atuais
+- single-head autoregressivo alpha; não Transformer completo;
+- treino supervisionado é primitivo experimental com exemplos sintéticos;
+- inferência local e protocolo ainda não foram provados em conversa útil;
+- engine adapter não está ligado ao chat principal;
+- `KellvynRuntime.isReady() == false`, `reply()` continua bloqueado;
+- janela de contexto e protocolo de decisão são pequenos/ineficientes para o prompt real do agente;
+- sem APK de entrega e sem medição física no Poco F6.
+
+### Próxima tarefa obrigatória
+1. Consultar o resultado final de `43986427597` (neural core tests) e `43986431670` (laboratório virtual) ou os runs mais recentes do mesmo HEAD.
+2. Corrigir todas as falhas reais e repetir CI.
+3. Depois de CI verde, avançar para o Transformer decoder-only original: multi-head causal attention, residuals, normalização e MLP gated com gradientes verificados.
+4. Em seguida, implementar EOS/decodificação controlada e corpus supervisionado de português com direitos documentados.
+5. Só depois integrar ao chat; preservar a interface aprovada.
+
+Não apresentar a nova primitiva de SFT como inteligência conversacional pronta.
