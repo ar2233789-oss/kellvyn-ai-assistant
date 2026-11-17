@@ -27,6 +27,7 @@ class LocalProjectBuilderBridge(
     }
 
     private val builder = LocalProjectBuilder(context.applicationContext)
+    private val taskBroker = KellvynResourceRuntime.get(context.applicationContext).taskBroker
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     fun addCompilerContract(prompt: String): String = builder.addCompilerContract(prompt)
@@ -48,24 +49,37 @@ class LocalProjectBuilderBridge(
         scope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    builder.compileGeneratedProject(
-                        prompt = prompt,
-                        response = response,
-                        onBeforeBuild = {
-                            withContext(Dispatchers.Main.immediate) {
-                                listener.onProgress("Preparando a compilação Android local…")
+                    taskBroker.execute(
+                        KellvynResourceRequest(
+                            taskId = "apk-build-${System.currentTimeMillis()}",
+                            workload = KellvynWorkloadClass.HEAVY,
+                            estimatedWorkingSetBytes = 768L * MEBIBYTE
+                        )
+                    ) {
+                        builder.compileGeneratedProject(
+                            prompt = prompt,
+                            response = response,
+                            onBeforeBuild = {
+                                withContext(Dispatchers.Main.immediate) {
+                                    listener.onProgress("Preparando a compilação Android local…")
+                                }
+                            },
+                            onProgress = { message ->
+                                scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
                             }
-                        },
-                        onProgress = { message ->
-                            scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
-                        }
-                    )
+                        )
+                    }
                 }
                 listener.onComplete(
                     result ?: "O compilador local não reconheceu esta solicitação como um pedido de APK."
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (deferred: KellvynTaskDeferredException) {
+                listener.onComplete(
+                    "A compilação foi adiada pelo gerenciador de recursos (${deferred.reasonCode}): " +
+                        deferred.message + " Tente novamente após " + deferred.retryAfterMillis + " ms."
+                )
             } catch (error: Exception) {
                 listener.onComplete(
                     "A compilação Android local foi interrompida com segurança: " +
@@ -84,23 +98,36 @@ class LocalProjectBuilderBridge(
         scope.launch {
             try {
                 val result = withContext(Dispatchers.IO) {
-                    builder.handleSdkLicenseAcceptance(
-                        prompt = prompt,
-                        onBeforeBuild = {
-                            withContext(Dispatchers.Main.immediate) {
-                                listener.onProgress("Licença aceita. Preparando o compilador Android local…")
+                    taskBroker.execute(
+                        KellvynResourceRequest(
+                            taskId = "apk-resume-${System.currentTimeMillis()}",
+                            workload = KellvynWorkloadClass.HEAVY,
+                            estimatedWorkingSetBytes = 768L * MEBIBYTE
+                        )
+                    ) {
+                        builder.handleSdkLicenseAcceptance(
+                            prompt = prompt,
+                            onBeforeBuild = {
+                                withContext(Dispatchers.Main.immediate) {
+                                    listener.onProgress("Licença aceita. Preparando o compilador Android local…")
+                                }
+                            },
+                            onProgress = { message ->
+                                scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
                             }
-                        },
-                        onProgress = { message ->
-                            scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
-                        }
-                    )
+                        )
+                    }
                 }
                 listener.onComplete(
                     result ?: "Não há um projeto aguardando aceite da licença do Android SDK."
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
+            } catch (deferred: KellvynTaskDeferredException) {
+                listener.onComplete(
+                    "A retomada da compilação foi adiada pelo gerenciador de recursos (${deferred.reasonCode}): " +
+                        deferred.message + " Tente novamente após " + deferred.retryAfterMillis + " ms."
+                )
             } catch (error: Exception) {
                 listener.onComplete(
                     "Não foi possível retomar a compilação local: " +
@@ -113,5 +140,9 @@ class LocalProjectBuilderBridge(
 
     override fun close() {
         scope.cancel()
+    }
+
+    private companion object {
+        const val MEBIBYTE = 1024L * 1024L
     }
 }
