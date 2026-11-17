@@ -8,7 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Adapts the original local KBN-002 model to the typed agent decision contract.
+ * Adapts the original local KN-002 model to the typed agent decision contract.
  *
  * Decoding is greedy and CPU-only. The model sees a bounded prompt and must emit the strict
  * KellvynDecisionProtocol; malformed/free-form output fails closed. This adapter does not
