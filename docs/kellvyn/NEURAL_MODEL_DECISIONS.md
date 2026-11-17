@@ -128,3 +128,18 @@ Não declarar “cérebro pronto” até que todos os itens mínimos sejam obser
 ## 9. Regra permanente para evitar regressões de decisão
 
 Antes de propor qualquer modelo, peso ou adapter, reler este documento. A decisão de origem própria prevalece sobre textos anteriores que mencionem pesos abertos, modelo-base externo, fine-tuning ou LoRA. Só alterar esta regra mediante nova instrução explícita do proprietário.
+
+
+## 10. Treinamento supervisionado de instruções — 17/11/2026
+
+Foi implementada uma primitiva inicial de SFT própria sobre KBN-002 alpha:
+- `trainCompletion(promptTokenIds, completionTokenIds)` condiciona a resposta no prompt, mas atualiza os pesos somente nos tokens da completion.
+- `evaluateCompletionLoss()` mede somente a loss da resposta.
+- `KellvynInstructionTrainingExample` registra prompt, resposta, partição e proveniência.
+- `trainInstructions()` aprende BPE somente a partir de exemplos TRAIN, mede VALIDATION e TEST separadamente, recusa credenciais conhecidas, limita dados/trabalho e registra hashes/proveniência.
+- Um mesmo prompt não pode aparecer em partições diferentes, ainda que as respostas variem.
+- `KellvynRuntime.trainOwnInstructionModel()` oferece o treinamento local assíncrono e persiste o bundle próprio.
+
+Testes foram adicionados para queda de loss, contagem dos passos apenas da resposta, checkpoint e separação das partições. A correção do parser para UTF-8 malformado também foi gravada. A execução de CI do HEAD `57ac899e` estava em andamento na última consulta; portanto, não declarar aprovação antes do resultado final.
+
+**Limites:** esse SFT é apenas um mecanismo de aprendizagem, não demonstra qualidade conversacional. Não existe corpus de escala, benchmark em português, generalização, diálogo multi-turno ou execução de ferramentas validada. O modelo continua single-head alpha e o chat principal segue desconectado. A arquitetura Transformer completa continua como próximo marco obrigatório.
