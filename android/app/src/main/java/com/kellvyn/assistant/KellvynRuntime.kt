@@ -41,11 +41,8 @@ internal class KellvynRuntime(context: Context) {
     private val projectWorkspace = ProjectWorkspaceStore(appContext)
     private val projectWriteApprovalGate = KellvynProjectWriteApprovalGate()
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
-    private val resourceGovernor = KellvynResourceGovernor()
-    private val resourceMonitor = KellvynAndroidResourceMonitor(appContext)
-    private val taskBroker = KellvynTaskBroker(resourceGovernor) {
-        withContext(Dispatchers.IO) { resourceMonitor.snapshot() }
-    }
+    private val resourceRuntime = KellvynResourceRuntime.get(appContext)
+    private val taskBroker = resourceRuntime.taskBroker
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
     )
@@ -74,8 +71,7 @@ internal class KellvynRuntime(context: Context) {
     fun memoryStore(): KellvynMemory = localMemory
 
     /** A fresh resource snapshot for the operations specialist and diagnostics. */
-    suspend fun resourceSnapshot(): KellvynResourceSnapshot =
-        withContext(Dispatchers.IO) { resourceMonitor.snapshot() }
+    suspend fun resourceSnapshot(): KellvynResourceSnapshot = resourceRuntime.snapshot()
 
     /**
      * Persists a complete planner snapshot in app-private storage.
@@ -238,10 +234,11 @@ internal class KellvynRuntime(context: Context) {
         projectWriteApprovalGate.approveDelete(projectId, path)
 
     /** Builds the local workspace tool catalogue. Specialist delegation filters this to READ_ONLY. */
-    fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry =
-        KellvynToolRegistry(
-            KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
-        )
+    fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry {
+        val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
+        val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
+        return KellvynToolRegistry(workspaceTools + resourceTools)
+    }
 
     /**
      * Creates the coordinator with local project tools. Read-only specialists inherit only
