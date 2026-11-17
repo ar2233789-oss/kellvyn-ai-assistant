@@ -44,6 +44,29 @@ class KellvynResourceGovernorTest {
     }
 
     @Test
+    fun AndroidMemoryTrimPressureDefersTheCorrectWorkloadClasses() {
+        val moderate = snapshot().copy(memoryPressure = KellvynMemoryPressure.MODERATE)
+        assertEquals(
+            "MEMORY_TRIM_MODERATE",
+            deferredReason(moderate, KellvynWorkloadClass.HEAVY)
+        )
+        assertTrue(governor.evaluate(
+            moderate,
+            request("standard-under-moderate-trim", KellvynWorkloadClass.STANDARD)
+        ) is KellvynResourceDecision.Admitted)
+
+        val high = snapshot().copy(memoryPressure = KellvynMemoryPressure.HIGH)
+        assertEquals(
+            "MEMORY_TRIM_CRITICAL",
+            deferredReason(high, KellvynWorkloadClass.STANDARD)
+        )
+        assertTrue(governor.evaluate(
+            high,
+            request("light-under-high-trim", KellvynWorkloadClass.LIGHT)
+        ) is KellvynResourceDecision.Admitted)
+    }
+
+    @Test
     fun thermalPressureDefersHeavyWorkAndSeverePressureDefersAllButLight() {
         val moderate = snapshot().copy(thermalBand = KellvynThermalBand.MODERATE)
         assertTrue(governor.evaluate(moderate, request("heavy", KellvynWorkloadClass.HEAVY)) is KellvynResourceDecision.Deferred)
