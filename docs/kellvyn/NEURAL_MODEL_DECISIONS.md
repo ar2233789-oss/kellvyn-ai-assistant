@@ -143,3 +143,48 @@ Foi implementada uma primitiva inicial de SFT própria sobre KBN-002 alpha:
 Testes foram adicionados para queda de loss, contagem dos passos apenas da resposta, checkpoint e separação das partições. A correção do parser para UTF-8 malformado também foi gravada. A execução de CI do HEAD `57ac899e` estava em andamento na última consulta; portanto, não declarar aprovação antes do resultado final.
 
 **Limites:** esse SFT é apenas um mecanismo de aprendizagem, não demonstra qualidade conversacional. Não existe corpus de escala, benchmark em português, generalização, diálogo multi-turno ou execução de ferramentas validada. O modelo continua single-head alpha e o chat principal segue desconectado. A arquitetura Transformer completa continua como próximo marco obrigatório.
+
+
+## 11. Transformer KBN-003 e parada aprendida — 17/11/2026
+
+A implementação experimental KBN-003 foi adicionada em código próprio:
+- decoder-only autoregressivo;
+- atenção causal multi-head com RoPE;
+- Pre-LayerNorm, conexões residuais e MLP SwiGLU;
+- treinamento supervisionado de prompt/resposta, atualizando somente os tokens da resposta;
+- gradientes analíticos comparados com diferenças finitas;
+- AdamW, clipping e checkpoints próprios com integridade;
+- pipeline local com TRAIN/VALIDATION/TEST, proveniência e prevenção de vazamento entre partições.
+
+**Escopo real:** a implementação atual tem um único bloco Transformer, dimensões pequenas e contexto máximo de 256 tokens. Ainda não é uma pilha de múltiplas camadas nem um modelo de linguagem de escala útil para conversa geral. As configurações do protótipo não devem ser confundidas com uma arquitetura final.
+
+### Token EOS
+
+O tokenizer BPE passou a reservar um ID dedicado de fim de sequência:
+- não é emitido pela função encode(text) e não representa bytes UTF-8;
+- checkpoints do tokenizer foram atualizados para versão 2;
+- leitores mantêm compatibilidade com checkpoints versão 1, que não possuem EOS;
+- o pipeline KBN-003 adiciona EOS ao alvo supervisionado de cada resposta e o inclui na loss de validação/teste;
+- a geração para quando prevê EOS, sem incluir o token de controle no texto retornado;
+- o adaptador mantém fallback textual END somente para checkpoints legados sem EOS.
+
+O EOS é treinável, não uma string detectada por coincidência no texto. O teste de modelo treina uma resposta de um token EOS, confirma a previsão e verifica que a geração termina sem expor o ID de controle.
+
+### Validação
+
+No commit f32bca0d1b2e14541ed7a52f8c0bd414f685084e, o workflow **Kellvyn neural core tests** run 44005947968 concluiu com sucesso. O log confirma gradle testDebugUnitTest e BUILD SUCCESSFUL. A tolerância matemática original foi mantida; o passo de diferenças finitas foi aumentado de 0,001 para 0,005 para reduzir cancelamento numérico em float32 após incluir a classe EOS no softmax.
+
+O teste do laboratório virtual é um workflow separado. No último estado registrado, run 44005947963 ainda estava em andamento; isso não prova instalação, inicialização ou funcionamento em aparelho. Não houve teste físico no Poco F6.
+
+### Limites que continuam bloqueando a integração
+
+- pesos continuam experimentais e precisam de corpus autorizado de escala e avaliação independente;
+- ainda não existe prova de conversa coerente/multi-turno ou raciocínio geral;
+- o protocolo KELLVYN/1 exige exemplos de treinamento específicos para FINAL/PLAN/DELEGATE/CALL_TOOL;
+- contexto 256 e geração limitada são pequenos para o prompt completo do agente;
+- KBN-003 tem um bloco, sem pilha profunda;
+- geração recalcula chaves/valores por token; KV cache ainda não foi implementado;
+- backend de inferência não está conectado ao chat: KellvynRuntime.isReady() permanece falso e reply() permanece bloqueado;
+- sem teste de inferência sustentada, RAM, latência, temperatura ou bateria no Poco F6.
+
+Próximo foco neural: avaliar a viabilidade de profundidade multi-bloco e custo de memória/gradientes; depois melhorar o comprimento de contexto e a inferência incremental com cache; construir conjunto supervisionado de decisões do protocolo com direitos documentados; medir generalização antes de integrar ao agente e ao chat.
