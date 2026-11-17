@@ -37,10 +37,12 @@ class KellvynTransformerTrainingPipelineTest {
         val expectedSteps = examples
             .filter { it.split == KellvynTrainingSplit.TRAIN }
             .sumOf {
-                result.tokenizer.encode(it.completion).size.toLong() * config.epochsPerExample
+                (result.tokenizer.encode(it.completion).size.toLong() + 1L) *
+                    config.epochsPerExample
             }
 
         assertEquals(trainOnlyTokenizer.vocabularySize, result.tokenizer.vocabularySize)
+        assertNotNull(result.tokenizer.endOfSequenceTokenId)
         assertEquals(expectedSteps, result.model.trainingSteps)
         assertEquals(expectedSteps, result.manifest.totalTrainingSteps)
         assertEquals(config.headCount, result.manifest.headCount)
