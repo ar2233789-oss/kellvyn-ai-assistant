@@ -41,7 +41,7 @@ class LocalProjectBuilderBridge(
      */
     fun compileGeneratedProject(prompt: String, response: String) {
         if (!builder.isNativeApkRequest(prompt)) {
-            listener.onComplete(response)
+            scope.launch(Dispatchers.Main.immediate) { listener.onComplete(response) }
             return
         }
         scope.launch {
@@ -53,7 +53,7 @@ class LocalProjectBuilderBridge(
                         listener.onProgress("Preparando a compilação Android local…")
                     },
                     onProgress = { message ->
-                        listener.onProgress(message)
+                        scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
                     }
                 )
                 listener.onComplete(
@@ -84,7 +84,7 @@ class LocalProjectBuilderBridge(
                         listener.onProgress("Licença aceita. Preparando o compilador Android local…")
                     },
                     onProgress = { message ->
-                        listener.onProgress(message)
+                        scope.launch(Dispatchers.Main.immediate) { listener.onProgress(message) }
                     }
                 )
                 listener.onComplete(
