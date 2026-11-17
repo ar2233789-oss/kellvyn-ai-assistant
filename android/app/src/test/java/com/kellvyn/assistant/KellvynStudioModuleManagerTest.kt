@@ -130,12 +130,14 @@ class KellvynStudioModuleManagerTest {
             estimatedLoadWorkingSetBytes = loadBytes,
             estimatedResidentBytes = residentBytes,
             permissions = setOf(KellvynStudioPermission.PRIVATE_WORKSPACE_READ),
-            toolNames = setOf(toolName)
+            toolNames = setOf(toolName),
+            toolRisks = mapOf(toolName to KellvynToolRisk.READ_ONLY)
         )
-        return KellvynStudioModuleDefinition(manifest) {
+        val moduleManifest = manifest
+        return KellvynStudioModuleDefinition(moduleManifest) {
             factoryCalls()
             object : KellvynStudioModule {
-                override val manifest = manifest
+                override val manifest = moduleManifest
                 override val tools = listOf(
                     object : KellvynAgentTool {
                         override val spec = KellvynToolSpec(
