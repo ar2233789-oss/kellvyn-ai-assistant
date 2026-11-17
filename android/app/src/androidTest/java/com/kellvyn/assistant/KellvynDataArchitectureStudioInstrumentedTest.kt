@@ -66,7 +66,7 @@ class KellvynDataArchitectureStudioInstrumentedTest {
         val csv = inspect.execute(mapOf("project_id" to project.id, "path" to "records.csv"))
         assertTrue(csv.success)
         assertTrue(csv.content.contains("FORMATO: CSV"))
-        assertTrue(csv.content.contains("api_key".replace("api_key", "coluna-sensivel")))
+        assertTrue(csv.content.contains("coluna-sensivel"))
         assertTrue(csv.content.contains("decimal"))
         assertFalse(csv.content.contains("Alice"))
         assertFalse(csv.content.contains("hidden-key"))
