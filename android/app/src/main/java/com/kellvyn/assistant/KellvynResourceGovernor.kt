@@ -263,9 +263,14 @@ internal class KellvynTaskDeferredException(
  */
 internal class KellvynTaskBroker(
     private val governor: KellvynResourceGovernor,
-    private val snapshotProvider: suspend () -> KellvynResourceSnapshot
+    private val snapshotProvider: suspend () -> KellvynResourceSnapshot,
+    private val queueWaitMillis: Long = 10_000L
 ) {
     private val permits = Semaphore(2)
+
+    init {
+        require(queueWaitMillis > 0L)
+    }
 
     suspend fun <T> execute(
         request: KellvynResourceRequest,
@@ -277,10 +282,12 @@ internal class KellvynTaskBroker(
         var acquired = 0
         try {
             val initialPermits = (first as KellvynResourceDecision.Admitted).permitsRequired
-            acquire(initialPermits)
+            if (!acquireWithin(initialPermits)) {
+                throw queueDeferred()
+            }
             acquired = initialPermits
 
-            // Recheck after waiting. If conditions worsened, do not launch using stale metrics.
+            // Recheck after waiting. Never start with a stale resource snapshot.
             repeat(3) {
                 when (val latest = evaluate(request)) {
                     is KellvynResourceDecision.Deferred -> throw latest.toException()
@@ -293,7 +300,7 @@ internal class KellvynTaskBroker(
                             return operation()
                         }
                         val additional = latest.permitsRequired - acquired
-                        acquire(additional)
+                        if (!acquireWithin(additional)) throw queueDeferred()
                         acquired += additional
                     }
                 }
@@ -311,18 +318,30 @@ internal class KellvynTaskBroker(
     private suspend fun evaluate(request: KellvynResourceRequest): KellvynResourceDecision =
         governor.evaluate(snapshotProvider(), request)
 
-    private suspend fun acquire(count: Int) {
+    /** Queue timeout is separate from the tool's execution timeout. Partial permits are released. */
+    private suspend fun acquireWithin(count: Int): Boolean {
         var acquiredHere = 0
+        var keepPermits = false
         try {
-            repeat(count) {
-                permits.acquire()
-                acquiredHere++
-            }
-        } catch (error: Throwable) {
-            if (acquiredHere > 0) release(acquiredHere)
-            throw error
+            val completed = kotlinx.coroutines.withTimeoutOrNull(queueWaitMillis) {
+                repeat(count) {
+                    permits.acquire()
+                    acquiredHere++
+                }
+                true
+            } ?: false
+            keepPermits = completed
+            return completed
+        } finally {
+            if (!keepPermits && acquiredHere > 0) release(acquiredHere)
         }
     }
+
+    private fun queueDeferred() = KellvynTaskDeferredException(
+        reasonCode = "RESOURCE_QUEUE_BUSY",
+        retryAfterMillis = queueWaitMillis,
+        message = "O espaço de execução está ocupado; a tarefa foi adiada sem iniciar a ferramenta."
+    )
 
     private fun release(count: Int) {
         repeat(count) { permits.release() }
