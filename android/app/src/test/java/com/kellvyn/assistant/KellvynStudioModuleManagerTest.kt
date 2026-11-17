@@ -65,6 +65,27 @@ class KellvynStudioModuleManagerTest {
     }
 
     @Test
+    fun capabilityToolAdapterLoadsModuleLazilyAndUsesOnlyOneResourceAdmission() = runBlocking {
+        var factoryCalls = 0
+        val manager = manager()
+        manager.register(definition(factoryCalls = { factoryCalls++ }))
+
+        val adapters = manager.toolsForCapabilities(setOf(KellvynStudioCapability.CODE_NAVIGATION))
+        assertEquals(0, factoryCalls)
+        assertEquals(1, adapters.size)
+        assertEquals("code_find_symbol", adapters.single().spec.name)
+
+        val result = adapters.single().execute(emptyMap())
+
+        assertTrue(result.success)
+        assertEquals("ok", result.content)
+        assertEquals(1, factoryCalls)
+        assertEquals(1, manager.activeLeaseCount("code-navigation"))
+        // The adapter releases its lease as soon as the tool completes.
+        assertEquals(0, manager.activeLeaseCount("code-navigation"))
+    }
+
+    @Test
     fun resourceGovernorCanDeferModuleLoadingBeforeFactoryRuns() = runBlocking {
         var factoryCalls = 0
         val constrainedBroker = KellvynTaskBroker(
