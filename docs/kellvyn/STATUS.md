@@ -341,7 +341,7 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 
 ### Código e testes confirmados
 - Branch de laboratório: `lab/kellvyn-intelligence-core-20261116`.
-- Último commit da branch no momento desta revisão: `65a65dcffeb56e5631b224e99726e0ca7b297316`.
+- O registro histórico deste bloco foi atualizado em commits posteriores; consulte o HEAD atual da branch para a revisão mais recente.
 - KN-003 preservado como modelo de um bloco; documentação agora reconhece corretamente o cache KV incremental já existente.
 - Adicionado teste que treina um fixture pequeno, salva e restaura o checkpoint e compara as probabilidades cacheadas com o forward integral por 16 passos, inclusive depois de a janela deslizante atingir o limite.
 - Workflow neural core tests no run 44019204700: `gradle testDebugUnitTest` terminou com `BUILD SUCCESSFUL` em 2m19s.
@@ -397,3 +397,44 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - Há um relato público de 15/11/2026 com assinatura de falha idêntica (`runner_id=0`, zero etapas, `BlobNotFound`) e bloqueio de Actions depois de atingir a franquia Free. Isso torna o limite de cobrança uma hipótese forte, não uma causa confirmada para esta conta.
 - A integração disponível não expõe o painel de faturamento/consumo desta conta. É necessário conferir em GitHub → Settings → Billing and licensing → Usage e verificar GitHub Actions included compute usage, spending limit e método de pagamento. Nenhuma alteração de visibilidade ou cobrança foi feita.
 
+## Ferramentas locais e autorização de mutação dos agentes — 17/11/2026
+
+### Implementado no código
+- Novo catálogo local com cinco ferramentas: listar projetos, listar arquivos, ler arquivo, gravar/substituir arquivo e remover arquivo.
+- As três operações de leitura são `READ_ONLY`; especialistas recebem somente esse subconjunto.
+- Gravação e exclusão têm riscos separados (`REVERSIBLE_WRITE` e `DESTRUCTIVE`) e exigem token de aprovação de uso único.
+- Tokens vinculam projeto, caminho relativo normalizado e, em gravação, SHA-256 do conteúdo exato. Expiram após 120 segundos, não são reutilizáveis e são perdidos ao encerrar o processo.
+- `KellvynRuntime` agora expõe `createProjectWorkspaceToolRegistry()`, `createProjectWorkspaceAgent()`, `approveProjectFileWrite()` e `approveProjectFileDeletion()`.
+- O prompt de sistema do coordenador explicita que ele nunca deve inventar, alterar ou reutilizar tokens de aprovação.
+- Documento de referência: `docs/kellvyn/WORKSPACE_AGENT_TOOLS.md`.
+
+### Testes escritos
+- Unitários da autorização: projeto/caminho/conteúdo divergentes, replay, expiração, separação escrita/exclusão, caminhos inseguros e bloqueio de rede/controle de dispositivo.
+- Instrumentais Android: leitura real, gravação aprovada, recusa sem aprovação, exclusão aprovada e filtro READ_ONLY.
+- Instrumentais do agente: especialista lê arquivo real sem receber ferramentas de mutação; coordenador grava com aprovação exata.
+- Esses testes ainda não têm resultado Gradle/Android válido. Não registrar como aprovados enquanto não executarem em um runner.
+
+### Verificação local independente
+- O compilador Kotlin local aceitou sintaticamente a nova camada de ferramentas com tipos Android/workspace simulados.
+- Um harness local de contrato executou verificações de autorização vinculada, replay, expiração, caminhos inválidos, ID de 48 hexadecimais e filtragem somente leitura: **`WORKSPACE_APPROVAL_GATE_PASS`**.
+- O quality gate KN-003 foi compilado isoladamente com o manifesto tipado simulado e passou os cenários de aceitação, ausência de melhoria, sobreajuste, contexto curto e proveniência incompleta: **`QUALITY_GATE_PASS`**.
+- Esses harnesses usam tipos simulados e não substituem `gradle testDebugUnitTest`, `assembleDebug` ou `connectedDebugAndroidTest`.
+
+## Gate conservador de qualidade para KN-003 — 17/11/2026
+
+- O runtime agora recusa criar o adapter de inferência KN-003 quando o checkpoint não passa no gate de validação.
+- Exige contexto mínimo de 128 tokens, TRAIN/VALIDATION/TEST, proveniência preenchida, melhoria relativa mínima de 5%, validation/test abaixo de 90% da loss uniforme e diferença de generalização até 0,50.
+- Passar apenas habilita um benchmark posterior de protocolo; não prova conversa natural, raciocínio, programação ou prontidão de produção.
+- O chat principal continua deliberadamente desativado. Não conectar um modelo experimental só porque ele superou uma loss simples.
+
+### Bloqueios atuais, sem mudança
+- KN-004 multicamadas com backpropagation por bloco ainda não foi implementado.
+- Ainda falta corpus português amplo, licenciado e treinado; os exemplos existentes são pequenos/sintéticos.
+- Os 14 papéis continuam compartilhando uma única inferência. A nova camada de ferramentas está no runtime, mas o chat não a utiliza enquanto o cérebro não estiver aprovado.
+- O caminho chat → compilador local está escrito, mas falta build Android verificável; geração de app por inferência autônoma não foi demonstrada.
+- Não há validação no Poco F6 físico, medições de RAM/latência/temperatura/bateria, APK final nem auditoria integral de proveniência/similaridade.
+
+### Estado da CI gratuita — 17/11/2026
+- Runs `44027697451` (neural) e `44027697495` (Poco/AVD), no commit `ca01f8304d49742216479710268d2fea69b31106`, falharam em ~2 segundos: `runner_id=0`, runner vazio, zero etapas e sem logs.
+- Isso não é falha dos testes de código; os testes nem chegaram a iniciar. Também não prova, por si só, qual limite/condição impediu a alocação do runner.
+- Nenhuma cobrança, cartão, plano ou mudança de visibilidade foi ativada. Nenhuma alternativa paga é necessária para manter o projeto privado.
