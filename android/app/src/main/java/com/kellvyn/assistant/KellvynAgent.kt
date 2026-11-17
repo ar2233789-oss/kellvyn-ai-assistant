@@ -408,13 +408,34 @@ internal class KellvynAgent(
             normalizedGoal.trim().length >= 2
         ) {
             val projectContext = try {
-                projectContextRetriever.search(
-                    KellvynProjectSearchRequest(
-                        projectId = activeProjectId,
-                        query = normalizedGoal.take(120),
-                        maxFilesToScan = config.maxProjectFilesToScan,
-                        maxResults = config.maxProjectResults
+                val search: suspend () -> KellvynProjectSearchResult = {
+                    projectContextRetriever.search(
+                        KellvynProjectSearchRequest(
+                            projectId = activeProjectId,
+                            query = normalizedGoal.take(120),
+                            maxFilesToScan = config.maxProjectFilesToScan,
+                            maxResults = config.maxProjectResults
+                        )
                     )
+                }
+                val broker = taskBroker
+                if (broker == null) {
+                    search()
+                } else {
+                    broker.execute(
+                        KellvynResourceRequest(
+                            taskId = "project-index-$activeProjectId",
+                            workload = KellvynWorkloadClass.STANDARD,
+                            estimatedWorkingSetBytes = 64L * MEBIBYTE
+                        ),
+                        operation = search
+                    )
+                }
+            } catch (deferred: KellvynTaskDeferredException) {
+                return KellvynAgentResult.LimitReached(
+                    "A análise do projeto foi adiada pelo gerenciador de recursos: ${deferred.message}",
+                    0,
+                    0
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -466,9 +487,13 @@ internal class KellvynAgent(
                 }
             }
             val decision = try {
-                withTimeout(config.modelTimeoutMs) {
-                    inference.next(contextMessages, tools.descriptions())
-                }
+                executeInference(contextMessages, "agent-inference-$step")
+            } catch (deferred: KellvynTaskDeferredException) {
+                return KellvynAgentResult.LimitReached(
+                    "A inferência foi adiada pelo gerenciador de recursos: ${deferred.message}",
+                    step,
+                    toolCalls
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -770,6 +795,26 @@ internal class KellvynAgent(
         )
     }
 
+    private suspend fun executeInference(
+        history: List<KellvynAgentMessage>,
+        requestId: String
+    ): KellvynModelDecision {
+        val executeWithTimeout: suspend () -> KellvynModelDecision = {
+            withTimeout(config.modelTimeoutMs) {
+                inference.next(history, tools.descriptions())
+            }
+        }
+        val broker = taskBroker ?: return executeWithTimeout()
+        return broker.execute(
+            KellvynResourceRequest(
+                taskId = requestId.take(96),
+                workload = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 128L * MEBIBYTE
+            ),
+            operation = executeWithTimeout
+        )
+    }
+
     private suspend fun executeTool(
         tool: KellvynAgentTool,
         arguments: Map<String, String>,
@@ -804,6 +849,7 @@ internal class KellvynAgent(
 
     private companion object {
         const val MAX_AUTOMATED_PLAN_STEPS = 32
+        const val MEBIBYTE = 1024L * 1024L
     }
 }
 
