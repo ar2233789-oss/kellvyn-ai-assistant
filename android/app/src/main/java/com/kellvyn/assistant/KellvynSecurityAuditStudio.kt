@@ -51,7 +51,8 @@ internal class KellvynSecurityAuditStudio(
                     }
 
                     scanned++
-                    excerpt.content.lineSequence().forEachIndexed { index, line ->
+                    for ((index, line) in excerpt.content.lineSequence().withIndex()) {
+                        if (findings.size >= MAX_FINDINGS) break
                         for (rule in RULES) {
                             if (rule.pattern.containsMatchIn(line)) {
                                 findings += Finding(
@@ -64,7 +65,6 @@ internal class KellvynSecurityAuditStudio(
                                 if (findings.size >= MAX_FINDINGS) break
                             }
                         }
-                        if (findings.size >= MAX_FINDINGS) return@forEachIndexed
                     }
                     if (findings.size >= MAX_FINDINGS) break
                 }
