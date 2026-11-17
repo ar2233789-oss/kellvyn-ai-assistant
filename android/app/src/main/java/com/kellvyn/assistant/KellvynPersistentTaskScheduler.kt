@@ -8,6 +8,8 @@ import android.database.sqlite.SQLiteOpenHelper
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.nio.charset.StandardCharsets
 import java.util.UUID
@@ -472,9 +474,9 @@ internal class KellvynTaskScheduler(
 ) {
     private val handlers = ConcurrentHashMap<String, KellvynScheduledTaskHandler>()
 
-    init {
-        queue.recoverInterruptedTasks(clock())
-    }
+    private val recoveryMutex = Mutex()
+    @Volatile
+    private var recoveryCompleted = false
 
     fun registerHandler(handlerId: String, handler: KellvynScheduledTaskHandler) {
         require(handlerId.matches(Regex("[a-z][a-z0-9_.-]{1,79}")))
@@ -486,13 +488,26 @@ internal class KellvynTaskScheduler(
     suspend fun enqueue(spec: KellvynQueuedTaskSpec): String =
         withContext(Dispatchers.IO) { queue.enqueue(spec, clock()) }
 
+    private suspend fun ensureRecovered() {
+        if (recoveryCompleted) return
+        recoveryMutex.withLock {
+            if (!recoveryCompleted) {
+                withContext(Dispatchers.IO) {
+                    queue.recoverInterruptedTasks(clock())
+                }
+                recoveryCompleted = true
+            }
+        }
+    }
+
     suspend fun runNext(): KellvynScheduledTaskResult? {
+        ensureRecovered()
         val task = withContext(Dispatchers.IO) { queue.claimNext(clock()) } ?: return null
         val handler = handlers[task.handlerId]
         if (handler == null) {
             val reason = "HANDLER_UNAVAILABLE: handler ainda não registrado nesta sessão."
             withContext(Dispatchers.IO) {
-                queue.defer(task.id, clock() + 60_000L, reason, clock())
+                queue.defer(task.id, clock() + 60_000L, "HANDLER_UNAVAILABLE", clock())
             }
             return KellvynScheduledTaskResult.Deferred(task.id, reason, 60_000L)
         }
@@ -530,7 +545,7 @@ internal class KellvynTaskScheduler(
         } catch (error: Exception) {
             val reason = (error.message ?: error.javaClass.simpleName).take(500)
             val state = withContext(Dispatchers.IO) {
-                queue.failOrRetry(task.id, reason, clock())
+                queue.failOrRetry(task.id, "EXECUTION_FAILED", clock())
             }
             if (state == KellvynQueuedTaskState.FAILED) {
                 KellvynScheduledTaskResult.Failed(task.id, reason)
