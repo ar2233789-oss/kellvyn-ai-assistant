@@ -445,3 +445,37 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - O ID aleatório continua sob controle do app e pode ser usado por chamadas confiáveis, mas não é exposto ao modelo.
 - Os testes unitários e instrumentais foram atualizados para cobrir aprovação sem token no prompt. Escrita e exclusão seguem de uso único e expiram após 120 segundos.
 - Limite de integração: ainda não existe no chat principal uma tela/ação de confirmação para emitir essas aprovações; a API de runtime está disponível, mas a confirmação do proprietário precisa ser conectada antes de oferecer edição autônoma no chat.
+
+ 
+## Fundação do laboratório invisível e governança de recursos — 17/11/2026
+
+### Código acrescentado
+- Resource Governor em Kotlin puro para classes LIGHT/STANDARD/HEAVY, working set, RAM disponível, heap, pressão de memória, estado térmico/headroom, economia de bateria, nível de bateria e carga.
+- Broker compartilhado de 2 permits, fila FIFO e exclusividade para STANDARD/HEAVY. LIGHT pode compartilhar sob folga. Revalida o snapshot após a aquisição.
+- Timeout de fila separado do timeout da operação; fila ocupada devolve RESOURCE_QUEUE_BUSY. Permits parciais são liberados em timeout/cancelamento.
+- Monitor Android on-demand: ActivityManager.MemoryInfo, Runtime heap, Debug.getPss, PowerManager thermal/power saver, headroom em cache >=1s e BatteryManager.
+- ResourceRuntime singleton compartilhado entre agente, treinamento e construtor APK.
+- Agent ToolSpec agora inclui workloadClass e estimatedWorkingSetBytes.
+- Inferência classificada como STANDARD (128 MiB inicial); indexação de projeto STANDARD (64 MiB inicial); compilador APK HEAVY (768 MiB inicial); treinos neurais próprios HEAVY (512 MiB padrão).
+- Nova ferramenta READ_ONLY device_resource_snapshot.
+- Deferral de etapa planejada retorna READY e grava checkpoint; mantém approval/attempt e exige nova evidência de pré-condição.
+- Timeouts de execução só começam depois da admissão; cancelamento externo não é convertido em falha de timeout.
+ 
+### Verificações
+- 8 testes unitários puros do Resource Governor/Broker compilados e executados localmente com Kotlin/JVM: RESOURCE_GOVERNOR_UNIT_TESTS_PASS.
+- Monitor Android compilado isoladamente contra stubs das APIs Android usadas. Não é build Gradle/Android.
+- Teste unitário para retry de plano e teste instrumental para snapshot/singleton foram acrescentados, sem execução Gradle/AVD verificada.
+- Workflows mais recentes: run 44062178882 (neural) e 44062178854 (Poco/AVD) falharam com jobs sem steps nem logs_url. API de logs retorna BlobNotFound. Não há evidência de que Gradle tenha iniciado; não classificar como falha de código nem como sucesso.
+- Nenhuma medição física do Poco F6, build APK ou teste end-to-end foi concluído nesta sequência.
+
+### Limitações e próximos passos
+- Thresholds de 6%/192 MiB, 82%/93% heap, estimativas e 2 slots são iniciais; precisam de calibração no Poco F6.
+- O broker atual é admissão/concurrency gate, não fila persistente com prioridades ou retomada automática.
+- Falta reação central a onTrimMemory e descarte de caches/motores.
+- Falta modularizar ferramentas em manifests de estúdio e carregar motores sob demanda.
+- O laboratório não está completo; Image Studio, UI/UX, 3D/CAD, full Android toolchain e ferramentas específicas de todos os papéis ainda não estão implementados.
+- O cérebro não está aprovado nem conectado ao chat principal; manter isReady=false.
+
+Documentação:
+- ANDROID_HEADLESS_STUDIO_SPEC_2026-11-17.md
+- CONTINUITY_HANDOFF.md
