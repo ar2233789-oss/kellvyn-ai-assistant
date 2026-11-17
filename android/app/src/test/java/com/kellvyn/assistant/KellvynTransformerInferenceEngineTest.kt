@@ -108,7 +108,8 @@ class KellvynTransformerInferenceEngineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun randomUntrainedTransformerCannotProduceAnAcceptedAgentDecision() = runBlocking {
+    fun randomUntrainedTransformerCannotProduceAnAcceptedAgentDecision() {
+        runBlocking {
         val tokenizer = KellvynBpeTokenizer.train(
             listOf("KELLVYN AGENT KBN-003 FINAL TEXT END"),
             maxMerges = 128
@@ -141,5 +142,6 @@ class KellvynTransformerInferenceEngineTest {
             ),
             availableTools = emptyList()
         )
+        }
     }
-}
+}}
