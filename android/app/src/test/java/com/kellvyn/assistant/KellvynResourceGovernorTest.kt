@@ -99,6 +99,39 @@ class KellvynResourceGovernorTest {
     }
 
     @Test
+    fun busyQueueDefersWithoutStartingTheSecondOperation() = runBlocking {
+        val enteredHeavy = CompletableDeferred<Unit>()
+        val releaseHeavy = CompletableDeferred<Unit>()
+        val broker = KellvynTaskBroker(
+            governor = governor,
+            snapshotProvider = { snapshot() },
+            queueWaitMillis = 10L
+        )
+        val first = async {
+            broker.execute(request("first-heavy", KellvynWorkloadClass.HEAVY)) {
+                enteredHeavy.complete(Unit)
+                releaseHeavy.await()
+                "first"
+            }
+        }
+        enteredHeavy.await()
+
+        var secondStarted = false
+        val secondError = runCatching {
+            broker.execute(request("second-heavy", KellvynWorkloadClass.HEAVY)) {
+                secondStarted = true
+                "second"
+            }
+        }.exceptionOrNull()
+
+        assertTrue(secondError is KellvynTaskDeferredException)
+        assertEquals("RESOURCE_QUEUE_BUSY", (secondError as KellvynTaskDeferredException).reasonCode)
+        assertFalse(secondStarted)
+        releaseHeavy.complete(Unit)
+        assertEquals("first", first.await())
+    }
+
+    @Test
     fun brokerRechecksResourcesAfterWaitingAndNeverStartsOnStaleAdmission() = runBlocking {
         var samples = 0
         var executed = false
