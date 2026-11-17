@@ -207,9 +207,13 @@ class KellvynTransformerLanguageModelTest {
             cachedSession.appendToken(token)
         }
 
-        val referenceTokens = model.generate(prompt, maxNewTokens = 12)
+        val referenceOutput = prompt.toMutableList()
+        repeat(12) {
+            val context = referenceOutput.takeLast(model.config.contextLength).toIntArray()
+            referenceOutput += model.predictNext(context)
+        }
 
-        assertArrayEquals(referenceTokens, cachedSession.outputTokenIds())
+        assertArrayEquals(referenceOutput.toIntArray(), cachedSession.outputTokenIds())
         assertEquals(12, cachedTokens.size)
     }
 
