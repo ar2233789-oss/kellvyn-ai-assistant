@@ -1,8 +1,14 @@
 package com.kellvyn.assistant
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicInteger
 
 internal enum class KellvynStudioCapability {
@@ -132,6 +138,7 @@ internal class KellvynStudioModuleManager(
     private val definitions = ConcurrentHashMap<String, KellvynStudioModuleDefinition>()
     private val loaded = ConcurrentHashMap<String, Loaded>()
     private val loadMutex = Mutex()
+    private val taskSequence = AtomicLong(0L)
 
     init {
         require(deviceSdkInt >= 24)
@@ -173,20 +180,61 @@ internal class KellvynStudioModuleManager(
             .sortedBy { it.moduleId }
         val adapters = selected.flatMap { manifest ->
             manifest.toolSpecs.map { declaredSpec ->
-                object : KellvynAgentTool {
+                object : KellvynAgentTool, KellvynResourceManagedAgentTool {
                     override val spec = declaredSpec
 
-                    override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
-                        val lease = acquire(manifest.moduleId)
-                        try {
-                            val delegate = lease.tools.singleOrNull { it.spec.name == declaredSpec.name }
-                                ?: return KellvynToolResult(false, "A ferramenta declarada não existe no motor carregado.")
-                            if (delegate.spec != declaredSpec) {
-                                return KellvynToolResult(false, "O contrato da ferramenta mudou após o carregamento.")
+                    override suspend fun execute(arguments: Map<String, String>): KellvynToolResult =
+                        executeWithResourceControl(arguments)
+
+                    override suspend fun executeWithResourceControl(
+                        arguments: Map<String, String>
+                    ): KellvynToolResult {
+                        val workload = if (manifest.workloadClass.ordinal > declaredSpec.workloadClass.ordinal) {
+                            manifest.workloadClass
+                        } else {
+                            declaredSpec.workloadClass
+                        }
+                        val estimatedBytes = maxOf(
+                            manifest.estimatedLoadWorkingSetBytes,
+                            manifest.estimatedResidentBytes,
+                            declaredSpec.estimatedWorkingSetBytes
+                        )
+                        return taskBroker.execute(
+                            KellvynResourceRequest(
+                                taskId = ("studio-tool-" + manifest.moduleId + "-" +
+                                    declaredSpec.name + "-" + taskSequence.incrementAndGet()).take(96),
+                                workload = workload,
+                                estimatedWorkingSetBytes = estimatedBytes
+                            )
+                        ) {
+                            try {
+                                withTimeout(declaredSpec.timeoutMs) {
+                                    val lease = acquireAlreadyAdmitted(manifest.moduleId)
+                                    try {
+                                        val delegate = lease.tools.singleOrNull {
+                                            it.spec.name == declaredSpec.name
+                                        } ?: return@withTimeout KellvynToolResult(
+                                            false,
+                                            "A ferramenta declarada não existe no motor carregado."
+                                        )
+                                        if (delegate.spec != declaredSpec) {
+                                            return@withTimeout KellvynToolResult(
+                                                false,
+                                                "O contrato da ferramenta mudou após o carregamento."
+                                            )
+                                        }
+                                        delegate.execute(arguments)
+                                    } finally {
+                                        lease.close()
+                                    }
+                                }
+                            } catch (timeout: TimeoutCancellationException) {
+                                currentCoroutineContext().ensureActive()
+                                KellvynToolResult(
+                                    false,
+                                    "A ferramenta excedeu o tempo limite depois da admissão dos recursos."
+                                )
                             }
-                            return delegate.execute(arguments)
-                        } finally {
-                            lease.close()
                         }
                     }
                 }
@@ -211,7 +259,16 @@ internal class KellvynStudioModuleManager(
         register(definition)
     }
 
-    suspend fun acquire(moduleId: String): KellvynStudioModuleLease {
+    suspend fun acquire(moduleId: String): KellvynStudioModuleLease =
+        acquireInternal(moduleId, resourceAdmissionAlreadyGranted = false)
+
+    private suspend fun acquireAlreadyAdmitted(moduleId: String): KellvynStudioModuleLease =
+        acquireInternal(moduleId, resourceAdmissionAlreadyGranted = true)
+
+    private suspend fun acquireInternal(
+        moduleId: String,
+        resourceAdmissionAlreadyGranted: Boolean
+    ): KellvynStudioModuleLease {
         val definition = definitions[moduleId]
             ?: throw IllegalArgumentException("Módulo não registrado: " + moduleId)
         return loadMutex.withLock {
@@ -232,17 +289,23 @@ internal class KellvynStudioModuleManager(
             }
 
             val manifest = definition.manifest
-            val created = taskBroker.execute(
-                KellvynResourceRequest(
-                    taskId = ("studio-load-" + moduleId + "-" + now).take(96),
-                    workload = manifest.workloadClass,
-                    estimatedWorkingSetBytes = maxOf(
-                        manifest.estimatedLoadWorkingSetBytes,
-                        manifest.estimatedResidentBytes
-                    )
-                )
-            ) {
+            val createModule: suspend () -> KellvynStudioModule = {
                 definition.factory.create()
+            }
+            val created = if (resourceAdmissionAlreadyGranted) {
+                createModule()
+            } else {
+                taskBroker.execute(
+                    KellvynResourceRequest(
+                        taskId = ("studio-load-" + moduleId + "-" + now).take(96),
+                        workload = manifest.workloadClass,
+                        estimatedWorkingSetBytes = maxOf(
+                            manifest.estimatedLoadWorkingSetBytes,
+                            manifest.estimatedResidentBytes
+                        )
+                    ),
+                    operation = createModule
+                )
             }
 
             if (created.manifest != manifest) {
