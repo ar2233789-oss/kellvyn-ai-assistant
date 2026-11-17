@@ -461,6 +461,173 @@ internal class KellvynTransformerLanguageModel private constructor(
         return best
     }
 
+    /**
+     * Incremental decoder session with a real per-layer key/value cache.
+     *
+     * The current KBN-003 architecture has one Transformer block. The session stores the
+     * rotated keys and values for prior tokens and computes projections only for each new
+     * token. RoPE positions remain absolute; a sliding context window preserves relative
+     * position differences when the oldest cached token is evicted.
+     */
+    internal inner class GenerationSession internal constructor(prefixTokenIds: IntArray) {
+        private val outputTokens = ArrayList<Int>(prefixTokenIds.size + 64)
+        private val contextTokens = ArrayList<Int>(config.contextLength)
+        private val keyCache = ArrayList<FloatArray>(config.contextLength)
+        private val valueCache = ArrayList<FloatArray>(config.contextLength)
+        private var nextAbsolutePosition = 0
+        private var latestQueryRotated: FloatArray? = null
+
+        init {
+            require(prefixTokenIds.isNotEmpty()) { "O prefixo de geração está vazio." }
+            require(prefixTokenIds.size <= config.contextLength) {
+                "O prefixo excede a janela de contexto do Transformer."
+            }
+            require(prefixTokenIds.all { it in 0 until config.vocabularySize }) {
+                "O prefixo contém um ID de token fora do vocabulário."
+            }
+            prefixTokenIds.forEach(::appendInternal)
+        }
+
+        fun appendToken(tokenId: Int) {
+            require(tokenId in 0 until config.vocabularySize) {
+                "ID de token fora do vocabulário Kellvyn."
+            }
+            appendInternal(tokenId)
+        }
+
+        fun predictNext(): Int {
+            val probabilities = nextTokenProbabilities()
+            var best = 0
+            for (index in 1 until probabilities.size) {
+                if (probabilities[index] > probabilities[best]) best = index
+            }
+            return best
+        }
+
+        internal fun nextTokenProbabilities(): FloatArray {
+            val query = requireNotNull(latestQueryRotated) {
+                "A sessão de geração ainda não possui contexto."
+            }
+            require(contextTokens.isNotEmpty() && keyCache.size == contextTokens.size &&
+                valueCache.size == contextTokens.size) {
+                "O cache KV da sessão está inconsistente."
+            }
+
+            val d = config.embeddingSize
+            val f = config.feedForwardSize
+            val h = config.headCount
+            val headDim = d / h
+            val length = keyCache.size
+            val attentionConcat = FloatArray(d)
+
+            for (head in 0 until h) {
+                val offset = head * headDim
+                val scores = FloatArray(length)
+                var maximum = Float.NEGATIVE_INFINITY
+                for (position in 0 until length) {
+                    var score = 0.0f
+                    val key = keyCache[position]
+                    for (dimension in 0 until headDim) {
+                        val feature = offset + dimension
+                        score += query[feature] * key[feature]
+                    }
+                    scores[position] = score / sqrt(headDim.toDouble()).toFloat()
+                    if (scores[position] > maximum) maximum = scores[position]
+                }
+
+                var denominator = 0.0
+                val probabilities = FloatArray(length)
+                for (position in 0 until length) {
+                    val value = exp((scores[position] - maximum).toDouble())
+                    probabilities[position] = value.toFloat()
+                    denominator += value
+                }
+                require(denominator.isFinite() && denominator > 0.0)
+                for (position in 0 until length) {
+                    val weight = (probabilities[position].toDouble() / denominator).toFloat()
+                    val values = valueCache[position]
+                    for (dimension in 0 until headDim) {
+                        val feature = offset + dimension
+                        attentionConcat[feature] += weight * values[feature]
+                    }
+                }
+            }
+
+            val attentionProjection = linear(
+                attentionConcat, parameters.attentionOutputWeights, d, d
+            )
+            val lastToken = contextTokens.last()
+            val tokenOffset = lastToken * d
+            val residualAfterAttention = FloatArray(d) { dimension ->
+                parameters.tokenEmbeddings[tokenOffset + dimension] +
+                    attentionProjection[dimension]
+            }
+            val normalizedMlp = layerNorm(
+                residualAfterAttention,
+                parameters.normFeedForwardGamma,
+                parameters.normFeedForwardBeta
+            )
+            val gatePreActivation = linear(
+                normalizedMlp.values, parameters.gateWeights, d, f
+            )
+            val upProjection = linear(
+                normalizedMlp.values, parameters.upWeights, d, f
+            )
+            val hidden = FloatArray(d)
+            val gatedIntermediate = FloatArray(f) { index ->
+                silu(gatePreActivation[index]) * upProjection[index]
+            }
+            val ffnOutput = linear(gatedIntermediate, parameters.downWeights, f, d)
+            for (dimension in 0 until d) {
+                hidden[dimension] = residualAfterAttention[dimension] + ffnOutput[dimension]
+            }
+
+            val logits = linear(hidden, parameters.outputWeights, d, config.vocabularySize)
+            for (token in logits.indices) logits[token] += parameters.outputBias[token]
+            return softmax(logits)
+        }
+
+        fun outputTokenIds(): IntArray = outputTokens.toIntArray()
+
+        fun contextTokenIds(): IntArray = contextTokens.toIntArray()
+
+        internal fun cachedTokenCount(): Int = keyCache.size
+
+        private fun appendInternal(tokenId: Int) {
+            val d = config.embeddingSize
+            val tokenOffset = tokenId * d
+            val embedding = FloatArray(d) { dimension ->
+                parameters.tokenEmbeddings[tokenOffset + dimension]
+            }
+            val normalized = layerNorm(
+                embedding,
+                parameters.normAttentionGamma,
+                parameters.normAttentionBeta
+            )
+            val query = linear(normalized.values, parameters.queryWeights, d, d)
+            rotateInPlace(query, nextAbsolutePosition)
+            val key = linear(normalized.values, parameters.keyWeights, d, d)
+            rotateInPlace(key, nextAbsolutePosition)
+            val value = linear(normalized.values, parameters.valueWeights, d, d)
+
+            outputTokens += tokenId
+            contextTokens += tokenId
+            keyCache += key
+            valueCache += value
+            latestQueryRotated = query
+            nextAbsolutePosition++
+
+            if (contextTokens.size > config.contextLength) {
+                contextTokens.removeAt(0)
+                keyCache.removeAt(0)
+                valueCache.removeAt(0)
+            }
+        }
+    }
+
+    fun newGenerationSession(prefixTokenIds: IntArray): GenerationSession =
+        GenerationSession(prefixTokenIds.copyOf())
+
     fun generate(
         prefixTokenIds: IntArray,
         maxNewTokens: Int,
@@ -470,13 +637,15 @@ internal class KellvynTransformerLanguageModel private constructor(
         require(prefixTokenIds.all { it in 0 until config.vocabularySize })
         require(maxNewTokens in 0..4096)
         require(endTokenId == null || endTokenId in 0 until config.vocabularySize)
-        val output = prefixTokenIds.toMutableList()
+        val session = newGenerationSession(prefixTokenIds)
         repeat(maxNewTokens) {
-            val nextToken = predictNext(output.takeLast(config.contextLength).toIntArray())
-            if (nextToken == endTokenId && endTokenId != null) return output.toIntArray()
-            output += nextToken
+            val nextToken = session.predictNext()
+            if (nextToken == endTokenId && endTokenId != null) {
+                return session.outputTokenIds()
+            }
+            session.appendToken(nextToken)
         }
-        return output.toIntArray()
+        return session.outputTokenIds()
     }
 
     fun writeCheckpoint(output: OutputStream) {
