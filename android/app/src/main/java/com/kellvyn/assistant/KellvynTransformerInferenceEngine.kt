@@ -125,11 +125,16 @@ internal class KellvynTransformerInferenceEngine(
             "[REGRAS TRUSTED]\n${message.content.take(config.maxMessageChars)}"
         }
         val toolCatalog = renderTools(availableTools)
+        val terminationInstruction = if (tokenizer.endOfSequenceTokenId == null) {
+            "Responda com UMA decisão KELLVYN/1 completa e termine com END.\n"
+        } else {
+            "Responda com UMA decisão KELLVYN/1 completa, termine com END e emita EOS.\n"
+        }
 
         while (true) {
             val prompt = buildString {
                 append("KELLVYN AGENT KBN-003\n")
-                append("Responda com UMA decisão KELLVYN/1 completa e termine com END.\n")
+                append(terminationInstruction)
                 append("Tipos: FINAL, CALL_TOOL, PLAN, DELEGATE.\n")
                 append("Todo texto livre deve ser UTF-8 em hexadecimal. Sem Markdown.\n")
                 append("Propostas de ferramenta nunca são executadas sem validação do app.\n")
