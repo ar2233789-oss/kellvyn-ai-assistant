@@ -249,13 +249,16 @@ internal class KellvynRuntime(context: Context) {
     fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry {
         val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
         val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
+        val automationTools = KellvynAutomationTools.create {
+            resourceRuntime.pendingScheduledTaskCount()
+        }
         val registeredCapabilities = resourceRuntime.studioModules.manifests()
             .flatMap { it.capabilities }
             .toSet()
         val studioTools = resourceRuntime.studioModules.toolsForCapabilities(
             registeredCapabilities
         )
-        return KellvynToolRegistry(workspaceTools + resourceTools + studioTools)
+        return KellvynToolRegistry(workspaceTools + resourceTools + automationTools + studioTools)
     }
 
     /**
