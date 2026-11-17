@@ -9,6 +9,7 @@ internal object KellvynResourceTools {
             override val spec = KellvynToolSpec(
                 name = "device_resource_snapshot",
                 description = "Lê uma amostra atual de memória, heap, temperatura e bateria do próprio aparelho.",
+                capabilities = setOf(KellvynStudioCapability.DEVICE_DIAGNOSTICS),
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 5_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT
