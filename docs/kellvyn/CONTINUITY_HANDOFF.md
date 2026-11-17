@@ -454,3 +454,8 @@ A primeira versão do teste tentou iniciar com prefixo maior que o contextLength
 
 ### Próximo passo
 Implementar uma pilha causal multi-bloco real com parâmetros independentes, sequência completa de estados por bloco e backpropagation de todas as posições/camadas. Cada bloco deverá possuir cache KV independente. Validar gradientes de cada bloco por diferenças finitas, overfit sintético, checkpoint/restauração e custo de Android antes de aumentar dimensões. Não conectar ao chat nem alterar o layout nesta etapa.
+
+
+## 15. Regra de autoria confirmada pelo proprietário — 17/11/2026
+
+O proprietário reiterou que Kellvyn é um cérebro próprio e não deve ser plágio. A regra vinculante está em `NEURAL_MODEL_DECISIONS.md`, seção 10. Em toda retomada: preservar essa decisão, não copiar implementação de outro projeto, não usar pesos externos e registrar fontes conceituais separadas de código incorporado. Estudar referências é permitido; plágio não é. Nunca reiniciar etapas prontas: confirmar HEAD, ler este handoff/STATUS e continuar da próxima tarefa verificada.
