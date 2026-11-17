@@ -263,8 +263,8 @@ internal class KellvynTaskDeferredException(
  */
 internal class KellvynTaskBroker(
     private val governor: KellvynResourceGovernor,
-    private val snapshotProvider: suspend () -> KellvynResourceSnapshot,
-    private val queueWaitMillis: Long = 10_000L
+    private val queueWaitMillis: Long = 10_000L,
+    private val snapshotProvider: suspend () -> KellvynResourceSnapshot
 ) {
     private val permits = Semaphore(2)
 
