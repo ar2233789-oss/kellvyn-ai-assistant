@@ -19,7 +19,8 @@ import java.security.MessageDigest
  */
 internal class KellvynBpeTokenizer private constructor(
     private val merges: List<Merge>,
-    private val tokenBytes: List<ByteArray>
+    private val tokenBytes: List<ByteArray>,
+    private val hasEndOfSequenceToken: Boolean
 ) {
     internal data class Merge(
         val leftTokenId: Int,
@@ -32,6 +33,13 @@ internal class KellvynBpeTokenizer private constructor(
 
     val mergeCount: Int
         get() = merges.size
+
+    /**
+     * Dedicated stop token for supervised generation. It has no UTF-8 bytes and is never
+     * emitted by encode(text); legacy version-1 checkpoints intentionally return null.
+     */
+    val endOfSequenceTokenId: Int?
+        get() = if (hasEndOfSequenceToken) tokenBytes.lastIndex else null
 
     /** Encodes text using UTF-8 bytes followed by the learned merge order. */
     fun encode(text: String): IntArray {
@@ -59,9 +67,10 @@ internal class KellvynBpeTokenizer private constructor(
         var outputBytes = 0L
         for (tokenId in tokenIds) {
             require(tokenId in tokenBytes.indices) { "ID de token fora do vocabulário Kellvyn." }
-            outputBytes += tokenBytes[tokenId].size.toLong()
+            val bytes = tokenBytes[tokenId]
+            outputBytes += bytes.size.toLong()
             require(outputBytes <= MAX_DECODE_BYTES) { "Texto decodificado acima do limite." }
-            output.write(tokenBytes[tokenId])
+            output.write(bytes)
         }
         return String(output.toByteArray(), Charsets.UTF_8)
     }
@@ -114,7 +123,7 @@ internal class KellvynBpeTokenizer private constructor(
     companion object {
         private const val BASE_VOCABULARY_SIZE = 256
         private const val CHECKPOINT_MAGIC = 0x4B564250 // "KVBP"
-        private const val CHECKPOINT_VERSION = 1
+        private const val CHECKPOINT_VERSION = 2
         private const val CHECKSUM_BYTES = 32
         private const val MAX_MERGES = 4096
         private const val MAX_CORPUS_BYTES = 1_000_000
@@ -213,7 +222,12 @@ internal class KellvynBpeTokenizer private constructor(
                 }
             }
 
-            return KellvynBpeTokenizer(merges.toList(), tokenBytes.toList())
+            val vocabularyWithStop = tokenBytes.toMutableList().apply { add(ByteArray(0)) }
+            return KellvynBpeTokenizer(
+                merges = merges.toList(),
+                tokenBytes = vocabularyWithStop,
+                hasEndOfSequenceToken = true
+            )
         }
 
         /** Restores a bounded tokenizer checkpoint and reconstructs its byte table. */
@@ -235,7 +249,8 @@ internal class KellvynBpeTokenizer private constructor(
             require(data.readInt() == CHECKPOINT_MAGIC) {
                 "Checkpoint não pertence ao tokenizer Kellvyn."
             }
-            require(data.readInt() == CHECKPOINT_VERSION) {
+            val checkpointVersion = data.readInt()
+            require(checkpointVersion in 1..CHECKPOINT_VERSION) {
                 "Versão do tokenizer Kellvyn não suportada."
             }
             val count = data.readInt()
@@ -273,8 +288,14 @@ internal class KellvynBpeTokenizer private constructor(
                 merges += Merge(left, right, mergedId)
             }
             require(data.available() == 0) { "Checkpoint do tokenizer contém dados extras." }
+            val hasEndOfSequenceToken = checkpointVersion >= 2
+            if (hasEndOfSequenceToken) tokenBytes += ByteArray(0)
 
-            return KellvynBpeTokenizer(merges.toList(), tokenBytes.toList())
+            return KellvynBpeTokenizer(
+                merges = merges.toList(),
+                tokenBytes = tokenBytes.toList(),
+                hasEndOfSequenceToken = hasEndOfSequenceToken
+            )
         }
 
         private fun readBounded(input: InputStream): ByteArray {
