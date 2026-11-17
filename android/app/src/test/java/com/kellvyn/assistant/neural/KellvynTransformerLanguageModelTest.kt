@@ -32,8 +32,8 @@ class KellvynTransformerLanguageModelTest {
         )
 
         assertTrue(report.checkedParameters >= 10)
-        assertTrue("absolute gradient error was \${report.maxAbsoluteError}", report.maxAbsoluteError < 0.004)
-        assertTrue("relative gradient error was \${report.maxRelativeError}", report.maxRelativeError < 0.06)
+        assertTrue("absolute gradient error was ${report.maxAbsoluteError}", report.maxAbsoluteError < 0.004)
+        assertTrue("relative gradient error was ${report.maxRelativeError}", report.maxRelativeError < 0.06)
     }
 
     @Test
