@@ -461,13 +461,20 @@ internal class KellvynTransformerLanguageModel private constructor(
         return best
     }
 
-    fun generate(prefixTokenIds: IntArray, maxNewTokens: Int): IntArray {
+    fun generate(
+        prefixTokenIds: IntArray,
+        maxNewTokens: Int,
+        endTokenId: Int? = null
+    ): IntArray {
         require(prefixTokenIds.isNotEmpty())
         require(prefixTokenIds.all { it in 0 until config.vocabularySize })
         require(maxNewTokens in 0..4096)
+        require(endTokenId == null || endTokenId in 0 until config.vocabularySize)
         val output = prefixTokenIds.toMutableList()
         repeat(maxNewTokens) {
-            output += predictNext(output.takeLast(config.contextLength).toIntArray())
+            val nextToken = predictNext(output.takeLast(config.contextLength).toIntArray())
+            if (nextToken == endTokenId && endTokenId != null) return output.toIntArray()
+            output += nextToken
         }
         return output.toIntArray()
     }
