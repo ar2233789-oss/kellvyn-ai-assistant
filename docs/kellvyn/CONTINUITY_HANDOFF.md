@@ -459,3 +459,25 @@ Implementar uma pilha causal multi-bloco real com parâmetros independentes, seq
 ## 15. Regra de autoria confirmada pelo proprietário — 17/11/2026
 
 O proprietário reiterou que Kellvyn é um cérebro próprio e não deve ser plágio. A regra vinculante está em `NEURAL_MODEL_DECISIONS.md`, seção 10. Em toda retomada: preservar essa decisão, não copiar implementação de outro projeto, não usar pesos externos e registrar fontes conceituais separadas de código incorporado. Estudar referências é permitido; plágio não é. Nunca reiniciar etapas prontas: confirmar HEAD, ler este handoff/STATUS e continuar da próxima tarefa verificada.
+
+
+## 16. Expansão de papéis internos e próxima retomada — 17/11/2026
+
+**Implementação enviada:**
+- `KellvynAgent.kt`: enum e instruções ampliados de 4 para 14 papéis especializados.
+- `KellvynAgentSpecialistEvaluationTest.kt`: a mesma prova de isolamento e ferramentas READ_ONLY percorre agora os 14.
+- `AGENT_EVALUATION_PROTOCOL.md`, `AGENT_IMPLEMENTATION.md` e `STATUS.md`: documentação atualizada.
+- Regra de não plágio e autoria própria foi registrada na seção 10 de `NEURAL_MODEL_DECISIONS.md` e nesta continuidade.
+
+**Papéis cobertos:** pesquisador, explorador de código, revisor, analista de testes, analista de raciocínio, analista de aprendizado, arquiteto de programação, analista de memória, analista de segurança, analista de planejamento, depurador, auditor independente, analista de operações e analista visual.
+
+**Limites:** o `KellvynAgent` central continua sendo o supervisor/orquestrador. Todos os especialistas usam a mesma instância de inferência; ferramentas somente READ_ONLY; sem recursão/paralelismo. Os papéis de programação, aprendizado, operações e visual ainda são de análise, sem edição, treino, controle de dispositivo ou mutações. Não afirmar que o cérebro já executa esses papéis com competência: a avaliação neural está bloqueada até haver modelo treinado com qualidade.
+
+**Próxima ação técnica obrigatória:**
+1. Confirmar o CI `neural-core-tests` no commit com o enum expandido e o teste com 14 papéis.
+2. Se falhar, ler o log, corrigir o menor defeito e repetir CI.
+3. Retomar o próximo marco neural já previsto: projetar e implementar profundidade multi-bloco no Transformer próprio, com parâmetros independentes por camada, forward causal em todas as posições, backpropagation entre blocos, gradient checks por bloco, overfit sintético, checkpoint versionado e cache KV por camada.
+4. Preservar o KBN-003 atual e seus checkpoints; não substituir até a nova arquitetura provar compatibilidade, treinamento e avaliação.
+5. Não conectar ao chat principal nem editar a interface ainda.
+
+**Regra de continuidade:** na próxima conversa, ler este arquivo, `STATUS.md`, `NEURAL_MODEL_DECISIONS.md` e conferir o HEAD real antes de agir. Não recomeçar estudos, papéis ou cache KV já implementados.
