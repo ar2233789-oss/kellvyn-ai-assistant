@@ -295,7 +295,6 @@ class KellvynTransformerLanguageModelTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {    @Test(expected = IllegalArgumentException::class)
     fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {
         KellvynTransformerLanguageModel.Config(
             vocabularySize = 256,
