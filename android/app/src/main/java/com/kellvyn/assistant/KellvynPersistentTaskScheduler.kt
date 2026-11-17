@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.nio.charset.StandardCharsets
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
@@ -64,7 +65,9 @@ internal data class KellvynQueuedTaskSpec(
  */
 internal class KellvynPersistentTaskQueue(
     context: Context,
-    databaseName: String = DATABASE_NAME
+    databaseName: String = DATABASE_NAME,
+    private val payloadCipher: KellvynTaskCheckpointCipher =
+        KellvynAndroidTaskCheckpointCipher(DEFAULT_QUEUE_KEY_ALIAS)
 ) : SQLiteOpenHelper(context.applicationContext, databaseName, null, DATABASE_VERSION) {
 
     override fun onCreate(db: SQLiteDatabase) {
@@ -73,7 +76,7 @@ internal class KellvynPersistentTaskQueue(
             CREATE TABLE $TABLE_TASKS (
                 id TEXT PRIMARY KEY NOT NULL,
                 handler_id TEXT NOT NULL,
-                payload TEXT NOT NULL,
+                payload BLOB NOT NULL,
                 priority INTEGER NOT NULL,
                 workload_class TEXT NOT NULL,
                 estimated_working_set_bytes INTEGER NOT NULL,
@@ -83,7 +86,7 @@ internal class KellvynPersistentTaskQueue(
                 max_attempts INTEGER NOT NULL,
                 state TEXT NOT NULL,
                 last_error TEXT,
-                result_summary TEXT,
+                result_summary BLOB,
                 updated_at_ms INTEGER NOT NULL
             )
             """.trimIndent()
@@ -110,7 +113,21 @@ internal class KellvynPersistentTaskQueue(
         val values = ContentValues().apply {
             put(COL_ID, id)
             put(COL_HANDLER, spec.handlerId)
-            put(COL_PAYLOAD, spec.payload)
+            put(
+                COL_PAYLOAD,
+                payloadCipher.encrypt(
+                    spec.payload.toByteArray(StandardCharsets.UTF_8),
+                    payloadAssociatedData(
+                        id,
+                        spec.handlerId,
+                        spec.priority,
+                        spec.workloadClass,
+                        spec.estimatedWorkingSetBytes,
+                        nowMillis,
+                        spec.maxAttempts
+                    )
+                )
+            )
             put(COL_PRIORITY, spec.priority)
             put(COL_WORKLOAD, spec.workloadClass.name)
             put(COL_ESTIMATE, spec.estimatedWorkingSetBytes)
@@ -184,9 +201,15 @@ internal class KellvynPersistentTaskQueue(
     @Synchronized
     fun complete(id: String, summary: String, nowMillis: Long) {
         require(summary.length <= MAX_SUMMARY_CHARS && nowMillis > 0L)
+        val task = get(id) ?: error("Tarefa não encontrada.")
+        check(task.state == KellvynQueuedTaskState.RUNNING)
+        val encryptedSummary = payloadCipher.encrypt(
+            summary.toByteArray(StandardCharsets.UTF_8),
+            resultAssociatedData(id, task.createdAtMillis, nowMillis)
+        )
         val values = ContentValues().apply {
             put(COL_STATE, KellvynQueuedTaskState.SUCCEEDED.name)
-            put(COL_RESULT, summary)
+            put(COL_RESULT, encryptedSummary)
             putNull(COL_ERROR)
             put(COL_UPDATED, nowMillis)
         }
@@ -198,12 +221,13 @@ internal class KellvynPersistentTaskQueue(
     }
 
     @Synchronized
-    fun defer(id: String, notBeforeMillis: Long, reason: String, nowMillis: Long) {
+    fun defer(id: String, notBeforeMillis: Long, reasonCode: String, nowMillis: Long) {
         require(notBeforeMillis >= 0L && nowMillis > 0L)
+        require(reasonCode.matches(ERROR_CODE))
         val values = ContentValues().apply {
             put(COL_STATE, KellvynQueuedTaskState.WAITING_RESOURCES.name)
             put(COL_NOT_BEFORE, maxOf(nowMillis, notBeforeMillis))
-            put(COL_ERROR, reason.take(MAX_ERROR_CHARS))
+            put(COL_ERROR, reasonCode)
             put(COL_UPDATED, nowMillis)
         }
         check(writableDatabase.update(
@@ -214,15 +238,15 @@ internal class KellvynPersistentTaskQueue(
     }
 
     @Synchronized
-    fun failOrRetry(id: String, reason: String, nowMillis: Long): KellvynQueuedTaskState {
-        require(nowMillis > 0L)
+    fun failOrRetry(id: String, reasonCode: String, nowMillis: Long): KellvynQueuedTaskState {
+        require(nowMillis > 0L && reasonCode.matches(ERROR_CODE))
         val task = get(id) ?: error("Tarefa não encontrada.")
         check(task.state == KellvynQueuedTaskState.RUNNING)
         val terminal = task.attempts >= task.maxAttempts
         val nextState = if (terminal) KellvynQueuedTaskState.FAILED else KellvynQueuedTaskState.QUEUED
         val values = ContentValues().apply {
             put(COL_STATE, nextState.name)
-            put(COL_ERROR, reason.take(MAX_ERROR_CHARS))
+            put(COL_ERROR, reasonCode)
             put(COL_NOT_BEFORE, if (terminal) nowMillis else nowMillis + retryDelay(task.attempts))
             put(COL_UPDATED, nowMillis)
         }
@@ -240,7 +264,7 @@ internal class KellvynPersistentTaskQueue(
         val values = ContentValues().apply {
             put(COL_STATE, KellvynQueuedTaskState.CANCELLED.name)
             put(COL_UPDATED, nowMillis)
-            put(COL_ERROR, "Cancelada pelo proprietário.")
+            put(COL_ERROR, "OWNER_CANCELLED")
         }
         return writableDatabase.update(
             TABLE_TASKS,
@@ -261,7 +285,7 @@ internal class KellvynPersistentTaskQueue(
         val values = ContentValues().apply {
             put(COL_STATE, KellvynQueuedTaskState.QUEUED.name)
             put(COL_NOT_BEFORE, nowMillis + recoveryDelayMillis)
-            put(COL_ERROR, "PROCESS_INTERRUPTED; handler deve ser idempotente ou validar checkpoint.")
+            put(COL_ERROR, "PROCESS_INTERRUPTED")
             put(COL_UPDATED, nowMillis)
         }
         val db = writableDatabase
@@ -273,7 +297,7 @@ internal class KellvynPersistentTaskQueue(
         )
         val exhausted = ContentValues().apply {
             put(COL_STATE, KellvynQueuedTaskState.FAILED.name)
-            put(COL_ERROR, "PROCESS_INTERRUPTED; limite de tentativas atingido.")
+            put(COL_ERROR, "PROCESS_INTERRUPTED_MAX_ATTEMPTS")
             put(COL_UPDATED, nowMillis)
         }
         val failed = db.update(
@@ -320,23 +344,74 @@ internal class KellvynPersistentTaskQueue(
         val state = runCatching {
             KellvynQueuedTaskState.valueOf(getString(getColumnIndexOrThrow(COL_STATE)))
         }.getOrElse { error("Estado de tarefa persistido desconhecido.") }
+        val id = getString(getColumnIndexOrThrow(COL_ID))
+        val handlerId = getString(getColumnIndexOrThrow(COL_HANDLER))
+        val priority = getInt(getColumnIndexOrThrow(COL_PRIORITY))
+        val estimatedBytes = getLong(getColumnIndexOrThrow(COL_ESTIMATE))
+        val createdAt = getLong(getColumnIndexOrThrow(COL_CREATED))
+        val maxAttempts = getInt(getColumnIndexOrThrow(COL_MAX_ATTEMPTS))
+        val payloadBytes = getBlob(getColumnIndexOrThrow(COL_PAYLOAD))
+        val payload = payloadCipher.decrypt(
+            payloadBytes,
+            payloadAssociatedData(
+                id, handlerId, priority, workload, estimatedBytes, createdAt, maxAttempts
+            )
+        ).toString(StandardCharsets.UTF_8)
+        val updatedAt = getLong(getColumnIndexOrThrow(COL_UPDATED))
+        val resultIndex = getColumnIndexOrThrow(COL_RESULT)
+        val result = if (isNull(resultIndex)) null else {
+            payloadCipher.decrypt(
+                getBlob(resultIndex),
+                resultAssociatedData(id, createdAt, updatedAt)
+            ).toString(StandardCharsets.UTF_8)
+        }
         return KellvynQueuedTask(
-            id = getString(getColumnIndexOrThrow(COL_ID)),
-            handlerId = getString(getColumnIndexOrThrow(COL_HANDLER)),
-            payload = getString(getColumnIndexOrThrow(COL_PAYLOAD)),
-            priority = getInt(getColumnIndexOrThrow(COL_PRIORITY)),
+            id = id,
+            handlerId = handlerId,
+            payload = payload,
+            priority = priority,
             workloadClass = workload,
-            estimatedWorkingSetBytes = getLong(getColumnIndexOrThrow(COL_ESTIMATE)),
-            createdAtMillis = getLong(getColumnIndexOrThrow(COL_CREATED)),
+            estimatedWorkingSetBytes = estimatedBytes,
+            createdAtMillis = createdAt,
             notBeforeMillis = getLong(getColumnIndexOrThrow(COL_NOT_BEFORE)),
             attempts = getInt(getColumnIndexOrThrow(COL_ATTEMPTS)),
-            maxAttempts = getInt(getColumnIndexOrThrow(COL_MAX_ATTEMPTS)),
+            maxAttempts = maxAttempts,
             state = state,
             lastError = getStringOrNull(COL_ERROR),
-            resultSummary = getStringOrNull(COL_RESULT),
-            updatedAtMillis = getLong(getColumnIndexOrThrow(COL_UPDATED))
+            resultSummary = result,
+            updatedAtMillis = updatedAt
         )
     }
+
+    private fun payloadAssociatedData(
+        id: String,
+        handlerId: String,
+        priority: Int,
+        workload: KellvynWorkloadClass,
+        estimatedBytes: Long,
+        createdAtMillis: Long,
+        maxAttempts: Int
+    ): ByteArray = listOf(
+        "KELLVYN_TASK_PAYLOAD_V1",
+        id,
+        handlerId,
+        priority.toString(),
+        workload.name,
+        estimatedBytes.toString(),
+        createdAtMillis.toString(),
+        maxAttempts.toString()
+    ).joinToString("\u0000").toByteArray(StandardCharsets.UTF_8)
+
+    private fun resultAssociatedData(
+        id: String,
+        createdAtMillis: Long,
+        updatedAtMillis: Long
+    ): ByteArray = listOf(
+        "KELLVYN_TASK_RESULT_V1",
+        id,
+        createdAtMillis.toString(),
+        updatedAtMillis.toString()
+    ).joinToString("\u0000").toByteArray(StandardCharsets.UTF_8)
 
     private fun Cursor.getStringOrNull(column: String): String? {
         val index = getColumnIndexOrThrow(column)
@@ -351,6 +426,8 @@ internal class KellvynPersistentTaskQueue(
     companion object {
         const val DATABASE_NAME = "kellvyn_task_queue.db"
         private const val DATABASE_VERSION = 1
+        private const val DEFAULT_QUEUE_KEY_ALIAS = "kellvyn.task-queue.aes-gcm.v1"
+        private val ERROR_CODE = Regex("[A-Z0-9_]{1,64}")
         private const val TABLE_TASKS = "kellvyn_tasks"
         private const val MAX_SUMMARY_CHARS = 4_000
         private const val MAX_ERROR_CHARS = 500
