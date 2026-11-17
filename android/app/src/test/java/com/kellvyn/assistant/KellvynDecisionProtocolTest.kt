@@ -72,6 +72,26 @@ class KellvynDecisionProtocolTest {
         )
     }
 
+
+    @Test
+    fun parsesEveryRegisteredSpecialistRoleWithoutCreatingNewModelTypes() {
+        KellvynSpecialistRole.values().forEach { role ->
+            val output = listOf(
+                "KELLVYN/1",
+                "DELEGATE",
+                "ROLE\t${role.name}",
+                "TASK\t${KellvynDecisionProtocol.encodeText("Analise a tarefa.")}",
+                "CONTEXT\t${KellvynDecisionProtocol.encodeText("Contexto mínimo autorizado.")}",
+                "END"
+            ).joinToString("\n")
+
+            val parsed = KellvynDecisionProtocol.parse(output) as
+                KellvynDecisionProtocol.ParseResult.Accepted
+            val decision = parsed.decision as KellvynModelDecision.Delegate
+            assertEquals(role, decision.role)
+        }
+    }
+
     @Test
     fun parsesStructuredPlanWithDependenciesAndApproval() {
         val encode = KellvynDecisionProtocol::encodeText
