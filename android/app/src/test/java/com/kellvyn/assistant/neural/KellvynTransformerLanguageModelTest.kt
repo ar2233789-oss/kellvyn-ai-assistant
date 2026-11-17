@@ -28,7 +28,9 @@ class KellvynTransformerLanguageModelTest {
         val report = model.checkGradients(
             contextTokenIds = context,
             targetTokenId = target,
-            epsilon = 0.001,
+            // A slightly wider central-difference step reduces float32 cancellation
+            // after the vocabulary gained its dedicated EOS class.
+            epsilon = 0.005,
             maxCoordinatesPerGroup = 2
         )
 
