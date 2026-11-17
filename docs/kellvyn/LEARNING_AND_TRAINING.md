@@ -30,7 +30,7 @@ O modelo-base, seus autores, licença, hashes e os dados usados permanecem regis
 
 ## 4. Treinar um modelo integralmente do zero
 
-KBN-001 é uma experiência própria para aprender e validar operações matemáticas, gradientes e checkpoints. Um pré-treinamento competitivo do zero exige volume de dados, aceleradores, armazenamento e tempo muito além do que o Poco F6 isoladamente oferece. O telefone é o alvo de inferência e teste; pode executar pequenos experimentos de treino, mas isso não o transforma em cluster de treinamento de fronteira.
+KN-001 é uma experiência própria para aprender e validar operações matemáticas, gradientes e checkpoints. Um pré-treinamento competitivo do zero exige volume de dados, aceleradores, armazenamento e tempo muito além do que o Poco F6 isoladamente oferece. O telefone é o alvo de inferência e teste; pode executar pequenos experimentos de treino, mas isso não o transforma em cluster de treinamento de fronteira.
 
 Manteremos a rota de pesquisa autoral em paralelo, sem bloquear a entrega de uma Kellvyn útil baseada em uma fundação licenciada.
 
