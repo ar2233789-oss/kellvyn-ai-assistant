@@ -176,8 +176,12 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynTransformerInferenceEngine.Config? = null
     ): KellvynTransformerInferenceEngine? {
         val bundle = loadOwnTransformerModel() ?: return null
+        val contextLength = bundle.model.config.contextLength
+        // Tiny experimental windows are useful for unit tests but cannot hold a real
+        // agent prompt plus a useful decision. Do not expose a misleading engine.
+        if (contextLength < 128) return null
         val safeDefault = KellvynTransformerInferenceEngine.Config(
-            maxGenerationTokens = minOf(64, (bundle.model.config.contextLength - 1).coerceAtLeast(1))
+            maxGenerationTokens = minOf(64, (contextLength / 4).coerceAtLeast(16))
         )
         return KellvynTransformerInferenceEngine(
             model = bundle.model,
