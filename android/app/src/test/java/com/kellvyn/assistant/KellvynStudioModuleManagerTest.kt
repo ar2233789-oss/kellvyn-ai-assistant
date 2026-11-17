@@ -90,6 +90,38 @@ class KellvynStudioModuleManagerTest {
     }
 
     @Test
+    fun declaredToolRiskMustMatchTheLoadedToolContract() = runBlocking {
+        val manager = manager()
+        manager.register(definition(actualToolRisk = KellvynToolRisk.REVERSIBLE_WRITE))
+        val error = runCatching { manager.acquire("code-navigation") }.exceptionOrNull()
+        assertTrue(error is IllegalStateException)
+        assertTrue(manager.loadedModuleIds().isEmpty())
+    }
+
+    @Test
+    fun activeModuleIsNotUnloadedByIdleTtl() = runBlocking {
+        var now = 1_000L
+        var closeCalls = 0
+        val broker = KellvynTaskBroker(
+            governor = KellvynResourceGovernor(),
+            queueWaitMillis = 100L,
+            snapshotProvider = { snapshot() }
+        )
+        val manager = KellvynStudioModuleManager(35, broker) { now }
+        manager.register(definition(closeCalls = { closeCalls++ }))
+        val lease = manager.acquire("code-navigation")
+
+        now = 999_999L
+        assertEquals(0, manager.unloadExpiredModules(maxIdleMillis = 1L))
+        assertEquals(0, closeCalls)
+
+        lease.close()
+        now = 1_000_001L
+        assertEquals(1, manager.unloadExpiredModules(maxIdleMillis = 1L))
+        assertEquals(1, closeCalls)
+    }
+
+    @Test
     fun duplicateToolNamesAcrossModuleManifestsAreRejected() {
         val manager = manager()
         manager.register(definition(moduleId = "code-navigation", toolName = "shared_tool"))
@@ -112,6 +144,7 @@ class KellvynStudioModuleManagerTest {
         moduleId: String = "code-navigation",
         toolName: String = "code_find_symbol",
         actualToolName: String = toolName,
+        actualToolRisk: KellvynToolRisk = KellvynToolRisk.READ_ONLY,
         workload: KellvynWorkloadClass = KellvynWorkloadClass.LIGHT,
         loadBytes: Long = 16L * MEBIBYTE,
         residentBytes: Long = 8L * MEBIBYTE,
@@ -142,7 +175,8 @@ class KellvynStudioModuleManagerTest {
                     object : KellvynAgentTool {
                         override val spec = KellvynToolSpec(
                             name = actualToolName,
-                            description = "Ferramenta de teste"
+                            description = "Ferramenta de teste",
+                            risk = actualToolRisk
                         )
                         override suspend fun execute(arguments: Map<String, String>) =
                             KellvynToolResult(true, "ok")
