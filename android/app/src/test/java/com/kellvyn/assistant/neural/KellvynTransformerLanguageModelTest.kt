@@ -138,6 +138,81 @@ class KellvynTransformerLanguageModelTest {
         )
     }
 
+
+    @Test
+    fun incrementalKvCacheMatchesFullPrefixAcrossContextEviction() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn usa cache incremental e preserva a atenção causal."),
+            maxMerges = 24
+        )
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 8,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 4105L
+        )
+        val prefix = tokenizer.encode("Kellvyn inicia.")
+        val session = model.newGenerationSession(prefix)
+        val generated = mutableListOf<Int>()
+
+        repeat(20) {
+            val cached = session.nextTokenProbabilities()
+            val reference = model.evaluateNextTokenProbabilities(session.contextTokenIds())
+            assertEquals(reference.size, cached.size)
+            for (index in reference.indices) {
+                assertTrue(
+                    "KV cache divergence at iteration $it token $index: " +
+                        "reference=${reference[index]} cached=${cached[index]}",
+                    kotlin.math.abs(reference[index] - cached[index]) < 0.00002f
+                )
+            }
+
+            val next = cached.indices.maxBy { cached[it] }
+            session.appendToken(next)
+            generated += next
+            assertTrue(session.cachedTokenCount() <= model.config.contextLength)
+            assertEquals(prefix.size + generated.size, session.outputTokenIds().size)
+            assertEquals(
+                session.outputTokenIds().takeLast(model.config.contextLength),
+                session.contextTokenIds().toList()
+            )
+        }
+
+        assertEquals(prefix.size + 20, session.processedTokenCount())
+        assertEquals(model.config.contextLength, session.cachedTokenCount())
+    }
+
+    @Test
+    fun incrementalGenerationAndFullPrefixGreedyGenerationProduceSameTokens() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn responde com consistência."),
+            maxMerges = 12
+        )
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 24,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 4106L
+        )
+        val prompt = tokenizer.encode("Oi")
+        val cachedSession = model.newGenerationSession(prompt)
+        val cachedTokens = mutableListOf<Int>()
+        repeat(12) {
+            val token = cachedSession.predictNext()
+            cachedTokens += token
+            cachedSession.appendToken(token)
+        }
+
+        val referenceTokens = model.generate(prompt, maxNewTokens = 12)
+
+        assertArrayEquals(referenceTokens, cachedSession.outputTokenIds())
+        assertEquals(12, cachedTokens.size)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {
         KellvynTransformerLanguageModel.Config(
