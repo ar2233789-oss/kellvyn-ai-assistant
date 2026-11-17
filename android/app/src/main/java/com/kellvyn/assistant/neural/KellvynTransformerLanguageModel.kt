@@ -461,6 +461,14 @@ internal class KellvynTransformerLanguageModel private constructor(
         return best
     }
 
+    /** Full-prefix reference probabilities used to verify incremental cache equivalence. */
+    internal fun evaluateNextTokenProbabilities(contextTokenIds: IntArray): FloatArray {
+        require(contextTokenIds.isNotEmpty())
+        require(contextTokenIds.size <= config.contextLength)
+        require(contextTokenIds.all { it in 0 until config.vocabularySize })
+        return forward(contextTokenIds).probabilities.copyOf()
+    }
+
     /**
      * Incremental decoder session with a real per-layer key/value cache.
      *
@@ -592,6 +600,8 @@ internal class KellvynTransformerLanguageModel private constructor(
         fun contextTokenIds(): IntArray = contextTokens.toIntArray()
 
         internal fun cachedTokenCount(): Int = keyCache.size
+
+        internal fun processedTokenCount(): Int = nextAbsolutePosition
 
         private fun appendInternal(tokenId: Int) {
             val d = config.embeddingSize
