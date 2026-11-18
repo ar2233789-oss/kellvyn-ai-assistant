@@ -88,11 +88,29 @@ internal object KellvynSpecialistToolPolicy {
     fun permittedReadOnlyToolNames(
         role: KellvynSpecialistRole,
         specs: List<KellvynToolSpec>
+    ): Set<String> = permittedToolNames(role, specs, allowNetworkRead = false)
+
+    /**
+     * Network reads are a separate risk class. Only the Researcher may receive a tool that
+     * declares WEB_RESEARCH, and only when the owner-controlled web-access switch is enabled.
+     */
+    fun permittedToolNames(
+        role: KellvynSpecialistRole,
+        specs: List<KellvynToolSpec>,
+        allowNetworkRead: Boolean
     ): Set<String> {
         val capabilities = capabilitiesFor(role)
         if (capabilities.isEmpty()) return emptySet()
         return specs.asSequence()
-            .filter { it.risk == KellvynToolRisk.READ_ONLY }
+            .filter { spec ->
+                spec.risk == KellvynToolRisk.READ_ONLY ||
+                    (
+                        allowNetworkRead &&
+                            spec.risk == KellvynToolRisk.NETWORK_READ &&
+                            KellvynStudioCapability.WEB_RESEARCH in spec.capabilities &&
+                            KellvynStudioCapability.WEB_RESEARCH in capabilities
+                        )
+            }
             .filter { it.capabilities.isNotEmpty() && it.capabilities.any { capability ->
                 capability in capabilities
             } }
@@ -103,6 +121,7 @@ internal object KellvynSpecialistToolPolicy {
     fun deniedRequestedNames(
         role: KellvynSpecialistRole,
         requestedNames: Set<String>,
-        specs: List<KellvynToolSpec>
-    ): Set<String> = requestedNames - permittedReadOnlyToolNames(role, specs)
+        specs: List<KellvynToolSpec>,
+        allowNetworkRead: Boolean = false
+    ): Set<String> = requestedNames - permittedToolNames(role, specs, allowNetworkRead)
 }
