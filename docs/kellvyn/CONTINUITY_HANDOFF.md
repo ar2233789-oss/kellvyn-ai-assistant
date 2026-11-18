@@ -625,7 +625,7 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Portanto, é correto dizer “cérebro autoral feito a partir do zero em desenvolvimento”, não “cérebro conversacional pronto”. Não anunciar qualidade ou competência sem treino/avaliação reproduzíveis.
 
 ### Próxima ação
-1. Acompanhar os workflows focados `44214073878` e `44214499919`; extrair logs/status assim que existirem. Uma job sem runner/steps/logs conta como NOT_RUN/BLOCKED, não como falha do código nem sucesso.
+1. Os workflows focados foram verificados: `44214073878` (tentativa 2) e `44214499919` (agent lab), além de `44214499742` (neural core), terminaram sem runner/steps/logs. Classificar como NOT_RUN/BLOCKED, não como falha do código nem sucesso. Próximo passo é restabelecer execução de CI/runner ou executar em outro ambiente Android verificável.
 2. Corrigir somente defeitos observados na compilação/testes.
 3. Aprovar a Fase 1 com prova do fluxo enqueue → handler allowlisted → broker → resultado persistido → SUCCEEDED e recuperação após processo reiniciado.
 4. Só então avançar para integração cruzada das capacidades dos 14 papéis com os três módulos já existentes e os estúdios que faltam.
