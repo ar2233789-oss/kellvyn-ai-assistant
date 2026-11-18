@@ -242,3 +242,8 @@ Os testes novos foram escritos, mas não há aprovação Gradle/AVD comprovada. 
 - A política já entrega `MEMORY_READ` somente ao Analista de Memória.
 - Testes unitários e instrumentais foram acrescentados; ainda não executados em Gradle/Android.
 - O fonte isolado da ferramenta passou em uma verificação de sintaxe/tipos com kotlinc contra stubs mínimos; isso não comprova compilação do app nem substitui os testes reais.
+
+### Evidência parcial local — Memory Read — 18/11/2026
+- O código isolado da ferramenta e o algoritmo de ranking de memória foram compilados/testados localmente com kotlinc, interfaces do agente stubbadas e repositório falso. Casos de escopo, classificação de privacidade e limites passaram.
+- A evidência não equivale ao Gradle da aplicação, SQLite/Keystore Android ou instrumentação no Poco F6.
+- CI segue bloqueado: runs `44217467213`, `44217511064` e `44217511082` não disponibilizaram runner, etapas ou logs.
