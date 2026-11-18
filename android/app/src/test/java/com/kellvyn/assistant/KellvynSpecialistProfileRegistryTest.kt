@@ -50,6 +50,23 @@ class KellvynSpecialistProfileRegistryTest {
     }
 
     @Test
+    fun profileHashPreservesOutputSectionBoundaries() {
+        val original = KellvynSpecialistProfileRegistry.default()
+            .requireProfile(KellvynSpecialistRole.RESEARCHER)
+            .copy(requiredOutputSections = listOf("alpha", "beta", "gamma", "delta"))
+        val resegmented = original.copy(
+            requiredOutputSections = listOf("alpha\\u001fbeta", "gamma", "delta")
+        )
+        val compiler = KellvynSpecialistProfileCompiler()
+        val originalHash = compiler.compile(original)?.profileSha256
+        val resegmentedHash = compiler.compile(resegmented)?.profileSha256
+
+        assertTrue(originalHash != null)
+        assertTrue(resegmentedHash != null)
+        assertTrue(originalHash != resegmentedHash)
+    }
+
+    @Test
     fun profilesCannotEnableMutationOrNestedDelegation() {
         val profiles = KellvynSpecialistProfileRegistry.default().profiles()
         assertTrue(profiles.all { !it.allowMutation })
