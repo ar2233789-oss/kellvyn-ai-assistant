@@ -2,7 +2,7 @@
 
 Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. Registra metadados de commits e arquivos, não prompts, conversas, argumentos de ferramentas ou dados privados.
 
-**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 18:22 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
+**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 19:51 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
 **Registro automático:** script `scripts/append-agent-lab-activity.py` e workflow `.github/workflows/agent-lab-activity-ledger.yml` estão criados. A execução automática permanece bloqueada enquanto GitHub Actions não aloca runner; os jobs observados retornaram `runner_id=0` e `steps=[]`.  
 **Regra de continuidade:** a cada sessão, conferir o HEAD, registrar todos os commits novos aqui e atualizar `SESSION_CONTROL.md`. Quando o runner voltar, o workflow acrescentará os commits futuros automaticamente.
 
@@ -103,6 +103,10 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | 18:20:58 | `559b8d7` | docs(kellvyn): document review-required benchmark outcome semantics |
 | 18:21:16 | `c435e8f` | docs(kellvyn): specify review-required benchmark outcome workflow |
 | 18:22:20 | `1e79ec6` | test(kellvyn): fail benchmark criteria omitted from verification and review |
+| 19:50:22 | `2ebf2eb` | feat(kellvyn): add reproducible engineering lab audit and repo map |
+| 19:50:40 | `20f1a9d` | docs(kellvyn): blueprint engineering lab for research development and audit |
+| 19:50:48 | `1d4013f` | ci(kellvyn): generate engineering audit and repo map on lab updates |
+| 19:51:01 | `d4f3404` | docs(kellvyn): add agent engineering lab research findings |
 
 ## Estado consolidado às 18:22 UTC
 
@@ -119,3 +123,22 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Diário automático: script/workflow instalados, mas sem runner não executam. Entradas de desenvolvimento reconciliadas manualmente até 18:22 UTC; GitHub ainda registra commits/horários nativamente.
 - Cérebro neural: KellvynRuntime.isReady() permanece false; não há validação cognitiva de produção, APK, emulador ou Poco F6.
 - Interface, MainActivity.java, .github/interface-lock.sha, pesos neurais e interface aprovada: não alterados nesta sessão.
+
+
+## Estado consolidado às 19:51 UTC — Engineering Lab
+
+- Trace automático local: ligado ao ciclo do agente, modelo, ferramentas, delegações, especialistas e etapas de plano; decisões de ferramenta bloqueadas deixam metadados sem argumentos.
+- Agent Lab Android: módulo headless separado, carregado sob demanda; consulta ambiente, traces, linhas do tempo, comparação baseline/candidato, estados dos motores e saúde da gravação.
+- Agent Creation Studio: catálogo e compilação dos 14 perfis, política central de capabilities, versionamento cifrado parcial, auditoria e rollback. Não equivale a 14 modelos nem a competência cognitiva comprovada.
+- Benchmark: executor real para inferência fornecida, ferramentas filtradas por política, perfis candidatos não ativados e verificador independente obrigatório. Cada suíte está limitada a 28 cenários e recebe fingerprint determinístico.
+- Estados de avaliação: PASSED, REVIEW_REQUIRED, FAILED e BLOCKED. Critérios encaminhados à revisão não contam como aprovação; critério inventado, conflitante ou omitido sem prova nem revisão falha em modo fail-closed.
+- Limite do grader: rubricas em texto livre; ainda não existe verificador semântico validado para todos os casos.
+- Recursos: snapshots de RAM disponível, heap, PSS, bateria e temperatura; CPU% é estimativa do processo inteiro na janela, não atribuição exata por agente nem consumo em watts.
+- Recorder: falha de disco/Keystore não interrompe o agente; health distingue não testado, saudável, degradado e recuperado com falhas anteriores; aponta trace/evento perdido. Recuperação não recompõe eventos perdidos.
+- Retenção: 1.536 eventos por trace, até 16 traces, registros de até 2 KiB; append sequencial com cursor validado, leitura por janela ainda percorre a cadeia.
+- Engineering Lab (bancada de desenvolvimento): criado blueprint, script stdlib-only para mapa de símbolos Kotlin, inventário de testes, auditoria dos hashes protegidos, snapshot JSON/Markdown com horário UTC e comando de registro manual de pesquisa/decisões/testes/incidentes/handoff. O workflow de atividade foi ligado para gerar mapa/auditoria após pushes.
+- Execução da nova bancada: script gravado, mas ainda não executado; nenhum snapshot foi produzido nem sua sintaxe/execução foi comprovada num runner.
+- Testes Kotlin/JUnit/Android existentes e novos: escritos, mas não executados. Nenhum APK, emulador ou Poco F6 foi validado nesta rodada.
+- CI mais recente: Agent Lab activity-ledger runs 44384564919 (script), 44384628285 (blueprint) e 44384702736 (pesquisa). Todos falharam antes do primeiro step, runner_id=0, steps=0. Classificação: runner não alocado / NOT RUN; não é falha comprovada do código.
+- Cérebro neural: KellvynRuntime.isReady() permanece false; sem validação cognitiva de produção.
+- Interface, MainActivity.java, .github/interface-lock.sha e pesos neurais: não alterados nesta sessão.
