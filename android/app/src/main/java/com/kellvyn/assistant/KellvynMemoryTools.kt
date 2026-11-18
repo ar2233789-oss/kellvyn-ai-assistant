@@ -51,8 +51,8 @@ internal object KellvynMemoryTools {
                     return KellvynToolResult(false, "Argumentos não reconhecidos: ${unknownArguments.sorted().joinToString()}.")
                 }
                 val query = arguments["query"]?.trim().orEmpty()
-                if (query.isBlank() || query.length > MAX_QUERY_CHARS) {
-                    return KellvynToolResult(false, "A consulta precisa ter de 1 a $MAX_QUERY_CHARS caracteres.")
+                if (query.isBlank() || query.length > MAX_QUERY_CHARS || query.any { it.isISOControl() }) {
+                    return KellvynToolResult(false, "A consulta precisa ter de 1 a $MAX_QUERY_CHARS caracteres válidos.")
                 }
                 val rawLimit = arguments["limit"]
                 val limit = if (rawLimit == null) 3 else rawLimit.toIntOrNull()
@@ -61,9 +61,14 @@ internal object KellvynMemoryTools {
                     return KellvynToolResult(false, "O limite precisa ficar entre 1 e $MAX_RESULTS.")
                 }
 
-                val addresses = addressProvider().distinct().take(MAX_ADDRESSES)
+                val addresses = addressProvider().distinct()
                 if (addresses.isEmpty()) {
                     return KellvynToolResult(true, "Nenhum escopo de memória foi autorizado para esta conversa.")
+                }
+                if (addresses.size > MAX_ADDRESSES ||
+                    addresses.any { it.scope != KellvynMemoryScope.GLOBAL && it.scope != KellvynMemoryScope.PROJECT }
+                ) {
+                    return KellvynToolResult(false, "A lista de escopos autorizados excedeu os limites permitidos.")
                 }
 
                 val now = clock().takeIf { it > 0L }
