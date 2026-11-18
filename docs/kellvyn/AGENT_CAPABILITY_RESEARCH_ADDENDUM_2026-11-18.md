@@ -360,3 +360,52 @@ A primeira versão do trace tinha um teto de 128 eventos por execução e relia 
 Os testes adicionados cobrem: 140 eventos (ultrapassando o antigo limite), leitura de uma janela de 12 eventos, reconstrução após criar uma nova instância do store, integridade da contagem/horários e conflito de cursores entre duas instâncias. Os testes estão **escritos, ainda não executados** por bloqueio de runner.
 
 Trade-off deliberado: histórico por janela economiza RAM, mas ainda percorre todos os registros para validar a cadeia SHA-256. Não é correto apresentar isso como leitura O(1). O append sequencial fica O(1) depois do primeiro cursor validado; a primeira abertura, inspeção e comparação continuam O(n), com n limitado a 1.536.
+
+
+## 8.7 Telemetria de CPU e limites de atribuição — atualização 18/11/2026
+
+O snapshot local agora inclui:
+- tempo de CPU acumulado do processo (Process.getElapsedCpuTime);
+- tempo decorrido monotônico (SystemClock.elapsedRealtime);
+- quantidade de processadores disponíveis;
+- heap, PSS, RAM disponível, bateria e faixa térmica já existentes.
+
+O trace de início/fim calcula uma aproximação percentual:
+
+`CPU% ≈ ΔCPU do processo / (Δtempo decorrido × número de processadores) × 100`
+
+A leitura é feita somente nas bordas das execuções; não existe polling permanente. O resultado é um indicador de uso de CPU do **processo inteiro** durante a janela, não uma medição exclusiva de um agente. Caso outra corrotina, ferramenta ou atividade do app trabalhe no mesmo intervalo, ela também contribui para o delta. Benchmarks sequenciais reduzem esse ruído; não o eliminam.
+
+Limites:
+- não é medição de energia em joules ou watts;
+- o percentual de bateria é uma leitura inteira e pode não mudar em tarefas curtas;
+- a faixa térmica é uma amostra de estado do Android, não a temperatura exata do chip;
+- não extrapolar snapshots pontuais para afirmar consumo médio ou autonomia.
+
+O painel diferencia módulos apenas registrados de motores carregados e mostra se a gravação de traces ainda não foi testada, está saudável, degradada ou recuperada com falhas anteriores.
+
+## 8.8 Falha de persistência e trilha incompleta
+
+A gravação de observabilidade é best-effort: erro de arquivo/Keystore não interrompe a tarefa principal. O gravador:
+- mantém contador histórico de falhas e último código;
+- identifica o trace e o tipo do evento que falhou;
+- tenta persistir o próximo evento normalmente;
+- informa estado recuperado sem apagar o histórico de falhas.
+
+Uma recuperação de escrita **não recompõe retroativamente um evento perdido**. O painel expõe o trace/evento afetado para auditoria. Não declarar uma cadeia de atividade completa se houve falha de persistência durante a execução.
+
+A limpeza de retenção está disponível apenas por API interna com confirmação explícita do proprietário. O store só remove traces terminais, antigos e com a cadeia inteira validada. Não existe ferramenta dos agentes para apagar traces.
+
+## 8.9 Limite real da avaliação de competência
+
+Os 28 casos têm critérios requiredEvidence e prohibitedBehaviors escritos em linguagem natural. O harness é capaz de exigir que um verificador independente produza evidências e referências, mas não há ainda um verificador semântico validado para todos esses critérios.
+
+O executor real apenas executa o especialista e captura resposta, chamadas de ferramenta, violações de política e duração. Ele não dá a própria nota. Não converter rubricas textuais em aprovação por busca ingênua de palavras: uma frase pode mencionar o requisito sem satisfazê-lo, e uma resposta correta pode usar formulação diferente.
+
+Próximo trabalho correto para avaliação:
+1. Classificar cada critério como verificável por estado da ferramenta, artefato, teste, asserção estruturada, revisão humana ou avaliação semântica.
+2. Criar oráculos determinísticos apenas quando existir evidência objetiva (por exemplo, ferramenta recusada, arquivo/diff/hash, saída de teste, ordem de etapas, artefato).
+3. Marcar critérios sem oráculo como REVIEW_REQUIRED, não como PASSED.
+4. Versionar rubrica e verificador e incluir ambos no fingerprint do experimento.
+5. Não usar o mesmo especialista para aprovar sua própria saída. Um segundo passe pelo mesmo modelo não é, por si só, uma verificação independente.
+
