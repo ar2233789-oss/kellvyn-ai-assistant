@@ -3,13 +3,13 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 16:35 UTC  
+**Última revisão:** 18/11/2026, 17:15 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD de código auditado:** `523364464d92c5c747d0eadaebcdaad838e08898`  
-**Commit:** [5233644 — support actor-scoped child spans in lab traces](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/523364464d92c5c747d0eadaebcdaad838e08898)
+**HEAD de código auditado:** `ca728f95c62603dea4312be955d5624dd35f4b10`  
+**Livro de atividades:** `38eab9baec757e0635bd2c0f5157de4cfb2e180c` — 37 commits desta sessão reconciliados manualmente.
 
-> Esta revisão documental foi feita depois de comparar os 12 commits entre `d987d11` e `5233644`. O HEAD posterior gerado por esta atualização documental deve ser conferido na próxima sessão antes de qualquer edição.
+> A revisão comparou 33 commits de engenharia e documentação desde o HEAD `b7e2270`, incluindo a integração do trace, o Agent Lab, o executor real de benchmark e as medições de recursos. Confirme o HEAD atual antes de qualquer edição; esta atualização de continuidade também criará um novo commit documental.
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -17,9 +17,14 @@ Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHu
 
 ## 1. Objetivo ativo — não desviar
 
-O foco de trabalho solicitado mais recentemente é o **Laboratório dos Agentes / Agent Creation Studio**: deixar a oficina interna avançada, funcional, verificável e eficiente em memória, CPU e bateria.
+O foco ativo é o **Agent Lab / laboratório de engenharia de agentes**: ambiente para acompanhar execuções, executar benchmarks reais, comparar perfis candidatos, medir custo de recursos e investigar falhas.
 
-Não trocar esse objetivo pelo desenvolvimento genérico do cérebro, nem voltar para a interface, nem ampliar módulos só para produzir mais commits. O cérebro e o laboratório dos agentes são frentes diferentes. O usuário corrigiu explicitamente essa confusão.
+Não confundir três camadas:
+- **Cérebro Kellvyn:** backend neural próprio e raciocínio principal; permanece uma frente separada.
+- **Agent Creation Studio:** catálogo, compilação, revisão, versionamento, aprovação e rollback dos 14 perfis.
+- **Agent Lab:** execução, traces, testes, experimentos, comparação e telemetria da engenharia dos agentes.
+
+Não voltar para a interface nem recriar os módulos de perfis já existentes. O objetivo é evoluir a bancada e validar o que já foi implementado, não acumular commits sem testes.
 
 O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / HyperOS, 8 GB de RAM. Não usar WebView na versão final, não depender de hospedagem externa ou serviços pagos.
 
@@ -209,6 +214,66 @@ Risco específico a testar/corrigir antes de depender do histórico: `RUN_CANCEL
 ### Próximo passo único
 
 Confirmar na área privada de Actions/Billing se compute incluído, budget ou política da conta/repositório está bloqueando a alocação do runner e restabelecer uma execução mínima. Até existir runner, não empilhar novos módulos. Depois, executar primeiro a suíte Gradle existente; então adicionar os testes faltantes do trace store e só integrar o rastreamento ao ciclo real após validar os contratos, com I/O fora da thread principal e retenção/cancelamento corretos.
+
+---
+
+## 6.2 Agent Lab e continuidade automática — revisão 18/11/2026, 17:15 UTC
+
+Esta seção **supersede as lacunas antigas descritas em 6.1** sempre que elas afirmem que o trace não está ligado ao agente ou que não existe módulo Agent Lab. A revisão atual inspecionou diretamente o código no HEAD `ca728f9`, os 33 commits posteriores a `b7e2270` e os jobs de CI mais recentes.
+
+### Ambiente de trabalho já criado
+
+1. **Observabilidade automática do agente**
+   - `KellvynAgentLabTraceStoreRecorder` grava no armazenamento privado cifrado, em I/O.
+   - `KellvynAgent.run()` gera um trace por execução e grava início/fim, decisões do modelo, chamadas/falhas de modelo, ferramentas, limites e cancelamentos.
+   - `executePlannedStep()` também registra a execução e o resultado da etapa.
+   - `KellvynOrchestrator` compartilha o trace ID com spans de delegação e atores filhos dos especialistas.
+   - O schema não armazena prompts, respostas brutas, argumentos, conteúdo de arquivos/memória ou credenciais.
+   - A cadeia continua autenticada por AES-GCM/AAD e encadeada por SHA-256. Eventos cancelados, planos persistidos e experimentos concluídos são estados terminais para retenção.
+
+2. **Medição de recursos**
+   - Eventos `RESOURCE_SNAPSHOT` registram snapshots sob demanda no início/fim do coordenador e dos especialistas.
+   - Metadados compactos incluem memória disponível, percentual de heap, PSS, bateria e faixa térmica.
+   - Não há thread de polling permanente. O laboratório não deve autorizar concorrência até existirem medições físicas do Poco F6.
+
+3. **Módulo próprio do Agent Lab**
+   - `KellvynAgentLabStudio.kt` está registrado no `KellvynRuntime` como módulo independente e carregado sob demanda.
+   - Ferramentas READ_ONLY: status de ambiente/módulos, listagem de traces, inspeção de linha do tempo e comparação baseline/candidato.
+   - A comparação inclui casos de benchmark, aprovação por caso, duração, hash de perfil e snapshots de recursos.
+   - O módulo não promove perfis nem recebe capacidade de escrita.
+
+4. **Execução e avaliação de perfis**
+   - `KellvynSpecialistAgentBenchmarkExecutor.kt` executa um perfil compilado pelo loop real de `KellvynAgent`, usando a inferência fornecida e as ferramentas filtradas pela política central.
+   - Captura ferramentas solicitadas versus executadas; escrita, delegação aninhada e ferramentas fora da matriz são recusadas/registradas.
+   - `KellvynSpecialistEvaluationHarness` passa spans de cada caso ao executor e registra o resultado independente.
+   - `KellvynRuntime.runAgentLabBenchmarkSuite()` aceita inferência real, verificador confiável e perfis candidatos; um candidato pode ser testado em memória sem ser ativado.
+   - O verificador permanece separado e obrigatório. O executor nunca aprova o próprio resultado.
+
+5. **Continuidade de desenvolvimento**
+   - `scripts/append-agent-lab-activity.py` e `.github/workflows/agent-lab-activity-ledger.yml` foram criados para anexar automaticamente horário UTC, commit, autor, assunto e caminhos alterados.
+   - `docs/kellvyn/DEVELOPMENT_ACTIVITY.md` recebeu backfill dos 37 commits da sessão até 17:15 UTC, verificados pelo histórico do GitHub.
+   - O arquivo `SESSION_CONTROL.md` continua sendo o ponto único de entrada. Não criar diários paralelos.
+
+### Testes acrescentados — escritos, ainda não executados
+
+- `KellvynAgentLabTraceStoreTest.kt`: persistência/retomada de trace, ator filho, cancelamento/terminalidade, pruning explícito e adulteração da cadeia.
+- `KellvynAgentTest.kt`: ciclo automático e snapshots de RAM/heap/PSS/bateria/temperatura.
+- `KellvynSpecialistAgentBenchmarkExecutorTest.kt`: execução real do adaptador, captura de ferramenta, bloqueio de ferramenta fora da matriz e não delegação aninhada.
+- `KellvynSpecialistEvaluationHarnessTest.kt`: trace por experimento e por caso.
+- `KellvynSpecialistToolPolicyTest.kt`: matriz de capacidades atualizada para permitir que Arquiteto de Programação e Analista de Planejamento leiam ferramentas de avaliação.
+
+### Limites e evidências — não exagerar
+
+- **CI:** run Agent Lab `44355722423`, neural `44355722403` e activity ledger `44355722420`, criados por volta de 17:10:51 UTC, falharam antes de executar steps. Todos retornaram `runner_id=0`; os jobs tinham `steps=[]`. Classificação: **RUNNER NÃO ALOCADO / TESTES NOT RUN**. Não é aprovação e não é evidência de erro Kotlin.
+- O workflow de activity ledger também não conseguiu executar; por isso o backfill atual foi feito manualmente a partir dos commits. A automação futura depende de recuperar o runner.
+- `KellvynRuntime.isReady()` permanece `false`; o cérebro neural próprio ainda não está ligado ao chat. O executor está preparado para receber uma inferência aprovada, mas não há benchmark cognitivo de produção enquanto esse backend não estiver conectado.
+- O verificador independente continua sendo fornecido por código confiável; ainda não foi demonstrado um grader válido para todos os 28 cenários.
+- Nenhum Gradle/JUnit/Android Runner executou; não há build/APK desta revisão, instalação em emulador ou teste físico no Poco F6.
+- Os arquivos da interface, `MainActivity.java` e `.github/interface-lock.sha` ficaram intocados nesta sessão. Não alterar sem pedido explícito.
+
+### Próximo gate único
+
+**Recuperar a alocação de runner no GitHub Actions e executar as suítes existentes.** Não adicionar outro grande subsistema antes de obter uma compilação/teste real. Depois corrigir apenas falhas reproduzidas, fortalecer o verificador independente e executar o benchmark com uma inferência neural aprovada. Só então medir recursos no Poco F6 e decidir se algum paralelismo é seguro.
 
 ---
 
