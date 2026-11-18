@@ -54,6 +54,9 @@ internal class KellvynRuntime(context: Context) {
         resourceRuntime.studioModules.registerIfAbsent(
             KellvynDataArchitectureStudio.definition(projectWorkspace)
         )
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynAndroidBuildStatusStudio.definition(appContext)
+        )
     }
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
