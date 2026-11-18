@@ -58,7 +58,7 @@ O código comprova contratos de papel, instruções próprias, isolamento de sub
 
 - O bloqueio de ausência de handler foi endereçado em código: existe um handler embutido READ_ONLY de snapshot, registrado por allowlist no runtime e restaurado no Worker após recriação do processo. Ainda aguarda execução instrumental real.
 - A sessão do Worker vazia, isoladamente, não prova execução de tarefa real; há agora um teste que enfileira uma tarefa e verifica `SUCCEEDED` via `doWork()`, mas ele ainda aguarda runner/execução.
-- Só três módulos de estúdio concretos estavam registrados; isso não equivale aos estúdios completos da especificação.
+- Quatro módulos concretos estão registrados: navegação de código, auditoria de segurança, arquitetura de dados e status do compilador Android. Isso não equivale aos estúdios completos da especificação; o último só diagnostica o builder Java/D8.
 - O indexador atual é predominantemente lexical; ainda não é um analisador AST completo.
 - Não há backend neural conversacional aprovado ligado ao chat principal.
 - A suíte Android/Gradle ainda não tem resultado aprovado. O workflow focado foi criado e os runs recentes estão sendo reexecutados; jobs anteriores terminaram sem runner, steps ou logs. Não confundir falha de alocação com falha do código.
@@ -247,3 +247,11 @@ Os testes novos foram escritos, mas não há aprovação Gradle/AVD comprovada. 
 - O código isolado da ferramenta e o algoritmo de ranking de memória foram compilados/testados localmente com kotlinc, interfaces do agente stubbadas e repositório falso. Casos de escopo, classificação de privacidade e limites passaram.
 - A evidência não equivale ao Gradle da aplicação, SQLite/Keystore Android ou instrumentação no Poco F6.
 - CI segue bloqueado: runs `44217467213`, `44217511064` e `44217511082` não disponibilizaram runner, etapas ou logs.
+
+
+### Android Build status implementado — 18/11/2026
+- Novo módulo `android-build-status` lazy, com ferramenta `android_build_environment_status` READ_ONLY.
+- Relata somente SDK local cacheado, aceite da licença, versão compileSdk e metadados do APK mais recente; não compila, instala ou testa.
+- A política já autoriza ANDROID_BUILD aos papéis Test Analyst, Security Analyst, Debugger e Auditor; teste instrumental da disponibilidade real foi atualizado para verificar que apenas esses papéis recebem a ferramenta.
+- O backend de build atual continua limitado a Java simples via ECJ/D8. Não é Gradle/Android Studio completo nem Android Device Test.
+- Fonte e testes foram adicionados, mas CI/Gradle continua sem runner/steps/logs.
