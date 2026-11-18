@@ -456,7 +456,7 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 - Monitor Android on-demand: ActivityManager.MemoryInfo, Runtime heap, Debug.getPss, PowerManager thermal/power saver, headroom em cache >=1s e BatteryManager.
 - ResourceRuntime singleton compartilhado entre agente, treinamento e construtor APK.
 - Agent ToolSpec agora inclui workloadClass e estimatedWorkingSetBytes.
-- Inferência classificada como STANDARD (128 MiB inicial); indexação de projeto STANDARD (64 MiB inicial); compilador APK HEAVY (768 MiB inicial); treinos neurais próprios HEAVY (512 MiB padrão).
+- Inferência classificada como STANDARD (128 MiB inicial); indexação de projeto STANDARD (64 MiB inicial); compilador APK HEAVY (768 MiB inicial); treinos neurais próprios HEAVY (524 MiB padrão).
 - Nova ferramenta READ_ONLY device_resource_snapshot.
 - Deferral de etapa planejada retorna READY e grava checkpoint; mantém approval/attempt e exige nova evidência de pré-condição.
 - Timeouts de execução só começam depois da admissão; cancelamento externo não é convertido em falha de timeout.
@@ -687,7 +687,7 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 ## Auditoria do último commit — 18/11/2026, 15:20 UTC
 
 - HEAD atual: 6e07def97f59c7cf749e6e9a469eaf1093ec1dd5.
-- O Profile Store limita o ledger a 256 registros globais e cada registro a 32 KiB; as ferramentas de inspeção/histórico reservam 12 MiB e executam como STANDARD. A consulta de histórico mostra apenas os 12 eventos mais recentes.
+- O Profile Store limita o ledger a 256 registros globais e cada registro a 32 KiB; as ferramentas de inspeção/histórico reservam 24 MiB e executam como STANDARD. A consulta de histórico mostra apenas os 12 eventos mais recentes.
 - O diff de revisão lê o ledger uma vez e mostra campo, valor anterior e valor proposto, limitado a 6.500 caracteres.
 - Workflow Agent Lab: run 44334550347; job 134907561447 terminou em failure sem steps e sem logs_url. Não houve execução observável de Gradle/JUnit/Android instrumented.
 - Workflows do commit anterior cf2434dc9f8f518b483c6484944efc1ddc9a8b4c: Agent Lab 44334107998 / job 134906002466 e Neural Core 44334108000 / job 134906002719; ambos também encerraram sem steps/logs_url.

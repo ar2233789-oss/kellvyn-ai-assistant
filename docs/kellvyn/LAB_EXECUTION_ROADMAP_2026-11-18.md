@@ -293,4 +293,4 @@ Foi acrescentado armazenamento privado de revisões de perfil com AES-GCM/Androi
 
 
 ## Atualização de capacidade móvel — ledger de perfis — 18/11/2026
-O histórico de perfis agora tem teto explícito de 256 eventos globais, 32 KiB por registro, consultas limitadas aos 12 eventos mais recentes e ferramentas de leitura com estimativa STANDARD de 12 MiB. Isso evita histórico ilimitado e mantém o custo de inspeção previsível. Implementação e testes estão escritos; CI continua sem fornecer runner, steps ou logs.
+O histórico de perfis agora tem teto explícito de 256 eventos globais, 32 KiB por registro, consultas limitadas aos 12 eventos mais recentes e ferramentas de leitura com estimativa STANDARD de 24 MiB. Isso evita histórico ilimitado e mantém o custo de inspeção previsível. Implementação e testes estão escritos; CI continua sem fornecer runner, steps ou logs.

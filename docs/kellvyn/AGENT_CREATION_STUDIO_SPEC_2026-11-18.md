@@ -140,7 +140,7 @@ Ainda pendente:
 
 ## 12. Limites de recursos e validação — 18/11/2026
 - O ledger append-only tem limite global de 256 eventos e máximo de 32 KiB por evento. Isso mantém o tamanho teórico dos arquivos numa faixa limitada para o alvo móvel; não é um banco de histórico ilimitado.
-- As ferramentas de catálogo/inspeção/validação/histórico/diff têm estimativa de 12 MiB e classe STANDARD quando precisam ler o ledger; a listagem de benchmarks permanece LIGHT.
+- As ferramentas de catálogo/inspeção/validação/histórico/diff têm estimativa de 24 MiB e classe STANDARD quando precisam ler o ledger; a listagem de benchmarks permanece LIGHT.
 - O histórico devolvido ao agente mostra no máximo 12 eventos; o diff apresenta antes/depois com truncamento total de 6.500 caracteres.
 - Testes unitários escritos cobrem ciclo stage/approve/rollback, CAS, corrupção, isolamento e diff. O teste instrumentado verifica persistência entre instâncias e autenticação AAD com Android Keystore.
 - Estado de execução: ainda sem Gradle/JUnit/Android instrumented aprovado. Os jobs de CI recentes falharam antes de fornecer steps e logs_url; competência cognitiva dos papéis não foi avaliada.

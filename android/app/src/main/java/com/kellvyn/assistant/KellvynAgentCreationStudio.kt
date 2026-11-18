@@ -241,7 +241,7 @@ internal class KellvynAgentCreationStudio(
         private const val MAX_PROFILE_DIFF_OUTPUT_CHARS = 6_500
         private const val MAX_PROFILE_HISTORY_ITEMS = 12
         private const val MAX_PROFILE_HISTORY_OUTPUT_CHARS = 6_500
-        private const val PROFILE_HISTORY_WORKING_SET_BYTES = 12L * 1024L * 1024L
+        private const val PROFILE_HISTORY_WORKING_SET_BYTES = 24L * 1024L * 1024L
 
         private val ROLE_PATTERN = "^(" +
             KellvynSpecialistRole.values().joinToString("|") { it.name } +
