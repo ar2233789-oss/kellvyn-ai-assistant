@@ -107,6 +107,41 @@ class KellvynAgentLabTraceStoreTest {
     }
 
     @Test
+    fun separateStoreInstancesReconcileStaleAppendCursorsWithoutOverwriting() {
+        val traceId = "00000000-0000-0000-0000-000000000004"
+        val secondStore = KellvynAgentLabTraceStore(root, TraceTestCipher())
+
+        val first = store.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = 100L,
+                kind = KellvynAgentLabEventKind.RUN_STARTED
+            )
+        )
+        val second = secondStore.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = 110L,
+                kind = KellvynAgentLabEventKind.MODEL_CALL_STARTED,
+                step = 1
+            )
+        )
+        val third = store.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = 120L,
+                kind = KellvynAgentLabEventKind.RUN_COMPLETED
+            )
+        )
+
+        assertEquals(1L, first.sequence)
+        assertEquals(2L, second.sequence)
+        assertEquals(3L, third.sequence)
+        assertEquals(3L, store.history(traceId).last().sequence)
+        assertEquals(3, store.historyTail(traceId, 10).size)
+    }
+
+    @Test
     fun cancelledRunIsTerminalAndEligibleForExplicitRetentionPruning() {
         val traceId = "00000000-0000-0000-0000-000000000001"
         store.append(
