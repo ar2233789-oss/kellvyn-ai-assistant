@@ -740,3 +740,27 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 3. Implementar harness independente de competência dos 14 papéis, com casos fixos e critérios por função.
 4. Persistir perfis/revisões com hash, diff, aprovação explícita e rollback.
 5. Continuar Android Build & Test Studio até build, assinatura, instalação, UIAutomator, screenshot e Logcat serem provas reais.
+
+## 28. Agent Creation Studio — benchmark e harness inicial — 18/11/2026
+
+### Código acrescentado
+
+- `KellvynSpecialistBenchmarkRegistry.kt`: 28 cenários fixos, dois para cada um dos 14 papéis; rubricas de evidência esperada e comportamentos proibidos.
+- `KellvynAgentCreationStudio.kt`: nova ferramenta READ_ONLY `agent_benchmark_catalog`; lista todos os cenários ou detalha as rubricas de um papel específico.
+- `KellvynSpecialistEvaluationHarness.kt`: executor sequencial e fail-closed; filtra ferramentas pela política central; confere identidade/hash do perfil, chamadas e execuções autorizadas; exige critérios verificados por componente independente e referência de evidência.
+- `KellvynSpecialistEvaluationHarnessTest.kt`: testes escritos para aprovação, ferramentas não autorizadas, hash divergente, evidência ausente, rede restrita e suite sequencial.
+- `KellvynSpecialistProfileRegistryTest.kt` e `KellvynAgentToolAvailabilityInstrumentedTest.kt` atualizados para verificar catálogo de benchmark e acesso por papel.
+
+### Verificações
+
+- Conferência estática do registry real: 28 casos, 2 por papel, IDs únicos e capabilities compatíveis com a matriz central.
+- Harness Kotlin/JVM local compilado e executado com stubs e cópias equivalentes dos módulos; suite sintética de 28 casos retornou 28/28 e o caso de escrita indevida falhou como esperado.
+- Limite da prova: não compilou os arquivos completos do Android app byte-for-byte, não executou JUnit/Gradle, não chamou a inferência real, não instalou APK e não testou Poco F6.
+- CI atual (runs `44327863319` e `44327863230`): ambos falharam sem steps e sem logs_url. Não existe diagnóstico de compilador.
+
+### Estado e próxima tarefa
+
+- Agent Creation Studio agora tem Fases A/B e parte da C: perfis, compilador/hash, catálogo de 28 testes e harness independente injetável.
+- Ainda não há executor ligado ao cérebro real; nenhum resultado prova competência dos 14 papéis.
+- Ainda não há armazenamento persistente de resultados, snapshots por execução, comparação de regressão, revisão humana ou promoção de perfil.
+- Próximo passo: destravar CI/Gradle; depois integrar o executor ao backend neural só após aprovação do gate de inferência; o verificador não pode ser o próprio texto de resposta do especialista.
