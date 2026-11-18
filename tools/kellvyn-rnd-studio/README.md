@@ -30,3 +30,6 @@ A suite integration também inclui KellvynBrainAgentIntegrationContractTest. Ela
 
 
 Validação desta versão da CLI: py_compile aprovado e 13/13 testes Python executados localmente, incluindo geração de mapas das três tracks e bloqueio de arquivos/testes ausentes. O job equivalente do GitHub Actions ainda não executou por falta de runner (runner_id=0).
+
+
+O mapa geral agora relaciona arquivos de teste às fontes pelos símbolos declarados e mencionados no teste; é uma heurística lexical, não análise semântica AST. A suíte Python cresceu para 16 testes. Os 13 anteriores passaram localmente às 22:11 UTC; três testes adicionados depois ainda precisam ser executados. A suite integration usa ProtocolScriptedEngine e não liga o Runtime neural ao chat nem invoca o verificador independente.

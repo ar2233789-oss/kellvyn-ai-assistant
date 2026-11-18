@@ -628,3 +628,14 @@ No ambiente local do assistente, foram obtidos os arquivos atuais da branch e ex
 Esta execução valida a CLI Python e seus mecanismos Git em repositórios temporários. **Não executa Gradle, Kotlin, Android, KN-003 ou agentes com inferência neural real.**
 
 O CI run 44408895594 continua falhando antes de qualquer step (runner_id=0, steps=[]). O resultado local 13/13 é independente desse bloqueio.
+
+
+## 20. Integration + Studio — checkpoint mais recente (18/11/2026, 22:25 UTC)
+
+- Branch: kellvyn-rnd/brain-agent-contract-001; HEAD 8ddab7b0aaa87f8f4e6ca11e59a6bca3ad73a1f6.
+- Teste transversal: protocolo KELLVYN/1 -> agente -> orquestrador -> ferramenta READ_ONLY -> handoff UNTRUSTED -> resposta principal.
+- Limite: não chama KellvynIndependentVerifier; o teste atual não prova o gate de verificação independente. Essa conexão é etapa pendente.
+- Studio recebeu 3 novos testes após a validação local anterior: executor de tarefas com wrapper simulado, registro de falha de teste e mapa de teste por símbolo referenciado.
+- Validação anterior da Studio: 13/13 e py_compile às 22:11. Versão atual tem 16 testes previstos; os 3 novos ainda NOT RUN e a versão modificada de repo_map ainda não passou py_compile.
+- Run 44410874611 às 22:22: todos os jobs (Python Studio, Android/JUnit, ubuntu-slim probe) terminaram em 2–3s, runner_id=0 e steps=[].
+- Ver docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md para diagnóstico de orçamento/runner. Não alterar orçamento ou adicionar forma de pagamento sem decisão explícita do proprietário.

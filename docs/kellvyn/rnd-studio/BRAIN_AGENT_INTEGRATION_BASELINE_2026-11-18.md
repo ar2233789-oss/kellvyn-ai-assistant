@@ -45,3 +45,10 @@ Foi adicionada a classe KellvynBrainAgentIntegrationContractTest com dois casos:
 A suíte integration da R&D Studio inclui a nova classe. Os testes usam ProtocolScriptedEngine; atravessam o parser real e o loop real de agente/orquestrador, mas não usam checkpoint neural real.
 
 CI run 44407125400 falhou antes dos steps: runner_id=0, steps=[] nos dois jobs. Estado IMPLEMENTED_NOT_RUN; não há aprovação de compilação/execução. KellvynRuntime.isReady() continua false.
+
+
+## Integration phase boundary — 18/11/2026 22:25 UTC
+
+The current cross-layer test covers parser -> KellvynAgent -> KellvynOrchestrator -> read-only tool -> UNTRUSTED specialist handoff -> coordinator final response. It does NOT invoke KellvynIndependentVerifier. Existing harness/verifier tests remain separate. A future integration phase must connect the independent verifier and require objective evidence before marking an outcome passed.
+
+The engine in the test is ProtocolScriptedEngine. Parser, agent and orchestrator are real code, but the neural checkpoint is not loaded. KellvynRuntime.isReady() remains false.

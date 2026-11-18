@@ -32,9 +32,9 @@
     "Relatório distingue engine fake de inferência real.",
     "Runtime permanece não conectado até gate neural real."
   ],
-  "status_note": "The integration contract tests and Python Studio are written; the Python Studio passed locally 13/13. The Kotlin integration test itself remains NOT_RUN because GitHub Actions run 44407125400/44408895594 had runner_id=0 and no steps. The scripted engine is not a neural checkpoint.",
+  "status_note": "The last 13-test Studio snapshot passed locally at 22:11 UTC. Three new Python tests and the symbol-based repo map were added afterwards and have not been run. Latest CI run 44410874611 failed before any step: all 3 jobs runner_id=0, steps=[]. The Kotlin integration contract tests are also NOT_RUN. No verifier end-to-end claim.",
   "candidate_branch": "kellvyn-rnd/brain-agent-contract-001",
-  "candidate_head": "b62460dfeb2411901b181527ad345b4da0978704",
+  "candidate_head": "8ddab7b0aaa87f8f4e6ca11e59a6bca3ad73a1f6",
   "implementation": {
     "changed_files": [
       "android/app/src/test/java/com/kellvyn/assistant/KellvynBrainAgentIntegrationContractTest.kt",
@@ -47,23 +47,23 @@
       "malformedWireDecisionFailsBeforeAnyToolExecution"
     ],
     "execution": "NOT_RUN",
-    "engine_type": "ProtocolScriptedEngine — deterministic scripted KELLVYN/1 outputs; no neural checkpoint",
-    "integration_track_test_filter": "KellvynBrainAgentIntegrationContractTest is included in the integration track filter."
+    "engine_type": "ProtocolScriptedEngine; deterministic wire outputs; real parser, KellvynAgent and KellvynOrchestrator; no learned checkpoint",
+    "integration_track_test_filter": "KellvynBrainAgentIntegrationContractTest is included in the integration track filter.",
+    "scope_limit": "The new cross-layer test does not invoke KellvynIndependentVerifier. Existing verifier/harness tests remain separate; end-to-end verifier wiring is an outstanding integration phase."
   },
   "studio_validation": {
-    "recorded_at_utc": "2026-11-18T22:11:00Z",
-    "py_compile": "PASSED",
-    "unittest": "PASSED",
-    "tests_passed": 13,
-    "tests_total": 13,
-    "duration_seconds": 0.626,
-    "scope": "Python CLI and Git worktree/gate behavior on temporary Git repositories",
-    "not_covered": [
-      "Gradle/Kotlin",
-      "Android instrumentation",
-      "neural inference",
-      "agent cognitive competence",
-      "Poco F6 device behavior"
-    ]
-  }
+    "previous_snapshot_at": "2026-11-18T22:11:00Z",
+    "previous_version_py_compile": "PASSED",
+    "previous_version_unittest": "13/13 PASSED in 0.626 seconds",
+    "current_test_count": 16,
+    "added_after_previous_validation": [
+      "test_task_test_executes_selected_suite_and_records_verifiable_evidence",
+      "test_task_test_nonzero_exit_is_recorded_as_failed_not_passed",
+      "test_repo_map_matches_test_files_by_referenced_symbols"
+    ],
+    "current_version_execution": "NOT_RUN",
+    "current_version_syntax": "NOT_CHECKED_AFTER_LATEST_EDIT",
+    "scope": "Python CLI tests only; no Gradle/Kotlin or neural runtime"
+  },
+  "latest_ci_run": 44410874611
 }

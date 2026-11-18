@@ -209,3 +209,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Foram exercitados mapas de Brain, Agents e Integration e gates de worktree/arquivos protegidos/evidência.
 - CI run 44408895594: runner_id=0, steps=[]; Python no CI não iniciou. O resultado 13/13 é execução local separada.
 - Gradle/Kotlin/Android e inferência neural continuam NOT RUN.
+
+
+## 22:25 UTC — Studio e Integration atualizadas
+
+- R&D Studio: repo_map agora relaciona teste e fonte pelo uso dos símbolos declarados, não apenas por nomes de arquivos.
+- Três novos testes Python foram acrescentados; total atual 16. A versão anterior, de 13 testes, passou localmente; os 3 novos ainda não foram executados.
+- Integration: teste transversal atravessa parser real, KellvynAgent, orquestrador, ferramenta somente leitura e handoff UNTRUSTED. Não cobre KellvynIndependentVerifier; esse gate fica explicitamente pendente.
+- Run 44410874611: 3 jobs failed antes dos steps (runner_id=0, steps=[]); nenhum Python/Kotlin foi executado no CI.
+- Investigação do bloqueio de runners registrada; repositório privado, possível bloqueio de conta/orçamento ainda não confirmado.
