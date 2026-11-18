@@ -94,7 +94,8 @@ TRACKS = {
    "com.kellvyn.assistant.KellvynOrchestratorTest",
    "com.kellvyn.assistant.KellvynSpecialistAgentBenchmarkExecutorTest",
    "com.kellvyn.assistant.KellvynSpecialistEvaluationHarnessTest",
-   "com.kellvyn.assistant.KellvynSpecialistToolPolicyTest"
+   "com.kellvyn.assistant.KellvynSpecialistToolPolicyTest",
+   "com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest"
   ],
   "metrics": ["valid_decision_rate","inference_to_agent_success","verified_tool_success","verified_delegation_success","untrusted_result_propagation","runtime_connection_status"]
  }
