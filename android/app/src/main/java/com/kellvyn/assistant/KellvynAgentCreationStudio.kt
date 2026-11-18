@@ -118,7 +118,7 @@ internal class KellvynAgentCreationStudio(
                 if (errors.isNotEmpty()) {
                     return KellvynToolResult(
                         false,
-                        "CATÁLOGO DE BENCHMARK REPROVADO:\\n" + errors.joinToString(" ")
+                        "CATÁLOGO DE BENCHMARK REPROVADO:\n" + errors.joinToString(" ")
                     )
                 }
                 val output = buildString {
@@ -129,12 +129,12 @@ internal class KellvynAgentCreationStudio(
                         append(testCase.caseId).append(" | ")
                             .append(testCase.role.name).append(" | ")
                             .append(testCase.kind.name).append(" | ")
-                            .append(testCase.title).append("\\n")
+                            .append(testCase.title).append("\n")
                         testCase.requiredEvidence.forEach { criterion ->
-                            append("  + ").append(criterion).append("\\n")
+                            append("  + ").append(criterion).append("\n")
                         }
                         testCase.prohibitedBehaviors.forEach { prohibited ->
-                            append("  - ").append(prohibited).append("\\n")
+                            append("  - ").append(prohibited).append("\n")
                         }
                     }
                 }
