@@ -609,7 +609,7 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 ### Descobertas para não recriar trabalho pronto
 - A matriz de capacidades dos 14 papéis já existe em `KellvynSpecialistToolPolicy.kt`. O coordenador aplica `permittedReadOnlyToolNames` e `readOnlySubset`; especialistas não ganham ferramentas de escrita, rede ou controle de dispositivo por pedido do modelo.
 - Foram adicionados testes que fixam exatamente as capacidades de cada papel e verificam negação de ferramentas sem capacidade ou com risco mutável.
-- O laboratório não possui ainda todos os módulos concretos: há três módulos registrados (Code Navigation, Security Audit e Data Architecture). Os demais estúdios permanecem por construir.
+- O laboratório possui quatro módulos concretos registrados: Code Navigation, Security Audit, Data Architecture e Android Build Status. Os demais estúdios permanecem por construir; Android Build Status é somente diagnóstico, não compilador/test runner completo.
 
 ### Novas alterações nesta continuação
 - Novo workflow `.github/workflows/agent-lab-tests.yml` para unit tests Gradle e instrumented Android tests no emulador API 35.
@@ -669,3 +669,10 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - A nova classe passou em typecheck Kotlin isolado com stubs do Android/runtime/module APIs; isso não é compilação Gradle da aplicação.
 - CI dos commits recentes continua NOT_RUN/BLOCKED: runs `44218653002`, `44218652911`, `44218608802` sem runner/steps/logs.
 - Próxima ação: resolver o runner, executar unit/instrumented tests e validar o status tool no emulador; só depois criar ferramenta de build controlada com aprovação exata.
+
+## 25. CI e typecheck depois do Android Build Status — 18/11/2026
+
+- Módulo e teste instrumental foram adicionados; integração de capacidade atualizada para Test Analyst, Security Analyst, Debugger e Auditor.
+- CI runs `44218653002`, `44218652911` e `44218608802` terminaram sem runner/steps/logs; classificar NOT_RUN/BLOCKED.
+- A classe do módulo passou em typecheck Kotlin isolado com stubs mínimos; não substitui Gradle, AVD ou Poco F6 real.
+- Não afirmar que o APK foi criado, instalado ou testado por essa ferramenta. Seu contrato só consulta o ambiente e o último artefato encontrado.
