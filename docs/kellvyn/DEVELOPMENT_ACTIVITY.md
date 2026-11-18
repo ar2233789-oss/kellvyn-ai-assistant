@@ -208,3 +208,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Studio Python anterior: 13/13 testes passaram localmente. Versão atual tem 16; os três novos e a alteração de repo_map ainda NOT RUN.
 - Diagnostic report registra o caso privado, os IDs de run/job e a hipótese de budget bloqueado, sem afirmar causa comprovada.
 - Nenhum candidato Brain/Agents/Integration foi promovido. Runtime continua desligado.
+
+## 23:40 UTC — endurecimento da evidência de teste na R&D Studio
+
+- Revisão estática encontrou uma lacuna de confiança: o executor aceitava um `gradlew` substituído por script arbitrário que retornasse código zero.
+- Commit `9da1f906e4d147dfac81f449b6f921ff6d798270` na branch `kellvyn-rnd/brain-agent-contract-001` agora fixa hashes dos arquivos do Gradle Wrapper ao commit-base e verifica integridade antes/depois da execução e no gate final.
+- Incluído teste de regressão que garante que wrapper modificado seja recusado antes de executar.
+- `test_studio.py` passou de 16 para 17 testes escritos; versão atual NOT RUN. A aprovação antiga de 13 testes é somente da versão anterior.
+- Run `44422679919`: todos os 3 jobs falharam sem steps/logs; nem Python CLI nem Gradle começaram.
+- Brain, Agents e Integration permanecem em branches experimentais separadas, sem merge. `KellvynRuntime.isReady()` permanece `false`.
