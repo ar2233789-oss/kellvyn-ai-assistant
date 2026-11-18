@@ -652,3 +652,10 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Verificação isolada: `kotlinc` compilou `KellvynMemoryTools.kt` contra stubs mínimos. Isso NÃO é compilação da aplicação nem teste Gradle.
 - Runs `44217081776` e `44217081826` terminaram sem runner/steps/logs; testes continuam NOT_RUN/BLOCKED.
 - Próxima prioridade: restabelecer runner/Gradle, executar toda a suíte e corrigir apenas defeitos demonstrados. Não promover escrita ou ferramentas operacionais para especialistas antes disso.
+
+## 23. Verificação isolada e runner depois de Memory Read — 18/11/2026
+
+- A fonte de `KellvynMemoryTools` foi compilada com `kotlinc` em um harness isolado; as interfaces da camada de agente foram stubs e o repositório de teste foi falso. O algoritmo de busca/classificação da memória foi incluído para verificar escopos, filtros de privacidade, limite, argumentos e saída. O harness executou e retornou `KELLVYN_MEMORY_TOOL_INTEGRATION_TESTS_PASS`.
+- Limite da prova: não compilou o módulo Android inteiro, não usou o Keystore/SQLite real, não rodou JUnit/Gradle e não é teste instrumental.
+- Runs atuais verificados: `44217467213`, `44217511064` e `44217511082`; jobs sem runner/steps/logs. Classificar NOT_RUN/BLOCKED.
+- Não há ainda validação end-to-end Android da ferramenta nem aprovação CI; próxima prioridade permanece resolver o runner.
