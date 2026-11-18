@@ -187,7 +187,10 @@ class KellvynAgentLabTraceStoreTest {
         assertTrue(blockedRoot.delete())
         recorder.record(event)
 
-        assertTrue(recorder.health().healthy)
+        assertTrue(recorder.health().currentlyWritable)
+        assertFalse(recorder.health().healthy)
+        assertEquals(1, recorder.health().failureCount)
+        assertEquals("IllegalStateException", recorder.health().lastFailureCode)
         assertEquals(1, failingStore.history(event.traceId).size)
     }
 
