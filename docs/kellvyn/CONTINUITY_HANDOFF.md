@@ -676,3 +676,39 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - CI runs `44218653002`, `44218652911` e `44218608802` terminaram sem runner/steps/logs; classificar NOT_RUN/BLOCKED.
 - A classe do módulo passou em typecheck Kotlin isolado com stubs mínimos; não substitui Gradle, AVD ou Poco F6 real.
 - Não afirmar que o APK foi criado, instalado ou testado por essa ferramenta. Seu contrato só consulta o ambiente e o último artefato encontrado.
+
+## 26. Agent Creation Studio invisível — Fase A — 18/11/2026
+
+### O que existia antes
+
+- Os 14 papéis estavam enumerados no KellvynAgent.
+- A delegação interna já usava a mesma inferência e contexto separado, com limite de delegação aninhada igual a zero.
+- KellvynSpecialistToolPolicy já filtrava ferramentas por papel e risco.
+- KellvynStudioModuleManager, ResourceRuntime, ResourceGovernor, task broker e skills sob demanda já estavam na base.
+- O desenho de oito estúdios headless existia em especificação, não como oito motores completos.
+- Não existia Agent Creation Studio nem Profile Registry independente; as instruções de papéis estavam num when dentro do loop.
+
+### Implementação acrescentada
+
+- KellvynSpecialistProfileRegistry.kt — catálogo versionado e 14 missões/instruções; output estruturado de evidências, incertezas e próxima ação.
+- KellvynAgentCreationStudio.kt — ferramentas READ_ONLY agent_profiles_list, agent_profile_inspect e agent_profiles_validate.
+- KellvynAgent.kt — perfil selecionado pela role e limites aplicados ao agente especialista; mesma inferência, sem delegação recursiva e sem mutação.
+- KellvynSpecialistToolPolicy.kt — ferramentas de design e avaliação atribuídas a papéis específicos.
+- KellvynStudioModuleManager.kt — capacidades AGENT_DESIGN e AGENT_EVALUATION.
+- KellvynRuntime.kt — o novo módulo passa a ser registrado no runtime comum.
+- KellvynSpecialistProfileRegistryTest.kt — testes unitários adicionados; ainda aguardam execução.
+
+### Pesquisa e documentação
+
+- AGENT_CAPABILITY_RESEARCH_2026-11-18.md registra Lovable/Lovable Academy, Replit Agent, Android Studio Gemini, Cursor, OpenAI Agents SDK, LangGraph, Nano Banana e curso Android Basics with Compose.
+- AGENT_CREATION_STUDIO_SPEC_2026-11-18.md descreve a arquitetura maior e as fases futuras.
+
+### Estado exato e próxima sequência
+
+- Há seis módulos de ferramenta registrados no runtime, não oito estúdios completos.
+- A Fase A do Agent Creation Studio foi escrita, não validada por Gradle/CI.
+- A versão atual do Studio é somente leitura; não cria/publica/promove perfil experimental.
+- Nenhum resultado prova competência neural dos 14 papéis; todos compartilham o backend de inferência.
+- Não há prova de integração do cérebro ao chat principal, APK de produção ou teste físico no Poco F6.
+
+Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o acesso por papel e então construir o Profile Compiler + harness isolado, sem abrir escrita ou promoção automática.
