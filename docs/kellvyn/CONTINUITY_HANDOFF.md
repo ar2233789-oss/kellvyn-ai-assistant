@@ -566,7 +566,7 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 
 ## 19. Primeiro handler seguro integrado — 18/11/2026
 
-**HEAD de referência após esta atualização:** `491f5def9279683fdff17ee8455bfda25e63a6e7` (branch `lab/kellvyn-intelligence-core-20261116`).
+**HEAD de referência após esta atualização:** `878ed55d33cf2b72a238d70bcea31b63b24535e1` (branch `lab/kellvyn-intelligence-core-20261116`).
 
 **Plano único de execução:** `docs/kellvyn/LAB_EXECUTION_ROADMAP_2026-11-18.md`. Esse documento reconcilia o estado real dos 14 papéis, a oficina invisível, as referências Replit/Cursor/Android Studio/Lovable e os gates de cada fase. Não reconstruir a estratégia em cada conversa.
 
@@ -589,6 +589,7 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Código e testes foram gravados na branch; ainda não há prova de compilação Gradle nem execução de teste Android desta revisão.
 - Rerun do neural workflow `44212455036`, tentativa 2, permaneceu sem runner/steps/logs.
 - Rerun do Poco F6 workflow `44212621981`, tentativa 2, também permaneceu sem runner/steps/logs; comparação final skipped.
+- Novo run do Poco F6 workflow `44212948327`, no commit `878ed55d33cf2b72a238d70bcea31b63b24535e1`, falhou novamente sem runner/steps/logs; comparação final skipped.
 - Portanto a suíte continua **não verificada**, não reprovada por bug demonstrado.
 - Nenhum APK final, AVD funcional, teste físico Poco F6 ou integração neural/chat foi comprovado.
 
