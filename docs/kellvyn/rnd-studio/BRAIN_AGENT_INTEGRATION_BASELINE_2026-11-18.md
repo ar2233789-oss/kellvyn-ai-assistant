@@ -37,3 +37,9 @@ Hipótese brain-agent-contract-001 congela casos para os quatro tipos de decisã
 ## Candidato atual
 
 A branch kellvyn-rnd/brain-agent-contract-001 adicionou KellvynBrainAgentIntegrationContractTest, com um caso de delegação de especialista e outro de protocolo malformado. Usa ProtocolScriptedEngine, portanto não prova inferência neural real. CI run 44407125400: runner_id=0, steps=[]; NOT RUN. Ver SESSION_CONTROL seção 16.
+
+
+## Checkpoint 22:35 UTC
+
+Branch experimental atual: kellvyn-rnd/brain-agent-contract-001, HEAD 8630162bd7d6586663bcb386ad18ebef63e38e46. Run 44412382401 não iniciou steps (runner_id=0, runner_name vazio, steps=[]).
+O teste transversal atual cobre parser KELLVYN/1, KellvynAgent, orquestrador, ferramenta READ_ONLY e handoff UNTRUSTED, mas não executa KellvynIndependentVerifier. A conexão do verificador permanece pendente. O Runtime de produção permanece desconectado.
