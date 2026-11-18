@@ -514,3 +514,26 @@ Documentação:
 7. Só depois expandir motores de imagem, UI/UX, 3D/CAD e Android Build & Test.
 
 **Não comprovado:** build Gradle da HEAD, testes Android/AVD na HEAD, instalação de APK desta revisão, medição física Poco F6, execução real de handler, ou integração operacional dos 14 agentes com a oficina.
+
+## Primeira operação real do laboratório — 18/11/2026
+
+**Roadmap vinculante:** `LAB_EXECUTION_ROADMAP_2026-11-18.md`.
+
+### Implementado nesta continuação
+- `KellvynResourceSnapshotTaskHandler.kt`: primeiro handler interno READ_ONLY, limitado e idempotente para produzir snapshot de recursos.
+- `KellvynPermanentScheduledTaskException` e `failPermanently`: descritor inválido vai a FAILED com código específico, sem retries transitórios inúteis.
+- `KellvynResourceRuntime.ensureBuiltInScheduledTaskHandlers()`: registro explícito e sincronizado da allowlist interna.
+- `enqueueResourceSnapshotProbe()`: enfileira somente o descritor versionado do diagnóstico; não é ferramenta genérica exposta ao modelo.
+- `KellvynAutomationDrainWorker`: restaura o registro dos handlers autorizados antes de reivindicar tarefas depois de reinício do processo.
+- `scheduledTaskStatus()`: consulta limitada do estado e resumo para auditoria.
+- Teste unitário do contrato do handler e teste instrumental Android para execução persistente, payload inválido, handler ausente e recuperação de RUNNING.
+
+### Estado de validação
+- Os testes estão escritos; não há resultado Gradle ou Android instrumentado aprovado nesta revisão.
+- Workflow neural run `44212455036`, tentativa 2, continua com job sem runner/steps/logs.
+- Workflow Poco F6 run `44212621981`, tentativa 2, continua com jobs sem runner/steps/logs; comparação final permaneceu skipped.
+- A repetição dos jobs confirmou que o bloqueio de execução persiste. Não classificar isso como falha do código nem como sucesso dos testes.
+- Sem validação física do Poco F6, sem APK validado e sem integração do cérebro ao chat.
+
+### Próximo bloqueio
+Restabelecer execução real de CI/Gradle ou obter uma execução Android local verificável; então corrigir qualquer falha de compilação/teste observada. Não avançar para handlers mutáveis até a Fase 1 ter prova end-to-end. A interface continua intocada.
