@@ -38,17 +38,31 @@ internal class KellvynAgentLabTraceStore(
     private val rootDirectory: File,
     private val cipher: KellvynTaskCheckpointCipher
 ) {
+    private data class ChainState(val eventCount: Int, val lastRecordSha256: String)
+    private data class ChainWindow(
+        val records: List<KellvynAgentLabTraceRecord>,
+        val eventCount: Int
+    )
+
+    /** Avoids re-reading the full chain on every append during one app process. */
+    private val appendStateCache = mutableMapOf<String, ChainState>()
     fun append(event: KellvynAgentLabEvent): KellvynAgentLabTraceRecord =
         synchronized(PROCESS_LOCK) {
             require(KellvynAgentLabEvent.TRACE_ID.matches(event.traceId))
             val directory = traceDirectory(event.traceId, create = true)
-            val chain = readChain(event.traceId, directory)
-            check(chain.size < MAX_EVENTS_PER_TRACE) {
+            val chainState = appendStateCache[event.traceId] ?: run {
+                val window = readChainWindow(event.traceId, directory, retainLast = 1)
+                ChainState(
+                    eventCount = window.eventCount,
+                    lastRecordSha256 = window.records.lastOrNull()?.recordSha256 ?: ZERO_HASH
+                ).also { appendStateCache[event.traceId] = it }
+            }
+            check(chainState.eventCount < MAX_EVENTS_PER_TRACE) {
                 "Este trace atingiu o limite de eventos; abra uma nova execução de laboratório."
             }
 
-            val sequence = chain.size.toLong() + 1L
-            val previousHash = chain.lastOrNull()?.recordSha256 ?: ZERO_HASH
+            val sequence = chainState.eventCount.toLong() + 1L
+            val previousHash = chainState.lastRecordSha256
             val header = encodeHeader(
                 traceId = event.traceId,
                 sequence = sequence,
@@ -80,20 +94,36 @@ internal class KellvynAgentLabTraceStore(
                 error("Não foi possível confirmar atomicamente o evento do laboratório.")
             }
 
-            KellvynAgentLabTraceRecord(
+            val record = KellvynAgentLabTraceRecord(
                 sequence = sequence,
                 event = event,
                 previousRecordSha256 = previousHash,
                 recordSha256 = toHex(digest)
             )
+            appendStateCache[event.traceId] = ChainState(
+                eventCount = sequence.toInt(),
+                lastRecordSha256 = record.recordSha256
+            )
+            record
         }
 
     fun history(traceId: String): List<KellvynAgentLabTraceRecord> =
         synchronized(PROCESS_LOCK) {
             val directory = traceDirectory(traceId, create = false)
                 ?: return@synchronized emptyList()
-            readChain(traceId, directory)
+            readChainWindow(traceId, directory).records
         }
+
+    /** Validates the entire hash chain while retaining only its newest bounded window. */
+    fun historyTail(
+        traceId: String,
+        maxEvents: Int
+    ): List<KellvynAgentLabTraceRecord> = synchronized(PROCESS_LOCK) {
+        require(maxEvents in 1..MAX_EVENTS_PER_TRACE)
+        val directory = traceDirectory(traceId, create = false)
+            ?: return@synchronized emptyList()
+        readChainWindow(traceId, directory, retainLast = maxEvents).records
+    }
 
     fun summaries(): List<KellvynAgentLabTraceSummary> = synchronized(PROCESS_LOCK) {
         if (!rootDirectory.exists()) return@synchronized emptyList()
@@ -105,13 +135,18 @@ internal class KellvynAgentLabTraceStore(
             "O laboratório contém traces acima do limite configurado."
         }
         directories.map { directory ->
-            val records = readChain(directory.name, directory)
-            check(records.isNotEmpty()) { "Foi encontrada uma pasta de trace vazia." }
-            val first = records.first().event
-            val last = records.last().event
+            val chain = readChainWindow(
+                traceId = directory.name,
+                directory = directory,
+                retainLast = 1,
+                retainFirst = true
+            )
+            check(chain.records.isNotEmpty()) { "Foi encontrada uma pasta de trace vazia." }
+            val first = chain.records.first().event
+            val last = chain.records.last().event
             KellvynAgentLabTraceSummary(
                 traceId = directory.name,
-                eventCount = records.size,
+                eventCount = chain.eventCount,
                 startedAtMillis = first.occurredAtMillis,
                 lastEventAtMillis = last.occurredAtMillis,
                 terminalKind = last.kind.takeIf(::isTerminal)
@@ -132,7 +167,7 @@ internal class KellvynAgentLabTraceStore(
             .orEmpty()
         var removed = 0
         for (directory in candidates) {
-            val records = readChain(directory.name, directory)
+            val records = readChainWindow(directory.name, directory, retainLast = 1).records
             if (records.isEmpty()) continue
             val last = records.last().event
             if (isTerminal(last.kind) && last.occurredAtMillis < cutoffMillis) {
@@ -142,6 +177,7 @@ internal class KellvynAgentLabTraceStore(
                 check(directory.deleteRecursively()) {
                     "Não foi possível remover um trace antigo já concluído."
                 }
+                appendStateCache.remove(directory.name)
                 removed++
             }
         }
@@ -193,10 +229,13 @@ internal class KellvynAgentLabTraceStore(
         return rootDirectory.canonicalFile
     }
 
-    private fun readChain(
+    private fun readChainWindow(
         traceId: String,
-        directory: File
-    ): List<KellvynAgentLabTraceRecord> {
+        directory: File,
+        retainLast: Int? = null,
+        retainFirst: Boolean = false
+    ): ChainWindow {
+        require(retainLast == null || retainLast in 1..MAX_EVENTS_PER_TRACE)
         val files = directory.listFiles()
             ?.filter { it.isFile && EVENT_FILE.matches(it.name) }
             ?.sortedBy { it.name }
@@ -204,10 +243,13 @@ internal class KellvynAgentLabTraceStore(
         check(files.size <= MAX_EVENTS_PER_TRACE) {
             "O histórico do trace excedeu o limite de eventos."
         }
+        val retainedStartIndex = if (retainLast == null) 0 else {
+            (files.size - retainLast).coerceAtLeast(0)
+        }
         val records = mutableListOf<KellvynAgentLabTraceRecord>()
         var expectedSequence = 1L
         var expectedPreviousHash = ZERO_HASH
-        for (file in files) {
+        files.forEachIndexed { index, file ->
             check(file.name == eventFileName(expectedSequence)) {
                 "A sequência dos eventos do trace está incompleta ou fora de ordem."
             }
@@ -218,11 +260,13 @@ internal class KellvynAgentLabTraceStore(
             check(record.previousRecordSha256 == expectedPreviousHash) {
                 "A cadeia de integridade do Agent Lab foi interrompida."
             }
-            records += record
+            if (index >= retainedStartIndex || (retainFirst && index == 0)) {
+                records += record
+            }
             expectedSequence++
             expectedPreviousHash = record.recordSha256
         }
-        return records
+        return ChainWindow(records = records, eventCount = files.size)
     }
 
     private fun readRecord(file: File, expectedTraceId: String): KellvynAgentLabTraceRecord {
@@ -393,8 +437,8 @@ internal class KellvynAgentLabTraceStore(
         private const val HASH_BYTES = 32
         private const val HASH_HEX_LENGTH = 64
         private const val ZERO_HASH = "0".repeat(HASH_HEX_LENGTH)
-        private const val MAX_TRACES = 64
-        private const val MAX_EVENTS_PER_TRACE = 128
+        private const val MAX_TRACES = 16
+        private const val MAX_EVENTS_PER_TRACE = 1_536
         private const val MAX_TRACE_ID_BYTES = 36
         private const val MAX_ENUM_BYTES = 64
         private const val MAX_ACTOR_BYTES = 64
