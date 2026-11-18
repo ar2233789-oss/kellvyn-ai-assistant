@@ -3,12 +3,12 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 19:51 UTC  
+**Última revisão:** 18/11/2026, 19:52 UTC  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de laboratório:** lab/kellvyn-intelligence-core-20261116  
-**HEAD de código auditado:** d4f34046b6f28b97edfdb0168ed1deebce85f8f6  
+**HEAD confirmado antes deste checkpoint:** 293828ecd59a4197f0590ac964026da306cf1a93  
 **Documentação técnica:** pesquisa d4f3404; especificação c435e8f; bancada 20f1a9d.  
-**Livro de atividades:** atualização de continuidade 7d186d3; commits da sessão reconciliados manualmente até 19:51 UTC.
+**Livro de atividades:** 293828e; commits de implementação/documentação reconciliados manualmente até 19:51 UTC. O commit final deste checkpoint é auto-referencial e será capturado pelo workflow quando o runner voltar.
 
 > Esta revisão adiciona o Engineering Lab (mapa, auditoria estática e registro manual) e pesquisa Aider/SWE-agent/OpenHands/LiteRT. O script foi gravado e ligado ao workflow, mas ainda não executado. Os jobs de auditoria continuam sem runner. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
