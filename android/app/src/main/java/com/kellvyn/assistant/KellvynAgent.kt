@@ -42,7 +42,8 @@ internal class KellvynAgent(
         skillRegistry = skillRegistry,
         taskBroker = taskBroker,
         networkReadEnabled = networkReadEnabled,
-        specialistProfiles = specialistProfiles
+        specialistProfiles = specialistProfiles,
+        resourceSnapshotProvider = resourceSnapshotProvider
     )
 
     /** Restores only a fully validated, authenticated checkpoint chain. */
