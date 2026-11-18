@@ -37,10 +37,21 @@ Interpretação: nenhum step/Gradle foi executado; não é evidência de falha d
 
 Executar, nesta branch, a suíte focada agents com Gradle/JUnit. Só aceitar o candidato se:
 - build/compilação passa;
-- os dois testes novos passam;
+- os quatro testes novos passam;
 - a bateria KellvynOrchestratorTest existente passa;
 - traces terminais têm duração não nula e não negativa;
 - cancelamento continua propagado;
 - política, perfis, orçamento e resposta do especialista não mudam.
 
 Não fazer merge antes desse gate. O cérebro, pesos, Runtime, política/perfis, interface e MainActivity não foram tocados.
+
+
+## Cobertura ampliada e CI atualizada — 18/11/2026 22:25 UTC
+
+Quatro testes determinísticos estão escritos:
+1. recordsMonotonicDurationForCompletedSpecialistDelegation (8 ms)
+2. recordsMonotonicDurationWhenSpecialistIsCancelledAndPropagatesCancellation (5 ms)
+3. recordsDurationForDelegationBlockedByBudget (5 ms)
+4. recordsDurationWhenSpecialistFails (9 ms)
+
+Latest branch HEAD: ef6985450f52e9ab518bb325daf3e238072e6b83. Run 44408087027: both Ubuntu jobs and the minimal runner probe failed before steps, runner_id=0, steps=[]. No Gradle compilation or tests ran. State remains IMPLEMENTED_NOT_RUN.

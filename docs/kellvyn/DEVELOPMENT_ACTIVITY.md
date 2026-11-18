@@ -193,3 +193,10 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Run 44401916646: os dois jobs falharam antes dos steps, runner_id=0, steps=[]; Gradle/JUnit NOT RUN.
 - Experimento agent-delegation-duration-001 atualizado para IMPLEMENTED_NOT_RUN; sem merge até o gate agents executar.
 - Sem alterações em cérebro, pesos, Runtime, política/perfis, interface ou MainActivity.
+
+
+## 22:25 UTC — Agent R&D cobertura ampliada
+
+- Quatro testes determinísticos de duração: sucesso (8 ms), cancelamento (5 ms), bloqueio de orçamento (5 ms) e falha do especialista (9 ms).
+- Branch HEAD ef698545; run 44408087027 falhou pré-step, runner_id=0, steps=[].
+- IMPLEMENTED_NOT_RUN; sem merge, sem alteração de política/perfis/cérebro/layout.

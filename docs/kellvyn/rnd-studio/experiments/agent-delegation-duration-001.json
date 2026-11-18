@@ -32,7 +32,7 @@
     "A suíte agents passa.",
     "Sem mudança na semântica de delegação, política ou orçamento."
   ],
-  "status_note": "Patch implementado numa branch isolada e quatro testes determinísticos escritos para sucesso, falha, bloqueio e cancelamento. Ainda sem compilação/execução Gradle.",
+  "status_note": "Four deterministic tests are written for success, failure, budget-blocked dispatch and cancellation. CI run 44408087027 failed before any step: runner_id=0, steps=[]. Kotlin/Gradle remains NOT_RUN.",
   "implementation": {
     "branch": "kellvyn-rnd/agent-delegation-duration-001",
     "source_commit": "57bd437fd077f8f58bb50c1426cd3cee7bd252bb",
@@ -56,5 +56,7 @@
       "budget_blocked_duration_ms": 5,
       "specialist_failure_duration_ms": 9
     }
-  }
+  },
+  "candidate_head": "ef6985450f52e9ab518bb325daf3e238072e6b83",
+  "latest_ci_run": 44408087027
 }

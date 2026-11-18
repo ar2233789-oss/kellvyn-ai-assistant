@@ -600,3 +600,11 @@ A árvore Git confirma 21 arquivos-fonte e 23 classes de teste planejados para B
 
 ### Arquivos intocados
 Cérebro/KN, tokenizer, pesos/checkpoints, KellvynRuntime, MainActivity, interface/layout, política de ferramentas, perfis e semântica de delegação permaneceram intocados nesta alteração.
+
+
+## 19. Agent R&D — atualização da cobertura e CI (18/11/2026, 22:25 UTC)
+
+- Branch: kellvyn-rnd/agent-delegation-duration-001; HEAD ef6985450f52e9ab518bb325daf3e238072e6b83.
+- A duração monotônica é testada em quatro caminhos: sucesso, falha, bloqueio por orçamento e cancelamento; relógio determinístico, sem sleep.
+- Run 44408087027: runner_id=0, steps=[] nos jobs ubuntu-latest e ubuntu-slim. Gradle/JUnit não iniciou.
+- Estado IMPLEMENTED_NOT_RUN; não fazer merge até passar suíte agents.
