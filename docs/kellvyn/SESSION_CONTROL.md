@@ -3,14 +3,14 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 18:08 UTC  
+**Última revisão:** 18/11/2026, 18:22 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD de código auditado:** `a31353731761a1437bcb2870c390b5ae101f774f`  
-**Documentação técnica:** pesquisa `5ca3a4d`; especificação `346d57d`.  
-**Livro de atividades:** `8b5f79a697b34c0c024c921db2622fe74d36a7eb` — 82 entradas de implementação/documentação reconciliadas manualmente.
+**HEAD de código auditado:** `1e79ec6f72a0524bf53b5227c60c98b44886c9c9`  
+**Documentação técnica:** pesquisa `559b8d7`; especificação `c435e8f`.  
+**Livro de atividades:** `c44d824e91f2a991d92eccb6a946e004ca278c5c` — 92 entradas de implementação/documentação reconciliadas manualmente.
 
-> Esta revisão compara 22 commits posteriores ao estado das 17:43 UTC, confirma o trace/CPU/health/retention e confere os workflows às 18:06 UTC. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
+> Esta revisão compara dez commits posteriores ao estado das 18:08 UTC, confirma a classificação REVIEW_REQUIRED no harness, trace e comparador, e verifica os workflows às 18:22 UTC. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -382,6 +382,55 @@ Esta seção **atualiza e substitui os estados temporais antigos** nas seções 
 
 ---
 
+## 6.5 Avaliação com revisão pendente — revisão 18/11/2026, 18:22 UTC
+
+Esta seção atualiza a lacuna metodológica mencionada em 6.4. O protocolo de estado foi implementado; a qualidade do verificador continua sendo uma pendência separada.
+
+### Estados agora presentes no código
+
+- `PASSED`: todos os critérios obrigatórios foram marcados como verificados por um verificador confiável e há referências de evidência.
+- `REVIEW_REQUIRED`: nenhum erro/falha de política foi encontrado, mas um ou mais critérios foram encaminhados explicitamente para revisão. Esses critérios não contam na cobertura aprovada.
+- `FAILED`: há violação, prova faltante sem encaminhamento, critério desconhecido, ou o mesmo critério marcado como verificado e pendente.
+- `BLOCKED`: o caso não foi executado por perfil/catálogo/política/limite.
+
+O verificador retorna dois conjuntos: `verifiedEvidence` e `reviewRequiredEvidence`. O harness valida que ambos pertencem ao caso, que não se sobrepõem e que todo critério obrigatório esteja em um dos dois conjuntos. Ausência de classificação fecha como FAILED.
+
+### Agregação e persistência
+
+- `KellvynSpecialistBenchmarkReport` contabiliza separadamente aprovados, review-required, falhos e bloqueados.
+- `KellvynAgentLabOutcome.REVIEW_REQUIRED` é gravado por caso e no fim do experimento.
+- A comparação baseline/candidato mostra contagem de aprovação e de revisão pendente separadamente.
+- O estado sobrevive ao armazenamento cifrado; teste round-trip foi escrito.
+- Toda execução, inclusive suíte bloqueada antes do primeiro caso (ex.: 29 casos para limite de 28), agora recebe evento `EXPERIMENT_FINISHED`.
+
+### Testes escritos
+
+- Critério não verificável encaminhado à revisão retorna REVIEW_REQUIRED e não PASSED/FAILED.
+- Critério inexistente ou marcado simultaneamente como verificado e pendente retorna FAILED.
+- Critério omitido sem prova e sem revisão retorna FAILED.
+- A suíte termina como REVIEW_REQUIRED se um caso exigir revisão.
+- REVIEW_REQUIRED persiste no trace AES-GCM.
+- A suíte padrão de 28 casos totalmente verificados continua com 28 PASSED e 0 REVIEW_REQUIRED.
+
+**Execução real:** todos esses testes estão escritos, mas ainda não executados, pois GitHub Actions continua sem alocar runner.
+
+### Limite restante — importante
+
+O protocolo não criou um grader semântico. As rubricas dos 28 casos continuam em texto livre e não há oráculo validado para todos. O verificador é fornecido por código confiável; o executor não dá a própria nota. O próximo desenho deve classificar critérios em oráculos determinísticos (ferramenta/artefato/hash/build/teste/ordem), revisão humana e revisão semântica independente. Não implementar correspondência de palavras como prova de competência.
+
+### CI no HEAD 1e79ec6 — 18:22 UTC
+
+- Agent Lab run `44368982497`, jobs `135030295544` e `135030295646`.
+- Neural run `44368982477`, job `135030294742`.
+- Activity ledger run `44368982450`, job `135030294933`.
+- Todos falharam antes dos steps: `runner_id=0`, `steps=[]`. Classificação: **RUNNER NÃO ALOCADO / TESTS NOT RUN**, não falha Kotlin comprovada e não aprovação.
+
+### Próximo gate único
+
+Restaurar a alocação dos runners e executar as suítes Gradle/JUnit/Android. Não construir mais subsistemas grandes antes desse resultado. Depois da compilação real, implementar oráculos para critérios objetivos e revisão pendente para os restantes. Só então conectar a benchmark a inferência neural de produção e medir no Poco F6.
+
+---
+
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
 - Abrir este arquivo primeiro.
@@ -406,4 +455,4 @@ Não basta dizer “continue” em uma mensagem do chat. O estado deve ser grava
 
 ## 9. Texto curto para retomar em outro chat
 
-> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Leia este SESSION_CONTROL primeiro, confirme o HEAD e os commits posteriores. Não refaça perfis, Agent Creation Studio, orquestrador, trace ou executor: já existem. Estado atual: traces automáticos com telemetria de CPU/RAM/heap/PSS/bateria/térmica, health de gravação, pruning protegido e benchmark de até 28 casos. A lacuna de avaliação é o grader: as rubricas são texto livre e não há verificador semântico validado. Próximo gate único: destravar o runner e executar Gradle/JUnit/Android; não empilhar módulos enquanto isso. Depois criar oráculos determinísticos e REVIEW_REQUIRED para critérios sem prova objetiva. Não mexer na interface protegida; não alegar testes sem logs; reconciliar o diário e este arquivo ao encerrar.
+> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Leia SESSION_CONTROL, confirme HEAD e commits posteriores. Não refaça perfis, Agent Creation Studio, orquestrador, trace, executor ou estado REVIEW_REQUIRED; já existem. Os testes cobrem traces, CPU/recorder, execução do agente apesar de falha de gravação, revisão pendente e comparação, mas nenhum foi executado. Próximo gate: destravar runner e executar Gradle/JUnit/Android; não empilhar módulos antes disso. Depois classificar rubricas e criar oráculos objetivos/verificação independente, sem autoavaliação nem busca ingênua de palavras. Não mexer na interface protegida; não alegar testes sem logs; reconciliar o diário e este arquivo ao encerrar.
