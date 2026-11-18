@@ -232,3 +232,13 @@ A branch foi auditada em 18/11/2026. O ponto de referência anterior era `937001
 - restrição do workflow visual do Poco F6 às mudanças que afetam realmente a UI/manifest/resources, evitando executá-lo para toda alteração Kotlin do cérebro/agentes.
 
 Os testes novos foram escritos, mas não há aprovação Gradle/AVD comprovada. Nesta sessão não existe Android SDK nem Gradle instalados no ambiente local; os workflows do GitHub são a via de validação e estão sendo observados. O estado desses gates precisa ser atualizado após logs e resultados reais.
+
+
+### Memory Read concluído em código — 18/11/2026
+- `KellvynMemoryTools.memory_search` foi adicionada ao registry local, com escopo global e projeto ativo calculado pelo runtime.
+- O modelo não pode fornecer project_id nem outro seletor de escopo.
+- A ferramenta retorna apenas registros `NON_SENSITIVE`; SENSITIVE_PERSONAL, CREDENTIAL e UNKNOWN são omitidos.
+- Limite de cinco resultados, texto por item e saída total. Resultado é explicitamente marcado como dado não confiável.
+- A política já entrega `MEMORY_READ` somente ao Analista de Memória.
+- Testes unitários e instrumentais foram acrescentados; ainda não executados em Gradle/Android.
+- O fonte isolado da ferramenta passou em uma verificação de sintaxe/tipos com kotlinc contra stubs mínimos; isso não comprova compilação do app nem substitui os testes reais.
