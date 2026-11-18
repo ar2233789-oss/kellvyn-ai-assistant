@@ -14,8 +14,8 @@ class StudioTests(unittest.TestCase):
   (self.root/".github").mkdir(); (self.root/"src").mkdir(); (self.root/"src/Protected.kt").write_text("class Protected\n")
   h=git("hash-object","src/Protected.kt",cwd=self.root); (self.root/".github/interface-lock.sha").write_text(f"{h}  src/Protected.kt\n")
   git("add",".",cwd=self.root); git("commit","-m","base",cwd=self.root)
-  self.old=(studio.ROOT,studio.TASKS,studio.LOCK); studio.ROOT=self.root; studio.TASKS=self.root.parent/"rnd-tasks"; studio.LOCK=self.root/".github/interface-lock.sha"
- def tearDown(self): studio.ROOT,studio.TASKS,studio.LOCK=self.old; self.tmp.cleanup()
+  self.old=(studio.ROOT,studio.TASKS,studio.LOCK,studio.DOCS); studio.ROOT=self.root; studio.TASKS=self.root.parent/"rnd-tasks"; studio.LOCK=self.root/".github/interface-lock.sha"; studio.DOCS=self.root/"docs/kellvyn/rnd-studio"
+ def tearDown(self): studio.ROOT,studio.TASKS,studio.LOCK,studio.DOCS=self.old; self.tmp.cleanup()
  def create(self):
   studio.task_create(SimpleNamespace(id="brain-core",title="Brain test",objective="Isolate work",scope="brain",base="HEAD",require_test=[]))
   return studio.TASKS/"brain-core/checkout"
@@ -55,6 +55,22 @@ class StudioTests(unittest.TestCase):
   self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
   self.assertEqual(len(selected),len(set(selected)))
+ def test_track_maps_create_complete_manifests_for_all_scopes(self):
+  for scope,definition in studio.TRACKS.items():
+   for relative in definition["sources"]:
+    p=self.root/relative; p.parent.mkdir(parents=True,exist_ok=True); p.write_text("source stub\n")
+   for class_name in definition["tests"]:
+    p=self.root/"android/app/src/test/java"/Path(*class_name.split(".")).with_suffix(".kt")
+    p.parent.mkdir(parents=True,exist_ok=True); p.write_text("class TestStub\n")
+   result=studio.track_map(SimpleNamespace(scope=scope))
+   self.assertEqual(0,result)
+   manifest=json.loads((studio.DOCS/"maps"/(scope+"-map.json")).read_text())
+   self.assertEqual([],manifest["missing_tests"])
+   self.assertTrue(all(item["exists"] for item in manifest["sources"]))
+   self.assertTrue(all(item["exists"] for item in manifest["tests"]))
+ def test_track_map_blocks_when_required_source_or_test_is_missing(self):
+  result=studio.track_map(SimpleNamespace(scope="brain"))
+  self.assertEqual(2,result)
  def test_task_records_scope_and_scope_specific_gate(self):
   self.create()
   m=json.loads((studio.TASKS/"brain-core/task.json").read_text())
