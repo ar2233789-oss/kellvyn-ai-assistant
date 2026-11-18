@@ -202,10 +202,14 @@ internal class KellvynAgentLabStudio(
                         .append(candidateCases.values.mapNotNull { it.profileSha256 }.distinct().joinToString().ifBlank { "não registrados" })
                     val baselineResources = baseline.map { it.event }
                         .filter { it.kind == KellvynAgentLabEventKind.RESOURCE_SNAPSHOT }
-                        .mapNotNull { it.detailCode }
+                        .mapNotNull { event ->
+                            event.detailCode?.let { "${event.actor}:$it" }
+                        }
                     val candidateResources = candidate.map { it.event }
                         .filter { it.kind == KellvynAgentLabEventKind.RESOURCE_SNAPSHOT }
-                        .mapNotNull { it.detailCode }
+                        .mapNotNull { event ->
+                            event.detailCode?.let { "${event.actor}:$it" }
+                        }
                     append("\n\nSNAPSHOTS DE RECURSOS (início/fim)\n")
                     append("Baseline: ")
                         .append(baselineResources.joinToString(" | ").ifBlank { "não registrados" })
