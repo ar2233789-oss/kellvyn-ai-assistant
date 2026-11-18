@@ -133,8 +133,10 @@ class KellvynSpecialistEvaluationHarnessTest {
     }
 
     @Test
-    fun suiteRunsSequentiallyAndReturnsPerCaseResults() = runBlocking {
+    fun suiteRunsSequentiallyAndRecordsEachCaseInOneExperimentTrace() = runBlocking {
         val order = mutableListOf<String>()
+        val recorder = RecordingTraceRecorder()
+        val trace = KellvynAgentLabTraceSession.create(recorder)
         val harness = KellvynSpecialistEvaluationHarness(
             executor = KellvynSpecialistBenchmarkExecutor { selectedCase, compiled, _ ->
                 order += selectedCase.caseId
@@ -149,7 +151,8 @@ class KellvynSpecialistEvaluationHarnessTest {
                     completedAtMillis = 11L
                 )
             },
-            verifier = allEvidenceVerifier()
+            verifier = allEvidenceVerifier(),
+            traceSessionFactory = { trace }
         )
 
         val report = harness.runSuite(
@@ -163,6 +166,30 @@ class KellvynSpecialistEvaluationHarnessTest {
         assertEquals(0, report.failed)
         assertEquals(0, report.blocked)
         assertEquals(order.sorted(), order)
+        assertEquals(1, recorder.events.count {
+            it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
+        })
+        assertEquals(28, recorder.events.count {
+            it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_STARTED
+        })
+        assertEquals(28, recorder.events.count {
+            it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED
+        })
+        assertEquals(1, recorder.events.count {
+            it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED &&
+                it.outcome == KellvynAgentLabOutcome.SUCCEEDED
+        })
+        assertTrue(recorder.events.filter {
+            it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED
+        }.all { it.profileSha256?.matches(Regex("[a-f0-9]{64}")) == true })
+    }
+
+    private class RecordingTraceRecorder : KellvynAgentLabTraceRecorder {
+        val events = mutableListOf<KellvynAgentLabEvent>()
+
+        override suspend fun record(event: KellvynAgentLabEvent) {
+            events += event
+        }
     }
 
     private fun harness(
