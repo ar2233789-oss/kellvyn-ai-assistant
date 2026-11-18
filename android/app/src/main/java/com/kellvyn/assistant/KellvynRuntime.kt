@@ -305,9 +305,16 @@ internal class KellvynRuntime(context: Context) {
             }
             addresses += KellvynMemoryAddress.project(activeProjectId)
         }
+        require("memory_search" !in tools.names()) {
+            "A ferramenta memory_search é registrada pelo runtime a partir do escopo autorizado da conversa."
+        }
+        val scopedTools = tools.names().map { name ->
+            requireNotNull(tools.find(name))
+        } + KellvynMemoryTools.create(localMemory) { addresses.toList() }
+
         return KellvynAgent(
             inference = inference,
-            tools = tools,
+            tools = KellvynToolRegistry(scopedTools),
             authorization = authorization,
             config = config,
             memory = localMemory,
