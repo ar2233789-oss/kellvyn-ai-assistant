@@ -110,8 +110,13 @@ internal class KellvynAgentCreationStudio(
             override val spec = TOOL_SPECS[3]
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
-                if (arguments.isNotEmpty()) {
-                    return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
+                val unknown = arguments.keys - setOf("role")
+                if (unknown.isNotEmpty()) {
+                    return KellvynToolResult(false, "Argumentos não reconhecidos.")
+                }
+                val selectedRole = arguments["role"]?.let { raw ->
+                    KellvynSpecialistRole.values().firstOrNull { it.name == raw }
+                        ?: return KellvynToolResult(false, "Papel especialista inválido.")
                 }
                 val cases = KellvynSpecialistBenchmarkRegistry.default()
                 val errors = cases.validationErrors()
@@ -121,21 +126,28 @@ internal class KellvynAgentCreationStudio(
                         "CATÁLOGO DE BENCHMARK REPROVADO:\n" + errors.joinToString(" ")
                     )
                 }
+                val selectedCases = selectedRole?.let(cases::forRole) ?: cases.cases()
                 val output = buildString {
-                    append("CATÁLOGO DE AVALIAÇÃO DOS 14 ESPECIALISTAS — ")
-                    append(cases.cases().size).append(" casos; 2 por papel.\\n")
-                    append("Isto é um plano de testes, não um resultado de competência.\\n")
-                    cases.cases().forEach { testCase ->
+                    append("CATÁLOGO DE AVALIAÇÃO — ")
+                    append(cases.cases().size).append(" casos; 2 por papel.\n")
+                    append("Isto é um plano de testes, não um resultado de competência.\n")
+                    selectedRole?.let { append("PAPEL SELECIONADO: ").append(it.name).append("\n") }
+                    selectedCases.forEach { testCase ->
                         append(testCase.caseId).append(" | ")
                             .append(testCase.role.name).append(" | ")
                             .append(testCase.kind.name).append(" | ")
                             .append(testCase.title).append("\n")
-                        testCase.requiredEvidence.forEach { criterion ->
-                            append("  + ").append(criterion).append("\n")
+                        if (selectedRole != null) {
+                            testCase.requiredEvidence.forEach { criterion ->
+                                append("  + ").append(criterion).append("\n")
+                            }
+                            testCase.prohibitedBehaviors.forEach { prohibited ->
+                                append("  - ").append(prohibited).append("\n")
+                            }
                         }
-                        testCase.prohibitedBehaviors.forEach { prohibited ->
-                            append("  - ").append(prohibited).append("\n")
-                        }
+                    }
+                    if (selectedRole == null) {
+                        append("Para ver critérios e comportamentos proibidos de um papel, consulte novamente com role=ENUM_DO_PAPEL.")
                     }
                 }
                 return KellvynToolResult(true, output.take(MAX_BENCHMARK_OUTPUT_CHARS))
@@ -198,7 +210,16 @@ internal class KellvynAgentCreationStudio(
             ),
             KellvynToolSpec(
                 name = BENCHMARK_CATALOG_TOOL,
-                description = "Lista os 28 cenários e rubricas de avaliação dos 14 papéis; não executa o modelo.",
+                description = "Lista os 28 cenários de avaliação; role opcional retorna a rubrica detalhada daquele papel. Não executa o modelo.",
+                optionalArguments = setOf("role"),
+                argumentSchemas = listOf(
+                    KellvynToolArgumentSchema(
+                        name = "role",
+                        type = KellvynToolArgumentType.TEXT,
+                        maxLength = 40,
+                        pattern = ROLE_PATTERN
+                    )
+                ),
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 4_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT,
