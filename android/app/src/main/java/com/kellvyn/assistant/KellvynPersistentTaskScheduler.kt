@@ -278,6 +278,27 @@ internal class KellvynPersistentTaskQueue(
         return nextState
     }
 
+    /**
+     * Permanently rejects a task whose descriptor violates its registered handler contract.
+     * This is distinct from transient execution errors, which remain eligible for retry.
+     */
+    @Synchronized
+    fun failPermanently(id: String, reasonCode: String, nowMillis: Long) {
+        require(nowMillis > 0L && reasonCode.matches(ERROR_CODE))
+        val values = ContentValues().apply {
+            put(COL_STATE, KellvynQueuedTaskState.FAILED.name)
+            put(COL_ERROR, reasonCode)
+            put(COL_NOT_BEFORE, nowMillis)
+            put(COL_UPDATED, nowMillis)
+        }
+        check(writableDatabase.update(
+            TABLE_TASKS,
+            values,
+            "$COL_ID = ? AND $COL_STATE = ?",
+            arrayOf(id, KellvynQueuedTaskState.RUNNING.name)
+        ) == 1) { "A tarefa não estava em execução para ser rejeitada." }
+    }
+
     @Synchronized
     fun cancelQueued(id: String, nowMillis: Long): Boolean {
         require(nowMillis > 0L)
@@ -538,6 +559,15 @@ internal sealed class KellvynScheduledTaskResult {
     data class Failed(val taskId: String, val reason: String) : KellvynScheduledTaskResult()
 }
 
+internal class KellvynPermanentScheduledTaskException(
+    val reasonCode: String,
+    message: String
+) : IllegalArgumentException(message) {
+    init {
+        require(reasonCode.matches(Regex("[A-Z0-9_]{1,64}")))
+    }
+}
+
 internal class KellvynTaskScheduler(
     private val queue: KellvynPersistentTaskQueue,
     private val taskBroker: KellvynTaskBroker,
@@ -602,6 +632,14 @@ internal class KellvynTaskScheduler(
             }
             withContext(Dispatchers.IO) { queue.complete(task.id, summary.take(4_000), clock()) }
             KellvynScheduledTaskResult.Completed(task.id, summary.take(4_000))
+        } catch (rejected: KellvynPermanentScheduledTaskException) {
+            withContext(Dispatchers.IO) {
+                queue.failPermanently(task.id, rejected.reasonCode, clock())
+            }
+            KellvynScheduledTaskResult.Failed(
+                task.id,
+                rejected.message ?: rejected.reasonCode
+            )
         } catch (deferred: KellvynTaskDeferredException) {
             withContext(Dispatchers.IO) {
                 queue.defer(task.id, clock() + deferred.retryAfterMillis, deferred.reasonCode, clock())
