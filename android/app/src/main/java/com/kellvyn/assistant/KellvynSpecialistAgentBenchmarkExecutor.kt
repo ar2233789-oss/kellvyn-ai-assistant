@@ -15,7 +15,8 @@ internal class KellvynSpecialistAgentBenchmarkExecutor(
     private val networkReadEnabled: () -> Boolean = { false },
     private val traceSessionFactory: () -> KellvynAgentLabTraceSession = {
         KellvynAgentLabTraceSession.create()
-    }
+    },
+    private val resourceSnapshotProvider: (suspend () -> KellvynResourceSnapshot)? = null
 ) : KellvynTracedSpecialistBenchmarkExecutor {
 
     override suspend fun execute(
@@ -146,7 +147,8 @@ internal class KellvynSpecialistAgentBenchmarkExecutor(
                 networkReadEnabled = networkReadEnabled,
                 traceSessionFactory = {
                     traceSession ?: KellvynAgentLabTraceSession.create()
-                }
+                },
+                resourceSnapshotProvider = resourceSnapshotProvider
             )
 
             val prompt = buildString {
