@@ -54,7 +54,7 @@
     "Finite-difference noise in float32 for near-zero derivatives.",
     "Broader configurations may expose genuine math defects or require calibrated tolerances."
   ],
-  "status_note": "Implementation and coverage tests are written on an isolated branch. They have not been compiled or executed. The workflow run 44405313920 failed before any step (runner_id=0, steps=[]). This is not evidence of a Kotlin failure or pass.",
+  "status_note": "Candidate and tests remain IMPLEMENTED_NOT_RUN. CI run 44408098843: all jobs failed before any step with runner_id=0 and steps=[]. No Kotlin compile/JUnit result exists.",
   "research_basis": [
     {
       "source": "https://cs231n.stanford.edu/slides/2016/winter1516_lecture6.pdf",
@@ -98,5 +98,7 @@
       "Run baseline and candidate Gradle/JUnit; calibrate float32 epsilon/tolerances from actual outputs.",
       "Add a negative-control test that proves zeroing one analytic gradient group is detected."
     ]
-  }
+  },
+  "candidate_head": "c4d26bc099881b3d842b40735f465ab76b23761b",
+  "latest_ci_run": 44408098843
 }

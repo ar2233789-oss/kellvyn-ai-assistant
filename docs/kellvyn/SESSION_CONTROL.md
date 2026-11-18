@@ -589,3 +589,11 @@ Candidato em `KellvynTransformerLanguageModel.checkGradients()`:
 - adicionada cobertura de teste para todos os grupos e headCount 1/2/4 com seeds diferentes.
 
 Estado: **IMPLEMENTED_NOT_RUN**. Run `44405313920` recebeu `runner_id=0`, `steps=[]` nos dois jobs; Gradle/JUnit não iniciou. A tolerância float32 e a hipótese ainda não foram validadas empiricamente. Próximo: executar baseline/candidato, calibrar epsilon/tolerâncias, adicionar directional check e negative control.
+
+
+## 18. Brain R&D — CI checkpoint (18/11/2026, 22:25 UTC)
+
+- Branch: kellvyn-rnd/brain-gradient-coverage-001.
+- Current HEAD: c4d26bc099881b3d842b40735f465ab76b23761b.
+- Latest run: 44408098843; runner_id=0, steps=[]; no compile or JUnit started.
+- State remains IMPLEMENTED_NOT_RUN. Do not promote to lab branch.

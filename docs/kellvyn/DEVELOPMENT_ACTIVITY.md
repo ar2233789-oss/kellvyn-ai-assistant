@@ -194,3 +194,10 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Run `44405313920`: os dois jobs falharam antes de steps, `runner_id=0`, `steps=[]`. Gradle/JUnit NOT RUN.
 - Experimento permanece IMPLEMENTED_NOT_RUN; directional check e negative control ainda pendentes.
 - Pesos, checkpoints, tokenizer, training pipeline, Runtime, agentes e interface não foram alterados.
+
+
+## 22:25 UTC — Brain R&D runner checkpoint
+
+- Branch kellvyn-rnd/brain-gradient-coverage-001, HEAD c4d26bc.
+- Run 44408098843 failed before any steps: runner_id=0, steps=[].
+- KN-003 gradient candidate remains IMPLEMENTED_NOT_RUN; no numeric result or Kotlin test pass claimed.

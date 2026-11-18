@@ -87,3 +87,11 @@ Testes escritos:
 **Estado:** IMPLEMENTED_NOT_RUN. Run GitHub Actions `44405313920`: ambos jobs falharam antes de steps, `runner_id=0`, `steps=[]`. A baseline/candidata Gradle não foi executada. A tolerância float32 não está validada por execução.
 
 Ainda pendente: checagem direcional seeded por grupo e negative control que zera um grupo de gradientes e prova detecção. Não houve alteração de pesos, treinamento, tokenizer, runtime ou interface.
+
+
+## Latest branch and CI checkpoint — 18/11/2026 22:25 UTC
+
+- Candidate branch HEAD: c4d26bc099881b3d842b40735f465ab76b23761b.
+- Latest run: 44408098843. Hosted runner allocation failed before steps (runner_id=0, steps=[]).
+- Candidate remains IMPLEMENTED_NOT_RUN. Neither epsilon/tolerances nor numerical error thresholds have been confirmed by execution.
+- Keep this patch isolated until baseline and candidate Kotlin tests execute.
