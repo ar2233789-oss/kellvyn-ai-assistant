@@ -31,7 +31,8 @@ internal class KellvynAgent(
     private val specialistProfiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default(),
     private val traceSessionFactory: () -> KellvynAgentLabTraceSession = {
         KellvynAgentLabTraceSession.create()
-    }
+    },
+    private val resourceSnapshotProvider: (suspend () -> KellvynResourceSnapshot)? = null
 ) {
     private val taskPlanner = KellvynTaskPlanner()
     private val orchestrator = KellvynOrchestrator(
@@ -424,6 +425,7 @@ internal class KellvynAgent(
     suspend fun run(goal: String): KellvynAgentResult {
         val traceSession = traceSessionFactory()
         val rootRun = traceSession.actor == "coordinator"
+        recordResourceSnapshot(traceSession, "START")
         traceSession.record(
             kind = if (rootRun) KellvynAgentLabEventKind.RUN_STARTED
                 else KellvynAgentLabEventKind.AGENT_STARTED,
@@ -431,6 +433,7 @@ internal class KellvynAgent(
         )
         return try {
             val result = runLoop(goal, traceSession)
+            recordResourceSnapshot(traceSession, "END")
             val kindAndOutcome = when (result) {
                 is KellvynAgentResult.Completed ->
                     (KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED)
@@ -451,6 +454,7 @@ internal class KellvynAgent(
             result
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
+                recordResourceSnapshot(traceSession, "CANCELLED")
                 traceSession.record(
                     kind = if (rootRun) KellvynAgentLabEventKind.RUN_CANCELLED
                         else KellvynAgentLabEventKind.AGENT_FINISHED,
@@ -470,6 +474,32 @@ internal class KellvynAgent(
             }
             throw error
         }
+    }
+
+    private suspend fun recordResourceSnapshot(
+        traceSession: KellvynAgentLabTraceSession,
+        phase: String
+    ) {
+        val provider = resourceSnapshotProvider ?: return
+        val snapshot = try {
+            provider()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return
+        }
+        val detailCode = buildString {
+            append(phase)
+            append("-F").append(snapshot.availableSystemMemoryBytes / MEBIBYTE)
+            append("-H").append((snapshot.processHeapUtilization * 100f).toInt())
+            append("-P").append(snapshot.processPssBytes / MEBIBYTE)
+            append("-B").append(snapshot.batteryPercent ?: "NA")
+            append("-T").append(snapshot.thermalBand.name)
+        }.take(80)
+        traceSession.record(
+            kind = KellvynAgentLabEventKind.RESOURCE_SNAPSHOT,
+            detailCode = detailCode
+        )
     }
 
     private suspend fun runLoop(
