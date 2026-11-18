@@ -351,6 +351,7 @@ internal class KellvynAgent(
     }
 
     suspend fun run(goal: String): KellvynAgentResult {
+        val orchestrationSession = orchestrator.newSession()
         val normalizedGoal = goal.trim()
         if (normalizedGoal.isEmpty()) {
             return KellvynAgentResult.Failed("O objetivo da tarefa está vazio.", 0, 0)
@@ -481,7 +482,6 @@ internal class KellvynAgent(
         )
         val repeatedCalls = mutableMapOf<String, Int>()
         var toolCalls = 0
-        var delegationCalls = 0
 
         for (step in 1..config.maxSteps) {
             val contextMessages = when (
@@ -517,11 +517,7 @@ internal class KellvynAgent(
 
             when (decision) {
                 is KellvynModelDecision.Delegate -> {
-                    val outcome = orchestrator.dispatch(
-                        decision = decision,
-                        completedDelegations = delegationCalls
-                    )
-                    if (outcome.consumesDelegationSlot) delegationCalls++
+                    val outcome = orchestrationSession.dispatch(decision)
                     messages += outcome.asObservation(config.maxObservationChars)
                 }
 
