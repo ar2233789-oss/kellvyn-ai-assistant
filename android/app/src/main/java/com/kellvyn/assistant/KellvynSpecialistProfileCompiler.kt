@@ -90,18 +90,25 @@ internal class KellvynSpecialistProfileCompiler {
     private fun canonicalContent(
         profile: KellvynSpecialistProfile,
         capabilities: Set<KellvynStudioCapability>
-    ): String = listOf(
-        profile.role.name,
-        profile.version.toString(),
-        profile.displayName,
-        profile.mission,
-        profile.instruction,
-        profile.requiredOutputSections.joinToString("\u001f"),
-        profile.maxSteps.toString(),
-        profile.maxToolCalls.toString(),
-        profile.maxContextChars.toString(),
-        profile.allowDelegation.toString(),
-        profile.allowMutation.toString(),
-        capabilities.map { it.name }.sorted().joinToString(",")
-    ).joinToString("\u001e")
+    ): String {
+        val fields = listOf(
+            profile.role.name,
+            profile.version.toString(),
+            profile.displayName,
+            profile.mission,
+            profile.instruction,
+            profile.requiredOutputSections.joinToString("\\u001f"),
+            profile.maxSteps.toString(),
+            profile.maxToolCalls.toString(),
+            profile.maxContextChars.toString(),
+            profile.allowDelegation.toString(),
+            profile.allowMutation.toString(),
+            capabilities.map { it.name }.sorted().joinToString(",")
+        )
+        // Length-prefix each UTF-8 field; user-supplied separators cannot create ambiguous hashes.
+        return fields.joinToString(separator = "") { field ->
+            val byteLength = field.toByteArray(StandardCharsets.UTF_8).size
+            "$byteLength:$field;"
+        }
+    }
 }
