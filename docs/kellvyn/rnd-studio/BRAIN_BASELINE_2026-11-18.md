@@ -66,3 +66,8 @@ Se um grupo inteiro tiver gradiente analítico acidentalmente zerado por uma reg
 `brain-gradient-coverage-001` irá testar uma seleção determinística que inclua coordenadas de gradiente zero e não zero em todos os grupos, múltiplos números de cabeças, seeds, comprimentos de contexto e alvo EOS. Critérios: todo grupo deve produzir amostras numéricas; os erros precisam respeitar limites absolutos e relativos pré-definidos; execução com baseline e candidato em ambiente idêntico.
 
 **Estado:** PLANNED / NOT RUN. Nenhum arquivo neural ou peso foi modificado. Não alterar a implementação até que o Gradle execute e a hipótese possa ser falsificada.
+
+
+## Estado do candidato isolado (21:50 UTC)
+
+A implementação candidata está em kellvyn-rnd/brain-gradient-coverage-001; a branch lab não recebeu o patch. O candidato cobre amostras zero/não-zero em todos os 14 grupos e configurações headCount 1/2/4. Dois testes foram escritos/ajustados, mas o workflow 44405313920 não iniciou steps (runner_id=0, steps=[]). Portanto ainda não sabemos se compila, se os limites float32 passam ou se o teste detecta um grupo de gradiente removido. IMPLEMENTED_NOT_RUN; não aprovado.

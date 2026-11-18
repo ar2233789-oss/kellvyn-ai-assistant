@@ -5,7 +5,7 @@
   "title": "Medição monotônica da duração de delegação de especialistas",
   "created_at_utc": "2026-11-18T20:48:00Z",
   "baseline_commit": "7fc53345e659267cedbafdc54d231e8b5e5c0381",
-  "state": "PLANNED",
+  "state": "IMPLEMENTED_NOT_RUN",
   "hypothesis": "O orquestrador grava durationMillis=null no evento DELEGATION_FINISHED normal e não calcula duração ao cancelar.",
   "candidate_design": [
     "Usar System.nanoTime ou relógio monotônico injetável, não relógio civil.",
@@ -32,5 +32,8 @@
     "A suíte agents passa.",
     "Sem mudança na semântica de delegação, política ou orçamento."
   ],
-  "status_note": "Lacuna de telemetria confirmada por inspeção. Ainda sem patch ou execução Gradle."
+  "status_note": "Workflow run 44404198275 failed before any step (runner_id=0, steps=[]). Candidate remains isolated and must not be merged before the focused agents Gradle suite passes.",
+  "candidate_branch": "kellvyn-rnd/agent-delegation-duration-001",
+  "candidate_head": "7a0696d76f35fdb1ae2ec2ad3bd144fab6173953",
+  "candidate_summary": "Candidate adds monotonic timing for completed, failed, budget-blocked and cancelled specialist dispatches, with four deterministic tests. Not compiled or run."
 }

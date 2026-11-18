@@ -4,7 +4,7 @@
   "title": "Cobertura do verificador numérico de gradientes KN-003",
   "created_at_utc": "2026-11-18T20:21:19Z",
   "baseline_commit": "4598cab4e831dd3e1f9d96c0c2158de8e77ff566",
-  "state": "PLANNED",
+  "state": "IMPLEMENTED_NOT_RUN",
   "hypothesis": "A seleção de coordenadas do checkGradients, filtrada por gradiente analítico não nulo, pode omitir um grupo inteiro cuja retropropagação tenha sido zerada por regressão.",
   "evidence_sources": [
     "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerLanguageModel.kt :: checkGradients",
@@ -54,7 +54,7 @@
     "Finite-difference noise in float32 for near-zero derivatives.",
     "Broader configurations may expose genuine math defects or require calibrated tolerances."
   ],
-  "status_note": "This is a test-coverage hypothesis, not a discovered incorrect model gradient. The experiment has not been executed.",
+  "status_note": "Isolated candidate branch has implementation and tests, but workflow run 44405313920 failed before any step (runner_id=0, steps=[]). Do not merge without executing baseline and candidate.",
   "research_basis": [
     {
       "source": "https://cs231n.stanford.edu/slides/2016/winter1516_lecture6.pdf",
@@ -69,5 +69,8 @@
       "note": "JAX check_grads uses a single randomly selected direction to reduce numerical-check cost; adapt as an additional directional check per tensor group, not as a replacement for coordinate coverage."
     }
   ],
-  "scope": "brain"
+  "scope": "brain",
+  "candidate_branch": "kellvyn-rnd/brain-gradient-coverage-001",
+  "candidate_head": "a580b6577ed27148decbeae3c0cd7a620a0c41c7",
+  "candidate_summary": "Candidate samples zero/non-zero coordinates in all 14 named parameter groups, reports per-group counts and restores perturbed values in finally. Added tests cover all groups and headCount 1/2/4. Not compiled or run."
 }

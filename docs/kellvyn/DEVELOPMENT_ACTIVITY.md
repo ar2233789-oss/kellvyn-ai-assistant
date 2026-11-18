@@ -182,3 +182,10 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Hipótese de integração brain-agent-contract-001 criada; a suíte selecionada é de contratos unitários e não comprova Runtime integrado.
 - Nenhum código neural, orquestrador, Runtime, interface, MainActivity ou peso foi alterado.
 - Testes Python da CLI ainda não executados; Gradle/JUnit e execução com inferência real continuam NOT RUN/BLOCKED.
+
+
+## 21:50 UTC — reconciliação das branches R&D
+
+- Brain candidate: kellvyn-rnd/brain-gradient-coverage-001, HEAD documentado a580b657. Cobertura de 14 grupos e headCount 1/2/4 está escrita; Gradle NOT RUN. Workflow 44405313920 falhou antes de steps (runner_id=0).
+- Agent candidate: kellvyn-rnd/agent-delegation-duration-001, HEAD documentado 7a0696d. Duração monotônica e quatro testes para sucesso/falha/bloqueio/cancelamento estão escritos; Gradle NOT RUN. Workflow 44404198275 falhou antes de steps (runner_id=0).
+- Experimentos e estado central atualizados para IMPLEMENTED_NOT_RUN. Nenhum candidato foi integrado na branch lab.

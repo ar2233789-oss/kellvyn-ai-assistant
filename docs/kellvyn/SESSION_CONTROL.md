@@ -574,3 +574,30 @@ Hipóteses:
 Pesquisa sobre AgentBench, tau-bench e avaliação de traces foi adicionada ao research ledger. As fontes orientam o método; nenhum código, peso ou serviço externo foi incorporado.
 
 A árvore Git confirma 21 arquivos-fonte e 23 classes de teste planejados para Brain/Agents. O mapa ainda precisa ser executado no clone com Python; testes da CLI foram escritos, mas ainda não executados nesta sessão. Gradle/JUnit e inferência real seguem NOT RUN/BLOCKED pelo runner sem alocação.
+
+
+## 14. Estado consolidado dos candidatos R&D (18/11/2026, 21:50 UTC)
+
+A R&D Studio possui três tracks. Há dois candidatos técnicos em branches experimentais separadas; não os misturar nem fazer merge sem execução real:
+
+### Brain — KN-003 gradient coverage
+- Branch: kellvyn-rnd/brain-gradient-coverage-001
+- Commit documentado: a580b6577ed27148decbeae3c0cd7a620a0c41c7
+- Implementação: amostra coordenadas zero e não-zero nos 14 grupos nomeados, expõe contagens por grupo e restaura parâmetros em finally. O caminho quente arrays() permaneceu sem alocações novas.
+- Testes escritos: todos os 14 grupos; headCount 1, 2, 4 com seeds diferentes.
+- Run 44405313920: runner_id=0 e steps=[] nos dois jobs. IMPLEMENTED_NOT_RUN.
+- Pendências: executar baseline/candidato, calibrar tolerância float32, directional check e negative control.
+
+### Agents — specialist delegation duration
+- Branch: kellvyn-rnd/agent-delegation-duration-001
+- Commit documentado: 7a0696d76f35fdb1ae2ec2ad3bd144fab6173953
+- Implementação: System.nanoTime injetável, duração terminal para sucesso/falha/bloqueio/cancelamento.
+- Quatro testes determinísticos escritos; nenhum sleep.
+- Run 44404198275: runner_id=0 e steps=[] nos dois jobs. IMPLEMENTED_NOT_RUN.
+- Não fazer merge até executar a suíte focada agents.
+
+### Regra de continuidade
+
+A branch lab continua sendo a base de integração/documentação. As branches kellvyn-rnd/* são experimentos independentes. Ao retomar: confirmar cada HEAD, executar baseline/candidato quando houver runner, registrar evidência, revisar diff e somente então promover por cherry-pick/merge. Nunca tratar commit existente ou teste escrito como teste aprovado.
+
+A frente Integration permanece como hipótese de contrato entre adapter, parser KELLVYN/1, loop, ferramenta, delegação e verificador. Não afirmar integração de chat: KellvynRuntime.isReady() continua false.
