@@ -27,16 +27,15 @@ class KellvynOrchestratorTest {
                 capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
             )
         )
-        val orchestrator = orchestrator(engine, listOf(readTool, deleteTool))
+        val session = orchestrator(engine, listOf(readTool, deleteTool)).newSession()
 
-        val outcome = orchestrator.dispatch(
+        val outcome = session.dispatch(
             decision = KellvynModelDecision.Delegate(
                 role = KellvynSpecialistRole.CODE_EXPLORER,
                 task = "Encontre a função que indexa símbolos.",
                 context = "CONTEXTO_DELEGADO_CONTROLADO",
                 allowedTools = setOf("read_source", "delete_source")
-            ),
-            completedDelegations = 0
+            )
         )
 
         assertTrue(outcome.consumesDelegationSlot)
@@ -56,41 +55,40 @@ class KellvynOrchestratorTest {
 
     @Test
     fun refusesDelegationOutsideBudgetWithoutCallingTheModel() = runBlocking {
-        val engine = RecordingEngine()
-        val orchestrator = orchestrator(engine, emptyList(), maxDelegations = 1)
-
-        val outcome = orchestrator.dispatch(
-            decision = KellvynModelDecision.Delegate(
-                role = KellvynSpecialistRole.RESEARCHER,
-                task = "Pesquise a documentação.",
-                context = "",
-                allowedTools = emptySet()
-            ),
-            completedDelegations = 1
+        val engine = RecordingEngine(KellvynModelDecision.Final("Pesquisa concluída."))
+        val session = orchestrator(engine, emptyList(), maxDelegations = 1).newSession()
+        val decision = KellvynModelDecision.Delegate(
+            role = KellvynSpecialistRole.RESEARCHER,
+            task = "Pesquise a documentação.",
+            context = "",
+            allowedTools = emptySet()
         )
 
-        assertFalse(outcome.consumesDelegationSlot)
-        assertTrue(outcome.content.contains("limite de delegações"))
-        assertTrue(engine.histories.isEmpty())
+        val first = session.dispatch(decision)
+        val second = session.dispatch(decision)
+
+        assertTrue(first.consumesDelegationSlot)
+        assertFalse(second.consumesDelegationSlot)
+        assertTrue(second.content.contains("limite de delegações"))
+        assertEquals(1, engine.histories.size)
     }
 
     @Test
     fun refusesOversizedDelegatedContextBeforeCreatingSpecialist() = runBlocking {
         val engine = RecordingEngine()
-        val orchestrator = orchestrator(
+        val session = orchestrator(
             engine,
             emptyList(),
             maxDelegationContextChars = 4
-        )
+        ).newSession()
 
-        val outcome = orchestrator.dispatch(
+        val outcome = session.dispatch(
             decision = KellvynModelDecision.Delegate(
                 role = KellvynSpecialistRole.RESEARCHER,
                 task = "Pesquise.",
                 context = "contexto maior",
                 allowedTools = emptySet()
-            ),
-            completedDelegations = 0
+            )
         )
 
         assertFalse(outcome.consumesDelegationSlot)
