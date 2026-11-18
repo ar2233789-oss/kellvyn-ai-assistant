@@ -86,7 +86,22 @@ internal class KellvynTransformerLanguageModel private constructor(
         val outputWeights: FloatArray,
         val outputBias: FloatArray
     ) {
-        fun arrays(): List<FloatArray> = namedArrays().map { it.second }
+        fun arrays(): List<FloatArray> = listOf(
+            tokenEmbeddings,
+            queryWeights,
+            keyWeights,
+            valueWeights,
+            attentionOutputWeights,
+            normAttentionGamma,
+            normAttentionBeta,
+            normFeedForwardGamma,
+            normFeedForwardBeta,
+            gateWeights,
+            upWeights,
+            downWeights,
+            outputWeights,
+            outputBias
+        )
 
         fun namedArrays(): List<Pair<String, FloatArray>> = listOf(
             "tokenEmbeddings" to tokenEmbeddings,
