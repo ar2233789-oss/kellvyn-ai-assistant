@@ -57,6 +57,9 @@ internal class KellvynRuntime(context: Context) {
         resourceRuntime.studioModules.registerIfAbsent(
             KellvynAndroidBuildStatusStudio.definition(appContext, projectWorkspace)
         )
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynWebResearchStudio.definition(appContext)
+        )
     }
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
@@ -313,14 +316,18 @@ internal class KellvynRuntime(context: Context) {
         return KellvynAgent(
             inference = inference,
             tools = KellvynToolRegistry(scopedTools),
-            authorization = authorization,
+            authorization = KellvynNetworkReadAuthorization(
+                delegate = authorization,
+                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+            ),
             config = config,
             memory = localMemory,
             memoryAddresses = addresses,
             projectContextRetriever = projectContextRetriever,
             activeProjectId = activeProjectId,
             taskCheckpoints = taskCheckpointRepository,
-            taskBroker = taskBroker
+            taskBroker = taskBroker,
+            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
         )
     }
 
