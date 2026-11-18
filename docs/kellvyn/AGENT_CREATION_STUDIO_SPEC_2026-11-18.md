@@ -99,7 +99,8 @@ Registro e compilador de perfis são LIGHT. Harness executa um papel por vez por
 ## 9. Fases de implementação
 
 - Fase A: registro de perfis versionados, instruções derivadas, módulo READ_ONLY de catálogo/inspeção/validação.
-- Fase B: Profile Compiler com validação de capacidades, skills, riscos, limites, hash e diff.
+- Fase B inicial: Profile Compiler determinístico, resolução de capabilities pela política central e SHA-256 com campos UTF-8 prefixados por tamanho.
+- Fase B restante: binding de skills recomendado, diff/versionamento de revisões e validação de compatibilidade.
 - Fase C: harness isolado de contrato, ferramentas e regressão.
 - Fase D: benchmark de competência cognitiva após conectar o backend neural aprovado.
 - Fase E: armazenamento versionado, promoção explícita, auditoria e rollback.
@@ -111,15 +112,15 @@ A Fase A não significa que o Agent Creation Studio inteiro esteja concluído. V
 Implementado nesta sequência:
 - KellvynSpecialistProfileRegistry com 14 perfis versionados por código;
 - contrato uniforme de saída e limites por perfil;
-- KellvynAgentCreationStudio com catálogo, inspeção e validação somente leitura;
+- KellvynSpecialistProfileCompiler valida os 14 perfis, resolve capabilities pela política central e calcula SHA-256 determinístico com encoding por tamanho;
+- KellvynAgentCreationStudio com catálogo, inspeção e validação somente leitura; lista e inspeciona hashes e bloqueia catálogo inválido;
 - capacidades AGENT_DESIGN e AGENT_EVALUATION na matriz de capabilities;
-- integração do catálogo no runtime compartilhado;
-- KellvynAgent passa a obter instruções e limites pelo registro, eliminando o bloco inline de instruções;
-- testes unitários escritos para catálogo, limites, acesso por papel e validação.
+- integração do módulo no runtime compartilhado e do perfil compilado no loop de delegação; hash do perfil usado acompanha a observação retornada;
+- testes unitários e instrumentais escritos para catálogo, limites, hash, acesso por papel e matriz real de ferramentas.
 
 Ainda pendente:
 - execução Gradle/CI dos novos testes;
-- persistência/hash e revisão de diff de perfis;
+- persistência de revisões e revisão de diff de perfis;
 - criação/edição de versões experimentais e fluxo de promoção com aprovação;
 - harness de competência cognitiva ligado a inferência real;
 - evidência de execução no Poco F6.
