@@ -12,7 +12,11 @@ internal class KellvynAgentLabStudio(
     private val moduleManager: KellvynStudioModuleManager,
     private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
     private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
-        KellvynAgentLabTraceRecorderHealth(healthy = true, lastFailureCode = null)
+        KellvynAgentLabTraceRecorderHealth(
+            currentlyWritable = true,
+            failureCount = 0,
+            lastFailureCode = null
+        )
     }
 ) : KellvynStudioModule {
 
@@ -54,9 +58,18 @@ internal class KellvynAgentLabStudio(
                     append("Estado térmico: ").append(snapshot.thermalBand.name).append("\n")
                     append("Economia de energia: ").append(snapshot.powerSaveMode).append("\n")
                     append("Gravação de traces: ")
-                        .append(if (traceHealth.healthy) "SAUDÁVEL" else "DEGRADADA")
+                        .append(
+                            when {
+                                traceHealth.healthy -> "SAUDÁVEL"
+                                traceHealth.currentlyWritable -> "RECUPERADA COM FALHAS ANTERIORES"
+                                else -> "DEGRADADA"
+                            }
+                        )
+                    if (traceHealth.failureCount > 0) {
+                        append(" | falhas históricas: ").append(traceHealth.failureCount)
+                    }
                     traceHealth.lastFailureCode?.let {
-                        append(" (última falha: ").append(it).append(")")
+                        append(" | última falha: ").append(it)
                     }
                     append("\n")
                     append("Bateria: ")
@@ -356,7 +369,11 @@ internal class KellvynAgentLabStudio(
             moduleManager: KellvynStudioModuleManager,
             resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
             traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
-                KellvynAgentLabTraceRecorderHealth(healthy = true, lastFailureCode = null)
+                KellvynAgentLabTraceRecorderHealth(
+            currentlyWritable = true,
+            failureCount = 0,
+            lastFailureCode = null
+        )
             }
         ) = KellvynStudioModuleDefinition(MANIFEST) {
             KellvynAgentLabStudio(
