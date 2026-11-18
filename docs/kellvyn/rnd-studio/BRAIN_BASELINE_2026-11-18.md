@@ -66,3 +66,24 @@ Se um grupo inteiro tiver gradiente analítico acidentalmente zerado por uma reg
 `brain-gradient-coverage-001` irá testar uma seleção determinística que inclua coordenadas de gradiente zero e não zero em todos os grupos, múltiplos números de cabeças, seeds, comprimentos de contexto e alvo EOS. Critérios: todo grupo deve produzir amostras numéricas; os erros precisam respeitar limites absolutos e relativos pré-definidos; execução com baseline e candidato em ambiente idêntico.
 
 **Estado:** PLANNED / NOT RUN. Nenhum arquivo neural ou peso foi modificado. Não alterar a implementação até que o Gradle execute e a hipótese possa ser falsificada.
+
+
+## Candidato de cobertura implementado — 18/11/2026
+
+Branch isolada: `kellvyn-rnd/brain-gradient-coverage-001`.
+
+A versão candidata:
+- nomeia os 14 arrays de parâmetros e mantém o método antigo `arrays()` direto para não acrescentar alocações ao caminho quente de treino;
+- amostra coordenadas em todos os grupos, incluindo gradiente analítico zero;
+- seleciona representante não-zero e zero quando ambas as categorias existem;
+- restaura sempre o parâmetro perturbado em `finally`;
+- inclui mapa `checkedParametersByGroup` no relatório;
+- aplica floor de 1e-4 ao denominador do erro relativo para comparação float32 perto de zero, mantendo o erro absoluto independente.
+
+Testes escritos:
+- `multiHeadTransformerGradientsMatchFiniteDifferences` verifica os nomes e contagens de todos os 14 grupos;
+- `gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds` cobre headCount 1/2/4 com seeds distintos.
+
+**Estado:** IMPLEMENTED_NOT_RUN. Run GitHub Actions `44405313920`: ambos jobs falharam antes de steps, `runner_id=0`, `steps=[]`. A baseline/candidata Gradle não foi executada. A tolerância float32 não está validada por execução.
+
+Ainda pendente: checagem direcional seeded por grupo e negative control que zera um grupo de gradientes e prova detecção. Não houve alteração de pesos, treinamento, tokenizer, runtime ou interface.

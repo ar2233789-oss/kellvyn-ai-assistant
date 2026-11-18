@@ -182,3 +182,15 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Hipótese de integração brain-agent-contract-001 criada; a suíte selecionada é de contratos unitários e não comprova Runtime integrado.
 - Nenhum código neural, orquestrador, Runtime, interface, MainActivity ou peso foi alterado.
 - Testes Python da CLI ainda não executados; Gradle/JUnit e execução com inferência real continuam NOT RUN/BLOCKED.
+
+
+## 21:45 UTC — candidato Brain R&D: cobertura de gradientes KN-003
+
+- Branch isolada `kellvyn-rnd/brain-gradient-coverage-001`.
+- CheckGradients modificado para amostrar todos os 14 grupos, inclusive coordenadas com gradiente analítico zero; relatório agora fornece contagem por grupo.
+- Parâmetros são restaurados em finally; a função arrays() foi preservada sem alocação adicional no hot path de treino.
+- Teste existente agora exige os 14 grupos; teste novo cobre headCount 1/2/4 com seeds diferentes.
+- Workflow permite branches `kellvyn-rnd/**`.
+- Run `44405313920`: os dois jobs falharam antes de steps, `runner_id=0`, `steps=[]`. Gradle/JUnit NOT RUN.
+- Experimento permanece IMPLEMENTED_NOT_RUN; directional check e negative control ainda pendentes.
+- Pesos, checkpoints, tokenizer, training pipeline, Runtime, agentes e interface não foram alterados.

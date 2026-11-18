@@ -4,7 +4,7 @@
   "title": "Cobertura do verificador numérico de gradientes KN-003",
   "created_at_utc": "2026-11-18T20:21:19Z",
   "baseline_commit": "4598cab4e831dd3e1f9d96c0c2158de8e77ff566",
-  "state": "PLANNED",
+  "state": "IMPLEMENTED_NOT_RUN",
   "hypothesis": "A seleção de coordenadas do checkGradients, filtrada por gradiente analítico não nulo, pode omitir um grupo inteiro cuja retropropagação tenha sido zerada por regressão.",
   "evidence_sources": [
     "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerLanguageModel.kt :: checkGradients",
@@ -54,7 +54,7 @@
     "Finite-difference noise in float32 for near-zero derivatives.",
     "Broader configurations may expose genuine math defects or require calibrated tolerances."
   ],
-  "status_note": "This is a test-coverage hypothesis, not a discovered incorrect model gradient. The experiment has not been executed.",
+  "status_note": "Implementation and coverage tests are written on an isolated branch. They have not been compiled or executed. The workflow run 44405313920 failed before any step (runner_id=0, steps=[]). This is not evidence of a Kotlin failure or pass.",
   "research_basis": [
     {
       "source": "https://cs231n.stanford.edu/slides/2016/winter1516_lecture6.pdf",
@@ -69,5 +69,34 @@
       "note": "JAX check_grads uses a single randomly selected direction to reduce numerical-check cost; adapt as an additional directional check per tensor group, not as a replacement for coordinate coverage."
     }
   ],
-  "scope": "brain"
+  "scope": "brain",
+  "implementation": {
+    "branch": "kellvyn-rnd/brain-gradient-coverage-001",
+    "source_commit": "08fe1e305b6021b688076c4985813f4ed5c7d8b0",
+    "test_commit": "edb90e57ff24e5d8a366e35397539fb3912843de",
+    "hot_path_followup_commit": "f68126925b8cd49a0433faf91f9631acddef2b7f",
+    "workflow_commit": "f644feb18375e7d62929469b6954e0cddef2b013",
+    "changed_files": [
+      "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerLanguageModel.kt",
+      "android/app/src/test/java/com/kellvyn/assistant/neural/KellvynTransformerLanguageModelTest.kt",
+      ".github/workflows/agent-lab-tests.yml"
+    ],
+    "behavior_changes": [
+      "The gradient checker now selects coordinates from all 14 named parameter groups, even when analytic gradients are zero.",
+      "When a group has both zero and non-zero gradients, representative coordinates from both sets are sampled.",
+      "Each perturbed parameter is restored in a finally block if the loss evaluation throws.",
+      "Report now includes the number of checked coordinates per parameter group.",
+      "Relative error uses a 1e-4 denominator floor for float32 near-zero comparisons; max absolute error remains separately reported."
+    ],
+    "tests_written": [
+      "multiHeadTransformerGradientsMatchFiniteDifferences now asserts all 14 named groups and per-group counts.",
+      "gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds covers headCount 1, 2 and 4 with separate seeds."
+    ],
+    "test_execution": "NOT_RUN",
+    "outstanding": [
+      "Add/consider deterministic directional-derivative checks per group after baseline is executable.",
+      "Run baseline and candidate Gradle/JUnit; calibrate float32 epsilon/tolerances from actual outputs.",
+      "Add a negative-control test that proves zeroing one analytic gradient group is detected."
+    ]
+  }
 }

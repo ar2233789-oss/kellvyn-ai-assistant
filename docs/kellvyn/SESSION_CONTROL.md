@@ -574,3 +574,18 @@ Hipóteses:
 Pesquisa sobre AgentBench, tau-bench e avaliação de traces foi adicionada ao research ledger. As fontes orientam o método; nenhum código, peso ou serviço externo foi incorporado.
 
 A árvore Git confirma 21 arquivos-fonte e 23 classes de teste planejados para Brain/Agents. O mapa ainda precisa ser executado no clone com Python; testes da CLI foram escritos, mas ainda não executados nesta sessão. Gradle/JUnit e inferência real seguem NOT RUN/BLOCKED pelo runner sem alocação.
+
+
+## 13. Brain R&D — KN-003 gradient coverage candidate (18/11/2026, 21:45 UTC)
+
+Branch isolada: `kellvyn-rnd/brain-gradient-coverage-001`.
+
+Candidato em `KellvynTransformerLanguageModel.checkGradients()`:
+- coordenadas agora vêm de todos os 14 grupos nomeados de parâmetros;
+- seleciona um representante analítico não-zero e um zero quando ambas categorias existem;
+- restaura parâmetro em `finally`;
+- relatório expõe `checkedParametersByGroup`;
+- método `arrays()` direto foi preservado para evitar alocações no caminho de treino;
+- adicionada cobertura de teste para todos os grupos e headCount 1/2/4 com seeds diferentes.
+
+Estado: **IMPLEMENTED_NOT_RUN**. Run `44405313920` recebeu `runner_id=0`, `steps=[]` nos dois jobs; Gradle/JUnit não iniciou. A tolerância float32 e a hipótese ainda não foram validadas empiricamente. Próximo: executar baseline/candidato, calibrar epsilon/tolerâncias, adicionar directional check e negative control.
