@@ -21,6 +21,35 @@ class KellvynSpecialistProfileRegistryTest {
     }
 
     @Test
+    fun profileCompilerProducesFourteenStableHashesAndRejectsTamperedContentByHashChange() {
+        val registry = KellvynSpecialistProfileRegistry.default()
+        val compiler = KellvynSpecialistProfileCompiler()
+        val first = compiler.compileAll(registry.profiles())
+        val second = compiler.compileAll(registry.profiles())
+
+        assertTrue(first.success)
+        assertEquals(14, first.profiles.size)
+        assertEquals(
+            first.profiles.map { it.role to it.profileSha256 },
+            second.profiles.map { it.role to it.profileSha256 }
+        )
+        assertTrue(first.profiles.all { it.profileSha256.matches(Regex("[0-9a-f]{64}")) })
+
+        val changed = registry.profiles().map { profile ->
+            if (profile.role == KellvynSpecialistRole.RESEARCHER) {
+                profile.copy(instruction = profile.instruction + " Registrar a data de consulta.")
+            } else {
+                profile
+            }
+        }
+        val changedResearcher = compiler.compileAll(changed).profiles
+            .single { it.role == KellvynSpecialistRole.RESEARCHER }
+        val originalResearcher = first.profiles
+            .single { it.role == KellvynSpecialistRole.RESEARCHER }
+        assertTrue(changedResearcher.profileSha256 != originalResearcher.profileSha256)
+    }
+
+    @Test
     fun profilesCannotEnableMutationOrNestedDelegation() {
         val profiles = KellvynSpecialistProfileRegistry.default().profiles()
         assertTrue(profiles.all { !it.allowMutation })
@@ -73,6 +102,7 @@ class KellvynSpecialistProfileRegistryTest {
             .execute(emptyMap())
         assertTrue(validation.success)
         assertTrue(validation.content.contains("14/14"))
+        assertTrue(validation.content.contains("SHA-256"))
     }
 
     @Test
