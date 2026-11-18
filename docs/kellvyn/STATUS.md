@@ -479,3 +479,38 @@ O teste `KellvynAgentSpecialistEvaluationTest` foi ampliado para percorrer os 14
 Documentação:
 - ANDROID_HEADLESS_STUDIO_SPEC_2026-11-17.md
 - CONTINUITY_HANDOFF.md
+
+
+## Retomada e auditoria cruzada da oficina — 18/11/2026
+
+**HEAD auditada:** `937001c85205666b013aaf8854c1c830409617ef` na branch `lab/kellvyn-intelligence-core-20261116`.
+
+### Reconciliação das linhas históricas
+- `workshop/super-lab-tools-20261024`, `lab/studio-workbench-20261024` e `lab/poco-f6-studio-upgrades-20261024` são linhas divergentes, não ancestrais integrados automaticamente na branch headless atual.
+- Seus resultados continuam sendo referências reutilizáveis; não fazer merge indiscriminado, pois as branches antigas contêm superfícies de bancada/interface que não pertencem ao desenho headless aprovado.
+- Portar algoritmos e testes individualmente, preservando a proveniência e reescrevendo adaptadores para os contratos internos Android.
+
+### Estado confirmado no código da HEAD
+- `KellvynPersistentTaskQueue`: SQLite, payload/result criptografados, prioridade, not-before, limite de tentativas, retenção, cancelamento de tarefas ainda não iniciadas, recuperação de RUNNING após morte do processo e reexecução at-least-once.
+- `KellvynTaskScheduler`: registro de handlers em memória por sessão, execução sob Resource Broker, defer/retry/fail, recuperação lazy e limite de lote.
+- `KellvynAutomationDrainWorker`: WorkManager drena no máximo duas tarefas LIGHT/STANDARD por sessão e nunca reivindica HEAVY em segundo plano.
+- `KellvynResourceRuntime`: agenda trabalho único, integra `onTrimMemory`/`onLowMemory`, cache reclaimers e descarregamento de módulos ociosos.
+- `KellvynStudioModuleManager`: manifests registrados sem carregar motores; adaptadores de ferramenta são expostos por capacidade e motores carregam sob demanda com lease e controle de recursos.
+- Três módulos de estúdio registrados na runtime: navegação de código, auditoria de segurança e arquitetura de dados. Não são oito estúdios completos.
+- Ferramentas de automação expostas ao modelo continuam somente leitura (`automation_queue_status`). Não existe ferramenta genérica do modelo para enfileirar/cancelar trabalho, por desenho de segurança.
+
+### Lacuna operacional prioritária
+- O scheduler suporta handlers, mas o runtime não registra handlers de produção nesta HEAD. O worker de teste vazio comprova apenas que uma sessão vazia termina; o teste de agendamento comprova apenas a criação de WorkManager único.
+- Portanto, persistência, recuperação e despacho estão implementados como infraestrutura, mas ainda não há prova end-to-end de tarefa real criada por um fluxo autorizado, executada por handler concreto, retomada e verificada.
+- Antes de ligar agentes à mutação, definir handlers tipados e allowlistados por capacidade, validação estrita de payload, idempotência, artefatos/evidências e política de aprovação. Não criar um executor genérico de comandos.
+
+### Próxima sequência obrigatória
+1. Criar e testar o primeiro handler real, limitado e idempotente, para uma operação interna sem efeitos destrutivos; cobrir enqueue → drain → resultado → reinício/recuperação.
+2. Integrar o handler ao registro de runtime e validar que o worker só executa handlers explicitamente registrados.
+3. Adicionar testes para prioridade/FIFO, handler indisponível, cancelamento, retry, limite de tentativas, HEAVY fora do worker e retomada.
+4. Restabelecer CI com runner/steps reais; os jobs sem runner e sem steps não contam como testes.
+5. Portar recursos das branches antigas por capacidade, sem importar interfaces.
+6. Atualizar manifests e ferramentas por agente; manter especialistas READ_ONLY até gates de execução e autorização.
+7. Só depois expandir motores de imagem, UI/UX, 3D/CAD e Android Build & Test.
+
+**Não comprovado:** build Gradle da HEAD, testes Android/AVD na HEAD, instalação de APK desta revisão, medição física Poco F6, execução real de handler, ou integração operacional dos 14 agentes com a oficina.
