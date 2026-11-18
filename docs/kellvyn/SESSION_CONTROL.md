@@ -574,3 +574,29 @@ Hipóteses:
 Pesquisa sobre AgentBench, tau-bench e avaliação de traces foi adicionada ao research ledger. As fontes orientam o método; nenhum código, peso ou serviço externo foi incorporado.
 
 A árvore Git confirma 21 arquivos-fonte e 23 classes de teste planejados para Brain/Agents. O mapa ainda precisa ser executado no clone com Python; testes da CLI foram escritos, mas ainda não executados nesta sessão. Gradle/JUnit e inferência real seguem NOT RUN/BLOCKED pelo runner sem alocação.
+
+
+## 12. Agent R&D — delegação com duração monotônica (18/11/2026, 21:30 UTC)
+
+**Branch isolada:** kellvyn-rnd/agent-delegation-duration-001  
+**Base:** da5da9a895f229c7a63344953af8d2554bedc4cf  
+**HEAD candidato mais recente:** confirmar no GitHub antes de retomar.
+
+### Alteração candidata
+- KellvynOrchestrator recebe relógio monotônico injetável, padrão System.nanoTime.
+- Session.dispatch() mede a duração desde o início e grava durationMillis nos eventos terminais normais e de cancelamento.
+- Duração negativa/zero satura em zero; relógio civil não é usado para medir latência.
+- Cancelamento continua sendo propagado depois do registro terminal em NonCancellable.
+
+### Testes escritos
+- recordsMonotonicDurationForCompletedSpecialistDelegation: relógio determinístico, duração esperada de 8 ms.
+- recordsMonotonicDurationWhenSpecialistIsCancelledAndPropagatesCancellation: duração esperada de 5 ms e confirmação de propagação de CancellationException.
+
+### CI / validação
+- Workflow alterado para aceitar pushes em kellvyn-rnd/**.
+- Run 44401916646: ambos jobs terminaram antes de qualquer step, runner_id=0, steps=[] (ubuntu-slim e ubuntu-latest).
+- Estado: IMPLEMENTED_NOT_RUN. Não há compilação Kotlin, JUnit ou Gradle aprovada.
+- Não fazer merge até que a suíte focada agents execute e passe.
+
+### Arquivos intocados
+Cérebro/KN, tokenizer, pesos/checkpoints, KellvynRuntime, MainActivity, interface/layout, política de ferramentas, perfis e semântica de delegação permaneceram intocados nesta alteração.

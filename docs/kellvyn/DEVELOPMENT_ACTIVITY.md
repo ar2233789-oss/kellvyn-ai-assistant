@@ -182,3 +182,14 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Hipótese de integração brain-agent-contract-001 criada; a suíte selecionada é de contratos unitários e não comprova Runtime integrado.
 - Nenhum código neural, orquestrador, Runtime, interface, MainActivity ou peso foi alterado.
 - Testes Python da CLI ainda não executados; Gradle/JUnit e execução com inferência real continuam NOT RUN/BLOCKED.
+
+
+## 21:30 UTC — candidato Agent R&D: duração de delegação
+
+- Branch isolada kellvyn-rnd/agent-delegation-duration-001.
+- KellvynOrchestrator atualizado com relógio monotônico injetável; eventos DELEGATION_FINISHED agora registram duração em caminhos normais e cancelamento.
+- Dois testes determinísticos escritos: 8 ms no caminho concluído; 5 ms ao cancelar, com propagação do cancelamento.
+- Workflow de teste expandido para aceitar kellvyn-rnd/**.
+- Run 44401916646: os dois jobs falharam antes dos steps, runner_id=0, steps=[]; Gradle/JUnit NOT RUN.
+- Experimento agent-delegation-duration-001 atualizado para IMPLEMENTED_NOT_RUN; sem merge até o gate agents executar.
+- Sem alterações em cérebro, pesos, Runtime, política/perfis, interface ou MainActivity.
