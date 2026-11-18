@@ -135,6 +135,75 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
+        },
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[3]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                val unknown = arguments.keys - setOf("baseline_trace_id", "candidate_trace_id")
+                if (unknown.isNotEmpty()) {
+                    return KellvynToolResult(false, "Argumentos não reconhecidos.")
+                }
+                val baselineId = arguments["baseline_trace_id"]?.trim().orEmpty()
+                val candidateId = arguments["candidate_trace_id"]?.trim().orEmpty()
+                if (!TRACE_ID.matches(baselineId) || !TRACE_ID.matches(candidateId) ||
+                    baselineId == candidateId
+                ) {
+                    return KellvynToolResult(false, "Informe dois trace IDs válidos e diferentes.")
+                }
+                val baseline = withContext(Dispatchers.IO) { traceStore.history(baselineId) }
+                val candidate = withContext(Dispatchers.IO) { traceStore.history(candidateId) }
+                val baselineCases = baseline.map { it.event }
+                    .filter { it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null }
+                    .associateBy { it.detailCode!! }
+                val candidateCases = candidate.map { it.event }
+                    .filter { it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null }
+                    .associateBy { it.detailCode!! }
+                if (baselineCases.isEmpty() || candidateCases.isEmpty()) {
+                    return KellvynToolResult(
+                        false,
+                        "Um dos traces não contém resultados de casos de benchmark comparáveis."
+                    )
+                }
+                val caseIds = (baselineCases.keys + candidateCases.keys).toSortedSet()
+                val baselinePassed = baselineCases.values.count {
+                    it.outcome == KellvynAgentLabOutcome.SUCCEEDED
+                }
+                val candidatePassed = candidateCases.values.count {
+                    it.outcome == KellvynAgentLabOutcome.SUCCEEDED
+                }
+                val output = buildString {
+                    append("COMPARAÇÃO DE EXPERIMENTOS\n")
+                    append("BASELINE: ").append(baselineId).append("\n")
+                    append("CANDIDATO: ").append(candidateId).append("\n")
+                    append("Casos aprovados: ").append(baselinePassed)
+                        .append("/").append(baselineCases.size)
+                        .append(" → ").append(candidatePassed)
+                        .append("/").append(candidateCases.size).append("\n")
+                    append("Variação de aprovações: ")
+                        .append(candidatePassed - baselinePassed).append("\n\n")
+                    append("CASO | BASELINE | CANDIDATO | DURAÇÃO_MS (BASE → CANDIDATO)\n")
+                    caseIds.forEach { caseId ->
+                        val before = baselineCases[caseId]
+                        val after = candidateCases[caseId]
+                        append(caseId).append(" | ")
+                            .append(before?.outcome?.name ?: "AUSENTE")
+                            .append(" | ")
+                            .append(after?.outcome?.name ?: "AUSENTE")
+                            .append(" | ")
+                            .append(before?.durationMillis?.toString() ?: "-")
+                            .append(" → ")
+                            .append(after?.durationMillis?.toString() ?: "-")
+                            .append("\n")
+                    }
+                    append("\nHashes de perfil baseline: ")
+                        .append(baselineCases.values.mapNotNull { it.profileSha256 }.distinct().joinToString().ifBlank { "não registrados" })
+                    append("\nHashes de perfil candidato: ")
+                        .append(candidateCases.values.mapNotNull { it.profileSha256 }.distinct().joinToString().ifBlank { "não registrados" })
+                    append("\nA comparação usa apenas estados e durações persistidos; não mede qualidade sem os verificadores do benchmark.")
+                }
+                return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
+            }
         }
     )
 
@@ -147,6 +216,7 @@ internal class KellvynAgentLabStudio(
         const val ENVIRONMENT_STATUS_TOOL = "agent_lab_environment_status"
         const val TRACE_LIST_TOOL = "agent_lab_traces_list"
         const val TRACE_INSPECT_TOOL = "agent_lab_trace_inspect"
+        const val TRACE_COMPARE_TOOL = "agent_lab_trace_compare"
 
         private const val KIBIBYTE = 1024L
         private const val MEBIBYTE = 1024L * KIBIBYTE
@@ -184,6 +254,30 @@ internal class KellvynAgentLabStudio(
                 argumentSchemas = listOf(
                     KellvynToolArgumentSchema(
                         name = "trace_id",
+                        type = KellvynToolArgumentType.TEXT,
+                        maxLength = 36,
+                        pattern = "^[0-9a-fA-F-]{36}$"
+                    )
+                ),
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 8_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 24L * MEBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
+            ),
+            KellvynToolSpec(
+                name = TRACE_COMPARE_TOOL,
+                description = "Compara duas execuções de benchmark por caso, estado, duração e hashes de perfil; não lê respostas privadas.",
+                requiredArguments = setOf("baseline_trace_id", "candidate_trace_id"),
+                argumentSchemas = listOf(
+                    KellvynToolArgumentSchema(
+                        name = "baseline_trace_id",
+                        type = KellvynToolArgumentType.TEXT,
+                        maxLength = 36,
+                        pattern = "^[0-9a-fA-F-]{36}$"
+                    ),
+                    KellvynToolArgumentSchema(
+                        name = "candidate_trace_id",
                         type = KellvynToolArgumentType.TEXT,
                         maxLength = 36,
                         pattern = "^[0-9a-fA-F-]{36}$"
