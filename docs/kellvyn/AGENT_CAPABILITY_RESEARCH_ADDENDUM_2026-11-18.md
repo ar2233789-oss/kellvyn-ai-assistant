@@ -278,3 +278,68 @@ A trilha oficial Google para treinar e implantar LLM em Android demonstra um flu
 Fonte:
 - https://developers.google.com/learn/pathways/llm-on-android
 - https://developers.google.com/edge/litert/overview
+
+
+## 8. Agent Lab — ambiente de execução, observabilidade e experimentação
+
+Esta camada é diferente do Agent Creation Studio:
+
+- **Agent Creation Studio** mantém os 14 perfis, valida contrato/capabilities, versiona revisões e controla aprovação/rollback.
+- **Agent Lab** acompanha execuções reais, investiga falhas, executa benchmarks, compara perfil baseline/candidato e mede o custo de recursos.
+- O laboratório não substitui o cérebro e não cria modelos separados para os 14 papéis.
+
+### 8.1 Padrões externos estudados
+
+A documentação do OpenAI Agents SDK registra uma execução como trace e agrupa spans de modelo, ferramentas, handoffs, guardrails e eventos personalizados. A documentação de trace grading recomenda avaliar o fluxo completo, não apenas a resposta final; datasets e graders repetíveis ajudam a encontrar regressões de seleção de ferramentas e delegação.
+
+Referências:
+- https://developers.openai.com/api/docs/guides/agents/integrations-observability
+- https://developers.openai.com/api/docs/guides/trace-grading
+- https://developers.openai.com/api/docs/guides/agent-evals
+
+O Cursor documenta subagentes com contexto separado e worktrees para isolar alterações. A vantagem é reduzir contaminação de contexto e conflitos de edição; o custo é criar ambientes/contexts adicionais. Na Kellvyn móvel, manter execução sequencial até medições demonstrarem capacidade real para concorrência.
+
+Referências:
+- https://cursor.com/docs/subagents
+- https://cursor.com/docs/configuration/worktrees
+
+A persistência baseada em checkpoint e store separa o estado necessário para retomar uma tarefa do conhecimento durável compartilhado. A Kellvyn já tem checkpoints autenticados; o trace complementa os checkpoints, não os substitui.
+
+Referência:
+- https://github.com/langchain-ai/docs/blob/main/src/oss/langgraph/persistence.mdx
+
+### 8.2 Infraestrutura implementada nesta revisão
+
+- `KellvynAgentLabTraceStoreRecorder`: gravação assíncrona em I/O, no armazenamento privado cifrado já existente.
+- `KellvynAgent`: cria um trace por execução e registra início/fim, chamadas de modelo, decisões, ferramentas, falhas, cancelamentos e execução de etapas de plano.
+- `KellvynOrchestrator`: liga os spans de delegação ao mesmo trace; cada especialista usa um ator filho, preservando o trace ID principal.
+- `KellvynAgentLabStudio`: módulo independente, carregado sob demanda, com consulta do ambiente, lista/inspeção de traces e comparação de benchmarks.
+- `KellvynSpecialistAgentBenchmarkExecutor`: executor real que roda o perfil compilado na mesma inferência, limita ferramentas pela matriz central, captura ferramentas solicitadas/executadas e recusa mutação/delegação aninhada.
+- `KellvynSpecialistEvaluationHarness`: aceita executores com trace, registra cada caso e permite avaliar perfis candidatos em memória sem ativá-los.
+- Snapshots de início/fim: memória disponível, utilização do heap, PSS, bateria e faixa térmica. São coletados sob demanda; não há polling permanente.
+- A comparação baseline/candidato exibe estado por caso, duração, hash do perfil e snapshots de recursos.
+
+### 8.3 Privacidade, integridade e limites
+
+O schema de trace não recebe prompts, respostas brutas, argumentos de ferramentas, conteúdo de arquivos, memória nem credenciais. Os eventos usam trace ID, horário, ator, nome de ferramenta, hash de perfil, duração, resultado e código de detalhe. O armazenamento continua cifrado, privado ao app, encadeado por SHA-256 e limitado por número de traces/eventos.
+
+A matriz de benchmark roda um caso por vez. A promoção continua fora das ferramentas do modelo. O executor não pode aprovar sua própria saída: um verificador separado continua obrigatório.
+
+### 8.4 Limites que ainda impedem declarar o laboratório concluído
+
+- O cérebro neural ainda não está ligado ao chat principal: `KellvynRuntime.isReady()` continua `false`. O executor está pronto para receber uma inferência aprovada, mas isso não prova que exista um backend conversacional de produção conectado.
+- O verificador independente é injetado por código confiável; não existe ainda um grader de competência com validade demonstrada para todos os 28 cenários.
+- Os testes do trace, executor, integração e comparador estão escritos, mas não foram executados por Gradle/JUnit/Android Runner nesta revisão.
+- Não há APK, emulador ou medição física do Poco F6 nesta revisão.
+- O workflow de livro de atividades está criado, mas a execução automática do GitHub Actions também está bloqueada antes dos steps por ausência de runner.
+
+### 8.5 Próximos gates técnicos
+
+1. Restaurar alocação de runner e executar a suíte completa antes de ampliar funcionalidades.
+2. Corrigir apenas erros reproduzidos pela compilação/testes.
+3. Desenvolver um verificador independente por tipo de cenário, com rubricas e evidências reproduzíveis; não usar autodeclaração do executor como aprovação.
+4. Persistir metadados de experimento suficientes para reprodutibilidade: versão do corpus, hash do caso, perfil, configuração, backend e versão do executor.
+5. Implementar workspaces/patches isolados antes de permitir especialistas de programação a editar em paralelo.
+6. Medir RAM, PSS, heap, bateria, temperatura, latência e taxa de conclusão no Poco F6 antes de autorizar paralelismo.
+7. Só conectar o benchmark à inferência de produção depois do gate de qualidade neural e de um teste de ponta a ponta.
+
