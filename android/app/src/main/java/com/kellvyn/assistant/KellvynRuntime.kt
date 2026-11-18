@@ -411,7 +411,8 @@ internal class KellvynRuntime(context: Context) {
             networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
-            }
+            },
+            resourceSnapshotProvider = { resourceRuntime.snapshot() }
         )
         return runAgentLabBenchmarkSuite(
             executor = executor,
