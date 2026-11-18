@@ -112,6 +112,22 @@ class KellvynSpecialistEvaluationHarnessTest {
         )
         assertEquals(KellvynSpecialistBenchmarkStatus.FAILED, conflictingResult.status)
         assertTrue(conflictingResult.reasons.any { it.contains("verificado e pendente") })
+
+        val unassignedVerifier = KellvynSpecialistBenchmarkVerifier { _, _, _ ->
+            KellvynSpecialistBenchmarkVerification(
+                verifiedEvidence = emptySet(),
+                evidenceReferences = setOf("fixture:unassigned-criterion")
+            )
+        }
+        val unassignedResult = harness(verifier = unassignedVerifier).runCase(
+            testCase,
+            profiles.requireProfile(testCase.role),
+            emptyList()
+        )
+        assertEquals(KellvynSpecialistBenchmarkStatus.FAILED, unassignedResult.status)
+        assertTrue(unassignedResult.reasons.any {
+            it.contains("sem prova nem encaminhamento para revisão")
+        })
     }
 
     @Test
@@ -310,6 +326,7 @@ class KellvynSpecialistEvaluationHarnessTest {
 
         assertEquals(28, report.total)
         assertEquals(28, report.passed)
+        assertEquals(0, report.reviewRequired)
         assertEquals(0, report.failed)
         assertEquals(0, report.blocked)
         assertEquals(order.sorted(), order)
