@@ -2,7 +2,7 @@
 
 Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. Registra metadados de commits e arquivos, não prompts, conversas, argumentos de ferramentas ou dados privados.
 
-**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 18:08 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
+**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 18:22 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
 **Registro automático:** script `scripts/append-agent-lab-activity.py` e workflow `.github/workflows/agent-lab-activity-ledger.yml` estão criados. A execução automática permanece bloqueada enquanto GitHub Actions não aloca runner; os jobs observados retornaram `runner_id=0` e `steps=[]`.  
 **Regra de continuidade:** a cada sessão, conferir o HEAD, registrar todos os commits novos aqui e atualizar `SESSION_CONTROL.md`. Quando o runner voltar, o workflow acrescentará os commits futuros automaticamente.
 
@@ -93,18 +93,29 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | 18:06:34 | `a313537` | test(kellvyn): assert trace recorder identifies failed event and trace |
 | 18:08:11 | `5ca3a4d` | docs(kellvyn): record cpu telemetry limits and benchmark verifier gap |
 | 18:08:26 | `346d57d` | docs(kellvyn): document trace health cpu metrics and verifier limits |
+| 18:11:21 | `9dd73d7` | docs(kellvyn): update session continuity with telemetry health and grader gap |
+| 18:13:56 | `e5c08eb` | feat(kellvyn): add review-required outcome to benchmark traces |
+| 18:14:15 | `924cc90` | fix(kellvyn): handle review-required trace outcomes exhaustively |
+| 18:14:57 | `ea75a93` | feat(kellvyn): classify unverified benchmark evidence as review required |
+| 18:16:30 | `37c6272` | test(kellvyn): distinguish review-required benchmark evidence from pass and failure |
+| 18:16:54 | `ec5b703` | feat(kellvyn): display review-required benchmark counts in experiment comparison |
+| 18:18:00 | `1c14450` | test(kellvyn): persist review-required outcomes in encrypted traces |
+| 18:20:58 | `559b8d7` | docs(kellvyn): document review-required benchmark outcome semantics |
+| 18:21:16 | `c435e8f` | docs(kellvyn): specify review-required benchmark outcome workflow |
+| 18:22:20 | `1e79ec6` | test(kellvyn): fail benchmark criteria omitted from verification and review |
 
-## Estado consolidado às 18:08 UTC
+## Estado consolidado às 18:22 UTC
 
 - Trace automático local: ligado ao ciclo do agente, modelo, ferramentas, delegações, especialistas e etapas de plano; decisões de ferramenta bloqueadas deixam metadados sem argumentos.
 - Agent Lab: módulo headless separado, carregado sob demanda; consulta ambiente, traces, linhas do tempo, comparação baseline/candidato, estados dos motores e saúde da gravação.
 - Benchmark: executor real para inferência fornecida, ferramentas filtradas por política, perfis candidatos não ativados e verificador independente obrigatório. Cada suíte está limitada a 28 cenários e recebe fingerprint determinístico.
-- Rubricas: os 28 cenários ainda descrevem critérios em texto livre; não há grader semântico independente validado. Não aprovar por correspondência de palavras ou autodeclaração do agente.
+- Estados de avaliação: PASSED, REVIEW_REQUIRED, FAILED e BLOCKED. Critérios encaminhados à revisão não contam como aprovação. Critério inventado, conflitante ou omitido sem prova nem revisão falha em modo fail-closed.
+- Limite do grader: os critérios de rubrica ainda são texto livre; não existe verificador semântico validado para todos os casos. REVIEW_REQUIRED evita falsa aprovação, mas não substitui o trabalho futuro de oráculos objetivos/revisão independente.
 - Recursos: snapshots de RAM disponível, heap, PSS, bateria e temperatura; CPU% é estimativa do processo inteiro na janela (pode incluir trabalho concorrente), não atribuição exata por agente nem consumo em watts.
 - Recorder: falha de disco/Keystore não interrompe o agente; health distingue não testado, saudável, degradado e recuperado com falhas anteriores; aponta trace e tipo do evento perdido. Uma recuperação não reconstrói eventos perdidos.
 - Retenção: 1.536 eventos por trace, até 16 traces, registros de até 2 KiB (teto teórico aproximado de 48 MiB). Append mantém cursor em cache e reconcilia instâncias; leituras por janela validam toda a cadeia. Pruning exige confirmação do proprietário e remove só traces terminais antigos com cadeia íntegra.
-- Testes escritos: histórico acima de 128 eventos, tail/summary com validação integral, stores intercalados, suíte com 29 casos bloqueada, CPU%, falha/recuperação do recorder e garantia de que a falha de trace não aborta KellvynAgent.run(). **Nenhum teste Gradle/JUnit/Android foi executado** porque GitHub Actions continua sem alocar runner.
-- CI mais recente: runs Agent Lab 44366062435, neural 44366062495 e activity ledger 44366062453; todos falharam antes dos steps, runner_id=0, steps=0. Classificação: runner não alocado / testes not run.
-- Diário automático: script/workflow criados, mas sem runner não executam. As entradas desta sessão foram conciliadas manualmente.
+- Testes escritos: histórico acima de 128 eventos, tail/summary com validação integral, stores intercalados, suíte com 29 casos bloqueada, CPU%, falha/recuperação do recorder, agente concluído apesar de falha de gravação, estados REVIEW_REQUIRED/FAILED e persistência cifrada. **Nenhum teste Gradle/JUnit/Android foi executado** porque GitHub Actions continua sem alocar runner.
+- CI mais recente: Agent Lab run 44368982497, neural 44368982477 e activity ledger 44368982450. Todos falharam antes do primeiro step: runner_id=0, steps=0. Classificação: runner não alocado / testes not run.
+- Diário automático: script/workflow instalados, mas sem runner não executam. Entradas de desenvolvimento reconciliadas manualmente até 18:22 UTC; GitHub ainda registra commits/horários nativamente.
 - Cérebro neural: KellvynRuntime.isReady() permanece false; não há validação cognitiva de produção, APK, emulador ou Poco F6.
 - Interface, MainActivity.java, .github/interface-lock.sha, pesos neurais e interface aprovada: não alterados nesta sessão.
