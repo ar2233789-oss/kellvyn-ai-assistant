@@ -560,6 +560,27 @@ internal class KellvynAgent(
                     }
                     delegationCalls++
 
+                    val profileCompilation = specialistProfiles.compileAll()
+                    if (!profileCompilation.success) {
+                        messages += observation(
+                            source = "specialist:${decision.role.name.lowercase()}",
+                            success = false,
+                            content = "O catálogo de perfis não passou pelo Profile Compiler: " +
+                                profileCompilation.errors.joinToString(" ").take(700)
+                        )
+                        continue
+                    }
+                    val compiledProfile = profileCompilation.profiles.firstOrNull {
+                        it.role == decision.role
+                    }
+                    if (compiledProfile == null) {
+                        messages += observation(
+                            source = "specialist:${decision.role.name.lowercase()}",
+                            success = false,
+                            content = "O perfil solicitado não foi compilado; a delegação foi bloqueada."
+                        )
+                        continue
+                    }
                     val specialistProfile = specialistProfiles.requireProfile(decision.role)
                     val specialistPrompt = buildString {
                         append("SUBTAREFA INTERNA\nObjetivo: ")
@@ -577,10 +598,10 @@ internal class KellvynAgent(
                             networkReadEnabled = networkReadEnabled
                         ),
                         config = config.copy(
-                            maxSteps = minOf(config.maxSteps, specialistProfile.maxSteps),
-                            maxToolCalls = minOf(config.maxToolCalls, specialistProfile.maxToolCalls),
+                            maxSteps = minOf(config.maxSteps, compiledProfile.maxSteps),
+                            maxToolCalls = minOf(config.maxToolCalls, compiledProfile.maxToolCalls),
                             maxDelegations = 0,
-                            maxContextChars = minOf(config.maxContextChars, specialistProfile.maxContextChars),
+                            maxContextChars = minOf(config.maxContextChars, compiledProfile.maxContextChars),
                             allowDelegation = specialistProfile.allowDelegation,
                             systemInstruction = specialistProfile.systemInstruction(deniedToolNames)
                         ),
@@ -620,7 +641,9 @@ internal class KellvynAgent(
                         role = KellvynMessageRole.TOOL,
                         trust = KellvynTrustLevel.UNTRUSTED,
                         source = "specialist:${decision.role.name.lowercase()}",
-                        content = specialistSummary.take(config.maxObservationChars)
+                        content = (
+                            "PROFILE_SHA256: ${compiledProfile.profileSha256}\n" + specialistSummary
+                        ).take(config.maxObservationChars)
                     )
                 }
 
