@@ -151,3 +151,24 @@ Ainda pendente:
 - As ferramentas de leitura com acesso ao ledger passaram a reservar 24 MiB e usar STANDARD; benchmark catalog permanece LIGHT. O teto físico configurado segue em 256 registros globais e 32 KiB por registro.
 - Run 44335158436 / job 134909733286 falhou sem steps e logs_url. Isso não prova falha de compilação Kotlin/Gradle; nenhuma etapa foi exibida.
 - Nenhum teste Gradle/JUnit/Android instrumented foi observado como iniciado ou aprovado.
+
+
+## 14. Relação com o Agent Lab — atualização 18/11/2026
+
+O Agent Creation Studio continua responsável pelos perfis: catálogo, compilação, revisão, versionamento, aprovação e rollback. Ele não deve ser tratado como a bancada completa de experimentação.
+
+O **Agent Lab** é a camada complementar de execução e pesquisa:
+- registra traces de coordenador, especialistas, modelo e ferramentas;
+- inspeciona a integridade e compara execuções;
+- executa cenários com um adaptador real sobre a inferência recebida;
+- permite avaliar perfis candidatos sem ativá-los;
+- mede snapshots de RAM disponível, heap, PSS, bateria e faixa térmica;
+- mantém testes sequenciais e menor privilégio.
+
+Arquivos centrais adicionados:
+- `KellvynAgentLabTrace.kt` e `KellvynAgentLabTraceStore.kt`;
+- `KellvynAgentLabStudio.kt`;
+- `KellvynSpecialistAgentBenchmarkExecutor.kt`.
+
+**Limite de conclusão:** o executor e os contratos estão escritos, mas o cérebro neural ainda não está conectado ao chat e a suíte não passou por Gradle/Android Runner. Portanto, o Agent Lab é uma infraestrutura de desenvolvimento em construção, não um ambiente já certificado. Não confundir módulo registrado, execução simulada, benchmark executado com inferência real e competência validada.
+
