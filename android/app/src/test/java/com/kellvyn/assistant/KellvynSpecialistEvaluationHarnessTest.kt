@@ -133,6 +133,44 @@ class KellvynSpecialistEvaluationHarnessTest {
     }
 
     @Test
+    fun suiteLargerThanCatalogBoundIsBlockedWithoutRunningCases() = runBlocking {
+        val recorder = RecordingTraceRecorder()
+        val trace = KellvynAgentLabTraceSession.create(recorder)
+        val cases = benchmarks.cases() + benchmarks.cases().first().copy(
+            caseId = "oversized-benchmark-case"
+        )
+        var executions = 0
+        val harness = KellvynSpecialistEvaluationHarness(
+            executor = KellvynSpecialistBenchmarkExecutor { testCase, compiled, _ ->
+                executions++
+                KellvynSpecialistBenchmarkExecution(
+                    caseId = testCase.caseId,
+                    profileSha256 = compiled.profileSha256,
+                    responseText = "não deveria executar",
+                    requestedToolNames = emptySet(),
+                    executedToolNames = emptySet(),
+                    policyViolations = emptyList(),
+                    startedAtMillis = 10L,
+                    completedAtMillis = 11L
+                )
+            },
+            verifier = allEvidenceVerifier(),
+            traceSessionFactory = { trace }
+        )
+
+        val report = harness.runSuite(cases, profiles.profiles(), emptyList())
+
+        assertEquals(29, report.total)
+        assertEquals(29, report.blocked)
+        assertEquals(0, executions)
+        assertEquals(1, recorder.events.count {
+            it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED &&
+                it.outcome == KellvynAgentLabOutcome.BLOCKED
+        })
+        assertEquals(2, recorder.events.size)
+    }
+
+    @Test
     fun suiteRunsSequentiallyAndRecordsEachCaseInOneExperimentTrace() = runBlocking {
         val order = mutableListOf<String>()
         val recorder = RecordingTraceRecorder()
