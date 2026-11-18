@@ -237,6 +237,40 @@ internal class KellvynSpecialistEvaluationHarness(
             detailCode = "SUITE_${suiteFingerprint(cases, profiles, availableTools, allowNetworkRead)}"
         )
         return try {
+            if (cases.size > MAX_CASES_PER_SUITE) {
+                val reason = "A suíte excede o limite seguro de $MAX_CASES_PER_SUITE casos por trace."
+                KellvynSpecialistBenchmarkReport(cases.map { blocked(it, reason) })
+            } else {
+                runValidatedSuite(cases, profiles, availableTools, allowNetworkRead, trace)
+            }
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                trace.record(
+                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            withContext(NonCancellable) {
+                trace.record(
+                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "BENCHMARK_ERROR"
+                )
+            }
+            throw error
+        }
+    }
+
+    private suspend fun runValidatedSuite(
+        cases: List<KellvynSpecialistBenchmarkCase>,
+        profiles: List<KellvynSpecialistProfile>,
+        availableTools: List<KellvynToolSpec>,
+        allowNetworkRead: Boolean,
+        trace: KellvynAgentLabTraceSession
+    ): KellvynSpecialistBenchmarkReport {
             val duplicateCaseIds = cases.groupingBy { it.caseId }
                 .eachCount().filterValues { it > 1 }.keys
             val report = if (duplicateCaseIds.isNotEmpty()) {
@@ -310,25 +344,6 @@ internal class KellvynSpecialistEvaluationHarness(
                 detailCode = "CASES_${report.total}"
             )
             report
-        } catch (cancelled: CancellationException) {
-            withContext(NonCancellable) {
-                trace.record(
-                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
-                    outcome = KellvynAgentLabOutcome.FAILED,
-                    detailCode = "CANCELLED"
-                )
-            }
-            throw cancelled
-        } catch (error: Exception) {
-            withContext(NonCancellable) {
-                trace.record(
-                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
-                    outcome = KellvynAgentLabOutcome.FAILED,
-                    detailCode = "BENCHMARK_ERROR"
-                )
-            }
-            throw error
-        }
     }
 
     /**
@@ -376,6 +391,10 @@ internal class KellvynSpecialistEvaluationHarness(
         return MessageDigest.getInstance("SHA-256")
             .digest(canonical.toByteArray(StandardCharsets.UTF_8))
             .joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private companion object {
+        const val MAX_CASES_PER_SUITE = 28
     }
 
     private fun safeCode(value: String): String =
