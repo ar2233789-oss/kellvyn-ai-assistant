@@ -3,11 +3,13 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última conferência:** 18/11/2026, 16:15 UTC  
+**Última revisão:** 18/11/2026, 16:35 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD confirmado antes desta atualização:** `d987d11b10d3c352af8584d5306c34536bf8d1a8`  
-**Commit:** [d987d11 — probe alternate ubuntu-slim hosted runner](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/d987d11b10d3c352af8584d5306c34536bf8d1a8)
+**HEAD de código auditado:** `523364464d92c5c747d0eadaebcdaad838e08898`  
+**Commit:** [5233644 — support actor-scoped child spans in lab traces](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/523364464d92c5c747d0eadaebcdaad838e08898)
+
+> Esta revisão documental foi feita depois de comparar os 12 commits entre `d987d11` e `5233644`. O HEAD posterior gerado por esta atualização documental deve ser conferido na próxima sessão antes de qualquer edição.
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -149,6 +151,66 @@ Um APK anterior a esses gates não é a IA completa.
 - [Pesquisa complementar de capacidades e ML móvel](AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md)
 - [Matriz corrigida de ferramentas por papel](AGENT_TOOL_AVAILABILITY_2026-11-18.md)
 - [Política de treino alinhada à decisão de pesos próprios](LEARNING_AND_TRAINING.md)
+
+## 6.1 Revisão de commits posteriores — 18/11/2026, 16:11–16:26 UTC
+
+A branch avançou **12 commits** depois do HEAD registrado na revisão anterior (`d987d11`). A revisão direta do diff e dos arquivos atuais confirmou:
+
+### Orquestrador explícito — implementado no código, ainda não validado por Gradle/CI
+
+Commits relevantes:
+- `20fd0c4` — criação de `KellvynOrchestrator.kt`.
+- `8ed11dd` e `040415c` — transferência da coordenação dos especialistas para o orquestrador e roteamento de cada execução por uma sessão.
+- `8ced235`, `8f2135a`, `5afe774` e `8ceb2bd` — testes e correções do orçamento de delegação por execução.
+
+Verificado no código atual:
+- `KellvynAgent` instancia um `KellvynOrchestrator`, cria uma sessão para cada execução e encaminha decisões `Delegate` para ela.
+- O orquestrador valida a política/capabilities, restringe ferramentas ao subconjunto permitido, compila o perfil, cria o especialista com a mesma instância de inferência, proíbe delegação recursiva, aplica limites e timeout, propaga cancelamento e devolve o resultado como observação não confiável.
+- O orçamento de delegações pertence à sessão; execuções separadas não compartilham esse contador.
+- `KellvynOrchestratorTest.kt` foi adicionado com casos para isolamento, ferramentas autorizadas, limites por sessão e contexto excessivo.
+
+**Interpretação correta:** o orquestrador independente agora existe e coordena a delegação. Isso não significa que há 14 modelos diferentes, que os especialistas tenham competência neural comprovada ou que a execução tenha passado em Gradle. Os testes foram escritos, mas não foram executados/aprovados em CI nesta revisão.
+
+### Rastreamento do laboratório — estrutura criada, integração pendente
+
+Commits relevantes:
+- `b2ad787` — contrato de eventos de trace com metadados de privacidade.
+- `ee7deaf` — armazenamento local cifrado e limitado.
+- `1a86f72` — restauração da identidade do trace a partir do cabeçalho autenticado.
+- `5233644` — suporte a spans/atores filhos no mesmo trace.
+
+Verificado:
+- `KellvynAgentLabTrace.kt` define eventos de início, chamadas de modelo, decisões, delegação, ferramentas e estados finais; inclui trace ID, horário, ator, papel, etapa, nome de ferramenta, hash de perfil, duração e códigos de estado.
+- O schema não aceita prompt, resposta bruta do modelo, argumentos de ferramenta, conteúdo de memória/arquivo ou credenciais.
+- `KellvynAgentLabTraceStore.kt` grava eventos em arquivos privados, cifra payloads com o cifrador AES-GCM existente, autentica o cabeçalho como AAD, encadeia registros por SHA-256, grava por arquivo temporário + rename e limita retenção/tamanho (64 traces, 128 eventos por trace, até 2 KiB por registro).
+- `KellvynAgentLabTraceSession.forActor()` permite registrar atores filhos sob o mesmo trace ID.
+
+**Lacunas confirmadas pela inspeção:** ainda não há referência a `KellvynAgentLabTrace`/Store/Session em `KellvynAgent.kt` nem em `KellvynRuntime.kt`; portanto, os eventos não estão ligados ao ciclo real do agente e não há evidência de traces efetivamente sendo gravados. A listagem atual de testes também não contém um `KellvynAgentLabTraceStoreTest`. O código de armazenamento existe, mas seus ciclos de escrita/leitura, corrupção, limite e pruning ainda não têm teste listado nem aprovação Gradle observada.
+
+Risco específico a testar/corrigir antes de depender do histórico: `RUN_CANCELLED` existe no enum de eventos, mas não é classificado como terminal por `isTerminal()`; traces cancelados não serão tratados como concluídos pelo resumo/pruning atual.
+
+### CI do HEAD auditado — continua bloqueado antes dos steps
+
+- Run `44347211746`, associado ao HEAD `5233644`, falhou em 18/11/2026 às 16:26:16 UTC.
+- Jobs `134952728080` (probe `ubuntu-slim`) e `134952728764` (testes Unit/Android) retornaram `runner_id=0`, `runner_name=""` e `steps=[]`.
+- Run anterior `44347073611` repetiu o mesmo padrão: sem runner e sem steps.
+- Classificação: **RUNNER NÃO ALOCADO / TESTES NOT RUN**. Não é evidência de falha Kotlin, mas também não é aprovação. Nenhum teste Gradle/JUnit/Android foi executado por esses jobs.
+
+### Estado exato após esta revisão
+
+- Orquestrador: **implementado + teste escrito + não validado por Gradle/CI**.
+- Perfis dos 14 especialistas: **registrados e compiláveis pelo Profile Compiler + competência neural não comprovada**.
+- Trace schema/store: **implementados no código + ainda não conectados ao runtime + sem teste próprio listado**.
+- Agent Creation Studio: **registro, compilação, 28 cenários, harness e armazenamento versionado já existem**; não recriar esses módulos.
+- Runner/CI: **bloqueio de alocação continua sendo o próximo gate**.
+- Interface protegida e `MainActivity.java`: permanecem intocados pelos 12 commits comparados; não editar nem alterar o hash de proteção.
+- Não há comprovação nova de APK, instalação em emulador ou teste físico no Poco F6.
+
+### Próximo passo único
+
+Confirmar na área privada de Actions/Billing se compute incluído, budget ou política da conta/repositório está bloqueando a alocação do runner e restabelecer uma execução mínima. Até existir runner, não empilhar novos módulos. Depois, executar primeiro a suíte Gradle existente; então adicionar os testes faltantes do trace store e só integrar o rastreamento ao ciclo real após validar os contratos, com I/O fora da thread principal e retenção/cancelamento corretos.
+
+---
 
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
