@@ -37,7 +37,10 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 KellvynAgentCreationStudio.CATALOG_TOOL,
                 KellvynAgentCreationStudio.INSPECT_TOOL
             )
-            val agentEvaluation = setOf(KellvynAgentCreationStudio.VALIDATE_TOOL)
+            val agentEvaluation = setOf(
+                KellvynAgentCreationStudio.VALIDATE_TOOL,
+                KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL
+            )
 
             val expectedByRole = mapOf(
                 KellvynSpecialistRole.RESEARCHER to dataModeling,
