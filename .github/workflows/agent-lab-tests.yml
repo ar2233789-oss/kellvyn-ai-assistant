@@ -20,7 +20,6 @@ on:
       - 'android/gradle.properties'
       - '.github/workflows/agent-lab-tests.yml'
       - 'tools/kellvyn-rnd-studio/**'
-      - 'docs/kellvyn/rnd-studio/**'
 
 permissions:
   contents: read
