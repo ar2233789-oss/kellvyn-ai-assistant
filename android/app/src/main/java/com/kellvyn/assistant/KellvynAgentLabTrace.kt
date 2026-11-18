@@ -1,6 +1,7 @@
 package com.kellvyn.assistant
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -158,9 +159,12 @@ internal class KellvynAgentLabTraceSession private constructor(
  * checkpoints. File I/O and Keystore-backed encryption never run on the UI thread.
  */
 internal data class KellvynAgentLabTraceRecorderHealth(
-    val healthy: Boolean,
+    val currentlyWritable: Boolean,
+    val failureCount: Int,
     val lastFailureCode: String?
-)
+) {
+    val healthy: Boolean get() = currentlyWritable && failureCount == 0
+}
 
 /**
  * Trace persistence is best-effort observability: a disk/Keystore failure must not abort the
@@ -171,25 +175,29 @@ internal class KellvynAgentLabTraceStoreRecorder(
     private val store: KellvynAgentLabTraceStore
 ) : KellvynAgentLabTraceRecorder {
     private val lastFailureCode = AtomicReference<String?>(null)
+    private val failureCount = AtomicInteger(0)
+    private val currentlyWritable = java.util.concurrent.atomic.AtomicBoolean(true)
 
     override suspend fun record(event: KellvynAgentLabEvent) {
         try {
             withContext(Dispatchers.IO) {
                 store.append(event)
             }
-            lastFailureCode.set(null)
+            currentlyWritable.set(true)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            failureCount.incrementAndGet()
             lastFailureCode.set(error.javaClass.simpleName.take(64))
+            currentlyWritable.set(false)
         }
     }
 
     fun health(): KellvynAgentLabTraceRecorderHealth {
-        val failure = lastFailureCode.get()
         return KellvynAgentLabTraceRecorderHealth(
-            healthy = failure == null,
-            lastFailureCode = failure
+            currentlyWritable = currentlyWritable.get(),
+            failureCount = failureCount.get(),
+            lastFailureCode = lastFailureCode.get()
         )
     }
 }
