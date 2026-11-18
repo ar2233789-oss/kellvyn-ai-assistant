@@ -99,6 +99,68 @@ internal class KellvynAgent(
         verifier: KellvynIndependentVerifier,
         preconditionEvidence: KellvynPreconditionEvidence? = null
     ): KellvynAgentResult {
+        val traceSession = traceSessionFactory()
+        traceSession.record(
+            kind = KellvynAgentLabEventKind.RUN_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED,
+            detailCode = "PLANNED_STEP"
+        )
+        return try {
+            val result = executePlannedStepInternal(
+                taskId = taskId,
+                stepId = stepId,
+                toolName = toolName,
+                arguments = arguments,
+                verifier = verifier,
+                preconditionEvidence = preconditionEvidence,
+                traceSession = traceSession
+            )
+            val terminal = when (result) {
+                is KellvynAgentResult.Completed ->
+                    KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED
+                is KellvynAgentResult.Failed ->
+                    KellvynAgentLabEventKind.RUN_FAILED to KellvynAgentLabOutcome.FAILED
+                is KellvynAgentResult.LimitReached ->
+                    KellvynAgentLabEventKind.RUN_LIMIT_REACHED to KellvynAgentLabOutcome.LIMITED
+                is KellvynAgentResult.Planned ->
+                    KellvynAgentLabEventKind.RUN_PLANNED to KellvynAgentLabOutcome.SUCCEEDED
+            }
+            traceSession.record(
+                kind = terminal.first,
+                outcome = terminal.second,
+                detailCode = "PLANNED_STEP"
+            )
+            result
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = KellvynAgentLabEventKind.RUN_CANCELLED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "PLANNED_STEP_CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = KellvynAgentLabEventKind.RUN_FAILED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "PLANNED_STEP_EXCEPTION"
+                )
+            }
+            throw error
+        }
+    }
+
+    private suspend fun executePlannedStepInternal(
+        taskId: String,
+        stepId: String,
+        toolName: String,
+        arguments: Map<String, String>,
+        verifier: KellvynIndependentVerifier,
+        preconditionEvidence: KellvynPreconditionEvidence?,
+        traceSession: KellvynAgentLabTraceSession
+    ): KellvynAgentResult {
         val repository = taskCheckpoints
             ?: return KellvynAgentResult.Failed("O armazenamento persistente de tarefas não está configurado.", 0, 0)
         val latest = repository.loadLatest(taskId)
@@ -181,7 +243,13 @@ internal class KellvynAgent(
         }
 
         val toolResult = try {
-            executeTool(tool, arguments, "${taskId}-${stepId}")
+            executeTool(
+                tool = tool,
+                arguments = arguments,
+                requestId = "${taskId}-${stepId}",
+                traceSession = traceSession,
+                step = 1
+            )
         } catch (deferred: KellvynTaskDeferredException) {
             val retryState = taskPlanner.returnStepToReady(running, stepId)
             try {
