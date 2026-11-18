@@ -3,6 +3,15 @@
 **Data:** 16/11/2026  
 **Estado:** decisão aprovada para o projeto: construir o cérebro conversacional do zero.
 
+> **Estado técnico atual — 18/11/2026:** KN-003 existe como Transformer autoral de um único bloco e já possui cache KV incremental para esse bloco. Ainda não é um LLM geral nem está ligado ao chat principal. `KellvynRuntime.isReady()` continua `false` e `reply()` informa que a inferência não está disponível. Não há checkpoint conversacional treinado e aprovado nem teste de competência geral. Os testes mais antigos que passaram em 17/11 não validam as alterações posteriores desta branch, pois o runner do GitHub não está atribuindo máquina aos jobs em 18/11.
+>
+> A configuração padrão do pipeline KN-003 é deliberadamente experimental: contexto 256, embedding 32, 4 cabeças, feed-forward 64, no máximo 64 merges BPE, uma época por exemplo, limite de 100.000 passos e 500.000 bytes de corpus. Com os 64 merges todos usados, o vocabulário máximo do tokenizer seria 321 (256 bytes + 64 merges + EOS) e o modelo contém aproximadamente 31.233 parâmetros, calculados a partir dos arrays de embeddings, atenção, normalização, SwiGLU e projeção de saída. Com menos merges, tem menos parâmetros. Isso é um protótipo didático muito pequeno, não a capacidade de um assistente geral.
+>
+> Na árvore atual do repositório não foi encontrado corpus de treino independente de fontes de teste/documentação. O pipeline exige exemplos explícitos com proveniência e direitos de uso; o pequeno limite de corpus atual é adequado a experimentos e testes de mecânica, não a pré-treinar um assistente geral.
+>
+> Para evitar confusão entre estado histórico e estado atual: as seções abaixo registram decisões, protótipos e execuções anteriores; a situação acima e o arquivo `SESSION_CONTROL.md` prevalecem para o estado desta branch.
+
+
 ## 1. Decisão central
 
 O cérebro da Kellvyn será original. A arquitetura neural, o tokenizer, a inicialização, o código de treino, os pesos aprendidos e os checkpoints serão criados e mantidos neste repositório.
