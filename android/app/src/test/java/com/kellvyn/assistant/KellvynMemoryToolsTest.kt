@@ -45,7 +45,8 @@ class KellvynMemoryToolsTest {
         val result = tool.execute(mapOf("query" to "idioma arquitetura projeto"))
 
         assertTrue(result.success)
-        assertTrue(result.content.contains("g1").not())
+        assertTrue(result.content.contains("id=g1"))
+        assertTrue(result.content.contains("id=a1"))
         assertTrue(result.content.contains("Preferência de idioma"))
         assertTrue(result.content.contains("Decisão de arquitetura"))
         assertFalse(result.content.contains("Outro projeto"))
