@@ -428,6 +428,23 @@ internal class KellvynRuntime(context: Context) {
     fun agentLabTraceRecorderHealth(): KellvynAgentLabTraceRecorderHealth =
         agentLabTraceRecorder.health()
 
+    /**
+     * Explicit owner-only cleanup. The store removes only complete, terminal traces whose
+     * entire authenticated hash chain validates and whose final event predates the cutoff.
+     * This operation is never registered as an agent tool.
+     */
+    suspend fun pruneAgentLabTracesBefore(
+        cutoffMillis: Long,
+        ownerConfirmed: Boolean
+    ): Int {
+        require(ownerConfirmed) {
+            "A limpeza de traces exige confirmação explícita do proprietário no código confiável."
+        }
+        return withContext(Dispatchers.IO) {
+            agentLabTraceStore.pruneCompletedBefore(cutoffMillis)
+        }
+    }
+
     /** Returns up to 16 newest local trace summaries after validating each event chain. */
     suspend fun agentLabTraceSummaries(): List<KellvynAgentLabTraceSummary> =
         withContext(Dispatchers.IO) { agentLabTraceStore.summaries().take(16) }
