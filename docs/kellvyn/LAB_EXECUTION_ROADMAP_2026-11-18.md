@@ -270,4 +270,4 @@ A Fase A foi escrita nesta branch:
 
 O runtime passa a registrar seis módulos. Isso é uma contagem de módulos de ferramenta registrados, não a conclusão dos oito motores descritos na especificação.
 
-Estado de validação: os novos módulos passaram em compilação/smoke test Kotlin isolado com stubs de contratos Android. Os testes JUnit/Gradle continuam sem execução: workflows falham sem etapas/logs. A validação estrutural 14/14 não mede competência cognitiva. Próxima etapa: destravar o runner, executar JUnit/Gradle, depois implementar armazenamento de versões/diff e harness independente de competência.
+Estado de validação: não há saída de typecheck isolado registrada para esses módulos. Os testes JUnit/Gradle continuam sem execução: workflows falham sem etapas/logs. A validação estrutural 14/14 não mede competência cognitiva. Próxima etapa: destravar o runner e executar JUnit/Gradle, depois implementar armazenamento de versões/diff e harness independente de competência.
