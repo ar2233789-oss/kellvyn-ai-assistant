@@ -2,7 +2,7 @@
 
 Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. Registra metadados de commits e arquivos, não prompts, conversas, argumentos de ferramentas ou dados privados.
 
-**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 17:41 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
+**Última conciliação manual conferida pelo histórico do GitHub:** 18/11/2026, 18:08 UTC. A tabela lista os commits de implementação/documentação, incluindo manutenção do diário.  
 **Registro automático:** script `scripts/append-agent-lab-activity.py` e workflow `.github/workflows/agent-lab-activity-ledger.yml` estão criados. A execução automática permanece bloqueada enquanto GitHub Actions não aloca runner; os jobs observados retornaram `runner_id=0` e `steps=[]`.  
 **Regra de continuidade:** a cada sessão, conferir o HEAD, registrar todos os commits novos aqui e atualizar `SESSION_CONTROL.md`. Quando o runner voltar, o workflow acrescentará os commits futuros automaticamente.
 
@@ -69,15 +69,42 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | 17:40:52 | `c7f7675` | test(kellvyn): reject oversized benchmark suites before execution |
 | 17:41:25 | `7914ad3` | docs(kellvyn): document bounded trace storage and append performance |
 | 17:41:28 | `f9c9331` | docs(kellvyn): record Agent Lab storage bounds and test coverage |
+| 17:46:38 | `c8f3eb3` | test(kellvyn): ensure tail and summary validate the entire trace chain |
+| 17:48:08 | `4f70dd4` | feat(kellvyn): add process cpu telemetry to resource snapshots |
+| 17:48:11 | `654ea81` | feat(kellvyn): sample process cpu time without background polling |
+| 17:49:11 | `53834db` | feat(kellvyn): measure per-agent process cpu time at execution boundaries |
+| 17:49:35 | `9f0252a` | test(kellvyn): verify process cpu deltas in agent resource traces |
+| 17:50:02 | `924f35f` | feat(kellvyn): expose loaded modules and process cpu in Agent Lab status |
+| 17:50:33 | `67a8957` | fix(kellvyn): keep resource telemetry details within trace code limits |
+| 17:54:47 | `ac3d4d8` | fix(kellvyn): isolate trace persistence failures from agent execution |
+| 17:55:08 | `9a82a71` | feat(kellvyn): show trace recorder health in Agent Lab status |
+| 17:56:11 | `4e385f2` | feat(kellvyn): expose trace recorder health from runtime |
+| 17:56:36 | `fd6fa73` | fix(kellvyn): display trace health and loaded module states |
+| 17:56:56 | `ac1264a` | test(kellvyn): verify trace recorder degrades safely and recovers |
+| 17:57:37 | `5ede0b0` | fix(kellvyn): retain trace recorder failure history after recovery |
+| 17:58:04 | `eae0885` | feat(kellvyn): distinguish healthy, degraded and recovered trace storage |
+| 17:58:08 | `8b1e722` | test(kellvyn): preserve historical trace failure after recovery |
+| 17:59:06 | `88d6af4` | feat(kellvyn): add owner-confirmed retention cleanup for verified traces |
+| 18:04:35 | `9a92aae` | test(kellvyn): prove agent runs survive trace storage failures |
+| 18:05:07 | `fd7aba5` | fix(kellvyn): distinguish untested trace storage from healthy storage |
+| 18:05:22 | `e77aea7` | fix(kellvyn): show untested trace storage honestly and require health provider |
+| 18:06:08 | `74d658e` | feat(kellvyn): identify trace and event kind of persistence gaps |
+| 18:06:18 | `75383c8` | feat(kellvyn): show trace and event affected by persistence gap |
+| 18:06:34 | `a313537` | test(kellvyn): assert trace recorder identifies failed event and trace |
+| 18:08:11 | `5ca3a4d` | docs(kellvyn): record cpu telemetry limits and benchmark verifier gap |
+| 18:08:26 | `346d57d` | docs(kellvyn): document trace health cpu metrics and verifier limits |
 
-## Estado consolidado às 17:41 UTC
+## Estado consolidado às 18:08 UTC
 
-- Trace automático local: ligado ao ciclo do agente, modelo, ferramentas, delegações, especialistas e etapas de plano; decisões bloqueadas pela política também deixam metadados sem argumentos.
-- Agent Lab: módulo headless separado, carregado sob demanda; consulta ambiente, traces, linhas do tempo e comparação baseline/candidato.
-- Benchmark: executor real para inferência fornecida, ferramentas filtradas por política, perfis candidatos não ativados e verificador independente obrigatório. Cada suíte é limitada a 28 cenários e recebe fingerprint determinístico.
-- Recursos: snapshots de memória disponível, heap, PSS, bateria e temperatura no início/fim do coordenador, especialistas e etapas de plano; comparador identifica cada ator.
-- Armazenamento: 1.536 eventos por trace, até 16 traces, registros de até 2 KiB (teto teórico aproximado de 48 MiB); append usa cursor autenticado em cache, detecta cursor obsoleto entre instâncias e reconstrói a posição a partir da cadeia. Leitura comum e inspeção usam janelas limitadas enquanto validam a cadeia SHA-256 completa.
-- Testes escritos: trace com 140 eventos e tail de 12, retomada do store, append entre duas instâncias, bloqueio de suíte com 29 casos, traces de chamadas recusadas e snapshots. **Nenhum teste Gradle/JUnit/Android foi executado** porque GitHub Actions continua sem alocar runner.
-- Diário automático: script e workflow estão no repositório; jobs continuam falhando antes dos steps. Os commits desta sessão foram conciliados manualmente nesta tabela.
-- Cérebro neural: continua sem ligação ao chat principal (KellvynRuntime.isReady() == false); não alegar competência de produção.
+- Trace automático local: ligado ao ciclo do agente, modelo, ferramentas, delegações, especialistas e etapas de plano; decisões de ferramenta bloqueadas deixam metadados sem argumentos.
+- Agent Lab: módulo headless separado, carregado sob demanda; consulta ambiente, traces, linhas do tempo, comparação baseline/candidato, estados dos motores e saúde da gravação.
+- Benchmark: executor real para inferência fornecida, ferramentas filtradas por política, perfis candidatos não ativados e verificador independente obrigatório. Cada suíte está limitada a 28 cenários e recebe fingerprint determinístico.
+- Rubricas: os 28 cenários ainda descrevem critérios em texto livre; não há grader semântico independente validado. Não aprovar por correspondência de palavras ou autodeclaração do agente.
+- Recursos: snapshots de RAM disponível, heap, PSS, bateria e temperatura; CPU% é estimativa do processo inteiro na janela (pode incluir trabalho concorrente), não atribuição exata por agente nem consumo em watts.
+- Recorder: falha de disco/Keystore não interrompe o agente; health distingue não testado, saudável, degradado e recuperado com falhas anteriores; aponta trace e tipo do evento perdido. Uma recuperação não reconstrói eventos perdidos.
+- Retenção: 1.536 eventos por trace, até 16 traces, registros de até 2 KiB (teto teórico aproximado de 48 MiB). Append mantém cursor em cache e reconcilia instâncias; leituras por janela validam toda a cadeia. Pruning exige confirmação do proprietário e remove só traces terminais antigos com cadeia íntegra.
+- Testes escritos: histórico acima de 128 eventos, tail/summary com validação integral, stores intercalados, suíte com 29 casos bloqueada, CPU%, falha/recuperação do recorder e garantia de que a falha de trace não aborta KellvynAgent.run(). **Nenhum teste Gradle/JUnit/Android foi executado** porque GitHub Actions continua sem alocar runner.
+- CI mais recente: runs Agent Lab 44366062435, neural 44366062495 e activity ledger 44366062453; todos falharam antes dos steps, runner_id=0, steps=0. Classificação: runner não alocado / testes not run.
+- Diário automático: script/workflow criados, mas sem runner não executam. As entradas desta sessão foram conciliadas manualmente.
+- Cérebro neural: KellvynRuntime.isReady() permanece false; não há validação cognitiva de produção, APK, emulador ou Poco F6.
 - Interface, MainActivity.java, .github/interface-lock.sha, pesos neurais e interface aprovada: não alterados nesta sessão.
