@@ -24,7 +24,8 @@ class KellvynAgentDelegationTest {
             KellvynToolSpec(
                 "read_source",
                 "Lê código",
-                requiredArguments = setOf("path")
+                requiredArguments = setOf("path"),
+                capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
             ),
             KellvynToolResult(true, "código")
         )
@@ -32,7 +33,8 @@ class KellvynAgentDelegationTest {
             KellvynToolSpec(
                 "delete_source",
                 "Apaga código",
-                risk = KellvynToolRisk.DESTRUCTIVE
+                risk = KellvynToolRisk.DESTRUCTIVE,
+                capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
             ),
             KellvynToolResult(true, "apagado")
         )
