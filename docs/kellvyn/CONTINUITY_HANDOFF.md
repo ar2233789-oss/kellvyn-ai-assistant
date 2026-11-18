@@ -814,3 +814,15 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Rerun do run 44335158436 criou job 134910540861, que terminou failure sem steps/logs_url, repetindo o mesmo bloqueio anterior.
 - HEAD da branch permanece 4452854361fedd728563898c3aae2f1c9f3c183c.
 - Não existe diagnóstico de Gradle/Kotlin porque nenhuma etapa de workflow ficou disponível. Não repetir alterações cegas no código; primeiro resolver o runner/Actions compute e obter logs.
+
+
+## 34. Retomada de Agent Lab — rastreamento de delegações — 18/11/2026
+- Branch experimental isolada: `kellvyn-rnd/agent-trace-duration-port-20261118`, criada sobre o HEAD da bancada `lab/kellvyn-intelligence-core-20261116` (`4af672febef2cf81bbbe2a00ee8f32161711b4ec`). Não usar `main` como base para esta linha de trabalho.
+- Corrigida uma lacuna real do trace: `KellvynOrchestrator.Session.dispatch()` agora calcula duração por relógio monotônico e grava `durationMillis` no evento final em sucesso, bloqueio por orçamento, falha e cancelamento. Cancelamento continua propagado; o registro terminal continua em `NonCancellable`.
+- Quatro testes determinísticos sem `sleep` adicionados: sucesso (8 ms), cancelamento (5 ms + propagação), bloqueio (8/5 ms) e falha (9 ms).
+- Commits: implementação `10e5d1af2517e8db929dcfccd7ad2d1b5d41ec2c`; testes `15813b58ecc2790672067facf6a33b1571c226ce`; experimento `cd6350efb2a1e8faea7d420294df507b731de309`. HEAD da branch na criação deste checkpoint: `cd6350efb2a1e8faea7d420294df507b731de309`.
+- Escopo conferido no diff contra a base: somente `KellvynOrchestrator.kt`, `KellvynOrchestratorTest.kt` e `docs/kellvyn/rnd-studio/experiments/agent-delegation-duration-001.json`. Cérebro neural, `KellvynRuntime`, MainActivity, interface, modelos e pesos não foram alterados. Nenhuma branch anterior foi sobrescrita ou mesclada.
+- GitHub Actions runs `44424776449` e `44424784548` falharam antes do primeiro step. Todos os jobs exibem `runner_id=0`, `runner_name` vazio e `steps=[]`. Classificação: **NOT RUN / runner não alocado**; não é aprovação nem falha de compilação/teste. Gradle/JUnit/AVD permanecem pendentes.
+- Não mesclar nem ativar a mudança antes da suíte `agents` passar em runner real e da revisão do diff. Runtime de produção continua desligado; `KellvynRuntime.isReady() == false`.
+- Próxima ação prioritária do proprietário: inspecionar Settings → Billing → Budgets and alerts, confirmar compute incluído restante e verificar se algum budget Actions está em `Usage blocked` com `Stop usage when budget limit is reached`. Conferir também Settings → Actions → General do repositório. **Não aumentar orçamento, adicionar cartão nem habilitar cobrança sem decisão explícita.** Se não houver bloqueio de budget/política, abrir chamado ao GitHub com os dois run IDs e jobs sem runner/steps.
+- Depois de resolver a alocação, reexecutar o workflow; exigir evidência dos steps Python e Gradle, relatórios JUnit e, em seguida, instrumented tests no emulador. Não repetir edições cegas enquanto o runner não iniciar.
