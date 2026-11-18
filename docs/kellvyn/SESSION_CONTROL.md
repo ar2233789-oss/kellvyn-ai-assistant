@@ -3,11 +3,11 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última conferência:** 18/11/2026, 16:00 UTC  
+**Última conferência:** 18/11/2026, 16:02 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD confirmado antes desta atualização:** `a51cc7142f06feea0ce7bb5a2ef545c33973f5d0`  
-**Commit:** [a51cc71 — record exact runner allocation and neural constraints](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/a51cc7142f06feea0ce7bb5a2ef545c33973f5d0)
+**HEAD confirmado antes desta atualização:** `63d9a5a91d3f072e9c5de5e80670df7ff6569e0a`  
+**Commit:** [63d9a5a — enforce no external pretrained weights in cognitive lab](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/63d9a5a91d3f072e9c5de5e80670df7ff6569e0a)
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -106,6 +106,7 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 - Corrigido `LEARNING_AND_TRAINING.md`: não oferece mais a alternativa contraditória de usar pesos pré-treinados/LoRA externos. A regra de cérebro do zero prevalece.
 - Atualizado `NEURAL_MODEL_DECISIONS.md` com uma síntese atual do estado KN-003 e seus limites quantitativos.
 - Atualizado `LEARNING_AND_TRAINING.md` para remover a alternativa contraditória de modelo-base/LoRA de terceiros e formalizar a rota autoral do zero.
+- Corrigidos `REFERENCE_STUDY.md` e `COGNITIVE_LAB.md`, que ainda tinham frases antigas sugerindo uso de pesos abertos/adapters externos; agora a regra de pesos próprios é consistente nesses documentos também.
 - Nenhuma classe Kotlin/Java, perfil, política, teste ou arquivo visual foi alterado nessa retomada.
 
 ### Evidência exata do bloqueio GitHub Actions
