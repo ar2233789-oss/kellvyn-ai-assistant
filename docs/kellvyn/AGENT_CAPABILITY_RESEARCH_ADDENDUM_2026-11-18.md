@@ -409,3 +409,20 @@ Próximo trabalho correto para avaliação:
 4. Versionar rubrica e verificador e incluir ambos no fingerprint do experimento.
 5. Não usar o mesmo especialista para aprovar sua própria saída. Um segundo passe pelo mesmo modelo não é, por si só, uma verificação independente.
 
+
+
+## 8.10 Estado REVIEW_REQUIRED implementado — 18/11/2026
+
+O protocolo de avaliação agora separa quatro estados: PASSED, REVIEW_REQUIRED, FAILED e BLOCKED.
+
+- O verificador independente pode devolver critérios verificados e critérios encaminhados explicitamente para revisão.
+- A cobertura aprovada considera apenas evidências verificadas; itens pendentes nunca contam como aprovação.
+- Critério desconhecido, critério simultaneamente verificado e pendente, ou critério ausente sem encaminhamento para revisão é FAILED (fail-closed).
+- Critério pendente com referência de evidência é REVIEW_REQUIRED; a suíte completa termina nesse estado se houver ao menos um caso pendente e nenhum caso falho/bloqueado.
+- Se houver qualquer violação/erro, o estado FAILED tem prioridade; BLOCKED tem prioridade sobre REVIEW_REQUIRED no estado agregado.
+- O estado é persistido como outcome do caso e do experimento, sobrevive ao trace criptografado e aparece na comparação baseline/candidato.
+- A comparação mostra separadamente casos aprovados e casos que exigem revisão.
+
+Testes escritos: critério pendente não passa nem falha automaticamente; critério inventado/conflitante falha; suíte agregada termina como REVIEW_REQUIRED; outcome sobrevive à leitura do trace cifrado. Um ajuste também garante evento final de experimento para suítes bloqueadas antes de executar (por exemplo, acima de 28 casos).
+
+**Limite preservado:** isso não cria um grader semântico. O verificador continua fornecido por código confiável; os 28 critérios ainda precisam ser classificados em provas objetivas, revisão humana ou verificação semântica independente. Nenhum benchmark de competência foi executado no backend neural de produção.
