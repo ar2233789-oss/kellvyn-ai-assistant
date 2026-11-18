@@ -200,7 +200,18 @@ internal class KellvynAgentLabStudio(
                         .append(baselineCases.values.mapNotNull { it.profileSha256 }.distinct().joinToString().ifBlank { "não registrados" })
                     append("\nHashes de perfil candidato: ")
                         .append(candidateCases.values.mapNotNull { it.profileSha256 }.distinct().joinToString().ifBlank { "não registrados" })
-                    append("\nA comparação usa apenas estados e durações persistidos; não mede qualidade sem os verificadores do benchmark.")
+                    val baselineResources = baseline.map { it.event }
+                        .filter { it.kind == KellvynAgentLabEventKind.RESOURCE_SNAPSHOT }
+                        .mapNotNull { it.detailCode }
+                    val candidateResources = candidate.map { it.event }
+                        .filter { it.kind == KellvynAgentLabEventKind.RESOURCE_SNAPSHOT }
+                        .mapNotNull { it.detailCode }
+                    append("\n\nSNAPSHOTS DE RECURSOS (início/fim)\n")
+                    append("Baseline: ")
+                        .append(baselineResources.joinToString(" | ").ifBlank { "não registrados" })
+                    append("\nCandidato: ")
+                        .append(candidateResources.joinToString(" | ").ifBlank { "não registrados" })
+                    append("\nA comparação usa estados, durações e snapshots registrados; não mede qualidade sem os verificadores do benchmark.")
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
