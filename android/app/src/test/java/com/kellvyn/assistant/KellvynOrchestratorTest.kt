@@ -1,5 +1,6 @@
 package com.kellvyn.assistant
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -7,6 +8,86 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class KellvynOrchestratorTest {
+
+    @Test
+    fun recordsMonotonicDurationForCompletedSpecialistDelegation() = runBlocking {
+        val engine = RecordingEngine(KellvynModelDecision.Final("Especialista concluiu."))
+        val recorder = RecordingTraceRecorder()
+        var clockCalls = 0
+        val session = orchestrator(
+            engine = engine,
+            tools = emptyList(),
+            monotonicNanos = {
+                if (clockCalls++ == 0) 100_000_000L else 108_500_000L
+            }
+        ).newSession(
+            KellvynAgentLabTraceSession.create(
+                recorder = recorder,
+                clockMillis = { 1_800_000_000_000L }
+            )
+        )
+
+        session.dispatch(
+            KellvynModelDecision.Delegate(
+                role = KellvynSpecialistRole.RESEARCHER,
+                task = "Resuma a fonte.",
+                context = "",
+                allowedTools = emptySet()
+            )
+        )
+
+        val finished = recorder.events.single {
+            it.kind == KellvynAgentLabEventKind.DELEGATION_FINISHED
+        }
+        assertEquals(8L, finished.durationMillis)
+    }
+
+    @Test
+    fun recordsMonotonicDurationWhenSpecialistIsCancelledAndPropagatesCancellation() = runBlocking {
+        val engine = object : KellvynInferenceEngine {
+            override suspend fun next(
+                history: List<KellvynAgentMessage>,
+                availableTools: List<KellvynToolSpec>
+            ): KellvynModelDecision {
+                throw CancellationException("cancelled by test")
+            }
+        }
+        val recorder = RecordingTraceRecorder()
+        var clockCalls = 0
+        val session = orchestrator(
+            engine = engine,
+            tools = emptyList(),
+            monotonicNanos = {
+                if (clockCalls++ == 0) 200_000_000L else 205_000_000L
+            }
+        ).newSession(
+            KellvynAgentLabTraceSession.create(
+                recorder = recorder,
+                clockMillis = { 1_800_000_000_000L }
+            )
+        )
+
+        var propagated: CancellationException? = null
+        try {
+            session.dispatch(
+                KellvynModelDecision.Delegate(
+                    role = KellvynSpecialistRole.RESEARCHER,
+                    task = "Analise a fonte.",
+                    context = "",
+                    allowedTools = emptySet()
+                )
+            )
+        } catch (cancelled: CancellationException) {
+            propagated = cancelled
+        }
+
+        assertTrue(propagated != null)
+        val finished = recorder.events.single {
+            it.kind == KellvynAgentLabEventKind.DELEGATION_FINISHED
+        }
+        assertEquals(5L, finished.durationMillis)
+        assertEquals("CANCELLED", finished.detailCode)
+    }
 
     @Test
     fun dispatchesAProfileBoundSpecialistWithIsolatedContextAndOnlyPermittedTools() = runBlocking {
@@ -121,10 +202,11 @@ class KellvynOrchestratorTest {
     }
 
     private fun orchestrator(
-        engine: RecordingEngine,
+        engine: KellvynInferenceEngine,
         tools: List<KellvynAgentTool>,
         maxDelegations: Int = 2,
-        maxDelegationContextChars: Int = 4_000
+        maxDelegationContextChars: Int = 4_000,
+        monotonicNanos: () -> Long = System::nanoTime
     ) = KellvynOrchestrator(
         inference = engine,
         tools = KellvynToolRegistry(tools),
@@ -135,8 +217,16 @@ class KellvynOrchestratorTest {
         skillRegistry = KellvynSkillRegistry.empty(),
         taskBroker = null,
         networkReadEnabled = { false },
-        specialistProfiles = KellvynSpecialistProfileRegistry.default()
+        specialistProfiles = KellvynSpecialistProfileRegistry.default(),
+        monotonicNanos = monotonicNanos
     )
+
+    private class RecordingTraceRecorder : KellvynAgentLabTraceRecorder {
+        val events = mutableListOf<KellvynAgentLabEvent>()
+        override suspend fun record(event: KellvynAgentLabEvent) {
+            events += event
+        }
+    }
 
     private class RecordingEngine(
         vararg decisions: KellvynModelDecision
