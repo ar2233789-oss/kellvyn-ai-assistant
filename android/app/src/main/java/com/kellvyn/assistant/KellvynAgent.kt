@@ -26,7 +26,8 @@ internal class KellvynAgent(
     private val activeProjectId: String? = null,
     private val skillRegistry: KellvynSkillRegistry = KellvynSkillRegistry.default(),
     private val taskCheckpoints: KellvynTaskCheckpointRepository? = null,
-    private val taskBroker: KellvynTaskBroker? = null
+    private val taskBroker: KellvynTaskBroker? = null,
+    private val networkReadEnabled: () -> Boolean = { false }
 ) {
     private val taskPlanner = KellvynTaskPlanner()
 
@@ -531,17 +532,23 @@ internal class KellvynAgent(
                         continue
                     }
 
-                    val permittedToolNames = KellvynSpecialistToolPolicy.permittedReadOnlyToolNames(
+                    val networkReadAllowed = networkReadEnabled()
+                    val permittedToolNames = KellvynSpecialistToolPolicy.permittedToolNames(
                         decision.role,
-                        tools.descriptions()
+                        tools.descriptions(),
+                        allowNetworkRead = networkReadAllowed
                     )
                     val deniedToolNames = KellvynSpecialistToolPolicy.deniedRequestedNames(
                         decision.role,
                         decision.allowedTools,
-                        tools.descriptions()
+                        tools.descriptions(),
+                        allowNetworkRead = networkReadAllowed
                     )
                     val specialistTools = try {
-                        tools.readOnlySubset(decision.allowedTools.intersect(permittedToolNames))
+                        tools.specialistSubset(
+                            requestedNames = decision.allowedTools.intersect(permittedToolNames),
+                            allowNetworkRead = networkReadAllowed
+                        )
                     } catch (error: Exception) {
                         messages += observation(
                             source = "specialist:${decision.role.name.lowercase()}",
@@ -593,7 +600,10 @@ internal class KellvynAgent(
                     val specialist = KellvynAgent(
                         inference = inference,
                         tools = specialistTools,
-                        authorization = ReadOnlyKellvynAuthorization,
+                        authorization = KellvynNetworkReadAuthorization(
+                            delegate = ReadOnlyKellvynAuthorization,
+                            networkReadEnabled = networkReadEnabled
+                        ),
                         config = config.copy(
                             maxSteps = minOf(config.maxSteps, 6),
                             maxToolCalls = minOf(config.maxToolCalls, 4),
@@ -1146,14 +1156,29 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
     fun names(): Set<String> = registered.keys
     fun descriptions(): List<KellvynToolSpec> = registered.values.map { it.spec }
 
-    /** Creates an isolated registry containing only explicitly requested, read-only tools. */
-    fun readOnlySubset(requestedNames: Set<String>, maxTools: Int = 16): KellvynToolRegistry {
+    /** Creates an isolated specialist registry; network reads require the owner switch. */
+    fun specialistSubset(
+        requestedNames: Set<String>,
+        allowNetworkRead: Boolean,
+        maxTools: Int = 16
+    ): KellvynToolRegistry {
         require(maxTools in 0..32)
         require(requestedNames.size <= maxTools) { "A delegação excedeu o limite de ferramentas." }
         val selected = requestedNames.mapNotNull { registered[it] }
-            .filter { it.spec.risk == KellvynToolRisk.READ_ONLY }
+            .filter { tool ->
+                tool.spec.risk == KellvynToolRisk.READ_ONLY ||
+                    (
+                        allowNetworkRead &&
+                            tool.spec.risk == KellvynToolRisk.NETWORK_READ &&
+                            KellvynStudioCapability.WEB_RESEARCH in tool.spec.capabilities
+                        )
+            }
         return KellvynToolRegistry(selected)
     }
+
+    /** Compatibility helper for strictly local read-only specialist subsets. */
+    fun readOnlySubset(requestedNames: Set<String>, maxTools: Int = 16): KellvynToolRegistry =
+        specialistSubset(requestedNames, allowNetworkRead = false, maxTools = maxTools)
 
     fun validate(tool: KellvynAgentTool, arguments: Map<String, String>): String? {
         val missing = tool.spec.requiredArguments - arguments.keys
@@ -1183,6 +1208,26 @@ internal interface KellvynToolAuthorization {
         arguments: Map<String, String>,
         task: String
     ): Boolean
+}
+
+/**
+ * Adds owner-controlled network-read consent without widening write/device permissions.
+ * A module must still re-check the same switch immediately before opening a connection.
+ */
+internal class KellvynNetworkReadAuthorization(
+    private val delegate: KellvynToolAuthorization,
+    private val networkReadEnabled: () -> Boolean
+) : KellvynToolAuthorization {
+    override suspend fun authorize(
+        spec: KellvynToolSpec,
+        arguments: Map<String, String>,
+        task: String
+    ): Boolean = when (spec.risk) {
+        KellvynToolRisk.NETWORK_READ ->
+            networkReadEnabled() &&
+                KellvynStudioCapability.WEB_RESEARCH in spec.capabilities
+        else -> delegate.authorize(spec, arguments, task)
+    }
 }
 
 /** Safe initial policy: only read-only local tools run without a separate approval flow. */
