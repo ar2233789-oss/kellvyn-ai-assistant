@@ -5,7 +5,7 @@
   "title": "Medição monotônica da duração de delegação de especialistas",
   "created_at_utc": "2026-11-18T20:48:00Z",
   "baseline_commit": "7fc53345e659267cedbafdc54d231e8b5e5c0381",
-  "state": "PLANNED",
+  "state": "IMPLEMENTED_NOT_RUN",
   "hypothesis": "O orquestrador grava durationMillis=null no evento DELEGATION_FINISHED normal e não calcula duração ao cancelar.",
   "candidate_design": [
     "Usar System.nanoTime ou relógio monotônico injetável, não relógio civil.",
@@ -32,5 +32,25 @@
     "A suíte agents passa.",
     "Sem mudança na semântica de delegação, política ou orçamento."
   ],
-  "status_note": "Lacuna de telemetria confirmada por inspeção. Ainda sem patch ou execução Gradle."
+  "status_note": "Patch and deterministic tests are written on an isolated branch. They have not been compiled or executed. The workflow filter was expanded to include kellvyn-rnd/** so this branch can request CI. Do not merge until the focused agents Gradle suite passes and the runner actually allocates.",
+  "implementation": {
+    "branch": "kellvyn-rnd/agent-delegation-duration-001",
+    "source_commit": "57bd437fd077f8f58bb50c1426cd3cee7bd252bb",
+    "test_commit": "7e72b166a445ec27ee4baa35c29bb66d6aa78404",
+    "workflow_scope_commit": "f2fd592fdb0be5e54209da2384ccb7b1e1c60c9e",
+    "changed_files": [
+      "android/app/src/main/java/com/kellvyn/assistant/KellvynOrchestrator.kt",
+      "android/app/src/test/java/com/kellvyn/assistant/KellvynOrchestratorTest.kt",
+      ".github/workflows/agent-lab-tests.yml"
+    ],
+    "test_cases_written": [
+      "recordsMonotonicDurationForCompletedSpecialistDelegation",
+      "recordsMonotonicDurationWhenSpecialistIsCancelledAndPropagatesCancellation"
+    ],
+    "test_execution": "NOT_RUN",
+    "expected_deterministic_checks": {
+      "completed_duration_ms": 8,
+      "cancelled_duration_ms": 5
+    }
+  }
 }
