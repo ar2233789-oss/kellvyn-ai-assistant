@@ -1,5 +1,7 @@
 # Kellvyn — registro atualizado do laboratório
 
+> **Continuidade atual:** antes de retomar ou alterar código, leia [SESSION_CONTROL.md](SESSION_CONTROL.md). Esse arquivo é a fonte única do objetivo ativo, das regras de preservação, do estado de validação e do próximo passo. Este STATUS é o registro técnico/histórico detalhado; etapas “próximas” antigas podem ter sido superadas pelo controle de sessão.
+
 **Data:** 16/11/2026  
 **Branch:** `lab/kellvyn-intelligence-core-20261116`  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`
