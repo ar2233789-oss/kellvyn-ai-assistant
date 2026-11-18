@@ -146,13 +146,27 @@ def fingerprint(work, base):
 
 def repo_map(_):
     src = ROOT / "android/app/src/main"; roots = [ROOT/"android/app/src/test", ROOT/"android/app/src/androidTest"]
-    tests = sorted(p for r in roots if r.exists() for p in r.rglob("*.kt")); names = {p.stem for p in tests}; rows=[]
+    tests = sorted(p for r in roots if r.exists() for p in r.rglob("*.kt"))
+    test_refs = []
+    for test_path in tests:
+        test_text = test_path.read_text(encoding="utf-8", errors="replace")
+        referenced = set(re.findall(r"\b[A-Za-z_][A-Za-z0-9_]*\b", test_text))
+        test_refs.append((test_path, referenced))
+    rows=[]
     for p in sorted(src.rglob("*.kt")) if src.exists() else []:
-        text = p.read_text(encoding="utf-8", errors="replace"); stem=p.stem
+        source_text = p.read_text(encoding="utf-8", errors="replace")
+        declared = [{"name":m.group(1),"line":source_text[:m.start()].count("\n")+1}
+                    for m in SYMBOL.finditer(source_text)]
+        symbol_names = {item["name"] for item in declared}
+        related_tests = [
+            test_path.relative_to(ROOT).as_posix()
+            for test_path, referenced in test_refs
+            if symbol_names.intersection(referenced)
+        ]
         rows.append({"file":p.relative_to(ROOT).as_posix(), "sha256":digest(p),
-          "symbols":[{"name":m.group(1),"line":text[:m.start()].count("\n")+1} for m in SYMBOL.finditer(text)],
-          "imports":sorted(set(re.findall(r"^\s*import\s+([\w.*]+)",text,re.M))),
-          "test_candidates":sorted(n for n in names if n in {stem+"Test",stem+"Tests",stem+"InstrumentedTest"})})
+          "symbols":declared,
+          "imports":sorted(set(re.findall(r"^\s*import\s+([\w.*]+)",source_text,re.M))),
+          "test_candidates":related_tests})
     DOCS.mkdir(parents=True,exist_ok=True); data={"generated_at_utc":now(),"branch":git("branch","--show-current").stdout.strip(),"head":head(),"scope":"static index only","sources":rows,"test_files":[p.relative_to(ROOT).as_posix() for p in tests]}
     (DOCS/"repository-map.json").write_text(json.dumps(data,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (DOCS/"repository-map.md").write_text("# Kotlin source map\n\n"+"\n".join(f"## {x['file']}\nSymbols: {', '.join(s['name'] for s in x['symbols'])}\nTests: {', '.join(x['test_candidates']) or 'not matched'}" for x in rows),encoding="utf-8")
