@@ -1,5 +1,8 @@
 package com.kellvyn.assistant
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * Read-only first phase of the invisible Agent Creation Studio.
  *
@@ -7,8 +10,16 @@ package com.kellvyn.assistant
  * promote, publish, or grant permissions to any specialist profile.
  */
 internal class KellvynAgentCreationStudio(
-    private val profiles: KellvynSpecialistProfileRegistry
+    private val profiles: KellvynSpecialistProfileRegistry,
+    private val profileStore: KellvynSpecialistProfileStore? = null
 ) : KellvynStudioModule {
+
+    private suspend fun activeProfileRegistry(): KellvynSpecialistProfileRegistry =
+        withContext(Dispatchers.IO) {
+            profileStore?.let {
+                KellvynSpecialistProfileRegistry(it.activeProfiles(profiles.profiles()))
+            } ?: profiles
+        }
     override val manifest: KellvynStudioModuleManifest = MANIFEST
 
     override val tools: List<KellvynAgentTool> = listOf(
@@ -19,7 +30,8 @@ internal class KellvynAgentCreationStudio(
                 if (arguments.isNotEmpty()) {
                     return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
                 }
-                val compilation = profiles.compileAll()
+                val activeProfiles = activeProfileRegistry()
+                val compilation = activeProfiles.compileAll()
                 if (!compilation.success) {
                     return KellvynToolResult(
                         false,
@@ -27,7 +39,7 @@ internal class KellvynAgentCreationStudio(
                     )
                 }
                 val compiledByRole = compilation.profiles.associateBy { it.role }
-                val catalogue = profiles.profiles().joinToString("\n") { profile ->
+                val catalogue = activeProfiles.profiles().joinToString("\n") { profile ->
                     val capabilities = KellvynSpecialistToolPolicy.capabilitiesFor(profile.role)
                         .map { it.name }
                         .sorted()
@@ -55,11 +67,12 @@ internal class KellvynAgentCreationStudio(
                 val rawRole = arguments["role"]?.trim().orEmpty()
                 val role = KellvynSpecialistRole.values().firstOrNull { it.name == rawRole }
                     ?: return KellvynToolResult(false, "Papel especialista inválido.")
-                val compilation = profiles.compileAll()
+                val activeProfiles = activeProfileRegistry()
+                val compilation = activeProfiles.compileAll()
                 if (!compilation.success) {
                     return KellvynToolResult(false, "O perfil não passou pelo Profile Compiler.")
                 }
-                val profile = profiles.requireProfile(role)
+                val profile = activeProfiles.requireProfile(role)
                 val compiledProfile = compilation.profiles.firstOrNull { it.role == role }
                     ?: return KellvynToolResult(false, "O perfil não pôde ser compilado.")
                 val capabilities = KellvynSpecialistToolPolicy.capabilitiesFor(role)
@@ -90,7 +103,7 @@ internal class KellvynAgentCreationStudio(
                 if (arguments.isNotEmpty()) {
                     return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
                 }
-                val report = profiles.compileAll()
+                val report = activeProfileRegistry().compileAll()
                 return if (report.success) {
                     KellvynToolResult(
                         true,
@@ -152,6 +165,57 @@ internal class KellvynAgentCreationStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_BENCHMARK_OUTPUT_CHARS))
             }
+        },
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[4]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                val unknown = arguments.keys - setOf("role")
+                if (unknown.isNotEmpty()) return KellvynToolResult(false, "Argumentos não reconhecidos.")
+                val role = KellvynSpecialistRole.values().firstOrNull {
+                    it.name == arguments["role"]?.trim()
+                } ?: return KellvynToolResult(false, "Papel especialista inválido.")
+                val store = profileStore
+                    ?: return KellvynToolResult(false, "O histórico persistente ainda não está conectado.")
+                val records = withContext(Dispatchers.IO) { store.history(role) }
+                if (records.isEmpty()) {
+                    return KellvynToolResult(true, "HISTÓRICO: ${role.name} ainda usa somente o perfil-base.")
+                }
+                val output = records.joinToString("\n") { record ->
+                    "#${record.sequence} ${record.eventType.name} v${record.profileVersion} " +
+                        "sha256:${record.profileSha256} base:v${record.baseProfileVersion} " +
+                        "por ${record.actor} em ${record.createdAtMillis}: ${record.reason}"
+                }
+                return KellvynToolResult(true, "HISTÓRICO IMUTÁVEL — ${role.name}\n$output")
+            }
+        },
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[5]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                val unknown = arguments.keys - setOf("role")
+                if (unknown.isNotEmpty()) return KellvynToolResult(false, "Argumentos não reconhecidos.")
+                val role = KellvynSpecialistRole.values().firstOrNull {
+                    it.name == arguments["role"]?.trim()
+                } ?: return KellvynToolResult(false, "Papel especialista inválido.")
+                val store = profileStore
+                    ?: return KellvynToolResult(false, "O histórico persistente ainda não está conectado.")
+                val active = activeProfileRegistry().requireProfile(role)
+                val pending = withContext(Dispatchers.IO) { store.pendingProfile(role) }
+                    ?: return KellvynToolResult(true, "Não existe revisão pendente para ${role.name}.")
+                val diff = store.diffDetails(active, pending)
+                val diffText = diff.joinToString("\n\n") { change ->
+                    "CAMPO: ${change.field}\nANTES:\n${change.before}\nDEPOIS:\n${change.after}"
+                }
+                val resultText =
+                    "DIFF DA REVISÃO PENDENTE — ${role.name}\n" +
+                        (diffText.takeIf { it.isNotEmpty() } ?: "Nenhum campo alterado.") +
+                        "\nA revisão continua inativa até aprovação explícita do proprietário."
+                return KellvynToolResult(
+                    true,
+                    resultText.take(MAX_PROFILE_DIFF_OUTPUT_CHARS)
+                )
+            }
         }
     )
 
@@ -164,8 +228,11 @@ internal class KellvynAgentCreationStudio(
         const val INSPECT_TOOL = "agent_profile_inspect"
         const val VALIDATE_TOOL = "agent_profiles_validate"
         const val BENCHMARK_CATALOG_TOOL = "agent_benchmark_catalog"
+        const val PROFILE_HISTORY_TOOL = "agent_profile_history"
+        const val PROFILE_PENDING_DIFF_TOOL = "agent_profile_pending_diff"
         private const val KIBIBYTE = 1024L
         private const val MAX_BENCHMARK_OUTPUT_CHARS = 7_500
+        private const val MAX_PROFILE_DIFF_OUTPUT_CHARS = 6_500
 
         private val ROLE_PATTERN = "^(" +
             KellvynSpecialistRole.values().joinToString("|") { it.name } +
@@ -225,6 +292,42 @@ internal class KellvynAgentCreationStudio(
                 workloadClass = KellvynWorkloadClass.LIGHT,
                 estimatedWorkingSetBytes = 512L * KIBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
+            ),
+            KellvynToolSpec(
+                name = PROFILE_HISTORY_TOOL,
+                description = "Consulta o histórico criptografado de versões e aprovações de um perfil, sem alterar o estado.",
+                requiredArguments = setOf("role"),
+                argumentSchemas = listOf(
+                    KellvynToolArgumentSchema(
+                        name = "role",
+                        type = KellvynToolArgumentType.TEXT,
+                        maxLength = 40,
+                        pattern = ROLE_PATTERN
+                    )
+                ),
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 4_000L,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
+            ),
+            KellvynToolSpec(
+                name = PROFILE_PENDING_DIFF_TOOL,
+                description = "Compara o perfil ativo com uma revisão pendente; nunca a promove.",
+                requiredArguments = setOf("role"),
+                argumentSchemas = listOf(
+                    KellvynToolArgumentSchema(
+                        name = "role",
+                        type = KellvynToolArgumentType.TEXT,
+                        maxLength = 40,
+                        pattern = ROLE_PATTERN
+                    )
+                ),
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 4_000L,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             )
         )
 
@@ -246,9 +349,10 @@ internal class KellvynAgentCreationStudio(
         )
 
         fun definition(
-            profiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default()
+            profiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default(),
+            profileStore: KellvynSpecialistProfileStore? = null
         ) = KellvynStudioModuleDefinition(MANIFEST) {
-            KellvynAgentCreationStudio(profiles)
+            KellvynAgentCreationStudio(profiles, profileStore)
         }
     }
 }

@@ -43,6 +43,13 @@ internal class KellvynRuntime(context: Context) {
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
     private val resourceRuntime = KellvynResourceRuntime.get(appContext)
     private val taskBroker = resourceRuntime.taskBroker
+    private val specialistProfileStore = KellvynSpecialistProfileStore(
+        File(appContext.filesDir, "specialist-profiles"),
+        KellvynAndroidTaskCheckpointCipher("kellvyn.specialist-profiles.aes-gcm.v1")
+    )
+    @Volatile
+    private var activeSpecialistProfilesSnapshot =
+        KellvynSpecialistProfileRegistry.default().profiles()
 
     init {
         resourceRuntime.studioModules.registerIfAbsent(
@@ -61,7 +68,10 @@ internal class KellvynRuntime(context: Context) {
             KellvynWebResearchStudio.definition(appContext)
         )
         resourceRuntime.studioModules.registerIfAbsent(
-            KellvynAgentCreationStudio.definition()
+            KellvynAgentCreationStudio.definition(
+                profiles = KellvynSpecialistProfileRegistry.default(),
+                profileStore = specialistProfileStore
+            )
         )
     }
     private val neuralModelStore = KellvynNeuralModelStore(
@@ -71,7 +81,6 @@ internal class KellvynRuntime(context: Context) {
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
     )
-
     private val taskCheckpointRepository = object : KellvynTaskCheckpointRepository {
         override suspend fun append(
             state: KellvynTaskState,
@@ -280,7 +289,7 @@ internal class KellvynRuntime(context: Context) {
      * Creates the coordinator with local project tools. Read-only specialists inherit only
      * the read subset; mutations require an exact short-lived approval issued by the owner.
      */
-    fun createProjectWorkspaceAgent(
+    suspend fun createProjectWorkspaceAgent(
         inference: KellvynInferenceEngine,
         activeProjectId: String? = null,
         config: KellvynAgentConfig = KellvynAgentConfig()
@@ -303,7 +312,7 @@ internal class KellvynRuntime(context: Context) {
      * Creates the same Kellvyn agent with local memory and optional active-project context.
      * No inference backend is created here; the caller must supply an approved engine.
      */
-    fun createAgent(
+    suspend fun createAgent(
         inference: KellvynInferenceEngine,
         tools: KellvynToolRegistry,
         activeProjectId: String? = null,
@@ -330,9 +339,122 @@ internal class KellvynRuntime(context: Context) {
             activeProjectId = activeProjectId,
             taskCheckpoints = taskCheckpointRepository,
             taskBroker = taskBroker,
-            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+            specialistProfiles = activeSpecialistProfileRegistry()
         )
     }
+
+    /** Returns the owner-approved profiles; staged drafts never affect this list. */
+    suspend fun activeSpecialistProfiles(): List<KellvynSpecialistProfile> =
+        withContext(Dispatchers.IO) {
+            val loaded = specialistProfileStore.activeProfiles(
+                KellvynSpecialistProfileRegistry.default().profiles()
+            )
+            activeSpecialistProfilesSnapshot = loaded
+            loaded
+        }
+
+    /** A point-in-time snapshot used by optimistic concurrency checks in the hidden Studio. */
+    suspend fun specialistProfileLedgerHash(): String? =
+        withContext(Dispatchers.IO) { specialistProfileStore.latestRecordSha256() }
+
+    suspend fun specialistProfileHistory(
+        role: KellvynSpecialistRole
+    ): List<KellvynSpecialistProfileVersionMetadata> =
+        withContext(Dispatchers.IO) { specialistProfileStore.history(role) }
+
+    suspend fun specialistProfileDiff(
+        role: KellvynSpecialistRole,
+        candidate: KellvynSpecialistProfile
+    ): List<String> = withContext(Dispatchers.IO) {
+        require(candidate.role == role) { "O papel do candidato não corresponde à revisão solicitada." }
+        val active = specialistProfileStore.activeProfile(
+            KellvynSpecialistProfileRegistry.default().requireProfile(role)
+        )
+        specialistProfileStore.diff(active, candidate)
+    }
+
+    /**
+     * Saves a proposed revision without activating it. This method is an internal app API,
+     * not an agent tool. The caller must first show and review the diff with the owner.
+     */
+    suspend fun stageSpecialistProfileRevision(
+        candidate: KellvynSpecialistProfile,
+        expectedActiveProfileSha256: String,
+        expectedLedgerSha256: String?,
+        reason: String
+    ): KellvynSpecialistProfileVersionMetadata = withContext(Dispatchers.IO) {
+        specialistProfileStore.stage(
+            candidate = candidate,
+            fallbackActiveProfile = KellvynSpecialistProfileRegistry.default()
+                .requireProfile(candidate.role),
+            expectedActiveProfileSha256 = expectedActiveProfileSha256,
+            expectedLedgerSha256 = expectedLedgerSha256,
+            actor = "agent-creation-studio",
+            reason = reason,
+            createdAtMillis = System.currentTimeMillis()
+        )
+    }
+
+    /**
+     * Activates only the exact reviewed candidate hash. ownerConfirmed must originate from
+     * an explicit owner confirmation in trusted application code; the agent cannot invoke it.
+     */
+    suspend fun approveSpecialistProfileRevision(
+        role: KellvynSpecialistRole,
+        candidateVersion: Int,
+        candidateSha256: String,
+        expectedActiveProfileSha256: String,
+        expectedLedgerSha256: String?,
+        reason: String,
+        ownerConfirmed: Boolean
+    ): KellvynSpecialistProfileVersionMetadata = withContext(Dispatchers.IO) {
+        val approved = specialistProfileStore.approve(
+            role = role,
+            candidateVersion = candidateVersion,
+            candidateSha256 = candidateSha256,
+            fallbackActiveProfile = KellvynSpecialistProfileRegistry.default().requireProfile(role),
+            expectedActiveProfileSha256 = expectedActiveProfileSha256,
+            expectedLedgerSha256 = expectedLedgerSha256,
+            approver = "owner",
+            reason = reason,
+            ownerConfirmed = ownerConfirmed,
+            createdAtMillis = System.currentTimeMillis()
+        )
+        activeSpecialistProfilesSnapshot = specialistProfileStore.activeProfiles(
+            KellvynSpecialistProfileRegistry.default().profiles()
+        )
+        approved
+    }
+
+    /** Explicitly restores a previously approved profile revision; never deletes history. */
+    suspend fun rollbackSpecialistProfileRevision(
+        role: KellvynSpecialistRole,
+        targetVersion: Int,
+        expectedActiveProfileSha256: String,
+        expectedLedgerSha256: String?,
+        reason: String,
+        ownerConfirmed: Boolean
+    ): KellvynSpecialistProfileVersionMetadata = withContext(Dispatchers.IO) {
+        val rolledBack = specialistProfileStore.rollback(
+            role = role,
+            targetVersion = targetVersion,
+            fallbackActiveProfile = KellvynSpecialistProfileRegistry.default().requireProfile(role),
+            expectedActiveProfileSha256 = expectedActiveProfileSha256,
+            expectedLedgerSha256 = expectedLedgerSha256,
+            approver = "owner",
+            reason = reason,
+            ownerConfirmed = ownerConfirmed,
+            createdAtMillis = System.currentTimeMillis()
+        )
+        activeSpecialistProfilesSnapshot = specialistProfileStore.activeProfiles(
+            KellvynSpecialistProfileRegistry.default().profiles()
+        )
+        rolledBack
+    }
+
+    private suspend fun activeSpecialistProfileRegistry(): KellvynSpecialistProfileRegistry =
+        KellvynSpecialistProfileRegistry(activeSpecialistProfiles())
 
     private fun memoryAddressesFor(activeProjectId: String?): List<KellvynMemoryAddress> {
         val addresses = mutableListOf(KellvynMemoryAddress.global())

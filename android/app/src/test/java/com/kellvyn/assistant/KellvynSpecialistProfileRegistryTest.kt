@@ -201,6 +201,8 @@ class KellvynSpecialistProfileRegistryTest {
             )
             assertEquals(role in designRoles, KellvynAgentCreationStudio.CATALOG_TOOL in allowed)
             assertEquals(role in designRoles, KellvynAgentCreationStudio.INSPECT_TOOL in allowed)
+            assertEquals(role in designRoles, KellvynAgentCreationStudio.PROFILE_HISTORY_TOOL in allowed)
+            assertEquals(role in designRoles, KellvynAgentCreationStudio.PROFILE_PENDING_DIFF_TOOL in allowed)
             assertEquals(role in evaluationRoles, KellvynAgentCreationStudio.VALIDATE_TOOL in allowed)
             assertEquals(role in evaluationRoles, KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL in allowed)
         }

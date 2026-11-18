@@ -657,3 +657,28 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - HEAD de código/documentação nesta rodada: `e521fcaf11239fd88d9fa396bc27a719b7575a4c`.
 - Runs disparados após a última alteração: `44329166238` (Agent Lab) e `44329185728` (Neural Core). Ambos concluíram em failure, com jobs sem runner/steps/logs_url. A causa permanece indisponível e não deve ser atribuída ao código.
 - A cópia Kotlin/JVM de smoke usada na validação local continua sendo apenas equivalente com stubs e casos sintéticos. Não é Gradle, JUnit real, AVD, APK nem benchmark do cérebro.
+
+
+## Agent Creation Studio — revisão persistente, auditoria e rollback — 18/11/2026
+
+### Código acrescentado nesta rodada
+- KellvynSpecialistProfileStore.kt: diário append-only de eventos STAGED/APPROVED/ROLLED_BACK, payload AES-GCM cifrado, chave Android Keystore dedicada, AAD sobre o cabeçalho, hash SHA-256 encadeado e compare-and-swap por hash do ledger e hash do perfil ativo.
+- A versão ativa só muda por evento APPROVED com confirmação explícita e hash exato do candidato. ROLLED_BACK aponta para uma revisão já aprovada ou para o perfil-base original; o histórico não é apagado.
+- KellvynRuntime: cria o store numa pasta privada separada, oferece APIs internas para preparar, aprovar e reverter revisões e atualiza novas factories com o conjunto aprovado. createAgent e createProjectWorkspaceAgent agora são suspend para carregar perfis do disco em Dispatchers.IO.
+- KellvynAgentCreationStudio: catálogo/inspeção/validação usam perfis ativos; foram adicionadas ferramentas READ_ONLY agent_profile_history e agent_profile_pending_diff, com valores antes/depois limitados. A aprovação não é uma ferramenta de agente.
+- Testes unitários escritos para staging sem ativação, confirmação obrigatória, hash incorreto, concorrência obsoleta, baseline rollback, revisão não aprovada, corrupção e diff. Teste Android instrumentado escrito para persistência entre instâncias e autenticação AAD com Android Keystore real.
+- A matriz de ferramentas unitária e instrumentada foi atualizada para as duas ferramentas de auditoria READ_ONLY.
+
+### Limites atuais
+- O código e os testes foram escritos; ainda não há resultado Gradle/JUnit/Android instrumentado aprovado para esta alteração.
+- As APIs de stage/approve/rollback são Kotlin internas confiáveis; não são expostas ao modelo como ferramentas mutáveis. A aplicação ainda precisa de um fluxo explícito de confirmação do proprietário antes de chamar approve.
+- A inferência neural ainda não foi aprovada/ligada ao chat principal. Nenhum dos 28 cenários mede competência real neste momento.
+- O histórico é encadeado e autenticado por AES-GCM; a proteção anti-replay/anti-truncamento do diretório contra um atacante com controle integral do armazenamento ainda não é uma garantia.
+- A última tentativa disponível dos workflows de CI terminou sem runner/steps/logs reutilizáveis; não atribuir a falha ao código nem declarar a suíte aprovada.
+- A interface e MainActivity.java não foram alterados.
+
+### Próxima ação
+1. Executar Gradle unit tests e instrumented tests num runner real; corrigir apenas falhas com logs.
+2. Implementar o fluxo confiável de revisão visual do diff e confirmação do proprietário, sem disponibilizar aprovação ao agente.
+3. Conectar resultados de benchmark a uma inferência aprovada, nunca a respostas sintéticas.
+4. Retomar os outros Studios por necessidade real, sem declarar oito motores completos.

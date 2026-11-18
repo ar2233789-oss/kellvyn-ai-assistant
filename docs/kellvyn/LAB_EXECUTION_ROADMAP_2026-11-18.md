@@ -58,7 +58,7 @@ O código comprova contratos de papel, instruções próprias, isolamento de sub
 
 - O bloqueio de ausência de handler foi endereçado em código: existe um handler embutido READ_ONLY de snapshot, registrado por allowlist no runtime e restaurado no Worker após recriação do processo. Ainda aguarda execução instrumental real.
 - A sessão do Worker vazia, isoladamente, não prova execução de tarefa real; há agora um teste que enfileira uma tarefa e verifica `SUCCEEDED` via `doWork()`, mas ele ainda aguarda runner/execução.
-- Quatro módulos concretos estão registrados: navegação de código, auditoria de segurança, arquitetura de dados e status do compilador Android. Isso não equivale aos estúdios completos da especificação; o último só diagnostica o builder Java/D8.
+- Seis módulos concretos estão registrados: navegação de código, auditoria de segurança, arquitetura de dados, status do compilador Android, pesquisa Web e Agent Creation. Isso não equivale aos oito estúdios completos da especificação; Android Build Status ainda é diagnóstico, não um compilador/test runner Android completo.
 - O indexador atual é predominantemente lexical; ainda não é um analisador AST completo.
 - Não há backend neural conversacional aprovado ligado ao chat principal.
 - A suíte Android/Gradle ainda não tem resultado aprovado. O workflow focado foi criado e os runs recentes estão sendo reexecutados; jobs anteriores terminaram sem runner, steps ou logs. Não confundir falha de alocação com falha do código.
@@ -286,3 +286,7 @@ Estado de validação: não há saída de typecheck isolado registrada para esse
 ### CI atualizado — 18/11/2026, 14:46 UTC
 
 Runs `44327863319` (Agent Lab) e `44327863230` (Neural Core) concluíram em failure. Jobs retornaram `logs_url=null` e lista de steps vazia. Classificação: execução sem diagnóstico disponível; não classificar como falha de compilação e não classificar como aprovação.
+
+
+## Atualização transversal — Agent Creation Studio E parcial — 18/11/2026
+Foi acrescentado armazenamento privado de revisões de perfil com AES-GCM/Android Keystore, cabeçalho autenticado, cadeia SHA-256, CAS, preparação sem ativação, aprovação explícita por código confiável e rollback apenas para versão aprovada ou perfil-base. O Studio consulta histórico e valores antes/depois por ferramentas READ_ONLY. Testes unitários e instrumentados estão escritos, mas aguardam runner Gradle/Android; não declarar aprovação. Factories KellvynRuntime.createAgent e createProjectWorkspaceAgent tornaram-se suspend para carregar a registry ativa em I/O, sem bloquear a thread principal.

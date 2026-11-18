@@ -35,7 +35,9 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             val workflowAutomation = setOf("automation_queue_status")
             val agentDesign = setOf(
                 KellvynAgentCreationStudio.CATALOG_TOOL,
-                KellvynAgentCreationStudio.INSPECT_TOOL
+                KellvynAgentCreationStudio.INSPECT_TOOL,
+                KellvynAgentCreationStudio.PROFILE_HISTORY_TOOL,
+                KellvynAgentCreationStudio.PROFILE_PENDING_DIFF_TOOL
             )
             val agentEvaluation = setOf(
                 KellvynAgentCreationStudio.VALIDATE_TOOL,

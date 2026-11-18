@@ -772,3 +772,21 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - CI runs `44329166238` (Agent Lab) e `44329185728` (Neural Core) falharam sem runner/steps/logs_url. Não há logs para diagnosticar build ou teste.
 - Smoke local JVM com stubs/casos sintéticos: 28/28 passou, ferramenta de escrita foi reprovada; a contagem/capabilities do catálogo fonte real foi conferida separadamente.
 - Próximo passo não é ampliar agentes indiscriminadamente: primeiro destravar Gradle/CI e executar a suíte Android; depois implementar o version store append-only, diff/revisão/aprovação e só depois conectar o executor ao backend neural aprovado.
+
+
+## 30. Perfil persistente — Fase E parcial — 18/11/2026
+- Criado KellvynSpecialistProfileStore.kt: histórico append-only de STAGED/APPROVED/ROLLED_BACK; AES-GCM; Android Keystore com alias separado; AAD autenticando o cabeçalho; hash SHA-256 encadeado; optimistic concurrency por hash da versão ativa e do ledger.
+- Perfil preparado não se torna ativo. Promoção exige confirmação explícita no método confiável do app e hash exato do perfil preparado. Rollback só aceita versão previamente aprovada ou a versão-base original, sem apagar eventos.
+- KellvynRuntime usa pasta privada specialist-profiles, expõe APIs internas de revisão e passa a carregar a lista ativa aprovada em factories suspend com leitura no Dispatchers.IO.
+- KellvynAgentCreationStudio ganhou ferramentas de consulta READ_ONLY para histórico e diff completo limitado antes/depois. Ferramentas mutáveis de aprovação não são dadas ao modelo.
+- Testes unitários escritos para persistência, staging, aprovação, rollback, CAS, hash, corrupção, permissões e diff; instrumented test Android escrito para persistência entre instâncias e alteração de AAD com Android Keystore.
+- Ainda não houve execução Gradle/JUnit/AndroidRunner desta rodada. Não há build APK nem teste físico Poco F6.
+- Não alterei MainActivity.java, interface-lock.sha ou o layout.
+- O cérebro KN-003/inferência ainda não está ligado ao chat principal; perfil versionado e harness não demonstram competência cognitiva por si só.
+
+### Ponto exato de retomada
+1. Confirmar o HEAD da branch e executar os workflows; jobs recentes 44329185731 e 44329185728 falharam sem steps/logs e seus reruns repetiram ausência de logs reutilizáveis.
+2. Revisar compilação Kotlin/Gradle do novo Profile Store e da alteração para factories suspend.
+3. Corrigir somente falhas reproduzidas; atualizar a matriz instrumentada se a allowlist real diferir.
+4. Executar teste Android Keystore; após aprovação, implementar a confirmação de revisão no código confiável sem expor essa ação ao modelo.
+5. Só então integrar o executor de benchmark ao backend neural aprovado.

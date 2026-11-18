@@ -1,7 +1,7 @@
 # Arquitetura do Agent Creation Studio invisível da Kellvyn
 
 **Data:** 18/11/2026  
-**Estado:** fase A em implementação; catálogo, inspeção e validação estrutural são a primeira camada. Edição, publicação e promoção automática continuam bloqueadas.  
+**Estado:** fases A/B e parte da C implementadas; revisão persistente E parcial escrita. Testes ainda aguardam execução Gradle/Android. Aprovação continua fora das ferramentas do modelo.  
 **Superfície:** ferramentas internas headless, nunca uma tela de laboratório ou segundo chat.
 
 ## 1. Objetivo
@@ -125,3 +125,14 @@ Ainda pendente:
 - harness de competência cognitiva ligado a inferência real;
 - evidência de execução no Poco F6.
 
+
+
+## 11. Atualização — persistência, auditoria e rollback — 18/11/2026
+- KellvynSpecialistProfileStore grava eventos imutáveis STAGED, APPROVED e ROLLED_BACK em arquivos privados sequenciados.
+- Payloads são criptografados com AES-GCM e alias dedicado no Android Keystore; o cabeçalho autenticado inclui sequência, horário, papel, versão, tipo de evento e hash anterior.
+- A cadeia SHA-256 detecta alteração, lacuna e ordenação inválida; compare-and-swap exige o hash atual do ledger e do perfil ativo.
+- Staging não ativa; aprovação exige ownerConfirmed no código confiável e o hash exato do candidato. Rollback só pode retornar a uma versão aprovada ou ao perfil-base original.
+- KellvynRuntime carrega as versões aprovadas ao criar agentes por factories suspend, usando Dispatchers.IO. A aprovação e o rollback atualizam a snapshot usada em novas factories.
+- O Studio agora oferece ferramentas READ_ONLY para histórico e diff de revisão, incluindo valores antes/depois limitados. Não há ferramenta de agente para aprovar ou promover.
+- Testes unitários e instrumentados foram escritos; não há resultado CI/Gradle aprovado nesta etapa. O teste instrumentado pretende validar persistência entre instâncias e autenticação AAD com Android Keystore real.
+- O escopo atual ainda não inclui um editor de perfis na interface, criação automática de draft por chamada do modelo ou aprovação em UI. A próxima peça confiável é a ação explícita de revisão do proprietário, preservando o layout aprovado.
