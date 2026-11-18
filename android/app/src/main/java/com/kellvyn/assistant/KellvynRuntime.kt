@@ -82,7 +82,8 @@ internal class KellvynRuntime(context: Context) {
             KellvynAgentLabStudio.definition(
                 traceStore = agentLabTraceStore,
                 moduleManager = resourceRuntime.studioModules,
-                resourceSnapshotProvider = resourceRuntime::snapshot
+                resourceSnapshotProvider = resourceRuntime::snapshot,
+                traceRecorderHealthProvider = agentLabTraceRecorder::health
             )
         )
     }
@@ -422,6 +423,10 @@ internal class KellvynRuntime(context: Context) {
             candidateProfiles = candidateProfiles
         )
     }
+
+    /** Returns whether local trace persistence is currently healthy. */
+    fun agentLabTraceRecorderHealth(): KellvynAgentLabTraceRecorderHealth =
+        agentLabTraceRecorder.health()
 
     /** Returns up to 16 newest local trace summaries after validating each event chain. */
     suspend fun agentLabTraceSummaries(): List<KellvynAgentLabTraceSummary> =
