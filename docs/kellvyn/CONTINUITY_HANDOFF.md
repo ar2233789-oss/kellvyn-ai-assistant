@@ -6,7 +6,7 @@
 **Repositório antigo:** reservado para publicar a versão final quando houver aprovação.  
 **Alvo:** Poco F6, Android/HyperOS, 8 GB RAM, uso privado, local/offline primeiro.
 
-> **Leia este arquivo antes de qualquer alteração em uma nova conversa.** Consulte o GitHub para confirmar o HEAD real da branch antes de trabalhar. Este documento é a fonte persistente de continuidade; não confiar só na memória do chat, em resumos ou em suposições.
+> **REGRA ATUALIZADA — 18/11/2026:** o ponto único de entrada e a fonte atual de continuidade agora é [SESSION_CONTROL.md](SESSION_CONTROL.md). Leia-o primeiro e confirme o HEAD real da branch. Este arquivo continua preservado como histórico técnico detalhado; suas seções antigas de “próxima tarefa” e estados anteriores não devem sobrepor o estado mais recente em SESSION_CONTROL.md.
 
 ## 1. Missão — não desviar
 
