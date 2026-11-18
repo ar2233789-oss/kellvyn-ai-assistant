@@ -100,6 +100,17 @@ class StudioTests(unittest.TestCase):
   self.assertEqual("FAILED",task["evidence"][-1]["status"])
   report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
   self.assertEqual("BLOCKED",report["gate"])
+ def test_repo_map_matches_test_files_by_referenced_symbols(self):
+  main=self.root/"android/app/src/main/java/sample"; main.mkdir(parents=True)
+  (main/"AgentCoordinator.kt").write_text("package sample\nclass AgentCoordinator\n")
+  test_dir=self.root/"android/app/src/test/java/sample"; test_dir.mkdir(parents=True)
+  test_file=test_dir/"ArchitectureContractTest.kt"
+  test_file.write_text("package sample\nclass ArchitectureContractTest { fun verifies() { AgentCoordinator() } }\n")
+  result=studio.repo_map(SimpleNamespace())
+  self.assertEqual(0,result)
+  manifest=json.loads((studio.DOCS/"repository-map.json").read_text())
+  row=next(item for item in manifest["sources"] if item["file"].endswith("AgentCoordinator.kt"))
+  self.assertIn("android/app/src/test/java/sample/ArchitectureContractTest.kt",row["test_candidates"])
  def test_task_records_scope_and_scope_specific_gate(self):
   self.create()
   m=json.loads((studio.TASKS/"brain-core/task.json").read_text())
