@@ -34,7 +34,7 @@ Capability principal: `CODE_NAVIGATION`. O indexador de código atual é lexical
 Ferramenta:
 - `security_scan_project`
 
-Capability: `SECURITY_AUDIT`. A auditoria é estática, local, limitada a arquivos textuais e não executa código nem reproduz segredos.
+Capabilities: `SECURITY_AUDIT` e `CODE_NAVIGATION`. A auditoria é estática, local, limitada a arquivos textuais e não executa código nem reproduz segredos.
 
 ### Arquitetura e inspeção de dados
 Ferramenta:
