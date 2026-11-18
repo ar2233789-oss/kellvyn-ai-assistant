@@ -3,31 +3,35 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 19:52 UTC  
+**Última revisão:** 18/11/2026, 20:35 UTC  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de laboratório:** lab/kellvyn-intelligence-core-20261116  
-**HEAD confirmado antes deste checkpoint:** 293828ecd59a4197f0590ac964026da306cf1a93  
-**Documentação técnica:** pesquisa d4f3404; especificação c435e8f; bancada 20f1a9d.  
-**Livro de atividades:** 293828e; commits de implementação/documentação reconciliados manualmente até 19:51 UTC. O commit final deste checkpoint é auto-referencial e será capturado pelo workflow quando o runner voltar.
+**HEAD confirmado antes deste checkpoint:** 430d25a0db8e5c9ac8ad236eb826dd0677d05a6b  
+**Implementação da R&D Studio:** 4598cab4e831dd3e1f9d96c0c2158de8e77ff566  
+**Últimos estudos:** auditoria KN-003 de gradientes e método de diferenças finitas, em `docs/kellvyn/rnd-studio/`.  
+**CI observado:** run 44392690462 — `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
 
-> Esta revisão adiciona o Engineering Lab (mapa, auditoria estática e registro manual) e pesquisa Aider/SWE-agent/OpenHands/LiteRT. O script foi gravado e ligado ao workflow, mas ainda não executado. Os jobs de auditoria continuam sem runner. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
-> Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
+> Prioridade ativa: usar a Kellvyn R&D Studio externa para estudar e melhorar o cérebro próprio. Agent Lab Android e Agent Creation Studio são camadas distintas e não substituem essa bancada. Confirme sempre o HEAD real; o commit deste checkpoint é auto-referencial e será reconciliado pelo diário quando o runner voltar.
+> Se o HEAD atual for diferente, leia os commits posteriores antes de editar. Este documento não autoriza sobrescrever trabalho posterior.
 
 ---
 
 ## 1. Objetivo ativo — não desviar
 
-O foco ativo é o **Agent Lab / laboratório de engenharia de agentes**: ambiente para acompanhar execuções, executar benchmarks reais, comparar perfis candidatos, medir custo de recursos e investigar falhas.
+A prioridade ativa é a **Kellvyn R&D Studio externa**: uma bancada de engenharia para o assistente estudar a arquitetura neural própria, pesquisar métodos, formular hipóteses falsificáveis, isolar alterações, executar testes, comparar evidências e melhorar o cérebro sem perder continuidade. Não é uma tela do usuário nem um módulo do app.
 
-Não confundir quatro camadas:
-- **Cérebro Kellvyn:** backend neural próprio e raciocínio principal; permanece uma frente separada.
-- **Agent Creation Studio:** catálogo, compilação, revisão, versionamento, aprovação e rollback dos 14 perfis.
-- **Agent Lab Android:** execução, traces, testes, experimentos, comparação e telemetria dos agentes dentro do app.
-- **Kellvyn Engineering Lab:** bancada do repositório para pesquisa, mapa de código, auditoria estática, registro UTC e preparação de patches/testes. Não é tela do app nem substituto do Agent Lab Android.
+Não confundir estas camadas:
+- **Cérebro Kellvyn (KN):** modelo/tokenizer/pesos próprios e inferência neural; não está conectado ao chat de produção.
+- **KellvynAgent:** loop operacional que usa uma interface de inferência injetada; não é o cérebro.
+- **KellvynOrchestrator:** coordenador de delegações e especialistas; não substitui o cérebro.
+- **Agent Creation Studio:** criação, compilação, versionamento e avaliação estrutural dos 14 perfis.
+- **Agent Lab Android:** observa execuções reais, traces, benchmarks e recursos dos agentes dentro do app.
+- **Kellvyn Engineering Lab:** inventário estático, mapa e diário do repositório.
+- **Kellvyn R&D Studio externa:** bancada para estudar e desenvolver o cérebro, com worktrees, experimentos, pesquisas e gates de evidência. Este é o foco ativo.
 
-Não voltar para a interface nem recriar os módulos de perfis já existentes. O objetivo é evoluir a bancada e validar o que já foi implementado, não acumular commits sem testes.
+O R&D Studio foi criado em `tools/kellvyn-rnd-studio/` e documentado em `docs/kellvyn/rnd-studio/`. Não recriar cérebro, orquestrador, 14 perfis, Agent Creation Studio nem Agent Lab Android. Não voltar para layout/interface nesta frente.
 
-O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / HyperOS, 8 GB de RAM. Não usar WebView na versão final, não depender de hospedagem externa ou serviços pagos.
+O aplicativo final continua nativo e offline-first para Poco F6 / HyperOS / 8 GB RAM. Não usar WebView final, não depender de hospedagem externa nem de serviços pagos.
 
 ## 2. Regras obrigatórias para não refazer nem estragar
 

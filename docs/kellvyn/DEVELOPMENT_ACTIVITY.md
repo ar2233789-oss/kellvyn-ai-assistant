@@ -161,3 +161,11 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Próxima tarefa: hipótese isolada `brain-gradient-coverage-001`, com baseline e teste Gradle real antes de qualquer alteração neural.
 
 - 20:32 UTC — pesquisa de gradcheck refinou a hipótese: cobertura por tensor + derivada direcional seeded, diferenças centrais, calibração float32/epsilon e controle negativo. Fontes: Stanford CS231n, PyTorch gradcheck e JAX check_grads. Ainda PLANNED / NOT RUN.
+
+| 20:31:40 | `269ce09` | docs(kellvyn): checkpoint R&D Studio and KN-003 gradient study |
+| 20:35:43 | `430d25a` | docs(kellvyn): refine KN-003 gradient audit methodology |
+
+- Checkpoint 269ce09 registrou a R&D Studio e a hipótese `brain-gradient-coverage-001`.
+- Commit 430d25a incorporou pesquisa Stanford CS231n/PyTorch/JAX: cobertura por grupo/tensor, diferenças centrais, direção seeded e calibração float32/epsilon.
+- GitHub Actions run `44392690462` repetiu falha antes do primeiro step: `runner_id=0`, `steps=[]`; nenhum teste de código executou.
+- HEAD confirmado antes deste checkpoint: `430d25a0db8e5c9ac8ad236eb826dd0677d05a6b`. O próprio commit deste checkpoint será reconciliado pelo workflow quando existir runner.
