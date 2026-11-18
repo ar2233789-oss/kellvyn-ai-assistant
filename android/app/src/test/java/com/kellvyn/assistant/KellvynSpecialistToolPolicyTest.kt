@@ -106,6 +106,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.UI_LAYOUT
             ),
             KellvynSpecialistRole.TEST_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.ANDROID_BUILD,
                 KellvynStudioCapability.ANDROID_DEVICE_TEST,
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
@@ -115,11 +116,13 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
             ),
             KellvynSpecialistRole.LEARNING_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.NEURAL_TRAINING,
                 KellvynStudioCapability.NEURAL_INFERENCE,
                 KellvynStudioCapability.DATA_MODELING
             ),
             KellvynSpecialistRole.PROGRAMMING_ARCHITECT to setOf(
+                KellvynStudioCapability.AGENT_DESIGN,
                 KellvynStudioCapability.CODE_NAVIGATION,
                 KellvynStudioCapability.UI_LAYOUT,
                 KellvynStudioCapability.DATA_MODELING
@@ -133,6 +136,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.ANDROID_BUILD
             ),
             KellvynSpecialistRole.PLANNING_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_DESIGN,
                 KellvynStudioCapability.WORKFLOW_AUTOMATION,
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS,
                 KellvynStudioCapability.DATA_MODELING
@@ -144,6 +148,8 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
             ),
             KellvynSpecialistRole.AUDITOR to setOf(
+                KellvynStudioCapability.AGENT_DESIGN,
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.CODE_NAVIGATION,
                 KellvynStudioCapability.ANDROID_BUILD,
                 KellvynStudioCapability.ANDROID_DEVICE_TEST,
