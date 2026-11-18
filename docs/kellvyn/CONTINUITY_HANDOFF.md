@@ -764,3 +764,11 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Ainda não há executor ligado ao cérebro real; nenhum resultado prova competência dos 14 papéis.
 - Ainda não há armazenamento persistente de resultados, snapshots por execução, comparação de regressão, revisão humana ou promoção de perfil.
 - Próximo passo: destravar CI/Gradle; depois integrar o executor ao backend neural só após aprovação do gate de inferência; o verificador não pode ser o próprio texto de resposta do especialista.
+
+## 29. Última conferência da rodada — 18/11/2026, 14:53 UTC
+
+- HEAD confirmado: `e521fcaf11239fd88d9fa396bc27a719b7575a4c`.
+- A instrução do perfil foi polida para imprimir `PAPEL: ROLE_ENUM — Nome humano`; teste correspondente atualizado.
+- CI runs `44329166238` (Agent Lab) e `44329185728` (Neural Core) falharam sem runner/steps/logs_url. Não há logs para diagnosticar build ou teste.
+- Smoke local JVM com stubs/casos sintéticos: 28/28 passou, ferramenta de escrita foi reprovada; a contagem/capabilities do catálogo fonte real foi conferida separadamente.
+- Próximo passo não é ampliar agentes indiscriminadamente: primeiro destravar Gradle/CI e executar a suíte Android; depois implementar o version store append-only, diff/revisão/aprovação e só depois conectar o executor ao backend neural aprovado.
