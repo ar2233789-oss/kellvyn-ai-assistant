@@ -3,11 +3,11 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última conferência:** 18/11/2026, 16:02 UTC  
+**Última conferência:** 18/11/2026, 16:15 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD confirmado antes desta atualização:** `63d9a5a91d3f072e9c5de5e80670df7ff6569e0a`  
-**Commit:** [63d9a5a — enforce no external pretrained weights in cognitive lab](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/63d9a5a91d3f072e9c5de5e80670df7ff6569e0a)
+**HEAD confirmado antes desta atualização:** `d987d11b10d3c352af8584d5306c34536bf8d1a8`  
+**Commit:** [d987d11 — probe alternate ubuntu-slim hosted runner](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/d987d11b10d3c352af8584d5306c34536bf8d1a8)
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -100,6 +100,7 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 
 ### Alterações documentais desta retomada
 - Criado e executado um teste isolado de alocação de runner; o workflow temporário separado foi removido depois do teste.
+- O probe foi repetido com `ubuntu-slim` em vez de `ubuntu-latest`; também não recebeu runner. O job completo do Android permaneceu em `ubuntu-latest`.
 - Adicionado job `runner-allocation-probe` ao Agent Lab; run `44338054696`, jobs `134920052636` e `134920052769`.
 - Atualizada `AGENT_TOOL_AVAILABILITY_2026-11-18.md`: o inventário correto tem seis módulos, incluindo `web-research-wikipedia` e `agent-creation`. A pesquisa Web disponível é somente `wikipedia_search`, limitada à Wikipédia PT e autorizada apenas ao Pesquisador com Acesso à Web ativado.
 - Criado `AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md`, com pesquisa de OpenAI Agents/evals/tracing, Cursor subagents/planning, Replit lifecycle/testing, Android Studio device testing, Nano Banana e LiteRT.
@@ -112,6 +113,7 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 ### Evidência exata do bloqueio GitHub Actions
 - O endpoint detalhado de jobs para o run `44338054696` mostra, em ambos os jobs, `runner_id=0`, `runner_name=""`, `steps=[]`, falha em aproximadamente 2 segundos.
 - A mesma ausência de atribuição ocorreu no run isolado `44337962674`, job `134919715612`.
+- Para separar falha específica da imagem, o job `runner-allocation-probe` foi alterado para `ubuntu-slim` (1 vCPU/5 GB em repositórios privados, conforme a tabela oficial de runners). O Android/Gradle continuou em `ubuntu-latest`. Novo run `44344351674`: tentativa 1 falhou; a tentativa 2 foi repetida isoladamente no job `134942998352` e também terminou failure, `runner_id=0`, `runner_name=""`, `steps=[]`, em cerca de 3 segundos. Job Android `134943002530` continuou falhando sem runner.
 - Isso confirma que o runner hospedado **não foi atribuído**; Gradle, Android SDK, checkout e qualquer teste não começaram. Não é evidência de erro Kotlin.
 - A página pública do GitHub Status consultada para 18/11/2026 mostra Actions como Operational e nenhum incidente reportado nesse dia. O incidente de 16/11 terminou às 16:26 UTC; não explica diretamente os jobs de 18/11.
 - A documentação oficial confirma que, em repositórios privados, compute incluído depende do plano e é compartilhado entre hosted runners privados e Cloud Sandbox compute/memory. Quando o compute incluído acaba, sem método de pagamento válido ou com um budget bloqueando o gasto, o uso pode ser bloqueado. Isso é agora a **hipótese mais forte a verificar**, mas não é causa confirmada porque não temos o estado privado de billing nem a mensagem de erro exibida ao proprietário.
@@ -131,7 +133,7 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 - A otimização não será introduzida antes de existir checkpoint treinado e benchmark Kotlin de referência.
 
 ### Próxima tarefa única
-**Obter o motivo exato da falta de compute/atribuição do runner pela tela privada de Billing/Actions e restabelecer uma execução mínima com logs.**
+**Confirmar na tela privada de Actions/Billing se a conta/repositório está sem compute incluído ou bloqueado por budget/política e reativar um runner. O probe `ubuntu-slim` e o `ubuntu-latest` falharam antes dos steps.**
 
 Depois:
 1. executar `gradle testDebugUnitTest`;
