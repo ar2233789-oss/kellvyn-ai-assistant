@@ -168,3 +168,11 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - A política entrega essa ferramenta somente a TEST_ANALYST, SECURITY_ANALYST, DEBUGGER e AUDITOR (papéis que possuem ANDROID_BUILD).
 - Limite: o builder local disponível é perfil Java limitado ECJ → D8; Kotlin/Compose/Gradle completo e execução instrumentada no aparelho ainda não estão disponíveis como ferramentas dos especialistas.
 - Teste ainda aguarda execução Gradle/Android real.
+
+
+## Status do backend Android — 18/11/2026
+- O módulo `android-build-status` está registrado como quarto módulo interno.
+- Ferramenta READ_ONLY `android_build_environment_status` para os papéis autorizados a ANDROID_BUILD: Test Analyst, Security Analyst, Debugger e Auditor.
+- Diagnostica disponibilidade do android.jar cacheado, aceite da licença, compileSdk e metadados do último APK.
+- Não é ferramenta de compilação, instalação ou execução de testes. O backend existente continua Java-only limitado, ECJ → D8.
+- Teste instrumental adicionado; execução depende de CI/AVD real.
