@@ -67,6 +67,59 @@ class KellvynAgentTest {
     }
 
     @Test
+    fun recordsMemoryHeapPssBatteryAndThermalSnapshotsAtRunBoundaries() = runBlocking {
+        val recorder = RecordingTraceRecorder()
+        val trace = KellvynAgentLabTraceSession.create(recorder)
+        val snapshots = listOf(
+            KellvynResourceSnapshot(
+                totalSystemMemoryBytes = 8L * 1024L * 1024L * 1024L,
+                availableSystemMemoryBytes = 3L * 1024L * 1024L * 1024L,
+                processHeapUsedBytes = 200L * 1024L * 1024L,
+                processHeapMaxBytes = 1L * 1024L * 1024L * 1024L,
+                processPssBytes = 260L * 1024L * 1024L,
+                lowMemory = false,
+                thermalBand = KellvynThermalBand.LIGHT,
+                thermalHeadroomForecast = null,
+                powerSaveMode = false,
+                batteryPercent = 87,
+                charging = false
+            ),
+            KellvynResourceSnapshot(
+                totalSystemMemoryBytes = 8L * 1024L * 1024L * 1024L,
+                availableSystemMemoryBytes = 2L * 1024L * 1024L * 1024L,
+                processHeapUsedBytes = 220L * 1024L * 1024L,
+                processHeapMaxBytes = 1L * 1024L * 1024L * 1024L,
+                processPssBytes = 280L * 1024L * 1024L,
+                lowMemory = false,
+                thermalBand = KellvynThermalBand.MODERATE,
+                thermalHeadroomForecast = null,
+                powerSaveMode = false,
+                batteryPercent = 86,
+                charging = false
+            )
+        )
+        var snapshotIndex = 0
+        val agent = KellvynAgent(
+            inference = FakeEngine(KellvynModelDecision.Final("Concluído.")),
+            tools = KellvynToolRegistry(emptyList()),
+            traceSessionFactory = { trace },
+            resourceSnapshotProvider = { snapshots[snapshotIndex++] }
+        )
+
+        val result = agent.run("Execute uma tarefa sem ferramentas.")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        val resourceEvents = recorder.events.filter {
+            it.kind == KellvynAgentLabEventKind.RESOURCE_SNAPSHOT
+        }
+        assertEquals(2, resourceEvents.size)
+        assertTrue(resourceEvents[0].detailCode!!.startsWith("START-"))
+        assertTrue(resourceEvents[0].detailCode!!.contains("-B87-TLIGHT"))
+        assertTrue(resourceEvents[1].detailCode!!.startsWith("END-"))
+        assertTrue(resourceEvents[1].detailCode!!.contains("-B86-TMODERATE"))
+    }
+
+    @Test
     fun unknownToolIsNeverExecuted() = runBlocking {
         val model = FakeEngine(
             KellvynModelDecision.CallTool("shell_everything", emptyMap()),
