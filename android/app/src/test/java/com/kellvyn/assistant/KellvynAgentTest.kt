@@ -82,7 +82,10 @@ class KellvynAgentTest {
                 thermalHeadroomForecast = null,
                 powerSaveMode = false,
                 batteryPercent = 87,
-                charging = false
+                charging = false,
+                processCpuTimeMillis = 100L,
+                sampledAtElapsedRealtimeMillis = 1_000L,
+                availableProcessors = 8
             ),
             KellvynResourceSnapshot(
                 totalSystemMemoryBytes = 8L * 1024L * 1024L * 1024L,
@@ -95,7 +98,10 @@ class KellvynAgentTest {
                 thermalHeadroomForecast = null,
                 powerSaveMode = false,
                 batteryPercent = 86,
-                charging = false
+                charging = false,
+                processCpuTimeMillis = 420L,
+                sampledAtElapsedRealtimeMillis = 3_000L,
+                availableProcessors = 8
             )
         )
         var snapshotIndex = 0
@@ -117,6 +123,7 @@ class KellvynAgentTest {
         assertTrue(resourceEvents[0].detailCode!!.contains("-B87-TLIGHT"))
         assertTrue(resourceEvents[1].detailCode!!.startsWith("END-"))
         assertTrue(resourceEvents[1].detailCode!!.contains("-B86-TMODERATE"))
+        assertTrue(resourceEvents[1].detailCode!!.contains("-DC320-CPU2"))
     }
 
     @Test
