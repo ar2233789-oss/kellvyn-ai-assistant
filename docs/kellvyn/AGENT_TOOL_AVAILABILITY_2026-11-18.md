@@ -135,3 +135,18 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - Testes unitários cobrem escopo, exclusão de sensíveis/desconhecidos, argumento de escopo forjado, limites e ausência de escopo.
 - Teste instrumental da cobertura real atualiza expectativa do papel MEMORY_ANALYST para `memory_search`.
 - Ainda não executado no Android/Gradle; contrato escrito não é aprovação.
+
+
+## 8. Implementação de Memory Read — 18/11/2026
+
+- Nova ferramenta `memory_search` em `KellvynMemoryTools.kt`, incluída no registry do runtime.
+- A ferramenta recebe somente `query` e `limit`; não aceita project_id nem qualquer argumento para escolher escopos.
+- Os endereços são fornecidos pelo runtime: GLOBAL e, quando existente e validado, o projeto ativo da conversa.
+- Só devolve registros `NON_SENSITIVE`; registros `SENSITIVE_PERSONAL`, `CREDENTIAL` e `UNKNOWN` são omitidos.
+- Saída inclui ID de referência, tipo, origem, escopo, confiança, termos correspondentes e proveniência; conteúdo é explicitamente marcado como dado não confiável.
+- Saída limitada a cinco memórias, 420 caracteres de conteúdo por item e 3.200 caracteres no total.
+- Apenas a capability `MEMORY_READ` recebe a ferramenta através de `KellvynSpecialistToolPolicy`; demais papéis não a recebem pela política de delegação.
+- Testes unitários cobrem escopo, exclusão de sensíveis/desconhecidos/credenciais, argumento de escopo forjado, limites e ausência de escopo.
+- Teste instrumental da cobertura real atualiza expectativa do papel MEMORY_ANALYST para `memory_search`.
+- O fonte isolado passou por kotlinc com stubs mínimos; isso não é build Gradle nem validação Android.
+- Ainda não executado no Android/Gradle; contrato escrito não é aprovação.
