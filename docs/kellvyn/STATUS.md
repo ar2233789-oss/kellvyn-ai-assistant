@@ -537,3 +537,9 @@ Documentação:
 
 ### Próximo bloqueio
 Restabelecer execução real de CI/Gradle ou obter uma execução Android local verificável; então corrigir qualquer falha de compilação/teste observada. Não avançar para handlers mutáveis até a Fase 1 ter prova end-to-end. A interface continua intocada.
+
+
+### Atualização de cobertura do Worker — 18/11/2026
+- `KellvynAutomationDrainWorkerInstrumentedTest` agora também cria uma tarefa READ_ONLY persistente autorizada e invoca `doWork()`, verificando estado SUCCEEDED, uma tentativa e resumo salvo.
+- Execução de CI gerada pelo commit `878ed55d33cf2b72a238d70bcea31b63b24535e1`: run `44212948327`, tentativa 1, jobs sem runner/steps/logs e diff skipped.
+- O teste do Worker foi acrescentado, mas continua não executado. A Fase 1 não está aprovada.
