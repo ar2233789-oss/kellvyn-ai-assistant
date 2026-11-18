@@ -169,6 +169,12 @@ class KellvynSpecialistEvaluationHarnessTest {
         assertEquals(1, recorder.events.count {
             it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
         })
+        val suiteFingerprint = recorder.events.single {
+            it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
+        }.detailCode.orEmpty()
+        assertTrue(suiteFingerprint.startsWith("SUITE_"))
+        assertEquals(70, suiteFingerprint.length)
+        assertTrue(suiteFingerprint.removePrefix("SUITE_").matches(Regex("[a-f0-9]{64}")))
         assertEquals(28, recorder.events.count {
             it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_STARTED
         })
