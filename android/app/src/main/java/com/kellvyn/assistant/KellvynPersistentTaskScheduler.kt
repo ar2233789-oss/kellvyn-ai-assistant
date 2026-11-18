@@ -584,8 +584,14 @@ internal class KellvynTaskScheduler(
         require(handlers.putIfAbsent(handlerId, handler) == null) {
             "Handler de tarefa duplicado: $handlerId"
         }
-        withContext(Dispatchers.IO) {
-            queue.markHandlerAvailable(handlerId, clock())
+        try {
+            withContext(Dispatchers.IO) {
+                queue.markHandlerAvailable(handlerId, clock())
+            }
+        } catch (error: Throwable) {
+            // Keep the in-memory allowlist and durable queue state atomic from the caller's view.
+            handlers.remove(handlerId, handler)
+            throw error
         }
     }
 
