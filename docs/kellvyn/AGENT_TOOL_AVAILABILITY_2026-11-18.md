@@ -92,7 +92,7 @@ Além deles, o runtime registra ferramentas compartilhadas de workspace, recurso
 
 1. Fechar a Fase 1: provar handler real, fila, broker, resultado persistido e retomada no Android/Gradle.
 2. Adicionar teste de integração papel → política → manifest → ferramenta real para cada capability existente.
-3. Validar Memory Read no Android: escopo, proveniência, exclusão de registros sensíveis/desconhecidos, limites e isolamento por papel (a ferramenta `memory_search` já está implementada).
+3. Executar Memory Read no Android: validar escopo, proveniência, exclusão de registros sensíveis/desconhecidos, limites e isolamento por papel (a ferramenta `memory_search` já está implementada; harness Kotlin isolado passou, mas Android/Gradle segue pendente).
 4. Criar Web Research read-only com fonte, data, URL, isolamento de prompt injection e rede opcional.
 5. Criar Android Build/Test adapters: build, AVD, captura, Logcat, UIAutomator e verificador de critérios, com instalação e ações de dispositivo sujeitas a aprovação.
 6. Criar motores UI/UX e Visual Analysis, começando por leitura/comparação antes de edição.
@@ -150,3 +150,8 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - Teste instrumental da cobertura real atualiza expectativa do papel MEMORY_ANALYST para `memory_search`.
 - O fonte isolado passou por kotlinc com stubs mínimos; isso não é build Gradle nem validação Android.
 - Ainda não executado no Android/Gradle; contrato escrito não é aprovação.
+
+## Estado de verificação isolada — 18/11/2026
+- `KellvynMemoryTools.kt` compilou com kotlinc num harness que stubbou apenas os contratos da camada de ferramentas; o algoritmo de ranking de memória e os casos de escopo/privacidade foram executados com repositório falso.
+- Resultado: `KELLVYN_MEMORY_TOOL_INTEGRATION_TESTS_PASS`.
+- Não prova compilação do app nem SQLite/Keystore real. A prova Android continua pendente do runner.
