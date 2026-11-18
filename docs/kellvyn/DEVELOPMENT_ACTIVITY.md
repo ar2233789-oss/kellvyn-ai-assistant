@@ -198,3 +198,13 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Integration candidate: kellvyn-rnd/brain-agent-contract-001, HEAD 7dc8b6b, run 44407125400, runner_id=0, steps=[].
 - Todos estão IMPLEMENTED_NOT_RUN; nenhum código candidato foi promovido para a branch lab.
 - Integration test percorre parser e loop reais com ProtocolScriptedEngine; não executa um checkpoint KN nem habilita o Runtime.
+
+
+## 22:35 UTC — consolidação de branches, CI e Studio
+
+- Lab: 44c54ad. Brain: db94316. Agents: 9181f31. Integration/Studio: 8630162.
+- CI às 22:31 em todas as quatro branches: runner_id=0, runner_name vazio, steps=[]; nenhum job iniciou.
+- Removido docs/kellvyn/rnd-studio/** dos paths do workflow para evitar CI acionado por documentação apenas.
+- Studio Python anterior: 13/13 testes passaram localmente. Versão atual tem 16; os três novos e a alteração de repo_map ainda NOT RUN.
+- Diagnostic report registra o caso privado, os IDs de run/job e a hipótese de budget bloqueado, sem afirmar causa comprovada.
+- Nenhum candidato Brain/Agents/Integration foi promovido. Runtime continua desligado.
