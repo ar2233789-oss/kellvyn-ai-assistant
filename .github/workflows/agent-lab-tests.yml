@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - lab/kellvyn-intelligence-core-20261116
+      - 'kellvyn-rnd/**'
     paths:
       - 'android/app/src/main/java/com/kellvyn/assistant/Kellvyn*.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/neural/**'
