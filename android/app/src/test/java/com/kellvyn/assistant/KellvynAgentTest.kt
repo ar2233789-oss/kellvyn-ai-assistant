@@ -120,17 +120,30 @@ class KellvynAgentTest {
     }
 
     @Test
-    fun unknownToolIsNeverExecuted() = runBlocking {
+    fun unknownToolIsNeverExecutedAndBlockedRequestIsTracedWithoutArguments() = runBlocking {
+        val recorder = RecordingTraceRecorder()
+        val trace = KellvynAgentLabTraceSession.create(recorder)
         val model = FakeEngine(
-            KellvynModelDecision.CallTool("shell_everything", emptyMap()),
+            KellvynModelDecision.CallTool("shell_everything", mapOf("token" to "PRIVATE_ARGUMENT")),
             KellvynModelDecision.Final("Não existe essa ferramenta registrada.")
         )
-        val agent = KellvynAgent(model, KellvynToolRegistry(emptyList()))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            traceSessionFactory = { trace }
+        )
 
         val result = agent.run("Execute algo.")
 
         assertTrue(result is KellvynAgentResult.Completed)
         assertTrue(model.historySeen.last().any { message -> message.content.contains("Ferramenta inexistente") })
+        val blocked = recorder.events.single {
+            it.kind == KellvynAgentLabEventKind.TOOL_FINISHED &&
+                it.outcome == KellvynAgentLabOutcome.BLOCKED
+        }
+        assertEquals("shell_everything", blocked.toolName)
+        assertEquals("NOT_REGISTERED", blocked.detailCode)
+        assertFalse(recorder.events.toString().contains("PRIVATE_ARGUMENT"))
     }
 
     @Test
