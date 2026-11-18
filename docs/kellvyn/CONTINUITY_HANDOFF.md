@@ -630,3 +630,13 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 3. Aprovar a Fase 1 com prova do fluxo enqueue → handler allowlisted → broker → resultado persistido → SUCCEEDED e recuperação após processo reiniciado.
 4. Só então avançar para integração cruzada das capacidades dos 14 papéis com os três módulos já existentes e os estúdios que faltam.
 5. Manter os especialistas READ_ONLY; não conectar inferência ao chat nem alterar interface até gates próprios.
+
+## 21. Matriz real por papel e correção de fixtures — 18/11/2026
+
+- Novo documento `AGENT_TOOL_AVAILABILITY_2026-11-18.md` compara capability policy com ToolSpecs e módulos que realmente estão registrados; deixa explícitas as lacunas de Web, Memory Read, Android Build/Test, UI/UX, imagem, vetor, 3D e CAD.
+- Novo teste instrumental `KellvynAgentToolAvailabilityInstrumentedTest` valida a allowlist de todos os papéis em cima do runtime real e dos manifests reais.
+- A auditoria estática encontrou fixtures de delegação desatualizadas: `read_source` não declarava a capability e, pela política fail-closed, seria corretamente ocultada. Ambas as suítes `KellvynAgentDelegationTest` e `KellvynAgentSpecialistEvaluationTest` foram corrigidas para declarar capability autorizada; a ferramenta de escrita mantém a mesma capability para que o teste prove bloqueio pelo risco.
+- `KellvynTaskScheduler.registerHandler` agora faz rollback da entrada em memória se `markHandlerAvailable` falhar.
+- Run `44215633371` foi lançado pelos novos testes instrumentais, mas job terminou sem runner/steps/logs; a suíte continua NOT_RUN/BLOCKED.
+- Próxima ação continua restabelecer CI/execução Android válida; não presumir aprovação.
+
