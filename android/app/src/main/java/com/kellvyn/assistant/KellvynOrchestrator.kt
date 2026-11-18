@@ -25,7 +25,22 @@ internal class KellvynOrchestrator(
     private val networkReadEnabled: () -> Boolean,
     private val specialistProfiles: KellvynSpecialistProfileRegistry
 ) {
-    suspend fun dispatch(
+    /** Creates per-run state so concurrent conversations never share delegation budgets. */
+    fun newSession(): Session = Session()
+
+    inner class Session internal constructor() {
+        private var completedDelegations = 0
+
+        suspend fun dispatch(
+            decision: KellvynModelDecision.Delegate
+        ): KellvynOrchestrationOutcome {
+            val outcome = dispatchInternal(decision, completedDelegations)
+            if (outcome.consumesDelegationSlot) completedDelegations++
+            return outcome
+        }
+    }
+
+    private suspend fun dispatchInternal(
         decision: KellvynModelDecision.Delegate,
         completedDelegations: Int
     ): KellvynOrchestrationOutcome {
