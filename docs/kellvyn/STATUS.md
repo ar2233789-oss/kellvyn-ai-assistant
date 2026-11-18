@@ -543,3 +543,23 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - `KellvynAutomationDrainWorkerInstrumentedTest` agora também cria uma tarefa READ_ONLY persistente autorizada e invoca `doWork()`, verificando estado SUCCEEDED, uma tentativa e resumo salvo.
 - Execução de CI gerada pelo commit `878ed55d33cf2b72a238d70bcea31b63b24535e1`: run `44212948327`, tentativa 1, jobs sem runner/steps/logs e diff skipped.
 - O teste do Worker foi acrescentado, mas continua não executado. A Fase 1 não está aprovada.
+
+## Continuação: handler operacional, política dos 14 papéis e CI focado — 18/11/2026
+
+### Oficina
+- O primeiro handler seguro foi registrado: `KellvynResourceSnapshotTaskHandler`, somente leitura, payload versionado, resultado limitado e idempotente.
+- `KellvynResourceRuntime` mantém uma allowlist explícita do handler embutido; o Worker restaura o registro antes de drenar a fila após reinício.
+- Scheduler passou a rejeitar payload inválido permanentemente, sem retries inúteis.
+- Testes adicionados: contrato do handler; fluxo do scheduler; rejeição permanente; handler ausente sem bloquear outro; recuperação de RUNNING; execução persistida pelo Worker via `doWork()`.
+
+### 14 papéis
+- A matriz de capacidades já existia em `KellvynSpecialistToolPolicy.kt`; ela não deve ser recriada.
+- O coordenador aplica essa política e fornece aos especialistas apenas ferramentas READ_ONLY com capacidade expressamente autorizada.
+- `KellvynSpecialistToolPolicyTest.kt` ganhou uma prova explícita dos 14 mapeamentos, cobrindo ferramentas read-only permitidas, capacidades não permitidas, tools não classificadas e todos os riscos mutáveis/de controle.
+- Isso prova contratos e restrições, não competência cognitiva dos papéis. A matriz ainda precisa de validação cruzada com ferramentas reais dos módulos e testes end-to-end.
+
+### CI e isolamento da validação
+- Criado `.github/workflows/agent-lab-tests.yml`: executa unit tests Gradle e Android instrumented tests em emulador API 35; publica relatórios como artefatos.
+- `poco-f6-parity.yml` agora é acionado por mudanças em MainActivity, recursos, manifesto e UI web; mudanças Kotlin internas deixam de disparar comparação visual desnecessária.
+- Runs `44214073878` (agent lab, tentativa 2, anteriormente sem steps/logs) e `44214499919` (agent lab, nova execução) foram submetidos/reexecutados; confirmar status final e logs antes de classificar a suíte.
+- O ambiente local desta sessão não tem Gradle nem Android SDK. Não afirmar build ou teste local.
