@@ -712,3 +712,31 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Não há prova de integração do cérebro ao chat principal, APK de produção ou teste físico no Poco F6.
 
 Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o acesso por papel e então construir o Profile Compiler + harness isolado, sem abrir escrita ou promoção automática.
+
+## 27. Agent Creation Studio — Profile Compiler e matriz Android — 18/11/2026
+
+### Continuação da implementação
+
+- Criado `KellvynSpecialistProfileCompiler.kt`: valida cobertura dos 14 papéis, rejeita duplicidade/ausência, verifica capabilities derivadas da política central e limites; gera SHA-256 determinístico por perfil.
+- O hash usa campos UTF-8 prefixados por tamanho para evitar ambiguidade causada por separadores no conteúdo.
+- `KellvynAgentCreationStudio` consome o compiler: catálogo e inspeção revelam hash; validação passa somente quando os 14 perfis compilam.
+- `KellvynAgent` só delega quando o catálogo completo compila; usa instrução e limites do perfil compilado e anexa o hash à observação devolvida.
+- A política limita `agent_profiles_list/inspect` a Arquiteto de Programação, Analista de Planejamento e Auditor; `agent_profiles_validate` a Analista de Testes, Analista de Aprendizado e Auditor.
+- `KellvynAgentToolAvailabilityInstrumentedTest` foi atualizado para conferir as novas ferramentas na matriz real do runtime Android.
+- `KellvynSpecialistProfileRegistryTest` ganhou teste de hash estável e mudança de hash quando a instrução muda.
+
+### Auditoria do estado e bloqueios
+
+- O workflow `agent-lab-tests.yml` e `neural-core-tests.yml` retornou falha com `steps=[]` e `logs_url=null`. Não há base para afirmar que os testes compilaram ou falharam dentro do Kotlin/Gradle; não foi disponibilizado diagnóstico de execução.
+- Não foi feito typecheck isolado do Profile Registry/Compiler/Studio nesta sequência. A fonte e os testes estão no repositório, ainda sem execução comprovada.
+- A contagem passou a seis módulos registrados no runtime. O conjunto dos oito motores headless continua apenas parcialmente implementado; UI/UX, Image e 3D/CAD Studio ainda não estão completos.
+- O Agent Creation Studio está nas fases A e B inicial, em somente leitura. Ainda não cria revisões experimentais persistentes, não promove perfis e não mede competência cognitiva real.
+- Os 14 papéis compartilham a mesma inferência; contratos e roteamento não provam capacidade intelectual independente.
+
+### Próxima sequência sem desvio
+
+1. Destravar/observar um runner de CI que disponibilize steps e logs; não mascarar falhas.
+2. Executar Gradle unit tests e instrumented tests e corrigir apenas erros reproduzidos.
+3. Implementar harness independente de competência dos 14 papéis, com casos fixos e critérios por função.
+4. Persistir perfis/revisões com hash, diff, aprovação explícita e rollback.
+5. Continuar Android Build & Test Studio até build, assinatura, instalação, UIAutomator, screenshot e Logcat serem provas reais.
