@@ -50,18 +50,35 @@ internal class KellvynAgentLabTraceStore(
         synchronized(PROCESS_LOCK) {
             require(KellvynAgentLabEvent.TRACE_ID.matches(event.traceId))
             val directory = traceDirectory(event.traceId, create = true)
-            val chainState = appendStateCache[event.traceId] ?: run {
+            var chainState = appendStateCache[event.traceId] ?: run {
                 val window = readChainWindow(event.traceId, directory, retainLast = 1)
                 ChainState(
                     eventCount = window.eventCount,
                     lastRecordSha256 = window.records.lastOrNull()?.recordSha256 ?: ZERO_HASH
                 ).also { appendStateCache[event.traceId] = it }
             }
+            var sequence = chainState.eventCount.toLong() + 1L
+            var destination = File(directory, eventFileName(sequence))
+            // Another store instance may have appended since this instance cached its cursor.
+            // Detect that bounded conflict and rebuild the cursor from the authenticated chain.
+            if (destination.exists()) {
+                appendStateCache.remove(event.traceId)
+                val window = readChainWindow(event.traceId, directory, retainLast = 1)
+                chainState = ChainState(
+                    eventCount = window.eventCount,
+                    lastRecordSha256 = window.records.lastOrNull()?.recordSha256 ?: ZERO_HASH
+                )
+                appendStateCache[event.traceId] = chainState
+                sequence = chainState.eventCount.toLong() + 1L
+                destination = File(directory, eventFileName(sequence))
+            }
             check(chainState.eventCount < MAX_EVENTS_PER_TRACE) {
                 "Este trace atingiu o limite de eventos; abra uma nova execução de laboratório."
             }
+            check(!destination.exists()) {
+                "O cursor do trace conflita com um registro persistido; a cadeia foi preservada."
+            }
 
-            val sequence = chainState.eventCount.toLong() + 1L
             val previousHash = chainState.lastRecordSha256
             val header = encodeHeader(
                 traceId = event.traceId,
@@ -82,9 +99,7 @@ internal class KellvynAgentLabTraceStore(
             val recordBytes = body + digest
             check(recordBytes.size <= MAX_RECORD_BYTES)
 
-            val destination = File(directory, eventFileName(sequence))
             val temporary = File(directory, destination.name + ".tmp")
-            check(!destination.exists()) { "O evento de destino já existe." }
             FileOutputStream(temporary).use { output ->
                 output.write(recordBytes)
                 output.fd.sync()
