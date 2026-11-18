@@ -88,7 +88,7 @@ class KellvynSpecialistProfileRegistryTest {
         val profile = KellvynSpecialistProfileRegistry.default()
             .requireProfile(KellvynSpecialistRole.RESEARCHER)
         val prompt = profile.systemInstruction(setOf("dangerous_tool"))
-        assertTrue(prompt.contains("Pesquisador:"))
+        assertTrue(prompt.contains("PAPEL: RESEARCHER — Pesquisador"))
         assertTrue(prompt.contains("não delegue"))
         assertTrue(prompt.contains("não altere arquivos"))
         assertTrue(prompt.contains("Evidências observadas"))
