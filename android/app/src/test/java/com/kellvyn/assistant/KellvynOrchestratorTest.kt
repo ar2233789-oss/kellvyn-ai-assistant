@@ -90,6 +90,87 @@ class KellvynOrchestratorTest {
     }
 
     @Test
+    fun recordsDurationForDelegationBlockedByBudget() = runBlocking {
+        val engine = RecordingEngine(KellvynModelDecision.Final("Primeira delegação concluída."))
+        val recorder = RecordingTraceRecorder()
+        val readings = listOf(100_000_000L, 108_000_000L, 200_000_000L, 205_000_000L)
+        var clockIndex = 0
+        val session = orchestrator(
+            engine = engine,
+            tools = emptyList(),
+            maxDelegations = 1,
+            monotonicNanos = { readings[clockIndex++] }
+        ).newSession(
+            KellvynAgentLabTraceSession.create(
+                recorder = recorder,
+                clockMillis = { 1_800_000_000_000L }
+            )
+        )
+        val decision = KellvynModelDecision.Delegate(
+            role = KellvynSpecialistRole.RESEARCHER,
+            task = "Resuma a fonte.",
+            context = "",
+            allowedTools = emptySet()
+        )
+
+        session.dispatch(decision)
+        val blocked = session.dispatch(decision)
+        val finished = recorder.events.filter {
+            it.kind == KellvynAgentLabEventKind.DELEGATION_FINISHED
+        }
+
+        assertFalse(blocked.consumesDelegationSlot)
+        assertEquals(2, finished.size)
+        assertEquals(8L, finished[0].durationMillis)
+        assertEquals(5L, finished[1].durationMillis)
+        assertEquals(KellvynAgentLabOutcome.BLOCKED, finished[1].outcome)
+        assertEquals("DELEGATION_BLOCKED", finished[1].detailCode)
+    }
+
+    @Test
+    fun recordsDurationWhenSpecialistFails() = runBlocking {
+        val engine = object : KellvynInferenceEngine {
+            override suspend fun next(
+                history: List<KellvynAgentMessage>,
+                availableTools: List<KellvynToolSpec>
+            ): KellvynModelDecision {
+                throw IllegalStateException("deterministic specialist failure")
+            }
+        }
+        val recorder = RecordingTraceRecorder()
+        var clockCalls = 0
+        val session = orchestrator(
+            engine = engine,
+            tools = emptyList(),
+            monotonicNanos = {
+                if (clockCalls++ == 0) 300_000_000L else 309_000_000L
+            }
+        ).newSession(
+            KellvynAgentLabTraceSession.create(
+                recorder = recorder,
+                clockMillis = { 1_800_000_000_000L }
+            )
+        )
+
+        val outcome = session.dispatch(
+            KellvynModelDecision.Delegate(
+                role = KellvynSpecialistRole.RESEARCHER,
+                task = "Analise a fonte.",
+                context = "",
+                allowedTools = emptySet()
+            )
+        )
+        val finished = recorder.events.single {
+            it.kind == KellvynAgentLabEventKind.DELEGATION_FINISHED
+        }
+
+        assertTrue(outcome.consumesDelegationSlot)
+        assertEquals(9L, finished.durationMillis)
+        assertEquals(KellvynAgentLabOutcome.FAILED, finished.outcome)
+        assertEquals("DELEGATION_FAILED", finished.detailCode)
+    }
+
+    @Test
     fun dispatchesAProfileBoundSpecialistWithIsolatedContextAndOnlyPermittedTools() = runBlocking {
         val engine = RecordingEngine(KellvynModelDecision.Final("O símbolo está em SourceIndex.find()."))
         val readTool = RecordingTool(
