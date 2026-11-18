@@ -138,6 +138,36 @@ class KellvynSpecialistProfileRegistryTest {
     }
 
     @Test
+    fun benchmarkRegistryCoversAllFourteenRolesWithTwoCasesEach() {
+        val benchmark = KellvynSpecialistBenchmarkRegistry.default()
+        assertEquals(28, benchmark.cases().size)
+        assertTrue(benchmark.validationErrors().isEmpty())
+        for (role in KellvynSpecialistRole.values()) {
+            assertEquals(2, benchmark.forRole(role).size)
+            assertTrue(
+                benchmark.forRole(role).all {
+                    KellvynSpecialistToolPolicy.capabilitiesFor(role)
+                        .containsAll(it.requiredCapabilities)
+                }
+            )
+        }
+    }
+
+    @Test
+    fun hiddenStudioListsBenchmarkScenariosWithoutClaimingTheyWereExecuted() = runBlocking {
+        val studio = KellvynAgentCreationStudio(KellvynSpecialistProfileRegistry.default())
+        val result = studio.tools
+            .single { it.spec.name == KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL }
+            .execute(emptyMap())
+
+        assertTrue(result.success)
+        assertTrue(result.content.contains("28 casos"))
+        assertTrue(result.content.contains("não um resultado de competência"))
+        assertTrue(result.content.contains("research-date-conflict"))
+        assertTrue(result.content.contains("visual-accessibility-review"))
+    }
+
+    @Test
     fun profileToolsAreScopedToDesignAndEvaluationRoles() {
         val specs = KellvynAgentCreationStudio.MANIFEST.toolSpecs
         val designRoles = setOf(
@@ -160,6 +190,7 @@ class KellvynSpecialistProfileRegistryTest {
             assertEquals(role in designRoles, KellvynAgentCreationStudio.CATALOG_TOOL in allowed)
             assertEquals(role in designRoles, KellvynAgentCreationStudio.INSPECT_TOOL in allowed)
             assertEquals(role in evaluationRoles, KellvynAgentCreationStudio.VALIDATE_TOOL in allowed)
+            assertEquals(role in evaluationRoles, KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL in allowed)
         }
     }
 }
