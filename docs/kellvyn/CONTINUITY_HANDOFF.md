@@ -563,3 +563,41 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Os últimos jobs com runner_id=0/zero steps não executaram código.
 - Nenhuma validação física Poco F6 nem APK final está comprovada.
 - Manter layout e interface aprovados sem alterações.
+
+## 19. Primeiro handler seguro integrado — 18/11/2026
+
+**HEAD de referência após esta atualização:** `491f5def9279683fdff17ee8455bfda25e63a6e7` (branch `lab/kellvyn-intelligence-core-20261116`).
+
+**Plano único de execução:** `docs/kellvyn/LAB_EXECUTION_ROADMAP_2026-11-18.md`. Esse documento reconcilia o estado real dos 14 papéis, a oficina invisível, as referências Replit/Cursor/Android Studio/Lovable e os gates de cada fase. Não reconstruir a estratégia em cada conversa.
+
+### Verdade sobre os 14 papéis
+- Os 14 papéis estão declarados e cobertos por teste de contrato/delegação.
+- São papéis especialistas da única Kellvyn, não 14 modelos ou inteligências independentes.
+- Compartilham a mesma instância de inferência. Contratos READ_ONLY e isolamento foram implementados; competência cognitiva dos papéis não foi comprovada por um modelo treinado.
+- Não criar novos agentes para cada estúdio. Equipar os 14 papéis com ferramentas/skills apropriadas na oficina compartilhada.
+
+### Alterações de código feitas após HEAD 937001c
+- Scheduler: `KellvynPermanentScheduledTaskException` e `failPermanently` para rejeição definitiva de descritores inválidos.
+- Novo `KellvynResourceSnapshotTaskHandler`: diagnóstico READ_ONLY, descritor versionado, resumo limitado e sem efeitos destrutivos.
+- `KellvynResourceRuntime`: registro sincronizado da allowlist de handlers embutidos, operação de enfileiramento para o diagnóstico e consulta limitada de status.
+- `KellvynAutomationDrainWorker`: restaura os handlers internos autorizados antes de drenar fila após recriação do processo.
+- Teste unitário de contrato do handler.
+- Teste instrumental Android para execução, rejeição permanente, handler ausente e retomada de RUNNING.
+- Roadmap e STATUS atualizados.
+
+### Estado da prova
+- Código e testes foram gravados na branch; ainda não há prova de compilação Gradle nem execução de teste Android desta revisão.
+- Rerun do neural workflow `44212455036`, tentativa 2, permaneceu sem runner/steps/logs.
+- Rerun do Poco F6 workflow `44212621981`, tentativa 2, também permaneceu sem runner/steps/logs; comparação final skipped.
+- Portanto a suíte continua **não verificada**, não reprovada por bug demonstrado.
+- Nenhum APK final, AVD funcional, teste físico Poco F6 ou integração neural/chat foi comprovado.
+
+### Próxima ação — sem desvio
+1. Restabelecer um runner/ambiente que realmente execute Gradle e os testes Android ou executar uma sessão local verificável.
+2. Compilar e executar os testes; corrigir apenas falhas observadas, sem presumir aprovação.
+3. Confirmar no teste instrumental o fluxo enqueue → handler autorizado → broker → resultado criptografado → SUCCEEDED e recuperação de RUNNING.
+4. Só depois fechar a Fase 1 e avançar para a matriz de capacidades/permissões dos 14 papéis.
+5. Nenhuma escrita genérica, shell irrestrito ou ferramenta mutável para especialistas antes de gates e aprovação.
+6. Preservar interface e arquivos visuais protegidos.
+
+**Não recomeçar:** fila SQLite, broker, Governor, ResourceRuntime, ModuleManager, memória, planejamento, checkpoints e catálogo de 14 papéis já existem. O próximo trabalho é validar/fechar a operação real e então equipar os papéis, não refazer esses fundamentos.
