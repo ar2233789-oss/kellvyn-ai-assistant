@@ -728,7 +728,7 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 ### Auditoria do estado e bloqueios
 
 - O workflow `agent-lab-tests.yml` e `neural-core-tests.yml` retornou falha com `steps=[]` e `logs_url=null`. Não há base para afirmar que os testes compilaram ou falharam dentro do Kotlin/Gradle; não foi disponibilizado diagnóstico de execução.
-- Não foi feito typecheck isolado do Profile Registry/Compiler/Studio nesta sequência. A fonte e os testes estão no repositório, ainda sem execução comprovada.
+- Smoke harness Kotlin/JVM local executado com kotlinc usando cópias equivalentes das três classes novas e stubs para contratos externos. Passou em: 14 perfis; hash estável e hash diferente após alteração; separação de fronteiras das seções; catálogo/inspeção/validação; recusa de role inválida. Não é compilação byte-for-byte da aplicação, nem Gradle/JUnit/AVD.
 - A contagem passou a seis módulos registrados no runtime. O conjunto dos oito motores headless continua apenas parcialmente implementado; UI/UX, Image e 3D/CAD Studio ainda não estão completos.
 - O Agent Creation Studio está nas fases A e B inicial, em somente leitura. Ainda não cria revisões experimentais persistentes, não promove perfis e não mede competência cognitiva real.
 - Os 14 papéis compartilham a mesma inferência; contratos e roteamento não provam capacidade intelectual independente.
