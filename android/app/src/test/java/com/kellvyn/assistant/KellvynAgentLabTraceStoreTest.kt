@@ -168,6 +168,30 @@ class KellvynAgentLabTraceStoreTest {
     }
 
     @Test
+    fun recorderReportsTransientStorageFailureAndRecoversOnNextWrite() = runBlocking {
+        val blockedRoot = File(root, "not-a-directory").apply { writeText("file blocks directory creation") }
+        val failingStore = KellvynAgentLabTraceStore(blockedRoot, TraceTestCipher())
+        val recorder = KellvynAgentLabTraceStoreRecorder(failingStore)
+        val event = KellvynAgentLabEvent(
+            traceId = "00000000-0000-0000-0000-000000000005",
+            occurredAtMillis = 100L,
+            kind = KellvynAgentLabEventKind.RUN_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED
+        )
+
+        // Trace persistence is best effort and must not throw into the agent's control loop.
+        recorder.record(event)
+        assertFalse(recorder.health().healthy)
+        assertEquals("IllegalStateException", recorder.health().lastFailureCode)
+
+        assertTrue(blockedRoot.delete())
+        recorder.record(event)
+
+        assertTrue(recorder.health().healthy)
+        assertEquals(1, failingStore.history(event.traceId).size)
+    }
+
+    @Test
     fun modifiedTraceRecordIsRejectedBeforeHistoryIsReturned() {
         val traceId = "00000000-0000-0000-0000-000000000002"
         store.append(
