@@ -55,6 +55,115 @@ class KellvynSpecialistEvaluationHarnessTest {
     }
 
     @Test
+    fun unverifiableCriteriaAreMarkedReviewRequiredInsteadOfPassedOrFailed() = runBlocking {
+        val testCase = benchmarks.forRole(KellvynSpecialistRole.RESEARCHER).first()
+        val pendingCriterion = testCase.requiredEvidence.first()
+        val verifier = KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
+            KellvynSpecialistBenchmarkVerification(
+                verifiedEvidence = selectedCase.requiredEvidence.toSet() - pendingCriterion,
+                evidenceReferences = setOf("review:" + selectedCase.caseId),
+                reviewRequiredEvidence = setOf(pendingCriterion),
+                notes = listOf("Critério sem oráculo automatizado; exige revisão independente.")
+            )
+        }
+
+        val result = harness(verifier = verifier).runCase(
+            testCase,
+            profiles.requireProfile(testCase.role),
+            emptyList()
+        )
+
+        assertEquals(KellvynSpecialistBenchmarkStatus.REVIEW_REQUIRED, result.status)
+        assertTrue(result.criteriaCoveragePercent < 100)
+        assertEquals(testCase.requiredEvidence.size - 1, result.verifiedEvidenceCount)
+        assertTrue(result.evidenceReferences.isNotEmpty())
+    }
+
+    @Test
+    fun unknownOrConflictingReviewCriteriaFailClosed() = runBlocking {
+        val testCase = benchmarks.forRole(KellvynSpecialistRole.RESEARCHER).first()
+        val firstCriterion = testCase.requiredEvidence.first()
+        val unknownReviewVerifier = KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
+            KellvynSpecialistBenchmarkVerification(
+                verifiedEvidence = selectedCase.requiredEvidence.toSet(),
+                evidenceReferences = setOf("fixture:unknown-review"),
+                reviewRequiredEvidence = setOf("criterion-not-in-this-case")
+            )
+        }
+        val unknownReviewResult = harness(verifier = unknownReviewVerifier).runCase(
+            testCase,
+            profiles.requireProfile(testCase.role),
+            emptyList()
+        )
+        assertEquals(KellvynSpecialistBenchmarkStatus.FAILED, unknownReviewResult.status)
+        assertTrue(unknownReviewResult.reasons.any { it.contains("critérios inexistentes") })
+
+        val conflictingVerifier = KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
+            KellvynSpecialistBenchmarkVerification(
+                verifiedEvidence = selectedCase.requiredEvidence.toSet(),
+                evidenceReferences = setOf("fixture:conflicting-review"),
+                reviewRequiredEvidence = setOf(firstCriterion)
+            )
+        }
+        val conflictingResult = harness(verifier = conflictingVerifier).runCase(
+            testCase,
+            profiles.requireProfile(testCase.role),
+            emptyList()
+        )
+        assertEquals(KellvynSpecialistBenchmarkStatus.FAILED, conflictingResult.status)
+        assertTrue(conflictingResult.reasons.any { it.contains("verificado e pendente") })
+    }
+
+    @Test
+    fun suiteEndsAsReviewRequiredWhenAnyCaseNeedsHumanReview() = runBlocking {
+        val testCase = benchmarks.forRole(KellvynSpecialistRole.RESEARCHER).first()
+        val pendingCriterion = testCase.requiredEvidence.first()
+        val recorder = RecordingTraceRecorder()
+        val trace = KellvynAgentLabTraceSession.create(recorder)
+        val harness = KellvynSpecialistEvaluationHarness(
+            executor = KellvynSpecialistBenchmarkExecutor { selectedCase, compiled, _ ->
+                KellvynSpecialistBenchmarkExecution(
+                    caseId = selectedCase.caseId,
+                    profileSha256 = compiled.profileSha256,
+                    responseText = "Resposta executada.",
+                    requestedToolNames = emptySet(),
+                    executedToolNames = emptySet(),
+                    policyViolations = emptyList(),
+                    startedAtMillis = 100L,
+                    completedAtMillis = 150L
+                )
+            },
+            verifier = KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
+                KellvynSpecialistBenchmarkVerification(
+                    verifiedEvidence = selectedCase.requiredEvidence.toSet() - pendingCriterion,
+                    evidenceReferences = setOf("review:" + selectedCase.caseId),
+                    reviewRequiredEvidence = setOf(pendingCriterion)
+                )
+            },
+            traceSessionFactory = { trace }
+        )
+
+        val report = harness.runSuite(
+            cases = listOf(testCase),
+            profiles = profiles.profiles(),
+            availableTools = emptyList()
+        )
+
+        assertEquals(1, report.reviewRequired)
+        assertEquals(0, report.passed)
+        assertEquals(0, report.failed)
+        assertEquals(0, report.blocked)
+        assertTrue(recorder.events.any {
+            it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED &&
+                it.outcome == KellvynAgentLabOutcome.REVIEW_REQUIRED
+        })
+        assertTrue(recorder.events.any {
+            it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED &&
+                it.outcome == KellvynAgentLabOutcome.REVIEW_REQUIRED
+        })
+    }
+
+    @Test
     fun unauthorizedRequestedAndExecutedToolsFailTheCase() = runBlocking {
         val testCase = benchmarks.forRole(KellvynSpecialistRole.RESEARCHER).first()
         val profile = profiles.requireProfile(testCase.role)
@@ -240,7 +349,8 @@ class KellvynSpecialistEvaluationHarnessTest {
         requested: Set<String> = emptySet(),
         executed: Set<String> = emptySet(),
         profileHashOverride: String? = null,
-        evidenceReferences: Set<String> = setOf("fixture:independent-evidence")
+        evidenceReferences: Set<String> = setOf("fixture:independent-evidence"),
+        verifier: KellvynSpecialistBenchmarkVerifier? = null
     ) = KellvynSpecialistEvaluationHarness(
         executor = KellvynSpecialistBenchmarkExecutor { selectedCase, compiled, _ ->
             KellvynSpecialistBenchmarkExecution(
@@ -254,7 +364,7 @@ class KellvynSpecialistEvaluationHarnessTest {
                 completedAtMillis = 20L
             )
         },
-        verifier = KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
+        verifier = verifier ?: KellvynSpecialistBenchmarkVerifier { selectedCase, _, _ ->
             KellvynSpecialistBenchmarkVerification(
                 verifiedEvidence = selectedCase.requiredEvidence.toSet(),
                 evidenceReferences = evidenceReferences
