@@ -35,7 +35,8 @@ internal enum class KellvynAgentLabOutcome {
     SUCCEEDED,
     FAILED,
     BLOCKED,
-    LIMITED
+    LIMITED,
+    REVIEW_REQUIRED
 }
 
 /**
