@@ -583,3 +583,9 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - Testes unitários criados para escopo, sensíveis, credenciais, desconhecidos, argumentos forjados e limites. Teste instrumental de disponibilidade atualiza o papel de Memória para `memory_search`.
 - A fonte isolada `KellvynMemoryTools.kt` passou por `kotlinc` com stubs mínimos: verificação isolada de sintaxe/tipos, não build Gradle do app.
 - Runs recentes `44217081776` (agent lab) e `44217081826` (neural) continuam sem runner, steps e logs: NOT_RUN/BLOCKED.
+
+### Runner após Memory Read — 18/11/2026
+- Runs `44217467213` (agent lab), `44217511064` (agent lab) e `44217511082` (neural core) foram consultados.
+- Todos terminaram sem runner_id, steps ou logs_url. Estado NOT_RUN/BLOCKED; não demonstram falha de código nem aprovação.
+- A ferramenta `KellvynMemoryTools.kt` passou em verificação isolada local: compilação Kotlin com stubs mínimos para interfaces da camada de agente e harness com repositório falso usando o algoritmo de busca de memória. Resultado: `KELLVYN_MEMORY_TOOL_INTEGRATION_TESTS_PASS`.
+- Isso valida o fluxo isolado da nova ferramenta; não é compilação Gradle do aplicativo, execução Android/Keystore, nem prova de integração em dispositivo.
