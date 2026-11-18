@@ -808,3 +808,9 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Estimativa de working set das ferramentas de leitura do Agent Creation Studio ajustada para 24 MiB STANDARD, preservando histórico máximo de 256 eventos/32 KiB por evento e saída limitada a 12 eventos.
 - Workflow Agent Lab: run 44335158436 / job 134909733286, failure sem steps e sem logs_url. O job terminou antes de expor qualquer etapa; Gradle/JUnit/AndroidRunner permanecem NOT_RUN, não FAILED por diagnóstico de código.
 - Próxima retomada: resolver a alocação de runner/logs na conta GitHub; depois executar unit tests e connected Android tests. Não editar interface-lock ou MainActivity para encobrir divergências preexistentes.
+
+
+## 33. Rerun e bloqueio de CI — 18/11/2026, 15:25 UTC
+- Rerun do run 44335158436 criou job 134910540861, que terminou failure sem steps/logs_url, repetindo o mesmo bloqueio anterior.
+- HEAD da branch permanece 4452854361fedd728563898c3aae2f1c9f3c183c.
+- Não existe diagnóstico de Gradle/Kotlin porque nenhuma etapa de workflow ficou disponível. Não repetir alterações cegas no código; primeiro resolver o runner/Actions compute e obter logs.

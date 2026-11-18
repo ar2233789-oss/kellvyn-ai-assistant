@@ -702,3 +702,9 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - Workflow Agent Lab no HEAD: run 44335158436, job 134909733286, failure sem steps e sem logs_url. A execução encerrou em aproximadamente três segundos; não existe evidência de que Gradle tenha iniciado.
 - O histórico de execução não apresenta logs reutilizáveis. Não classificar como erro de compilação ou teste do código, nem como CI aprovado.
 - Não houve build APK, instalação, execução em emulador ou teste físico no Poco F6.
+
+
+## Rerun controlado — 18/11/2026, 15:25 UTC
+- Rerun solicitado para o run 44335158436; novo job 134910540861 também terminou em failure, sem steps e sem logs_url.
+- A repetição controlada confirma que não é um erro reproduzido numa etapa de compilação/teste: o runner continua sem fornecer sequer o início dos steps. A causa exata permanece não exposta pelo GitHub.
+- Não fazer novas alterações de fonte para tentar adivinhar o problema; verificar disponibilidade de Actions compute/runner na conta.
