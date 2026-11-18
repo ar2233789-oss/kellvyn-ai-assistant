@@ -183,8 +183,12 @@ class KellvynAgentLabTraceStoreTest {
         bytes[bytes.size / 2] = (bytes[bytes.size / 2].toInt() xor 0x01).toByte()
         eventFile.writeBytes(bytes)
 
-        val failure = runCatching { store.history(traceId) }.exceptionOrNull()
-        assertTrue("A cadeia adulterada deveria ser rejeitada.", failure is IllegalStateException)
+        val fullHistoryFailure = runCatching { store.history(traceId) }.exceptionOrNull()
+        val tailHistoryFailure = runCatching { store.historyTail(traceId, 1) }.exceptionOrNull()
+        val summaryFailure = runCatching { store.summaries() }.exceptionOrNull()
+        assertTrue("O histórico completo precisa rejeitar a cadeia adulterada.", fullHistoryFailure is IllegalStateException)
+        assertTrue("A leitura por janela precisa validar também registros anteriores.", tailHistoryFailure is IllegalStateException)
+        assertTrue("O resumo precisa rejeitar a cadeia adulterada.", summaryFailure is IllegalStateException)
     }
 
     private class TraceTestCipher : KellvynTaskCheckpointCipher {
