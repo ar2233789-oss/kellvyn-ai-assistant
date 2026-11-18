@@ -42,7 +42,7 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 KellvynSpecialistRole.REASONING_ANALYST to dataModeling + deviceDiagnostics,
                 KellvynSpecialistRole.LEARNING_ANALYST to dataModeling,
                 KellvynSpecialistRole.PROGRAMMING_ARCHITECT to codeNavigation + dataModeling,
-                KellvynSpecialistRole.MEMORY_ANALYST to emptySet(),
+                KellvynSpecialistRole.MEMORY_ANALYST to setOf("memory_search"),
                 KellvynSpecialistRole.SECURITY_ANALYST to codeNavigation + securityAudit,
                 KellvynSpecialistRole.PLANNING_ANALYST to workflowAutomation + deviceDiagnostics + dataModeling,
                 KellvynSpecialistRole.DEBUGGER to codeNavigation + deviceDiagnostics,
