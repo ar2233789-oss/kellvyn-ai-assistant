@@ -7,6 +7,8 @@ import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.testing.TestListenableWorkerBuilder
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -22,6 +24,35 @@ class KellvynAutomationDrainWorkerInstrumentedTest {
         val result = worker.doWork()
 
         assertTrue(result is androidx.work.ListenableWorker.Result.Success)
+    }
+
+    @Test
+    fun workerExecutesAnExplicitlyRegisteredReadOnlyTaskAndPersistsItsResult() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val runtime = KellvynResourceRuntime.get(context)
+        runtime.ensureBuiltInScheduledTaskHandlers()
+
+        // Enqueue directly to keep this test deterministic; doWork() exercises the real worker path.
+        val taskId = runtime.taskScheduler.enqueue(
+            KellvynQueuedTaskSpec(
+                handlerId = KellvynResourceSnapshotTaskHandler.HANDLER_ID,
+                payload = KellvynResourceSnapshotTaskHandler.PAYLOAD_V1,
+                priority = 100,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 8L * 1024L * 1024L,
+                maxAttempts = 2
+            )
+        )
+        val worker = TestListenableWorkerBuilder<KellvynAutomationDrainWorker>(context).build()
+
+        val result = worker.doWork()
+
+        assertTrue(result is androidx.work.ListenableWorker.Result.Success)
+        val saved = runtime.scheduledTaskStatus(taskId)
+        assertNotNull(saved)
+        assertEquals(KellvynQueuedTaskState.SUCCEEDED, saved!!.state)
+        assertEquals(1, saved.attempts)
+        assertTrue(saved.resultSummary.orEmpty().contains("probe=resource_snapshot.v1"))
     }
 
     @Test
