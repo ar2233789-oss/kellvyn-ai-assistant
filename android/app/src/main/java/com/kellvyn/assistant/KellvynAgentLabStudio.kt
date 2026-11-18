@@ -107,7 +107,7 @@ internal class KellvynAgentLabStudio(
                     return KellvynToolResult(false, "O trace_id está ausente ou tem formato inválido.")
                 }
                 val records = withContext(Dispatchers.IO) {
-                    traceStore.history(traceId).takeLast(MAX_TRACE_EVENTS)
+                    traceStore.historyTail(traceId, MAX_TRACE_EVENTS)
                 }
                 if (records.isEmpty()) {
                     return KellvynToolResult(false, "Trace inexistente ou sem eventos.")
@@ -151,8 +151,8 @@ internal class KellvynAgentLabStudio(
                 ) {
                     return KellvynToolResult(false, "Informe dois trace IDs válidos e diferentes.")
                 }
-                val baseline = withContext(Dispatchers.IO) { traceStore.history(baselineId) }
-                val candidate = withContext(Dispatchers.IO) { traceStore.history(candidateId) }
+                val baseline = withContext(Dispatchers.IO) { traceStore.historyTail(baselineId, MAX_COMPARE_EVENTS) }
+                val candidate = withContext(Dispatchers.IO) { traceStore.historyTail(candidateId, MAX_COMPARE_EVENTS) }
                 val baselineCases = baseline.map { it.event }
                     .filter { it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null }
                     .associateBy { it.detailCode!! }
@@ -245,6 +245,7 @@ internal class KellvynAgentLabStudio(
         private const val MEBIBYTE = 1024L * KIBIBYTE
         private const val MAX_TRACE_LIST = 12
         private const val MAX_TRACE_EVENTS = 48
+        private const val MAX_COMPARE_EVENTS = 1_536
         private const val MAX_OUTPUT_CHARS = 7_500
         private val TRACE_ID = Regex("[0-9a-fA-F-]{36}")
 
