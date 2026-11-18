@@ -27,6 +27,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  runner-allocation-probe:
+    name: Minimal runner allocation probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Confirm hosted runner allocation
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "RUNNER_PROBE_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          echo "RUNNER_OS=${RUNNER_OS:-unknown}"
+          echo "RUNNER_ARCH=${RUNNER_ARCH:-unknown}"
+          echo "RUNNER_NAME=${RUNNER_NAME:-unknown}"
+          uname -a
+          echo RUNNER_PROBE_OK
+
   android-agent-lab:
     name: Unit and Android instrumented tests
     runs-on: ubuntu-latest
