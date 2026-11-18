@@ -53,6 +53,7 @@ class StudioTests(unittest.TestCase):
   selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
   self.assertIn("com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
   self.assertEqual(len(selected),len(set(selected)))
  def test_task_records_scope_and_scope_specific_gate(self):
   self.create()
