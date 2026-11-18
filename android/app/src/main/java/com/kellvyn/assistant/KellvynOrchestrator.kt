@@ -76,6 +76,7 @@ internal class KellvynOrchestrator(
                         KellvynAgentLabOutcome.BLOCKED -> "DELEGATION_BLOCKED"
                         KellvynAgentLabOutcome.FAILED -> "DELEGATION_FAILED"
                         KellvynAgentLabOutcome.LIMITED -> "DELEGATION_LIMITED"
+                        KellvynAgentLabOutcome.REVIEW_REQUIRED -> "DELEGATION_REVIEW_REQUIRED"
                         KellvynAgentLabOutcome.STARTED -> "DELEGATION_STARTED"
                     }
                 )
