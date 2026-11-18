@@ -581,7 +581,6 @@ internal class KellvynAgent(
                         )
                         continue
                     }
-                    val specialistProfile = specialistProfiles.requireProfile(decision.role)
                     val specialistPrompt = buildString {
                         append("SUBTAREFA INTERNA\nObjetivo: ")
                         append(decision.task)
@@ -602,8 +601,15 @@ internal class KellvynAgent(
                             maxToolCalls = minOf(config.maxToolCalls, compiledProfile.maxToolCalls),
                             maxDelegations = 0,
                             maxContextChars = minOf(config.maxContextChars, compiledProfile.maxContextChars),
-                            allowDelegation = specialistProfile.allowDelegation,
-                            systemInstruction = specialistProfile.systemInstruction(deniedToolNames)
+                            allowDelegation = false,
+                            systemInstruction = buildString {
+                                append(compiledProfile.systemInstruction)
+                                if (deniedToolNames.isNotEmpty()) {
+                                    append("\nFERRAMENTAS RECUSADAS PELA POLÍTICA: ")
+                                    append(deniedToolNames.sorted().joinToString())
+                                    append(".")
+                                }
+                            }
                         ),
                         projectContextRetriever = null,
                         activeProjectId = null,
