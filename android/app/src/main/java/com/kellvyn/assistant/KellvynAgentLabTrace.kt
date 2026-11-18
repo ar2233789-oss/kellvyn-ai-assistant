@@ -159,11 +159,13 @@ internal class KellvynAgentLabTraceSession private constructor(
  * checkpoints. File I/O and Keystore-backed encryption never run on the UI thread.
  */
 internal data class KellvynAgentLabTraceRecorderHealth(
+    val hasSuccessfulWrite: Boolean,
     val currentlyWritable: Boolean,
     val failureCount: Int,
     val lastFailureCode: String?
 ) {
-    val healthy: Boolean get() = currentlyWritable && failureCount == 0
+    val healthy: Boolean
+        get() = hasSuccessfulWrite && currentlyWritable && failureCount == 0
 }
 
 /**
@@ -177,6 +179,7 @@ internal class KellvynAgentLabTraceStoreRecorder(
     private val lastFailureCode = AtomicReference<String?>(null)
     private val failureCount = AtomicInteger(0)
     private val currentlyWritable = java.util.concurrent.atomic.AtomicBoolean(true)
+    private val hasSuccessfulWrite = java.util.concurrent.atomic.AtomicBoolean(false)
 
     override suspend fun record(event: KellvynAgentLabEvent) {
         try {
@@ -184,6 +187,7 @@ internal class KellvynAgentLabTraceStoreRecorder(
                 store.append(event)
             }
             currentlyWritable.set(true)
+            hasSuccessfulWrite.set(true)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -195,6 +199,7 @@ internal class KellvynAgentLabTraceStoreRecorder(
 
     fun health(): KellvynAgentLabTraceRecorderHealth {
         return KellvynAgentLabTraceRecorderHealth(
+            hasSuccessfulWrite = hasSuccessfulWrite.get(),
             currentlyWritable = currentlyWritable.get(),
             failureCount = failureCount.get(),
             lastFailureCode = lastFailureCode.get()
