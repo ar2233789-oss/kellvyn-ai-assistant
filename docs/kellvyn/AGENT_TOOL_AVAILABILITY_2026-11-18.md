@@ -72,7 +72,7 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 | Analista de raciocínio | DATA_MODELING, DEVICE_DIAGNOSTICS | `data_inspect_structure`, `device_resource_snapshot` | Sem ferramentas específicas de avaliação de raciocínio |
 | Analista de aprendizado | NEURAL_TRAINING, NEURAL_INFERENCE, DATA_MODELING | `data_inspect_structure` | Treino/inferência existem como APIs de runtime próprias, mas não como ferramentas especializadas do agente |
 | Arquiteto de programação | CODE_NAVIGATION, UI_LAYOUT, DATA_MODELING | navegação e `data_inspect_structure` | UI_LAYOUT sem motor concreto; sem ferramenta de edição/build para especialista |
-| Analista de memória | MEMORY_READ | nenhuma ferramenta MEMORY_READ identificada no catálogo | O coordenador pode fornecer contexto, mas isso não substitui uma ferramenta controlada de leitura de memória |
+| Analista de memória | MEMORY_READ | `memory_search` | Consulta somente memórias não sensíveis nos escopos global e projeto ativo desta conversa; limite de 5 resultados e saída truncada; nunca escreve/apaga |
 | Analista de segurança | SECURITY_AUDIT, CODE_NAVIGATION, ANDROID_BUILD | `security_scan_project` e navegação | Android build não está exposto como tool de especialista |
 | Analista de planejamento | WORKFLOW_AUTOMATION, DEVICE_DIAGNOSTICS, DATA_MODELING | `automation_queue_status`, `device_resource_snapshot`, `data_inspect_structure` | Automação é apenas consulta; não agenda nem altera tarefas |
 | Depurador | CODE_NAVIGATION, ANDROID_BUILD, ANDROID_DEVICE_TEST, DEVICE_DIAGNOSTICS | navegação e `device_resource_snapshot` | Sem leitura estruturada de Logcat, execução de teste ou inspeção de crash nativa |
@@ -86,13 +86,13 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 2. `security-audit` — auditoria estática de projeto.
 3. `data-architecture` — inspeção de estrutura JSON/CSV.
 
-Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos e status de automação. **Não existem oito estúdios completos ainda.** As capacidades visuais, Android device test, Web research e memória especializada continuam lacunas de implementação.
+Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos, status de automação e `memory_search` (somente leitura, limitada aos escopos autorizados). **Não existem oito estúdios completos ainda.** As capacidades visuais, Android device test e Web research continuam lacunas de implementação.
 
 ## 5. Ordem correta para completar a cobertura
 
 1. Fechar a Fase 1: provar handler real, fila, broker, resultado persistido e retomada no Android/Gradle.
 2. Adicionar teste de integração papel → política → manifest → ferramenta real para cada capability existente.
-3. Criar Memory Read com escopo, proveniência, consentimento, redaction e limite de resultado.
+3. Validar Memory Read no Android: escopo, proveniência, exclusão de registros sensíveis/desconhecidos, limites e isolamento por papel (a ferramenta `memory_search` já está implementada).
 4. Criar Web Research read-only com fonte, data, URL, isolamento de prompt injection e rede opcional.
 5. Criar Android Build/Test adapters: build, AVD, captura, Logcat, UIAutomator e verificador de critérios, com instalação e ações de dispositivo sujeitas a aprovação.
 6. Criar motores UI/UX e Visual Analysis, começando por leitura/comparação antes de edição.
@@ -121,3 +121,17 @@ Usar estados separados:
 - **COMPETÊNCIA COMPROVADA:** o modelo treinado executou benchmark próprio com qualidade mensurada.
 
 Não substituir um estado pelo outro. O fato de haver 14 papéis não significa que todos estejam equipados nem que tenham competência comprovada.
+
+
+## 8. Implementação de Memory Read — 18/11/2026
+
+- Nova ferramenta `memory_search` em `KellvynMemoryTools.kt`, incluída no registry do runtime.
+- A ferramenta recebe somente `query` e `limit`; não aceita project_id nem qualquer argumento para escolher escopos.
+- Os endereços são fornecidos pelo runtime: GLOBAL e, quando existente e validado, o projeto ativo da conversa.
+- Só devolve registros `NON_SENSITIVE`; registros `SENSITIVE_PERSONAL`, `CREDENTIAL` e `UNKNOWN` são omitidos.
+- Saída inclui ID de referência, tipo, origem, escopo, confiança, termos correspondentes e proveniência; conteúdo é explicitamente marcado como dado não confiável.
+- Saída limitada a cinco memórias, 420 caracteres de conteúdo por item e 3.200 caracteres no total.
+- Apenas a capability `MEMORY_READ` recebe a ferramenta através de `KellvynSpecialistToolPolicy`; demais papéis não a recebem.
+- Testes unitários cobrem escopo, exclusão de sensíveis/desconhecidos, argumento de escopo forjado, limites e ausência de escopo.
+- Teste instrumental da cobertura real atualiza expectativa do papel MEMORY_ANALYST para `memory_search`.
+- Ainda não executado no Android/Gradle; contrato escrito não é aprovação.
