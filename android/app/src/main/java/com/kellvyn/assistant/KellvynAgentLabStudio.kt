@@ -206,6 +206,12 @@ internal class KellvynAgentLabStudio(
                 val candidatePassed = candidateCases.values.count {
                     it.outcome == KellvynAgentLabOutcome.SUCCEEDED
                 }
+                val baselineReview = baselineCases.values.count {
+                    it.outcome == KellvynAgentLabOutcome.REVIEW_REQUIRED
+                }
+                val candidateReview = candidateCases.values.count {
+                    it.outcome == KellvynAgentLabOutcome.REVIEW_REQUIRED
+                }
                 val output = buildString {
                     append("COMPARAÇÃO DE EXPERIMENTOS\n")
                     append("BASELINE: ").append(baselineId).append("\n")
@@ -223,7 +229,11 @@ internal class KellvynAgentLabStudio(
                         .append(" → ").append(candidatePassed)
                         .append("/").append(candidateCases.size).append("\n")
                     append("Variação de aprovações: ")
-                        .append(candidatePassed - baselinePassed).append("\n\n")
+                        .append(candidatePassed - baselinePassed).append("\n")
+                    append("Revisão necessária: ")
+                        .append(baselineReview).append("/").append(baselineCases.size)
+                        .append(" → ").append(candidateReview).append("/").append(candidateCases.size)
+                        .append("\n\n")
                     append("CASO | BASELINE | CANDIDATO | DURAÇÃO_MS (BASE → CANDIDATO)\n")
                     caseIds.forEach { caseId ->
                         val before = baselineCases[caseId]
