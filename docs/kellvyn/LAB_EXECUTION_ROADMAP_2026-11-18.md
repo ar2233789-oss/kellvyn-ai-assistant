@@ -265,8 +265,9 @@ A Fase A foi escrita nesta branch:
 2. Módulo headless READ_ONLY com ferramentas para listar, inspecionar e validar perfis.
 3. Integração do registro no loop de delegação.
 4. Capacidades AGENT_DESIGN/AGENT_EVALUATION e política de acesso restrita a papéis determinados.
-5. Testes unitários escritos para perfis, limites e acesso ao módulo.
+5. Testes unitários escritos para perfis, limites, hashes e acesso ao módulo.
+6. Profile Compiler acrescentado: compila 14 perfis, resolve capacidades pela política central e produz SHA-256 determinístico; o hash do perfil é anexado ao resultado da delegação.
 
 O runtime passa a registrar seis módulos. Isso é uma contagem de módulos de ferramenta registrados, não a conclusão dos oito motores descritos na especificação.
 
-Estado de validação: código e testes adicionados ao repositório; execução Gradle/CI ainda pendente. A validação estrutural 14/14 não mede a competência cognitiva real do cérebro. Próxima etapa: executar os testes, corrigir falhas reais, depois implementar o Profile Compiler com hash/diff e harness independente de competência.
+Estado de validação: os novos módulos passaram em compilação/smoke test Kotlin isolado com stubs de contratos Android. Os testes JUnit/Gradle continuam sem execução: workflows falham sem etapas/logs. A validação estrutural 14/14 não mede competência cognitiva. Próxima etapa: destravar o runner, executar JUnit/Gradle, depois implementar armazenamento de versões/diff e harness independente de competência.
