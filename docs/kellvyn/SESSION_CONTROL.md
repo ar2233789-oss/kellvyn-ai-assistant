@@ -3,11 +3,11 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última conferência:** 18/11/2026, 15:50 UTC  
+**Última conferência:** 18/11/2026, 15:58 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD confirmado antes desta atualização:** `43c42e95070abccf2b12963423314a9edc23ff1d`  
-**Commit:** [43c42e9 — add agent and on-device ML research findings](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/43c42e95070abccf2b12963423314a9edc23ff1d)
+**HEAD confirmado antes desta atualização:** `b14f58193b5105479be5d3c34c8ada17d1610ae6`  
+**Commit:** [b14f581 — state current KN-003 limits and readiness](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/b14f58193b5105479be5d3c34c8ada17d1610ae6)
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -96,39 +96,55 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 - Código do chat foi inspecionado: `KellvynRuntime.isReady()` retorna literalmente `false`; `KellvynRuntime.reply()` retorna indisponibilidade de inferência. `MainActivity.sendMessage()` verifica `isReady()` e não envia a solicitação ao agente quando o cérebro não está pronto. O modelo próprio experimental existe em código, mas ainda não está ligado ao chat com um checkpoint conversacional treinado/validado.
 - Consequência: gerar agora um APK, mesmo se fosse possível, não entregaria uma IA conversacional funcionando. Não chamar esse estado de “IA pronta” nem prometer entrega integral hoje.
 
-## 6. Estado após a auditoria e próxima tarefa única
+## 6. Estado após auditoria, pesquisa e próxima tarefa única
 
-### Alterações feitas nesta retomada
-- Criado `runner-probe.yml` para testar somente alocação de runner; o teste mínimo falhou em aproximadamente três segundos, sem iniciar steps nem produzir logs. O arquivo temporário foi removido.
-- Adicionado job `runner-allocation-probe` no workflow Agent Lab, também sem checkout/Gradle/SDK; run `44338054696`, jobs `134920052636` e `134920052769`, ambos failure com `steps=null` e `logs_url=null`.
-- Atualizada a matriz `AGENT_TOOL_AVAILABILITY_2026-11-18.md`: o inventário correto tem seis módulos, incluindo `web-research-wikipedia` e `agent-creation`. A ferramenta Web disponível é somente `wikipedia_search`, gated, limitada à Wikipédia PT e autorizada apenas ao Pesquisador.
-- Criado `AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md`, com pesquisa de OpenAI Agents/evals/tracing, Cursor subagents/planning, Replit task lifecycle/app testing, Android Studio device testing, Nano Banana e LiteRT CompiledModel, além de um plano consolidado de gates.
-- Nenhuma classe Kotlin/Java, perfil, política, teste ou arquivo visual foi alterado nessa rodada de diagnóstico/pesquisa.
+### Alterações documentais desta retomada
+- Criado e executado um teste isolado de alocação de runner; o workflow temporário separado foi removido depois do teste.
+- Adicionado job `runner-allocation-probe` ao Agent Lab; run `44338054696`, jobs `134920052636` e `134920052769`.
+- Atualizada `AGENT_TOOL_AVAILABILITY_2026-11-18.md`: o inventário correto tem seis módulos, incluindo `web-research-wikipedia` e `agent-creation`. A pesquisa Web disponível é somente `wikipedia_search`, limitada à Wikipédia PT e autorizada apenas ao Pesquisador com Acesso à Web ativado.
+- Criado `AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md`, com pesquisa de OpenAI Agents/evals/tracing, Cursor subagents/planning, Replit lifecycle/testing, Android Studio device testing, Nano Banana e LiteRT.
+- Corrigido `LEARNING_AND_TRAINING.md`: não oferece mais a alternativa contraditória de usar pesos pré-treinados/LoRA externos. A regra de cérebro do zero prevalece.
+- Atualizado `NEURAL_MODEL_DECISIONS.md` com uma síntese atual do estado KN-003 e seus limites quantitativos.
+- Nenhuma classe Kotlin/Java, perfil, política, teste ou arquivo visual foi alterado nessa retomada.
 
-### Bloqueio atual
-- GitHub Status público consultado sem incidente ativo de Actions que explique esta falha. Runs privados recentes continuam falhando antes de qualquer step. A causa específica ainda não está exposta pelo conector.
-- Como o repositório é privado, o compute incluído para GitHub Actions depende do plano e do uso/limite da conta; não foi possível consultar as configurações privadas de Billing/Actions. Não afirmar que a causa é cobrança sem ver a mensagem exata.
-- Ação necessária do proprietário: abrir o run [44338054696](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44338054696), ler a mensagem de falha exibida no resumo do job e conferir Billing and licensing → Usage → Actions included compute/spending limit. Registrar a mensagem literal antes de qualquer alteração nos workflows.
+### Evidência exata do bloqueio GitHub Actions
+- O endpoint detalhado de jobs para o run `44338054696` mostra, em ambos os jobs, `runner_id=0`, `runner_name=""`, `steps=[]`, falha em aproximadamente 2 segundos.
+- A mesma ausência de atribuição ocorreu no run isolado `44337962674`, job `134919715612`.
+- Isso confirma que o runner hospedado **não foi atribuído**; Gradle, Android SDK, checkout e qualquer teste não começaram. Não é evidência de erro Kotlin.
+- A página pública do GitHub Status consultada para 18/11/2026 mostra Actions como Operational e nenhum incidente reportado nesse dia. O incidente de 16/11 terminou às 16:26 UTC; não explica diretamente os jobs de 18/11.
+- A documentação oficial confirma que, em repositórios privados, compute incluído depende do plano e é compartilhado entre hosted runners privados e Cloud Sandbox compute/memory. Quando o compute incluído acaba, sem método de pagamento válido ou com um budget bloqueando o gasto, o uso pode ser bloqueado. Isso é agora a **hipótese mais forte a verificar**, mas não é causa confirmada porque não temos o estado privado de billing nem a mensagem de erro exibida ao proprietário.
+- Ação do proprietário: abrir [run 44338054696](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44338054696) e conferir [GitHub Billing](https://github.com/settings/billing) → Usage → Actions/compute e budgets; verificar método de pagamento e se o saldo incluído foi consumido. Não aumentar o limite nem adicionar cobrança sem decisão explícita do proprietário.
+- Referências oficiais: https://docs.github.com/en/actions/concepts/billing-and-usage e https://docs.github.com/en/billing/concepts/product-billing/github-actions.
+
+### Estado neural real
+- `KellvynRuntime.isReady()` retorna `false`; `reply()` informa indisponibilidade de inferência. A conversa principal ainda não chama o agente com um modelo treinado.
+- KN-003 é um Transformer autoral de um único bloco, com cache KV incremental para esse bloco. A configuração padrão do pipeline usa contexto 256, embedding 32, 4 cabeças, FF64, até 64 merges BPE, uma época e no máximo 100.000 passos. Com todos os 64 merges usados, o vocabulário é no máximo 321 e o modelo tem cerca de 31.233 parâmetros — um protótipo pequeno, não um modelo de linguagem geral.
+- O pipeline de treino limita o corpus experimental a 500.000 bytes e exige amostras com TRAIN/VALIDATION/TEST e proveniência. A árvore do repositório não contém corpus independente para treinar o assistente; há fixtures de teste e documentação, não dataset de produção.
+- O gate atual só admite o modelo a um benchmark de protocolo; não comprova português geral, raciocínio, programação ou geração de aplicativos.
+- `NEURAL_MODEL_DECISIONS.md` e `LEARNING_AND_TRAINING.md` agora apresentam esse estado real e a regra de pesos próprios de modo consistente.
+
+### LiteRT — decisão de pesquisa, não integração feita
+- LiteRT CompiledModel pode acelerar modelos próprios em CPU/GPU e aceita conversão a partir de frameworks suportados. A implementação atual de KN-003 é Kotlin manual e não pode ser exportada automaticamente; exigiria portar o mesmo grafo/mapear os pesos e provar equivalência token/logit a token.
+- Play Services LiteRT envia métricas de dispositivo/app/execução e pode contactar servidores Google para atualizações; por isso não foi adicionado ao runtime offline-first. Standalone LiteRT poderá ser avaliado depois, com comparativo de CPU/GPU, tamanho APK, latência, RAM, temperatura, bateria e equivalência matemática no Poco F6.
+- A otimização não será introduzida antes de existir checkpoint treinado e benchmark Kotlin de referência.
 
 ### Próxima tarefa única
-**Obter a causa exata de falha pré-runner e fazer um workflow mínimo executar pelo menos um step com logs.**
+**Obter o motivo exato da falta de compute/atribuição do runner pela tela privada de Billing/Actions e restabelecer uma execução mínima com logs.**
 
 Depois:
 1. executar `gradle testDebugUnitTest`;
 2. executar `gradle connectedDebugAndroidTest`;
-3. corrigir somente problemas reproduzidos pelos logs;
-4. completar o fluxo de aprovação do proprietário no Profile Store;
-5. integrar o benchmark a inferência real somente após checkpoint treinado e qualidade mínima validada;
-6. executar build/APK, instalar em emulador e, depois, testar no Poco F6.
+3. corrigir somente problemas reproduzidos;
+4. completar a confirmação explícita do proprietário no Profile Store;
+5. conectar o harness a inferência real só depois de checkpoint treinado e qualidade mínima;
+6. construir APK, instalar em emulador e testar no Poco F6.
 
-### Bloqueio de produto — não ocultar
-- `KellvynRuntime.isReady()` retorna `false`; `reply()` responde que a inferência está indisponível. O chat principal ainda não chama o agente treinado.
-- KN-003 é um Transformer experimental de um bloco, com treino próprio por exemplos locais autorizados. Não há checkpoint conversacional aprovado nem competência demonstrada em português geral, programação complexa ou criação de aplicativos.
-- Um APK gerado antes dessas integrações não é a IA completa e não deve ser apresentado como tal.
+Um APK anterior a esses gates não é a IA completa.
 
-### Pesquisas e docs novos
+### Pesquisa e docs novos
 - [Pesquisa complementar de capacidades e ML móvel](AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md)
 - [Matriz corrigida de ferramentas por papel](AGENT_TOOL_AVAILABILITY_2026-11-18.md)
+- [Política de treino alinhada à decisão de pesos próprios](LEARNING_AND_TRAINING.md)
 
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
