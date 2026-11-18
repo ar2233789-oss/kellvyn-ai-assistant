@@ -561,5 +561,5 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 ### CI e isolamento da validação
 - Criado `.github/workflows/agent-lab-tests.yml`: executa unit tests Gradle e Android instrumented tests em emulador API 35; publica relatórios como artefatos.
 - `poco-f6-parity.yml` agora é acionado por mudanças em MainActivity, recursos, manifesto e UI web; mudanças Kotlin internas deixam de disparar comparação visual desnecessária.
-- Runs `44214073878` (agent lab, tentativa 2, anteriormente sem steps/logs) e `44214499919` (agent lab, nova execução) foram submetidos/reexecutados; confirmar status final e logs antes de classificar a suíte.
+- Runs `44214073878` (agent lab, tentativa 2) e `44214499919` (agent lab, nova execução) terminaram sem runner/steps/logs. Run `44214499742` (neural core) também terminou sem runner/steps/logs. São estados NOT_RUN/BLOCKED; não há falha Kotlin diagnosticada nem teste aprovado.
 - O ambiente local desta sessão não tem Gradle nem Android SDK. Não afirmar build ou teste local.
