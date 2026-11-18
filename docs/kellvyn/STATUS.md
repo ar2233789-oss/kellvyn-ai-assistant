@@ -628,7 +628,7 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 
 - Criado KellvynSpecialistProfileRegistryTest.kt cobrindo 14 perfis, unicidade, versão, limites, contrato de saída, escopo por papel, rejeição de argumentos inválidos, estabilidade e mudança de hash.
 - Atualizado o teste de matriz exata de permissões para incluir AGENT_DESIGN/AGENT_EVALUATION nos cinco papéis autorizados.
-- Kotlin isolado: Profile Registry, Profile Compiler e Agent Creation Studio passaram em compilação/smoke test com stubs dos contratos Android; teste executado: 14 perfis, hash determinístico, listagem, inspeção, rejeição de papel inválido e validação. Isto não substitui Gradle nem o módulo Android real.
+- Não foi executado typecheck isolado do Profile Registry/Profile Compiler/Agent Creation Studio nesta sequência. Um workflow sem steps/logs não permite inferir compilação. Não registrar a validação de smoke/typecheck até existir saída de comando ou artefato reproduzível.
 - Os testes JUnit foram escritos, mas ainda não foram executados em Gradle/CI. Os workflows falharam antes de apresentar qualquer etapa ou log; o resultado não diagnostica falha de compilação do código.
 - O módulo eleva a contagem de módulos registrados para seis. Isso não significa oito estúdios completos. A Fase B começou com o Profile Compiler; promoção/publicação e harness de competência ainda não existem.
 - O catálogo estrutural não comprova competência cognitiva. O cérebro conversacional continua sem integração aprovada ao chat e a qualificação física no Poco F6 ainda não foi executada.
