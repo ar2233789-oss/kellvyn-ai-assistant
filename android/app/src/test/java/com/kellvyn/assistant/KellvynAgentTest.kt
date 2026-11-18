@@ -30,6 +30,43 @@ class KellvynAgentTest {
     }
 
     @Test
+    fun recordsAgentModelLifecycleAutomaticallyWithoutPersistingConversationContent() = runBlocking {
+        val recorder = RecordingTraceRecorder()
+        val clock = java.util.concurrent.atomic.AtomicLong(1_000L)
+        val trace = KellvynAgentLabTraceSession.create(recorder) { clock.getAndIncrement() }
+        val model = FakeEngine(KellvynModelDecision.Final("RESPOSTA_PRIVADA_QUE_NAO_DEVE_IR_PARA_O_TRACE"))
+        val agent = KellvynAgent(
+            inference = model,
+            tools = KellvynToolRegistry(emptyList()),
+            traceSessionFactory = { trace }
+        )
+
+        val result = agent.run("PROMPT_PRIVADO_QUE_NAO_DEVE_IR_PARA_O_TRACE")
+
+        assertTrue(result is KellvynAgentResult.Completed)
+        assertEquals(
+            listOf(
+                KellvynAgentLabEventKind.RUN_STARTED,
+                KellvynAgentLabEventKind.MODEL_CALL_STARTED,
+                KellvynAgentLabEventKind.MODEL_DECISION,
+                KellvynAgentLabEventKind.RUN_COMPLETED
+            ),
+            recorder.events.map { it.kind }
+        )
+        assertEquals(
+            listOf(
+                KellvynAgentLabOutcome.STARTED,
+                KellvynAgentLabOutcome.STARTED,
+                KellvynAgentLabOutcome.SUCCEEDED,
+                KellvynAgentLabOutcome.SUCCEEDED
+            ),
+            recorder.events.mapNotNull { it.outcome }
+        )
+        assertFalse(recorder.events.toString().contains("PROMPT_PRIVADO"))
+        assertFalse(recorder.events.toString().contains("RESPOSTA_PRIVADA"))
+    }
+
+    @Test
     fun unknownToolIsNeverExecuted() = runBlocking {
         val model = FakeEngine(
             KellvynModelDecision.CallTool("shell_everything", emptyMap()),
@@ -387,6 +424,14 @@ class KellvynAgentTest {
 
         assertTrue(result is KellvynAgentResult.Completed)
         assertEquals(1, tool.executions)
+    }
+
+    private class RecordingTraceRecorder : KellvynAgentLabTraceRecorder {
+        val events = mutableListOf<KellvynAgentLabEvent>()
+
+        override suspend fun record(event: KellvynAgentLabEvent) {
+            events += event
+        }
     }
 
     private class FakeProjectSearch(
