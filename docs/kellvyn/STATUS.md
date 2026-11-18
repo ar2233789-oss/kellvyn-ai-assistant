@@ -649,3 +649,11 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - Smoke harness local Kotlin/JVM com stubs e cópias equivalentes das classes de perfil/Studio/harness: compilou e executou suite sintética de 28 casos, com 28/28 aprovados; também reprovou tentativa de ferramenta de escrita. Não compilou byte-for-byte o arquivo de 28 cenários, não usou o módulo Android/Gradle e não usou o cérebro real. Isso valida a mecânica do harness, não a competência cognitiva.
 - CI mais recente: runs `44327863319` e `44327863230` falharam sem steps/logs_url; não há diagnóstico de compilação e os testes JUnit continuam sem execução comprovada.
 - O harness ainda não foi conectado a uma inferência neural aprovada nem possui verificador factual de produção. O catálogo não deve ser anunciado como benchmark cognitivo já executado.
+
+
+### Última revisão e CI — 18/11/2026, 14:53 UTC
+
+- Revisão final de perfis/harness concluída; instrução interna agora identifica explicitamente enum do papel + nome humano.
+- HEAD de código/documentação nesta rodada: `e521fcaf11239fd88d9fa396bc27a719b7575a4c`.
+- Runs disparados após a última alteração: `44329166238` (Agent Lab) e `44329185728` (Neural Core). Ambos concluíram em failure, com jobs sem runner/steps/logs_url. A causa permanece indisponível e não deve ser atribuída ao código.
+- A cópia Kotlin/JVM de smoke usada na validação local continua sendo apenas equivalente com stubs e casos sintéticos. Não é Gradle, JUnit real, AVD, APK nem benchmark do cérebro.
