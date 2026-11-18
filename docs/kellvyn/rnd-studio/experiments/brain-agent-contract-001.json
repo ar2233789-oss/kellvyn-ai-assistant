@@ -32,10 +32,10 @@
     "Relatório distingue engine fake de inferência real.",
     "Runtime permanece não conectado até gate neural real."
   ],
-  "status_note": "CI failed before all steps: runner_id=0, steps=[]. Contract traverses real parser/agent/orchestrator code with scripted decisions; no neural checkpoint or production Runtime is exercised.",
+  "status_note": "Thirteen Python tests passed on the previous snapshot. Three later additions and the symbol-based repo_map update are not yet validated. Latest CI failed before runner allocation. Kotlin contract tests are also NOT_RUN.",
   "candidate_branch": "kellvyn-rnd/brain-agent-contract-001",
-  "candidate_head": "7dc8b6bafa98082b8b8f3020ad716408f0cb4c75",
-  "candidate_run_id": 44407125400,
+  "candidate_head": "8630162bd7d6586663bcb386ad18ebef63e38e46",
+  "candidate_run_id": 44412382401,
   "implementation": {
     "test_class": "KellvynBrainAgentIntegrationContractTest",
     "cases": [
@@ -43,6 +43,20 @@
       "malformedWireDecisionFailsBeforeAnyToolExecution"
     ],
     "engine": "ProtocolScriptedEngine (deterministic KELLVYN/1 messages; not trained neural inference)",
-    "workflow_scope": "kellvyn-rnd/**"
+    "workflow_scope": "kellvyn-rnd/**",
+    "scope_limit": "Cross-layer test covers parser, agent, orchestrator, READ_ONLY tool and UNTRUSTED handoff. It does not invoke KellvynIndependentVerifier; verifier end-to-end wiring remains outstanding."
+  },
+  "latest_status": "runner_id=0, runner_name empty, steps=[]; Studio Python and Gradle/JUnit NOT_RUN on latest CI",
+  "studio_validation": {
+    "last_verified_snapshot": "2026-11-18T22:11:00Z",
+    "previous_version": "py_compile plus 13/13 Python tests passed locally in 0.626 seconds",
+    "current_test_count": 16,
+    "new_unrun_tests": [
+      "test_task_test_executes_selected_suite_and_records_verifiable_evidence",
+      "test_task_test_nonzero_exit_is_recorded_as_failed_not_passed",
+      "test_repo_map_matches_test_files_by_referenced_symbols"
+    ],
+    "current_execution": "NOT_RUN",
+    "latest_ci_run": 44412382401
   }
 }
