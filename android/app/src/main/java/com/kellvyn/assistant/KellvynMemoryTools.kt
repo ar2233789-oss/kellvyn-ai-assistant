@@ -46,11 +46,17 @@ internal object KellvynMemoryTools {
             )
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                val unknownArguments = arguments.keys - setOf("query", "limit")
+                if (unknownArguments.isNotEmpty()) {
+                    return KellvynToolResult(false, "Argumentos não reconhecidos: ${unknownArguments.sorted().joinToString()}.")
+                }
                 val query = arguments["query"]?.trim().orEmpty()
                 if (query.isBlank() || query.length > MAX_QUERY_CHARS) {
                     return KellvynToolResult(false, "A consulta precisa ter de 1 a $MAX_QUERY_CHARS caracteres.")
                 }
-                val limit = arguments["limit"]?.toIntOrNull() ?: 3
+                val rawLimit = arguments["limit"]
+                val limit = if (rawLimit == null) 3 else rawLimit.toIntOrNull()
+                    ?: return KellvynToolResult(false, "O limite precisa ser um número inteiro.")
                 if (limit !in 1..MAX_RESULTS) {
                     return KellvynToolResult(false, "O limite precisa ficar entre 1 e $MAX_RESULTS.")
                 }
@@ -86,7 +92,7 @@ internal object KellvynMemoryTools {
                         val entry = match.entry
                         append(index + 1).append(") ")
                             .append(entry.title.take(120)).append("\n")
-                        append("tipo=").append(entry.kind.name)
+                        append("id=").append(entry.id).append("; tipo=").append(entry.kind.name)
                             .append("; origem=").append(entry.source.name)
                             .append("; escopo=").append(entry.address.scope.name)
                             .append("; confiança=").append("%.2f".format(java.util.Locale.ROOT, entry.confidence))
