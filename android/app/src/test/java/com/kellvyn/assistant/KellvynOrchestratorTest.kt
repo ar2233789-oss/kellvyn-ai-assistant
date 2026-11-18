@@ -74,6 +74,30 @@ class KellvynOrchestratorTest {
     }
 
     @Test
+    fun separateSessionsDoNotShareDelegationBudgets() = runBlocking {
+        val engine = RecordingEngine(
+            KellvynModelDecision.Final("Primeiro especialista concluiu."),
+            KellvynModelDecision.Final("Segundo especialista concluiu.")
+        )
+        val coordinator = orchestrator(engine, emptyList(), maxDelegations = 1)
+        val firstSession = coordinator.newSession()
+        val secondSession = coordinator.newSession()
+        val decision = KellvynModelDecision.Delegate(
+            role = KellvynSpecialistRole.RESEARCHER,
+            task = "Analise a fonte.",
+            context = "",
+            allowedTools = emptySet()
+        )
+
+        val first = firstSession.dispatch(decision)
+        val second = secondSession.dispatch(decision)
+
+        assertTrue(first.consumesDelegationSlot)
+        assertTrue(second.consumesDelegationSlot)
+        assertEquals(2, engine.histories.size)
+    }
+
+    @Test
     fun refusesOversizedDelegatedContextBeforeCreatingSpecialist() = runBlocking {
         val engine = RecordingEngine()
         val session = orchestrator(
