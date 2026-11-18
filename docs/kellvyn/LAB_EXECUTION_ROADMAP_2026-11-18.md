@@ -271,3 +271,18 @@ A Fase A foi escrita nesta branch:
 O runtime passa a registrar seis módulos. Isso é uma contagem de módulos de ferramenta registrados, não a conclusão dos oito motores descritos na especificação.
 
 Estado de validação: não há saída de typecheck isolado registrada para esses módulos. Os testes JUnit/Gradle continuam sem execução: workflows falham sem etapas/logs. A validação estrutural 14/14 não mede competência cognitiva. Próxima etapa: destravar o runner e executar JUnit/Gradle, depois implementar armazenamento de versões/diff e harness independente de competência.
+
+
+## Agent Creation Studio — Fase C inicial — 18/11/2026
+
+- 28 cenários estruturados foram adicionados, dois por cada um dos 14 papéis.
+- O Studio expõe catálogo resumido e rubrica filtrada por papel, sem executar o modelo.
+- O harness de avaliação foi criado com executor e verificador injetáveis; só dá PASSED com hash esperado, todos os critérios observados por verificador independente, referência de evidência e nenhuma chamada/execução fora da allowlist.
+- O runner processa a suite sequencialmente; o objetivo é não abrir 14 inferências concorrentes no Poco F6.
+- Testes unitários foram escritos para fluxo aprovado, ferramenta indevida, hash divergente, ausência de prova, rede restrita e execução sequencial.
+- Smoke harness local com stubs e cópias equivalentes passou 28/28 casos sintéticos e bloqueou escrita indevida. Não é teste do cérebro real, nem compilação Gradle/Android. O arquivo de 28 casos foi verificado estaticamente para contagem, cobertura de papéis e capabilities.
+- Faltam: Gradle/JUnit, CI com steps/logs, executor real ligado ao backend neural, verificador independente factual e persistência de resultados.
+
+### CI atualizado — 18/11/2026, 14:46 UTC
+
+Runs `44327863319` (Agent Lab) e `44327863230` (Neural Core) concluíram em failure. Jobs retornaram `logs_url=null` e lista de steps vazia. Classificação: execução sem diagnóstico disponível; não classificar como falha de compilação e não classificar como aprovação.
