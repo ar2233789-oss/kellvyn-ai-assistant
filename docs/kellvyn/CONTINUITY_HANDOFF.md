@@ -603,3 +603,30 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 6. Preservar interface e arquivos visuais protegidos.
 
 **Não recomeçar:** fila SQLite, broker, Governor, ResourceRuntime, ModuleManager, memória, planejamento, checkpoints e catálogo de 14 papéis já existem. O próximo trabalho é validar/fechar a operação real e então equipar os papéis, não refazer esses fundamentos.
+
+## 20. Continuação — política dos papéis, CI focado e estado neural — 18/11/2026
+
+### Descobertas para não recriar trabalho pronto
+- A matriz de capacidades dos 14 papéis já existe em `KellvynSpecialistToolPolicy.kt`. O coordenador aplica `permittedReadOnlyToolNames` e `readOnlySubset`; especialistas não ganham ferramentas de escrita, rede ou controle de dispositivo por pedido do modelo.
+- Foram adicionados testes que fixam exatamente as capacidades de cada papel e verificam negação de ferramentas sem capacidade ou com risco mutável.
+- O laboratório não possui ainda todos os módulos concretos: há três módulos registrados (Code Navigation, Security Audit e Data Architecture). Os demais estúdios permanecem por construir.
+
+### Novas alterações nesta continuação
+- Novo workflow `.github/workflows/agent-lab-tests.yml` para unit tests Gradle e instrumented Android tests no emulador API 35.
+- Workflow visual `poco-f6-parity.yml` restringido a mudanças que podem alterar a UI, manifesto ou recursos; não deve disparar para qualquer Kotlin do runtime/agentes.
+- Teste `KellvynSpecialistToolPolicyTest` agora cobre a matriz dos 14 papéis e cinco grupos de risco.
+- Roadmap atualizado para reconhecer a matriz existente e distinguir capacidade contratual de competência real.
+
+### Estado do cérebro — resposta precisa
+- Autoria: tokenizer, implementação neural, inicialização de pesos, pipeline de treino e checkpoints estão escritos no repositório Kellvyn; não há pesos pré-treinados de terceiros usados como cérebro.
+- KN-003 atual é explicitamente um Transformer decoder-only de um bloco: atenção causal multi-head, RoPE, Pre-LayerNorm e SwiGLU, com tokenizer BPE byte-fallback e treinamento próprio a partir de exemplos explicitamente fornecidos.
+- Limite: não é uma arquitetura multi-bloco; falta profundidade com parâmetros independentes por camada e backpropagation completa entre blocos.
+- Inferência: há adaptador estrito para KN-003, mas `KellvynRuntime.isReady() == false`; `reply()` informa que não há backend conversacional conectado.
+- Portanto, é correto dizer “cérebro autoral feito a partir do zero em desenvolvimento”, não “cérebro conversacional pronto”. Não anunciar qualidade ou competência sem treino/avaliação reproduzíveis.
+
+### Próxima ação
+1. Acompanhar os workflows focados `44214073878` e `44214499919`; extrair logs/status assim que existirem. Uma job sem runner/steps/logs conta como NOT_RUN/BLOCKED, não como falha do código nem sucesso.
+2. Corrigir somente defeitos observados na compilação/testes.
+3. Aprovar a Fase 1 com prova do fluxo enqueue → handler allowlisted → broker → resultado persistido → SUCCEEDED e recuperação após processo reiniciado.
+4. Só então avançar para integração cruzada das capacidades dos 14 papéis com os três módulos já existentes e os estúdios que faltam.
+5. Manter os especialistas READ_ONLY; não conectar inferência ao chat nem alterar interface até gates próprios.
