@@ -25,10 +25,10 @@ internal class KellvynAgent(
     private val projectContextRetriever: KellvynProjectContextSearch? = null,
     private val activeProjectId: String? = null,
     private val skillRegistry: KellvynSkillRegistry = KellvynSkillRegistry.default(),
-    private val specialistProfiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default(),
     private val taskCheckpoints: KellvynTaskCheckpointRepository? = null,
     private val taskBroker: KellvynTaskBroker? = null,
-    private val networkReadEnabled: () -> Boolean = { false }
+    private val networkReadEnabled: () -> Boolean = { false },
+    private val specialistProfiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default()
 ) {
     private val taskPlanner = KellvynTaskPlanner()
 
