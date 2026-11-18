@@ -294,3 +294,7 @@ Foi acrescentado armazenamento privado de revisões de perfil com AES-GCM/Androi
 
 ## Atualização de capacidade móvel — ledger de perfis — 18/11/2026
 O histórico de perfis agora tem teto explícito de 256 eventos globais, 32 KiB por registro, consultas limitadas aos 12 eventos mais recentes e ferramentas de leitura com estimativa STANDARD de 24 MiB. Isso evita histórico ilimitado e mantém o custo de inspeção previsível. Implementação e testes estão escritos; CI continua sem fornecer runner, steps ou logs.
+
+
+## Verificação de execução — 18/11/2026, 15:24 UTC
+O último commit d3e0816b9d6fd37436c9b3afbb62cc4405b1d5a7 atualiza a estimativa de memória do histórico para 24 MiB STANDARD. O workflow Agent Lab 44335158436/job 134909733286 encerrou sem steps ou logs; o gate CI continua bloqueado antes de evidência de build/teste. Não tratar como falha de fonte ou como aprovação.

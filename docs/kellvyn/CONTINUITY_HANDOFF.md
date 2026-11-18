@@ -801,3 +801,10 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - MainActivity.java não foi tocada. O hash ainda diverge do interface-lock.sha; não editar a interface nem a lock para esconder a divergência.
 - Nenhum APK, instalação ou teste físico no Poco F6.
 - Próximo passo: obter runner com logs; executar gradle testDebugUnitTest e gradle connectedDebugAndroidTest; corrigir apenas erros com evidência. Depois, construir o fluxo confiável de confirmação do proprietário para revisão de perfil. Não fornecer a ferramenta de promoção ao modelo.
+
+
+## 32. Última conferência — 18/11/2026, 15:24 UTC
+- HEAD confirmado: d3e0816b9d6fd37436c9b3afbb62cc4405b1d5a7.
+- Estimativa de working set das ferramentas de leitura do Agent Creation Studio ajustada para 24 MiB STANDARD, preservando histórico máximo de 256 eventos/32 KiB por evento e saída limitada a 12 eventos.
+- Workflow Agent Lab: run 44335158436 / job 134909733286, failure sem steps e sem logs_url. O job terminou antes de expor qualquer etapa; Gradle/JUnit/AndroidRunner permanecem NOT_RUN, não FAILED por diagnóstico de código.
+- Próxima retomada: resolver a alocação de runner/logs na conta GitHub; depois executar unit tests e connected Android tests. Não editar interface-lock ou MainActivity para encobrir divergências preexistentes.

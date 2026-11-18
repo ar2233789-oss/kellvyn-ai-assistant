@@ -145,3 +145,9 @@ Ainda pendente:
 - Testes unitários escritos cobrem ciclo stage/approve/rollback, CAS, corrupção, isolamento e diff. O teste instrumentado verifica persistência entre instâncias e autenticação AAD com Android Keystore.
 - Estado de execução: ainda sem Gradle/JUnit/Android instrumented aprovado. Os jobs de CI recentes falharam antes de fornecer steps e logs_url; competência cognitiva dos papéis não foi avaliada.
 - Fase E segue parcial: APIs internas de stage/approve/rollback existem; o caminho da confirmação do proprietário em código/app ainda precisa ser integrado. Não há edição de UI autorizada.
+
+
+## 13. Última revisão de recursos e execução — 18/11/2026, 15:24 UTC
+- As ferramentas de leitura com acesso ao ledger passaram a reservar 24 MiB e usar STANDARD; benchmark catalog permanece LIGHT. O teto físico configurado segue em 256 registros globais e 32 KiB por registro.
+- Run 44335158436 / job 134909733286 falhou sem steps e logs_url. Isso não prova falha de compilação Kotlin/Gradle; nenhuma etapa foi exibida.
+- Nenhum teste Gradle/JUnit/Android instrumented foi observado como iniciado ou aprovado.
