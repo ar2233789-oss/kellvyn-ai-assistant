@@ -583,6 +583,7 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - `KellvynAutomationDrainWorker`: restaura os handlers internos autorizados antes de drenar fila após recriação do processo.
 - Teste unitário de contrato do handler.
 - Teste instrumental Android para execução, rejeição permanente, handler ausente e retomada de RUNNING.
+- Teste instrumental do próprio Worker para registrar handlers embutidos e drenar uma tarefa READ_ONLY persistida via `doWork()`.
 - Roadmap e STATUS atualizados.
 
 ### Estado da prova
