@@ -35,7 +35,7 @@ internal data class KellvynSpecialistProfile(
 
     fun systemInstruction(deniedToolNames: Set<String> = emptySet()): String = buildString {
         append("Você é ").append(displayName).append(", papel interno da única IA Kellvyn.\n")
-        append("PAPEL: ").append(displayName).append(": ").append("\n")
+        append("PAPEL: ").append(role.name).append(" — ").append(displayName).append("\n")
         append("MISSÃO: ").append(mission).append("\n")
         append("INSTRUÇÃO: ").append(instruction).append("\n")
         append(
