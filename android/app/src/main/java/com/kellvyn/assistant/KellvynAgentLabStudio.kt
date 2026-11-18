@@ -53,6 +53,12 @@ internal class KellvynAgentLabStudio(
                     append("Pressão de memória: ").append(snapshot.memoryPressure.name).append("\n")
                     append("Estado térmico: ").append(snapshot.thermalBand.name).append("\n")
                     append("Economia de energia: ").append(snapshot.powerSaveMode).append("\n")
+                    append("Gravação de traces: ")
+                        .append(if (traceHealth.healthy) "SAUDÁVEL" else "DEGRADADA")
+                    traceHealth.lastFailureCode?.let {
+                        append(" (última falha: ").append(it).append(")")
+                    }
+                    append("\n")
                     append("Bateria: ")
                         .append(snapshot.batteryPercent?.let { "$it%" } ?: "indisponível")
                     append("; carregando: ").append(snapshot.charging).append("\n\n")
@@ -66,7 +72,9 @@ internal class KellvynAgentLabStudio(
                             .append(module.estimatedLoadWorkingSetBytes / KIBIBYTE)
                             .append(" KiB | resident=")
                             .append(module.estimatedResidentBytes / KIBIBYTE)
-                            .append(" KiB | capabilities=")
+                            .append(" KiB | estado=")
+                            .append(if (module.moduleId in loadedModules) "CARREGADO" else "DESCARREGADO")
+                            .append(" | capabilities=")
                             .append(module.capabilities.map { it.name }.sorted().joinToString(", "))
                             .append("\n")
                     }
