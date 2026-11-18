@@ -12,6 +12,12 @@ class StudioTests(unittest.TestCase):
   self.tmp=tempfile.TemporaryDirectory(); self.root=Path(self.tmp.name)/"repo"; self.root.mkdir()
   git("init",cwd=self.root); git("config","user.name","test",cwd=self.root); git("config","user.email","test@example.invalid",cwd=self.root)
   (self.root/".github").mkdir(); (self.root/"src").mkdir(); (self.root/"src/Protected.kt").write_text("class Protected\n")
+  wrapper_dir=self.root/"android/gradle/wrapper"; wrapper_dir.mkdir(parents=True)
+  gradlew=self.root/"android/gradlew"
+  gradlew.write_text("#!/bin/sh\nif [ -f ../force-gradle-failure ]; then exit 7; fi\nprintf '%s\\n' \"$@\"\n")
+  gradlew.chmod(0o755)
+  (wrapper_dir/"gradle-wrapper.jar").write_bytes(b"trusted-test-wrapper")
+  (wrapper_dir/"gradle-wrapper.properties").write_text("distributionUrl=https://services.gradle.org/distributions/gradle-test.zip\n")
   h=git("hash-object","src/Protected.kt",cwd=self.root); (self.root/".github/interface-lock.sha").write_text(f"{h}  src/Protected.kt\n")
   git("add",".",cwd=self.root); git("commit","-m","base",cwd=self.root)
   self.old=(studio.ROOT,studio.TASKS,studio.LOCK,studio.DOCS); studio.ROOT=self.root; studio.TASKS=self.root.parent/"rnd-tasks"; studio.LOCK=self.root/".github/interface-lock.sha"; studio.DOCS=self.root/"docs/kellvyn/rnd-studio"
@@ -73,15 +79,12 @@ class StudioTests(unittest.TestCase):
   self.assertEqual(2,result)
  def test_task_test_executes_selected_suite_and_records_verifiable_evidence(self):
   work=self.create()
-  android=work/"android"; android.mkdir()
-  wrapper=android/"gradlew"
-  wrapper.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
-  wrapper.chmod(0o755)
   result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
   self.assertEqual(0,result)
   task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
   evidence=task["evidence"][-1]
   self.assertEqual("PASSED",evidence["status"])
+  self.assertEqual("PASS",evidence["gradle_wrapper_integrity"])
   log=Path(evidence["log"]).read_text()
   self.assertIn("KellvynTransformerLanguageModelTest",log)
   self.assertIn("KellvynDecisionProtocolTest",log)
@@ -90,15 +93,23 @@ class StudioTests(unittest.TestCase):
   self.assertEqual("PASS",report["gate"])
  def test_task_test_nonzero_exit_is_recorded_as_failed_not_passed(self):
   work=self.create()
-  android=work/"android"; android.mkdir()
-  wrapper=android/"gradlew"
-  wrapper.write_text("#!/bin/sh\nexit 7\n")
-  wrapper.chmod(0o755)
+  (work/"force-gradle-failure").write_text("fail\n")
   result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
   self.assertEqual(2,result)
   task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
   self.assertEqual("FAILED",task["evidence"][-1]["status"])
   report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  self.assertEqual("BLOCKED",report["gate"])
+ def test_task_test_refuses_modified_gradle_wrapper_before_execution(self):
+  work=self.create()
+  wrapper=work/"android/gradlew"
+  wrapper.write_text("#!/bin/sh\ntouch ../tampered-wrapper-executed\n")
+  wrapper.chmod(0o755)
+  with self.assertRaisesRegex(RuntimeError,"Gradle wrapper integrity"):
+   studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  self.assertFalse((work/"tampered-wrapper-executed").exists())
+  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  self.assertEqual("FAIL",report["gradle_wrapper"])
   self.assertEqual("BLOCKED",report["gate"])
  def test_repo_map_matches_test_files_by_referenced_symbols(self):
   main=self.root/"android/app/src/main/java/sample"; main.mkdir(parents=True)

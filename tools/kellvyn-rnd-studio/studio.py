@@ -9,6 +9,12 @@ ROOT = Path(__file__).resolve().parents[2]
 DOCS = ROOT / "docs/kellvyn/rnd-studio"
 TASKS = ROOT.parent / f".{ROOT.name}-rnd-studio" / "tasks"
 LOCK = ROOT / ".github/interface-lock.sha"
+GRADLE_WRAPPER_FILES = (
+    "android/gradlew",
+    "android/gradlew.bat",
+    "android/gradle/wrapper/gradle-wrapper.jar",
+    "android/gradle/wrapper/gradle-wrapper.properties",
+)
 TESTS = {
     "unit": ["testDebugUnitTest", "--no-daemon"],
     "assemble": ["assembleDebug", "--no-daemon"],
@@ -106,6 +112,31 @@ SYMBOL = re.compile(r"^\s*(?:(?:public|internal|private|protected|open|abstract|
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+
+def gradle_wrapper_snapshot(cwd):
+    result = {}
+    for relative in GRADLE_WRAPPER_FILES:
+        path = cwd / relative
+        result[relative] = digest(path) if path.is_file() and not path.is_symlink() else None
+    return result
+
+def gradle_wrapper_baseline(revision):
+    result = {}
+    for relative in GRADLE_WRAPPER_FILES:
+        blob = subprocess.run(
+            ["git", "show", f"{revision}:{relative}"],
+            cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
+        result[relative] = hashlib.sha256(blob.stdout).hexdigest() if blob.returncode == 0 else None
+    return result
+
+def gradle_wrapper_integrity(work, record):
+    expected = record.get("gradle_wrapper_sha256")
+    if not isinstance(expected, dict) or set(expected) != set(GRADLE_WRAPPER_FILES):
+        return {"status": "FAIL", "changed": ["baseline_missing"], "sha256": None}
+    current = gradle_wrapper_snapshot(work)
+    changed = [relative for relative in GRADLE_WRAPPER_FILES if current[relative] != expected.get(relative)]
+    return {"status": "PASS" if not changed else "FAIL", "changed": changed, "sha256": current}
 def suite_command(name):
     if name in TESTS:
         return list(TESTS[name])
@@ -208,17 +239,24 @@ def track_map(a):
 def task_create(a):
     if not ID.fullmatch(a.id): raise ValueError("invalid task id")
     base=git("rev-parse","--verify",f"{a.base}^{{commit}}").stdout.strip(); home=TASKS/a.id; work=home/"checkout"; branch=f"kellvyn-rnd/{a.id}"
+    wrapper_hashes = gradle_wrapper_baseline(base)
+    if wrapper_hashes.get("android/gradlew") is None or wrapper_hashes.get("android/gradle/wrapper/gradle-wrapper.jar") is None or wrapper_hashes.get("android/gradle/wrapper/gradle-wrapper.properties") is None:
+        raise RuntimeError("base commit lacks the trusted Gradle wrapper files")
     if home.exists() or git("show-ref","--verify",f"refs/heads/{branch}",ok=False).returncode==0: raise FileExistsError(a.id)
     TASKS.mkdir(parents=True,exist_ok=True); home.mkdir(parents=True)
     try: git("worktree","add","-b",branch,str(work),base)
     except Exception: home.rmdir(); raise
-    record={"id":a.id,"title":a.title,"objective":a.objective,"scope":a.scope,"created_at_utc":now(),"base":base,"branch":branch,"worktree":str(work),"protected":snapshot(),"required_tests":a.require_test or [a.scope],"evidence":[]}
+    record={"id":a.id,"title":a.title,"objective":a.objective,"scope":a.scope,"created_at_utc":now(),"base":base,"branch":branch,"worktree":str(work),"protected":snapshot(),"gradle_wrapper_sha256":wrapper_hashes,"required_tests":a.require_test or [a.scope],"evidence":[]}
     (home/"task.json").write_text(json.dumps(record,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (home/"TASK.md").write_text(f"# {a.title}\n\n{a.objective}\n\nBase: {base}\nBranch: {branch}\n",encoding="utf-8")
     print(f"WORKTREE={work}\nBRANCH={branch}\nBASE={base}"); return 0
 
 def task_test(a):
-    work,m=task(a.id); wrapper=work/"android"/("gradlew.bat" if os.name=="nt" else "gradlew")
+    work,m=task(a.id)
+    before = gradle_wrapper_integrity(work, m)
+    if before["status"] != "PASS":
+        raise RuntimeError("Gradle wrapper integrity check failed: " + ", ".join(before["changed"]))
+    wrapper=work/"android"/("gradlew.bat" if os.name=="nt" else "gradlew")
     if not wrapper.is_file(): raise FileNotFoundError(wrapper)
     if os.name!="nt" and not os.access(wrapper,os.X_OK): raise PermissionError("gradlew not executable")
     start=time.monotonic(); stamp=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"); evidence=TASKS/a.id/"evidence"; evidence.mkdir(exist_ok=True)
@@ -229,8 +267,13 @@ def task_test(a):
     except subprocess.TimeoutExpired as e:
         code=124; output=(e.stdout.decode(errors="replace") if isinstance(e.stdout,bytes) else e.stdout or "")+f"\nTIMEOUT {a.timeout}s"; status="TIMEOUT"
     except OSError as e: code=127; output=str(e); status="NOT_RUN"
+    after = gradle_wrapper_integrity(work, m)
+    if after["status"] != "PASS":
+        code = 126
+        status = "INTEGRITY_FAILURE"
+        output = (output or "") + "\nGRADLE_WRAPPER_INTEGRITY_FAILURE: " + ", ".join(after["changed"])
     log=evidence/f"{a.suite}-{stamp}.log"; log.write_text(output or "(no output)\n",encoding="utf-8",errors="replace")
-    run={"suite":a.suite,"status":status,"exit_code":code,"head":head(work),"fingerprint":fingerprint(work,m["base"]),"duration_seconds":round(time.monotonic()-start,2),"log":str(log),"log_sha256":digest(log)}
+    run={"suite":a.suite,"status":status,"exit_code":code,"head":head(work),"fingerprint":fingerprint(work,m["base"]),"gradle_wrapper_integrity":after["status"],"duration_seconds":round(time.monotonic()-start,2),"log":str(log),"log_sha256":digest(log)}
     m.setdefault("evidence",[]).append(run); (TASKS/a.id/"task.json").write_text(json.dumps(m,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     print(json.dumps(run,ensure_ascii=False,indent=2)); return 0 if code==0 else 2
 
@@ -245,13 +288,14 @@ def check_report(a):
             try: white += [f"{n}:{i}" for i,line in enumerate(p.read_text(encoding="utf-8").splitlines(),1) if line.endswith((" ","\t"))]
             except UnicodeError: pass
     protected=snapshot(work); protected_bad=[n for n,h in m["protected"].items() if protected.get(n)!=h]
+    wrapper = gradle_wrapper_integrity(work, m)
     fp=fingerprint(work,base); suites=a.require_test or m.get("required_tests",["unit"]); passed={}
     for e in m.get("evidence",[]):
         log=Path(e.get("log", ""))
         passed[e.get("suite")]=(e.get("exit_code")==0 and e.get("head")==head(work)
           and e.get("fingerprint")==fp and log.is_file() and digest(log)==e.get("log_sha256"))
     missing=[x for x in suites if not passed.get(x,False)]; diff_ok=diff.returncode==0 and staged.returncode==0 and not white
-    report={"checked_at_utc":now(),"task":a.id,"head":head(work),"changed_files":changes,"diff_check":"PASS" if diff_ok else "FAIL","diff_output":(diff.stdout+diff.stderr+staged.stdout+staged.stderr+"\n".join(white))[:3000],"protected":"PASS" if not protected_bad else "FAIL","protected_changes":protected_bad,"missing_or_stale_tests":missing,"gate":"PASS" if diff_ok and not protected_bad and not missing else "BLOCKED"}
+    report={"checked_at_utc":now(),"task":a.id,"head":head(work),"changed_files":changes,"diff_check":"PASS" if diff_ok else "FAIL","diff_output":(diff.stdout+diff.stderr+staged.stdout+staged.stderr+"\n".join(white))[:3000],"protected":"PASS" if not protected_bad else "FAIL","protected_changes":protected_bad,"gradle_wrapper":wrapper["status"],"gradle_wrapper_changes":wrapper["changed"],"missing_or_stale_tests":missing,"gate":"PASS" if diff_ok and not protected_bad and wrapper["status"] == "PASS" and not missing else "BLOCKED"}
     return report
 
 def task_check(a):
