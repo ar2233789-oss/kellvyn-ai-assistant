@@ -548,3 +548,29 @@ Abrir uma tarefa isolada `brain-gradient-coverage-001` no clone local, executar 
 ### Refinamento da hipótese KN-003 — 18/11/2026, 20:32 UTC
 
 A pesquisa de métodos de gradcheck refinou `brain-gradient-coverage-001`: além de coordenadas selecionadas em cada um dos 14 arrays, testar uma direção determinística normalizada por array; usar diferenças centrais; calibrar epsilon em float32 por estabilidade; tratar explicitamente gradientes ambos-zero; incluir controle negativo que zera deliberadamente uma família. Referências e decisão estão no `research-ledger.jsonl` e no `GRADIENT_CHECK_AUDIT_2026-11-18.md`. Continua PLANNED / NOT RUN; nenhum código neural foi alterado.
+
+
+## 11. R&D Studio — Brain + Agents + Integration (18/11/2026)
+
+A bancada externa atende três frentes:
+- Brain R&D: tokenizer, KN-001/002/003, treinamento, pesos, inferência e protocolo.
+- Agent R&D: loop KellvynAgent, KellvynOrchestrator, 14 perfis, políticas, planner, traces e avaliação.
+- Integration R&D: inferência, parser KELLVYN/1, loop do agente, ferramentas, delegação e verificador.
+
+tools/kellvyn-rnd-studio/studio.py agora declara três tracks, mapeia fontes/testes e oferece suítes Gradle focadas brain, agents e integration. As suítes unit, assemble e instrumented continuam disponíveis. Cada tarefa registra scope e exige a suíte correspondente por padrão.
+
+A suíte integration é um conjunto de testes de contrato/unitários; não prova conexão do chat ao cérebro real. KellvynRuntime.isReady() continua false.
+
+Baselines:
+- docs/kellvyn/rnd-studio/AGENT_BASELINE_2026-11-18.md
+- docs/kellvyn/rnd-studio/BRAIN_AGENT_INTEGRATION_BASELINE_2026-11-18.md
+- docs/kellvyn/rnd-studio/AGENT_EVALUATION_PROTOCOL.md
+
+Hipóteses:
+- agent-delegation-duration-001: o orquestrador registra DELEGATION_FINISHED com durationMillis nulo no caminho normal e não mede cancelamento.
+- brain-agent-contract-001: validar KELLVYN/1 -> agent loop -> tool/delegation -> verifier, sem confundir engine fake com cérebro real.
+- brain-gradient-coverage-001 permanece na track brain.
+
+Pesquisa sobre AgentBench, tau-bench e avaliação de traces foi adicionada ao research ledger. As fontes orientam o método; nenhum código, peso ou serviço externo foi incorporado.
+
+A árvore Git confirma 21 arquivos-fonte e 23 classes de teste planejados para Brain/Agents. O mapa ainda precisa ser executado no clone com Python; testes da CLI foram escritos, mas ainda não executados nesta sessão. Gradle/JUnit e inferência real seguem NOT RUN/BLOCKED pelo runner sem alocação.

@@ -68,5 +68,6 @@
       "source": "https://docs.jax.dev/en/latest/_autosummary/jax.test_util.check_grads.html",
       "note": "JAX check_grads uses a single randomly selected direction to reduce numerical-check cost; adapt as an additional directional check per tensor group, not as a replacement for coordinate coverage."
     }
-  ]
+  ],
+  "scope": "brain"
 }

@@ -169,3 +169,16 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Commit 430d25a incorporou pesquisa Stanford CS231n/PyTorch/JAX: cobertura por grupo/tensor, diferenças centrais, direção seeded e calibração float32/epsilon.
 - GitHub Actions run `44392690462` repetiu falha antes do primeiro step: `runner_id=0`, `steps=[]`; nenhum teste de código executou.
 - HEAD confirmado antes deste checkpoint: `430d25a0db8e5c9ac8ad236eb826dd0677d05a6b`. O próprio commit deste checkpoint será reconciliado pelo workflow quando existir runner.
+
+
+## 20:48 UTC — R&D Studio com três tracks
+
+- CLI expandida para brain, agents e integration, com mapas por track e suítes Gradle focadas usando --tests.
+- README e testes Python da bancada atualizados; cinco novos casos previstos para separação das suítes e registro de scope.
+- Baselines de Agent R&D e Brain+Agent Integration criados; protocolo de avaliação e duas novas hipóteses registrados.
+- Fontes e árvore Git confirmam 21 fontes e 23 classes de teste para as tracks Brain/Agents.
+- Pesquisa AgentBench, tau-bench, OpenAI agent evals e evaluation best practices adicionada ao ledger.
+- Achado: KellvynOrchestrator.Session.dispatch() não registra duração de delegação no trace (durationMillis=null). Hipótese agent-delegation-duration-001, sem patch ainda.
+- Hipótese de integração brain-agent-contract-001 criada; a suíte selecionada é de contratos unitários e não comprova Runtime integrado.
+- Nenhum código neural, orquestrador, Runtime, interface, MainActivity ou peso foi alterado.
+- Testes Python da CLI ainda não executados; Gradle/JUnit e execução com inferência real continuam NOT RUN/BLOCKED.
