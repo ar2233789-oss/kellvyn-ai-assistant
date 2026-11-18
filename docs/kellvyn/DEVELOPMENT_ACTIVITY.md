@@ -217,3 +217,11 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - `test_studio.py` passou de 16 para 17 testes escritos; versão atual NOT RUN. A aprovação antiga de 13 testes é somente da versão anterior.
 - Run `44422679919`: todos os 3 jobs falharam sem steps/logs; nem Python CLI nem Gradle começaram.
 - Brain, Agents e Integration permanecem em branches experimentais separadas, sem merge. `KellvynRuntime.isReady()` permanece `false`.
+
+
+## 23:55 UTC — retomada isolada do Agent Lab
+- Criada branch `kellvyn-rnd/agent-trace-duration-port-20261118` sobre `lab/kellvyn-intelligence-core-20261116`, sem alteração da main ou promoção para runtime.
+- Portado para a base atual o experimento de duração monotônica de delegação. `KellvynOrchestrator` deixa de gravar `durationMillis=null`; quatro testes determinísticos cobrem sucesso, bloqueio de orçamento, falha e cancelamento.
+- Commits: `10e5d1a` (código), `15813b5` (testes), `cd6350e` (registro do experimento). Três arquivos no diff; cérebro, Runtime e UI intocados.
+- Runs `44424776449` e `44424784548`: três jobs por run, todos falharam antes de iniciar; `runner_id=0`, `steps=[]`. Python CLI, Gradle/JUnit e Android instrumented: NOT RUN. Não declarar teste aprovado ou falha de fonte.
+- Próximo: proprietário inspecionar budget/compute do GitHub Actions e política de runners; após liberar runner, executar workflow completo e revisar relatórios. Sem gasto pago ou mudança de billing automática.
