@@ -34,9 +34,9 @@
   ],
   "status_note": "CI failed before all steps: runner_id=0, steps=[]. Four tests written; do not merge before agents Gradle passes.",
   "candidate_branch": "kellvyn-rnd/agent-delegation-duration-001",
-  "candidate_head": "7a0696d76f35fdb1ae2ec2ad3bd144fab6173953",
+  "candidate_head": "9181f31eb59b5f8c953410f22af89cbf6ba59ba5",
   "candidate_summary": "Candidate adds monotonic timing for completed, failed, budget-blocked and cancelled specialist dispatches, with four deterministic tests. Not compiled or run.",
-  "candidate_run_id": 44404198275,
+  "candidate_run_id": 44412360596,
   "implementation": {
     "test_cases_written": [
       "recordsMonotonicDurationForCompletedSpecialistDelegation",
@@ -44,5 +44,6 @@
       "recordsDurationForDelegationBlockedByBudget",
       "recordsDurationWhenSpecialistFails"
     ]
-  }
+  },
+  "latest_status": "runner_id=0, runner_name empty, steps=[]; Gradle/JUnit NOT_RUN"
 }
