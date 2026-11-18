@@ -199,3 +199,13 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Workflow habilitado para branches kellvyn-rnd/**.
 - Run 44407125400 falhou antes dos steps, runner_id=0, steps=[] nos dois jobs. Gradle/JUnit NOT RUN.
 - Engine é ProtocolScriptedEngine; parser, agente e orquestrador são reais, checkpoint neural não é usado. Runtime de produção continua desconectado.
+
+
+## 22:11 UTC — R&D Studio validada localmente
+
+- Arquivos Python atuais da branch kellvyn-rnd/brain-agent-contract-001 obtidos do GitHub e executados localmente.
+- py_compile studio.py + test_studio.py: aprovado.
+- test_studio.py: 13/13 aprovados, 0,626 s.
+- Foram exercitados mapas de Brain, Agents e Integration e gates de worktree/arquivos protegidos/evidência.
+- CI run 44408895594: runner_id=0, steps=[]; Python no CI não iniciou. O resultado 13/13 é execução local separada.
+- Gradle/Kotlin/Android e inferência neural continuam NOT RUN.

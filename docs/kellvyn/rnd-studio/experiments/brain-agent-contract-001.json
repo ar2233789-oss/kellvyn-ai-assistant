@@ -32,7 +32,7 @@
     "Relatório distingue engine fake de inferência real.",
     "Runtime permanece não conectado até gate neural real."
   ],
-  "status_note": "Run 44407125400 failed before any step: runner_id=0, steps=[] for both jobs. The contract test is written and indexed but not compiled or executed. It does not prove model competence or that KellvynRuntime is connected to the chat.",
+  "status_note": "The integration contract tests and Python Studio are written; the Python Studio passed locally 13/13. The Kotlin integration test itself remains NOT_RUN because GitHub Actions run 44407125400/44408895594 had runner_id=0 and no steps. The scripted engine is not a neural checkpoint.",
   "candidate_branch": "kellvyn-rnd/brain-agent-contract-001",
   "candidate_head": "b62460dfeb2411901b181527ad345b4da0978704",
   "implementation": {
@@ -49,5 +49,21 @@
     "execution": "NOT_RUN",
     "engine_type": "ProtocolScriptedEngine — deterministic scripted KELLVYN/1 outputs; no neural checkpoint",
     "integration_track_test_filter": "KellvynBrainAgentIntegrationContractTest is included in the integration track filter."
+  },
+  "studio_validation": {
+    "recorded_at_utc": "2026-11-18T22:11:00Z",
+    "py_compile": "PASSED",
+    "unittest": "PASSED",
+    "tests_passed": 13,
+    "tests_total": 13,
+    "duration_seconds": 0.626,
+    "scope": "Python CLI and Git worktree/gate behavior on temporary Git repositories",
+    "not_covered": [
+      "Gradle/Kotlin",
+      "Android instrumentation",
+      "neural inference",
+      "agent cognitive competence",
+      "Poco F6 device behavior"
+    ]
   }
 }

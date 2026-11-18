@@ -27,3 +27,6 @@ A presença de testes no mapa não significa que foram executados. Fakes testam 
 
 
 A suite integration também inclui KellvynBrainAgentIntegrationContractTest. Ela valida o parser KELLVYN/1 real até delegação e handoff UNTRUSTED usando um ProtocolScriptedEngine determinístico. Isso é um contrato transversal, não E2E com pesos neurais ou Runtime de chat.
+
+
+Validação desta versão da CLI: py_compile aprovado e 13/13 testes Python executados localmente, incluindo geração de mapas das três tracks e bloqueio de arquivos/testes ausentes. O job equivalente do GitHub Actions ainda não executou por falta de runner (runner_id=0).

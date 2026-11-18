@@ -616,3 +616,15 @@ A suíte integration no Studio agora seleciona essa classe, com teste do própri
 Limite fundamental: ProtocolScriptedEngine injeta textos KELLVYN/1 determinísticos. O parser e os loops são código real, mas o modelo é simulado. Isso verifica contrato entre camadas, não capacidade cognitiva nem inferência neural real. KellvynRuntime.isReady() continua false.
 
 CI run 44407125400: runner_id=0 e steps=[] nos dois jobs. Estado IMPLEMENTED_NOT_RUN.
+
+
+## 17. Validação local da própria R&D Studio (18/11/2026, 22:11 UTC)
+
+No ambiente local do assistente, foram obtidos os arquivos atuais da branch e executados:
+- py_compile de studio.py e test_studio.py: aprovado.
+- test_studio.py: 13/13 testes aprovados em 0,626 s.
+- Cobertura exercitada: worktree isolado; proteção de arquivos; whitespace; ausência e obsolescência de teste; seleção das suítes Brain/Agents/Integration; registro de scope; mapas completos por track; bloqueio quando fontes/testes obrigatórios estão ausentes.
+
+Esta execução valida a CLI Python e seus mecanismos Git em repositórios temporários. **Não executa Gradle, Kotlin, Android, KN-003 ou agentes com inferência neural real.**
+
+O CI run 44408895594 continua falhando antes de qualquer step (runner_id=0, steps=[]). O resultado local 13/13 é independente desse bloqueio.
