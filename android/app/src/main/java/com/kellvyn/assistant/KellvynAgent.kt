@@ -824,11 +824,11 @@ internal class KellvynAgent(
         tool: KellvynAgentTool,
         arguments: Map<String, String>,
         requestId: String,
-        traceSession: KellvynAgentLabTraceSession,
-        step: Int
+        traceSession: KellvynAgentLabTraceSession? = null,
+        step: Int? = null
     ): KellvynToolResult {
         val startedAt = System.currentTimeMillis()
-        traceSession.record(
+        traceSession?.record(
             kind = KellvynAgentLabEventKind.TOOL_STARTED,
             step = step,
             toolName = tool.spec.name,
@@ -861,7 +861,7 @@ internal class KellvynAgent(
                     operation = executeWithTimeout
                 )
             }
-            traceSession.record(
+            traceSession?.record(
                 kind = KellvynAgentLabEventKind.TOOL_FINISHED,
                 step = step,
                 toolName = tool.spec.name,
@@ -873,7 +873,7 @@ internal class KellvynAgent(
             result
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
-                traceSession.record(
+                traceSession?.record(
                     kind = KellvynAgentLabEventKind.TOOL_FINISHED,
                     step = step,
                     toolName = tool.spec.name,
@@ -884,7 +884,7 @@ internal class KellvynAgent(
             }
             throw cancelled
         } catch (error: Exception) {
-            traceSession.record(
+            traceSession?.record(
                 kind = KellvynAgentLabEventKind.TOOL_FINISHED,
                 step = step,
                 toolName = tool.spec.name,
