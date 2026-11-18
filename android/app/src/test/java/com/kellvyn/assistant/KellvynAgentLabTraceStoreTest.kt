@@ -142,6 +142,26 @@ class KellvynAgentLabTraceStoreTest {
     }
 
     @Test
+    fun reviewRequiredOutcomeSurvivesEncryptedTraceRoundTrip() {
+        val traceId = "00000000-0000-0000-0000-000000000006"
+        store.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = 100L,
+                kind = KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED,
+                actor = "benchmark:researcher",
+                specialistRole = KellvynSpecialistRole.RESEARCHER,
+                outcome = KellvynAgentLabOutcome.REVIEW_REQUIRED,
+                detailCode = "RESEARCH_CASE_01"
+            )
+        )
+
+        val restored = store.history(traceId).single().event
+        assertEquals(KellvynAgentLabOutcome.REVIEW_REQUIRED, restored.outcome)
+        assertEquals("benchmark:researcher", restored.actor)
+    }
+
+    @Test
     fun cancelledRunIsTerminalAndEligibleForExplicitRetentionPruning() {
         val traceId = "00000000-0000-0000-0000-000000000001"
         store.append(
