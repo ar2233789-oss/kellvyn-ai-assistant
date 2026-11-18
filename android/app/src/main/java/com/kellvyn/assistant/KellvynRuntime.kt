@@ -246,7 +246,9 @@ internal class KellvynRuntime(context: Context) {
         projectWriteApprovalGate.approveDelete(projectId, path)
 
     /** Builds the local workspace tool catalogue. Specialist delegation filters this to READ_ONLY. */
-    fun createProjectWorkspaceToolRegistry(): KellvynToolRegistry {
+    fun createProjectWorkspaceToolRegistry(
+        activeProjectId: String? = null
+    ): KellvynToolRegistry {
         val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
         val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
         val automationTools = KellvynAutomationTools.create {
@@ -258,7 +260,11 @@ internal class KellvynRuntime(context: Context) {
         val studioTools = resourceRuntime.studioModules.toolsForCapabilities(
             registeredCapabilities
         )
-        return KellvynToolRegistry(workspaceTools + resourceTools + automationTools + studioTools)
+        val memoryAddresses = memoryAddressesFor(activeProjectId)
+        val memoryTools = KellvynMemoryTools.create(localMemory) { memoryAddresses }
+        return KellvynToolRegistry(
+            workspaceTools + resourceTools + automationTools + studioTools + memoryTools
+        )
     }
 
     /**
@@ -271,7 +277,7 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynAgentConfig = KellvynAgentConfig()
     ): KellvynAgent = createAgent(
         inference = inference,
-        tools = createProjectWorkspaceToolRegistry(),
+        tools = createProjectWorkspaceToolRegistry(activeProjectId),
         activeProjectId = activeProjectId,
         authorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate),
         config = config.copy(
@@ -295,22 +301,11 @@ internal class KellvynRuntime(context: Context) {
         authorization: KellvynToolAuthorization = ReadOnlyKellvynAuthorization,
         config: KellvynAgentConfig = KellvynAgentConfig()
     ): KellvynAgent {
-        val addresses = mutableListOf(KellvynMemoryAddress.global())
-        if (!activeProjectId.isNullOrBlank()) {
-            require(activeProjectId.matches(Regex("[a-z0-9][a-z0-9-]{0,60}"))) {
-                "Identificador de projeto ativo inválido."
-            }
-            require(projectWorkspace.getProject(activeProjectId) != null) {
-                "O projeto ativo não existe no workspace privado."
-            }
-            addresses += KellvynMemoryAddress.project(activeProjectId)
-        }
-        require("memory_search" !in tools.names()) {
-            "A ferramenta memory_search é registrada pelo runtime a partir do escopo autorizado da conversa."
-        }
-        val scopedTools = tools.names().map { name ->
-            requireNotNull(tools.find(name))
-        } + KellvynMemoryTools.create(localMemory) { addresses.toList() }
+        val addresses = memoryAddressesFor(activeProjectId)
+        val scopedTools = tools.names()
+            .filter { it != "memory_search" }
+            .map { name -> requireNotNull(tools.find(name)) } +
+            KellvynMemoryTools.create(localMemory) { addresses }
 
         return KellvynAgent(
             inference = inference,
@@ -324,6 +319,20 @@ internal class KellvynRuntime(context: Context) {
             taskCheckpoints = taskCheckpointRepository,
             taskBroker = taskBroker
         )
+    }
+
+    private fun memoryAddressesFor(activeProjectId: String?): List<KellvynMemoryAddress> {
+        val addresses = mutableListOf(KellvynMemoryAddress.global())
+        if (!activeProjectId.isNullOrBlank()) {
+            require(activeProjectId.matches(Regex("[a-z0-9][a-z0-9-]{0,60}"))) {
+                "Identificador de projeto ativo inválido."
+            }
+            require(projectWorkspace.getProject(activeProjectId) != null) {
+                "O projeto ativo não existe no workspace privado."
+            }
+            addresses += KellvynMemoryAddress.project(activeProjectId)
+        }
+        return addresses.toList()
     }
 
     private suspend fun <T> runHeavyTask(
