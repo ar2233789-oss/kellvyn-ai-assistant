@@ -65,7 +65,13 @@ internal class KellvynAgentLabStudio(
                         append(" | falhas históricas: ").append(traceHealth.failureCount)
                     }
                     traceHealth.lastFailureCode?.let {
-                        append(" | última falha: ").append(it)
+                        append(" | erro: ").append(it)
+                    }
+                    traceHealth.lastFailureEventKind?.let {
+                        append(" | evento perdido: ").append(it.name)
+                    }
+                    traceHealth.lastFailureTraceId?.let {
+                        append(" | trace afetado: ").append(it)
                     }
                     append("\n")
                     append("Bateria: ")
