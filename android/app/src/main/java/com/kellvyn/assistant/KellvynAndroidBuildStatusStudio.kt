@@ -14,14 +14,12 @@ import java.io.File
  * unavailable toolchain from a failed build or a missing test result.
  */
 internal class KellvynAndroidBuildStatusStudio private constructor(
-    context: Context
+    context: Context,
+    workspace: ProjectWorkspaceStore
 ) : KellvynStudioModule {
 
     private val appContext = context.applicationContext
-    private val compiler = LocalAndroidCompiler(
-        appContext,
-        ProjectWorkspaceStore(appContext)
-    )
+    private val compiler = LocalAndroidCompiler(appContext, workspace)
 
     override val manifest: KellvynStudioModuleManifest = MANIFEST
 
@@ -101,8 +99,11 @@ internal class KellvynAndroidBuildStatusStudio private constructor(
             toolSpecs = TOOL_SPECS
         )
 
-        fun definition(context: Context) = KellvynStudioModuleDefinition(MANIFEST) {
-            KellvynAndroidBuildStatusStudio(context.applicationContext)
+        fun definition(
+            context: Context,
+            workspace: ProjectWorkspaceStore
+        ) = KellvynStudioModuleDefinition(MANIFEST) {
+            KellvynAndroidBuildStatusStudio(context.applicationContext, workspace)
         }
 
         private const val MEBIBYTE = 1024L * 1024L
