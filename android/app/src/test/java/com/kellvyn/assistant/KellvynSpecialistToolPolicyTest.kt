@@ -218,4 +218,72 @@ class KellvynSpecialistToolPolicyTest {
         }
     }
 
+
+
+    @Test
+    fun webResearchNetworkReadIsGrantedOnlyToResearcherWhenOwnerSwitchIsEnabled() {
+        val networkTool = KellvynToolSpec(
+            name = "wikipedia_search",
+            description = "Pesquisa na Wikipédia em português.",
+            risk = KellvynToolRisk.NETWORK_READ,
+            capabilities = setOf(KellvynStudioCapability.WEB_RESEARCH)
+        )
+        val allSpecs = specs + networkTool
+
+        assertFalse(
+            "wikipedia_search" in KellvynSpecialistToolPolicy.permittedToolNames(
+                KellvynSpecialistRole.RESEARCHER,
+                allSpecs,
+                allowNetworkRead = false
+            )
+        )
+        assertTrue(
+            "wikipedia_search" in KellvynSpecialistToolPolicy.permittedToolNames(
+                KellvynSpecialistRole.RESEARCHER,
+                allSpecs,
+                allowNetworkRead = true
+            )
+        )
+
+        KellvynSpecialistRole.values()
+            .filter { it != KellvynSpecialistRole.RESEARCHER }
+            .forEach { role ->
+                assertFalse(
+                    "O papel $role não deve receber pesquisa Web.",
+                    "wikipedia_search" in KellvynSpecialistToolPolicy.permittedToolNames(
+                        role,
+                        allSpecs,
+                        allowNetworkRead = true
+                    )
+                )
+            }
+
+        assertEquals(
+            setOf("wikipedia_search"),
+            KellvynSpecialistToolPolicy.deniedRequestedNames(
+                KellvynSpecialistRole.RESEARCHER,
+                setOf("wikipedia_search"),
+                allSpecs,
+                allowNetworkRead = false
+            )
+        )
+    }
+
+    @Test
+    fun webResearchPermissionDoesNotAuthorizeNetworkReadForAnotherCapability() {
+        val misclassified = KellvynToolSpec(
+            name = "network_device_scan",
+            description = "Tool de rede sem capability de pesquisa.",
+            risk = KellvynToolRisk.NETWORK_READ,
+            capabilities = setOf(KellvynStudioCapability.DEVICE_DIAGNOSTICS)
+        )
+        assertFalse(
+            "network_device_scan" in KellvynSpecialistToolPolicy.permittedToolNames(
+                KellvynSpecialistRole.OPERATIONS_ANALYST,
+                specs + misclassified,
+                allowNetworkRead = true
+            )
+        )
+    }
+
 }
