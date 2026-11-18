@@ -33,6 +33,13 @@ class KellvynMemoryToolsTest {
                     "Classificação desconhecida",
                     "Conteúdo cuja privacidade não foi classificada.",
                     privacy = KellvynMemoryPrivacyClass.UNKNOWN
+                ),
+                entry(
+                    "c1",
+                    global,
+                    "Credencial antiga",
+                    "Token antigo que não pode ser exposto.",
+                    privacy = KellvynMemoryPrivacyClass.CREDENTIAL
                 )
             )
         )
@@ -41,6 +48,11 @@ class KellvynMemoryToolsTest {
             addressProvider = { listOf(global, projectA) },
             clock = { now }
         ).single()
+
+        assertEquals(KellvynToolRisk.READ_ONLY, tool.spec.risk)
+        assertEquals(setOf(KellvynStudioCapability.MEMORY_READ), tool.spec.capabilities)
+        assertEquals(setOf("query"), tool.spec.requiredArguments)
+        assertEquals(setOf("limit"), tool.spec.optionalArguments)
 
         val result = tool.execute(mapOf("query" to "idioma arquitetura projeto"))
 
@@ -52,6 +64,7 @@ class KellvynMemoryToolsTest {
         assertFalse(result.content.contains("Outro projeto"))
         assertFalse(result.content.contains("Conteúdo sensível"))
         assertFalse(result.content.contains("Classificação desconhecida"))
+        assertFalse(result.content.contains("Token antigo"))
         assertTrue(result.content.contains("dado não confiável"))
     }
 
