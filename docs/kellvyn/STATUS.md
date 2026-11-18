@@ -605,3 +605,32 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - Runs `44218653002` (agent lab), `44218652911` (neural core) e `44218608802` (agent lab) foram verificados; jobs sem runner, steps e logs_url.
 - O workflow ainda não executou testes na revisão do quarto módulo. Teste instrumental e contrato estão escritos.
 - Typecheck isolado da classe `KellvynAndroidBuildStatusStudio` com stubs do Android/runtime/module APIs mínimos passou; não é Gradle nem compilação Android real.
+
+## Agent Creation Studio invisível — Fase A — 18/11/2026
+
+### Achados da auditoria
+
+- A fundação compartilhada já existia: KellvynStudioModuleManager, ResourceRuntime/ResourceGovernor, workspace, task broker, skills sob demanda e delegação dos 14 papéis.
+- Não havia um módulo de criação/gestão de perfis. As instruções dos papéis estavam embutidas no bloco when de KellvynAgent.
+- O desenho completo do Agent Creation Studio estava apenas em documentação preliminar. A oficina de recursos não deve ser confundida com o construtor de perfis.
+
+### Código acrescentado nesta fase
+
+- KellvynSpecialistProfileRegistry.kt: 14 perfis únicos, versão inicial, missão, instrução, contrato de saída e limites por papel.
+- KellvynAgentCreationStudio.kt: módulo headless READ_ONLY com catálogo, inspeção e validação estrutural.
+- KellvynAgent.kt: delegação agora obtém a missão/instrução e limites do registro em vez do bloco inline.
+- KellvynSpecialistToolPolicy.kt: acesso às ferramentas do Studio limitado a Arquiteto de Programação/Planejamento/Auditor para inspeção e Analista de Testes/Aprendizado/Auditor para validação.
+- KellvynStudioModuleManager.kt: novas capacidades AGENT_DESIGN e AGENT_EVALUATION.
+- KellvynRuntime.kt: registro do Agent Creation Studio no runtime comum.
+
+### Testes e estado
+
+- Criado KellvynSpecialistProfileRegistryTest.kt cobrindo 14 perfis, unicidade, versão, limites, contrato de saída, escopo por papel e rejeição de argumentos inválidos.
+- Os testes foram escritos, mas ainda não foram executados em Gradle/CI.
+- O módulo eleva a contagem de módulos registrados para seis. Isso não significa oito estúdios completos.
+- O catálogo estrutural não comprova competência cognitiva. O cérebro conversacional continua sem integração aprovada ao chat e a qualificação física no Poco F6 ainda não foi executada.
+
+### Pesquisa relacionada
+
+- Pesquisa documentada em AGENT_CAPABILITY_RESEARCH_2026-11-18.md: Lovable/Lovable Academy, Replit Agent, Android Studio Gemini, Cursor, OpenAI Agents SDK, LangGraph, Nano Banana e curso Android Basics with Compose.
+- Especificação do construtor de perfis em AGENT_CREATION_STUDIO_SPEC_2026-11-18.md.
