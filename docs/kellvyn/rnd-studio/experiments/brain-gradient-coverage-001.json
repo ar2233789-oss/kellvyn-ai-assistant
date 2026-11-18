@@ -54,7 +54,7 @@
     "Finite-difference noise in float32 for near-zero derivatives.",
     "Broader configurations may expose genuine math defects or require calibrated tolerances."
   ],
-  "status_note": "Isolated candidate branch has implementation and tests, but workflow run 44405313920 failed before any step (runner_id=0, steps=[]). Do not merge without executing baseline and candidate.",
+  "status_note": "CI failed before all steps: runner_id=0, steps=[]. Candidate remains isolated, not compiled or executed.",
   "research_basis": [
     {
       "source": "https://cs231n.stanford.edu/slides/2016/winter1516_lecture6.pdf",
@@ -72,5 +72,6 @@
   "scope": "brain",
   "candidate_branch": "kellvyn-rnd/brain-gradient-coverage-001",
   "candidate_head": "a580b6577ed27148decbeae3c0cd7a620a0c41c7",
-  "candidate_summary": "Candidate samples zero/non-zero coordinates in all 14 named parameter groups, reports per-group counts and restores perturbed values in finally. Added tests cover all groups and headCount 1/2/4. Not compiled or run."
+  "candidate_summary": "Candidate samples zero/non-zero coordinates in all 14 named parameter groups, reports per-group counts and restores perturbed values in finally. Added tests cover all groups and headCount 1/2/4. Not compiled or run.",
+  "candidate_run_id": 44405313920
 }

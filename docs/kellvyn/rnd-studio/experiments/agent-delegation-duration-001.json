@@ -32,8 +32,17 @@
     "A suíte agents passa.",
     "Sem mudança na semântica de delegação, política ou orçamento."
   ],
-  "status_note": "Workflow run 44404198275 failed before any step (runner_id=0, steps=[]). Candidate remains isolated and must not be merged before the focused agents Gradle suite passes.",
+  "status_note": "CI failed before all steps: runner_id=0, steps=[]. Four tests written; do not merge before agents Gradle passes.",
   "candidate_branch": "kellvyn-rnd/agent-delegation-duration-001",
   "candidate_head": "7a0696d76f35fdb1ae2ec2ad3bd144fab6173953",
-  "candidate_summary": "Candidate adds monotonic timing for completed, failed, budget-blocked and cancelled specialist dispatches, with four deterministic tests. Not compiled or run."
+  "candidate_summary": "Candidate adds monotonic timing for completed, failed, budget-blocked and cancelled specialist dispatches, with four deterministic tests. Not compiled or run.",
+  "candidate_run_id": 44404198275,
+  "implementation": {
+    "test_cases_written": [
+      "recordsMonotonicDurationForCompletedSpecialistDelegation",
+      "recordsMonotonicDurationWhenSpecialistIsCancelledAndPropagatesCancellation",
+      "recordsDurationForDelegationBlockedByBudget",
+      "recordsDurationWhenSpecialistFails"
+    ]
+  }
 }

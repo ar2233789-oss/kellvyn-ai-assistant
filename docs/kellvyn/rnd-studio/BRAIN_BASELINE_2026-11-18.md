@@ -71,3 +71,8 @@ Se um grupo inteiro tiver gradiente analítico acidentalmente zerado por uma reg
 ## Estado do candidato isolado (21:50 UTC)
 
 A implementação candidata está em kellvyn-rnd/brain-gradient-coverage-001; a branch lab não recebeu o patch. O candidato cobre amostras zero/não-zero em todos os 14 grupos e configurações headCount 1/2/4. Dois testes foram escritos/ajustados, mas o workflow 44405313920 não iniciou steps (runner_id=0, steps=[]). Portanto ainda não sabemos se compila, se os limites float32 passam ou se o teste detecta um grupo de gradiente removido. IMPLEMENTED_NOT_RUN; não aprovado.
+
+
+## Referência ao candidato atual
+
+O candidato de verificação dos gradientes está isolado em kellvyn-rnd/brain-gradient-coverage-001, estado IMPLEMENTED_NOT_RUN. Ver SESSION_CONTROL seção 16 e o experimento brain-gradient-coverage-001 para commits e resultados do runner. A branch lab não contém o patch.

@@ -32,3 +32,8 @@ Checkpoint/tokenizer íntegros; qualidade neural elegível para benchmark; decis
 Hipótese brain-agent-contract-001 congela casos para os quatro tipos de decisão e sequencia adapter -> parser -> agent loop -> tool/delegation -> verifier. A primeira rodada usa engine determinística; não comprova competência do modelo.
 
 **Estado:** Runtime de produção desconectado; suíte de contrato preparada, mas não executada.
+
+
+## Candidato atual
+
+A branch kellvyn-rnd/brain-agent-contract-001 adicionou KellvynBrainAgentIntegrationContractTest, com um caso de delegação de especialista e outro de protocolo malformado. Usa ProtocolScriptedEngine, portanto não prova inferência neural real. CI run 44407125400: runner_id=0, steps=[]; NOT RUN. Ver SESSION_CONTROL seção 16.

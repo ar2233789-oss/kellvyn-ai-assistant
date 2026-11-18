@@ -5,7 +5,7 @@
   "title": "Contrato entre decisão neural, loop de agentes e verificador",
   "created_at_utc": "2026-11-18T20:48:00Z",
   "baseline_commit": "7fc53345e659267cedbafdc54d231e8b5e5c0381",
-  "state": "PLANNED",
+  "state": "IMPLEMENTED_NOT_RUN",
   "hypothesis": "O contrato KELLVYN/1 -> parser -> agent loop -> tool/delegation -> verifier pode ser testado sem declarar o Runtime de produção integrado.",
   "candidate_design": [
     "Casos determinísticos para FINAL, CALL_TOOL, PLAN e DELEGATE.",
@@ -32,5 +32,17 @@
     "Relatório distingue engine fake de inferência real.",
     "Runtime permanece não conectado até gate neural real."
   ],
-  "status_note": "Teste de contrato planejado; não prova competência cognitiva nem integração de produção."
+  "status_note": "CI failed before all steps: runner_id=0, steps=[]. Contract traverses real parser/agent/orchestrator code with scripted decisions; no neural checkpoint or production Runtime is exercised.",
+  "candidate_branch": "kellvyn-rnd/brain-agent-contract-001",
+  "candidate_head": "7dc8b6bafa98082b8b8f3020ad716408f0cb4c75",
+  "candidate_run_id": 44407125400,
+  "implementation": {
+    "test_class": "KellvynBrainAgentIntegrationContractTest",
+    "cases": [
+      "protocolDelegationRunsSpecialistWithLeastPrivilegeAndUntrustedHandoff",
+      "malformedWireDecisionFailsBeforeAnyToolExecution"
+    ],
+    "engine": "ProtocolScriptedEngine (deterministic KELLVYN/1 messages; not trained neural inference)",
+    "workflow_scope": "kellvyn-rnd/**"
+  }
 }

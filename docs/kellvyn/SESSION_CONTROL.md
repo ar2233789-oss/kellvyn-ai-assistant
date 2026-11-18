@@ -601,3 +601,27 @@ A R&D Studio possui três tracks. Há dois candidatos técnicos em branches expe
 A branch lab continua sendo a base de integração/documentação. As branches kellvyn-rnd/* são experimentos independentes. Ao retomar: confirmar cada HEAD, executar baseline/candidato quando houver runner, registrar evidência, revisar diff e somente então promover por cherry-pick/merge. Nunca tratar commit existente ou teste escrito como teste aprovado.
 
 A frente Integration permanece como hipótese de contrato entre adapter, parser KELLVYN/1, loop, ferramenta, delegação e verificador. Não afirmar integração de chat: KellvynRuntime.isReady() continua false.
+
+
+## 16. Estado consolidado Brain / Agents / Integration (18/11/2026, 22:05 UTC)
+
+A R&D Studio externa possui três frentes implementadas no utilitário, e três candidatos em branches isoladas. A branch lab é a base de integração documental; não contém patches candidatos.
+
+| Track | Branch candidata | Objetivo | Estado |
+|---|---|---|---|
+| Brain | kellvyn-rnd/brain-gradient-coverage-001 | cobertura numérica nos 14 grupos KN-003 | IMPLEMENTED_NOT_RUN |
+| Agents | kellvyn-rnd/agent-delegation-duration-001 | duração monotônica de delegação em todos os caminhos | IMPLEMENTED_NOT_RUN |
+| Integration | kellvyn-rnd/brain-agent-contract-001 | KELLVYN/1 -> Agent -> ferramenta -> especialista -> UNTRUSTED | IMPLEMENTED_NOT_RUN |
+
+### Evidência e bloqueios
+- Brain: run 44405313920 — runner_id=0, steps=[].
+- Agents: run 44404198275 — runner_id=0, steps=[].
+- Integration: run 44407125400 — runner_id=0, steps=[].
+- Em nenhum caso o Gradle começou. Isso não demonstra falha nem aprovação do Kotlin.
+
+### Limites não negociáveis
+- Não fundir nem promover nenhum candidato sem executar a suite apropriada.
+- Os testes de Integration usam ProtocolScriptedEngine; provam o contrato do parser/agent/orchestrator, não raciocínio do checkpoint neural.
+- KellvynRuntime.isReady() continua false; chat ainda não ligado ao cérebro.
+- Não alterar pesos, interface, MainActivity ou semântica de segurança durante estas experiências.
+- Ao retomar: confirmar HEAD das três branches, rever diffs e evidência; executar os gates quando o runner voltar.

@@ -189,3 +189,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Brain candidate: kellvyn-rnd/brain-gradient-coverage-001, HEAD documentado a580b657. Cobertura de 14 grupos e headCount 1/2/4 está escrita; Gradle NOT RUN. Workflow 44405313920 falhou antes de steps (runner_id=0).
 - Agent candidate: kellvyn-rnd/agent-delegation-duration-001, HEAD documentado 7a0696d. Duração monotônica e quatro testes para sucesso/falha/bloqueio/cancelamento estão escritos; Gradle NOT RUN. Workflow 44404198275 falhou antes de steps (runner_id=0).
 - Experimentos e estado central atualizados para IMPLEMENTED_NOT_RUN. Nenhum candidato foi integrado na branch lab.
+
+
+## 22:05 UTC — ponto de retomada consolidado das três tracks
+
+- Brain candidate: kellvyn-rnd/brain-gradient-coverage-001, HEAD a580b657, run 44405313920, runner_id=0, steps=[].
+- Agent candidate: kellvyn-rnd/agent-delegation-duration-001, HEAD 7a0696d, run 44404198275, runner_id=0, steps=[].
+- Integration candidate: kellvyn-rnd/brain-agent-contract-001, HEAD 7dc8b6b, run 44407125400, runner_id=0, steps=[].
+- Todos estão IMPLEMENTED_NOT_RUN; nenhum código candidato foi promovido para a branch lab.
+- Integration test percorre parser e loop reais com ProtocolScriptedEngine; não executa um checkpoint KN nem habilita o Runtime.
