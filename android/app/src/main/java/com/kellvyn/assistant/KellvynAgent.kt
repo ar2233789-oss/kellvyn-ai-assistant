@@ -756,6 +756,7 @@ internal class KellvynAgent(
                             decision.arguments.toSortedMap().entries.joinToString { "${it.key}=${it.value}" }
                     )
                     if (toolCalls >= config.maxToolCalls) {
+                        recordBlockedTool(traceSession, step, decision.name, "TOOL_CALL_LIMIT")
                         return KellvynAgentResult.LimitReached(
                             "O limite de chamadas de ferramentas desta tarefa foi atingido.",
                             step,
@@ -766,6 +767,7 @@ internal class KellvynAgent(
 
                     val tool = tools.find(decision.name)
                     if (tool == null) {
+                        recordBlockedTool(traceSession, step, decision.name, "NOT_REGISTERED")
                         messages += observation(
                             "tool:${decision.name}",
                             false,
@@ -776,6 +778,7 @@ internal class KellvynAgent(
 
                     val invalidArguments = tools.validate(tool, decision.arguments)
                     if (invalidArguments != null) {
+                        recordBlockedTool(traceSession, step, decision.name, "INVALID_ARGUMENTS")
                         messages += observation(
                             "tool:${decision.name}",
                             false,
@@ -788,6 +791,7 @@ internal class KellvynAgent(
                     val repetitions = (repeatedCalls[signature] ?: 0) + 1
                     repeatedCalls[signature] = repetitions
                     if (repetitions > config.maxSameCallRepeats) {
+                        recordBlockedTool(traceSession, step, decision.name, "REPEAT_LIMIT")
                         messages += observation(
                             "tool:${decision.name}",
                             false,
@@ -804,6 +808,7 @@ internal class KellvynAgent(
                         false
                     }
                     if (!allowed) {
+                        recordBlockedTool(traceSession, step, decision.name, "AUTHORIZATION_DENIED")
                         messages += observation(
                             "tool:${decision.name}",
                             false,
@@ -1005,6 +1010,24 @@ internal class KellvynAgent(
             source = source,
             content = (if (success) "A FERRAMENTA RELATOU SUCESSO; AINDA NÃO FOI VERIFICADO INDEPENDENTEMENTE\n" else "RESULTADO DE ERRO\n") + content
         )
+
+    private suspend fun recordBlockedTool(
+        traceSession: KellvynAgentLabTraceSession,
+        step: Int,
+        requestedName: String,
+        reasonCode: String
+    ) {
+        val safeName = requestedName.takeIf {
+            it.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}"))
+        }
+        traceSession.record(
+            kind = KellvynAgentLabEventKind.TOOL_FINISHED,
+            step = step,
+            toolName = safeName,
+            outcome = KellvynAgentLabOutcome.BLOCKED,
+            detailCode = if (safeName == null) "INVALID_TOOL_NAME" else reasonCode
+        )
+    }
 
     private fun safeMessage(error: Exception): String =
         (error.message ?: error.javaClass.simpleName).take(500)
