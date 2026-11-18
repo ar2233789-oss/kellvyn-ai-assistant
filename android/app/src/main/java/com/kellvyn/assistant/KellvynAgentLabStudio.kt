@@ -11,13 +11,7 @@ internal class KellvynAgentLabStudio(
     private val traceStore: KellvynAgentLabTraceStore,
     private val moduleManager: KellvynStudioModuleManager,
     private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
-    private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
-        KellvynAgentLabTraceRecorderHealth(
-            currentlyWritable = true,
-            failureCount = 0,
-            lastFailureCode = null
-        )
-    }
+    private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth
 ) : KellvynStudioModule {
 
     override val manifest: KellvynStudioModuleManifest = MANIFEST
@@ -61,6 +55,8 @@ internal class KellvynAgentLabStudio(
                         .append(
                             when {
                                 traceHealth.healthy -> "SAUDÁVEL"
+                                !traceHealth.hasSuccessfulWrite && traceHealth.failureCount == 0 ->
+                                    "AINDA NÃO TESTADA"
                                 traceHealth.currentlyWritable -> "RECUPERADA COM FALHAS ANTERIORES"
                                 else -> "DEGRADADA"
                             }
@@ -368,13 +364,7 @@ internal class KellvynAgentLabStudio(
             traceStore: KellvynAgentLabTraceStore,
             moduleManager: KellvynStudioModuleManager,
             resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
-            traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
-                KellvynAgentLabTraceRecorderHealth(
-            currentlyWritable = true,
-            failureCount = 0,
-            lastFailureCode = null
-        )
-            }
+            traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth
         ) = KellvynStudioModuleDefinition(MANIFEST) {
             KellvynAgentLabStudio(
                 traceStore = traceStore,
