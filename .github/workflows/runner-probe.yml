@@ -1,0 +1,34 @@
+name: Kellvyn runner allocation probe
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - lab/kellvyn-intelligence-core-20261116
+    paths:
+      - '.github/workflows/runner-probe.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kellvyn-runner-probe
+  cancel-in-progress: true
+
+jobs:
+  runner-probe:
+    name: Minimal GitHub-hosted runner allocation
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Confirm runner was allocated
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'RUNNER_PROBE_STARTED=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          printf 'RUNNER_OS=%s\n' "${RUNNER_OS:-unknown}"
+          printf 'RUNNER_ARCH=%s\n' "${RUNNER_ARCH:-unknown}"
+          printf 'RUNNER_NAME=%s\n' "${RUNNER_NAME:-unknown}"
+          printf 'GITHUB_REF=%s\n' "${GITHUB_REF:-unknown}"
+          uname -a
+          echo 'RUNNER_PROBE_OK'
