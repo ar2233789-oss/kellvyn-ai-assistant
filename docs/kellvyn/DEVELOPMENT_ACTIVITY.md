@@ -159,3 +159,5 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - CI run `44390151347`: failure antes de steps, `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
 - Cérebro, orquestrador, perfis, Agent Lab Android, interface e pesos permaneceram intocados.
 - Próxima tarefa: hipótese isolada `brain-gradient-coverage-001`, com baseline e teste Gradle real antes de qualquer alteração neural.
+
+- 20:32 UTC — pesquisa de gradcheck refinou a hipótese: cobertura por tensor + derivada direcional seeded, diferenças centrais, calibração float32/epsilon e controle negativo. Fontes: Stanford CS231n, PyTorch gradcheck e JAX check_grads. Ainda PLANNED / NOT RUN.

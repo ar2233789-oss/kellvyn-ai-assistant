@@ -19,32 +19,54 @@
     "limitation": "No per-group assertion when the candidate coordinate list is empty."
   },
   "candidate_design": [
-    "Select deterministic coordinates from every parameter group regardless of analytic gradient magnitude.",
-    "Include both coordinates with non-zero analytic gradients and representative zero-gradient coordinates.",
+    "Select deterministic coordinates from every one of the 14 parameter arrays regardless of analytic gradient magnitude; include zero and non-zero analytic gradient coordinates.",
+    "For each parameter array, add a seeded random-direction directional-derivative check: compare the central finite difference along a normalized direction against the dot product of the analytic gradient and that direction.",
     "Run more than one seed and headCount values 1, 2 and 4 using valid even head dimensions.",
     "Vary context lengths and include EOS as a supervised target.",
-    "Report checked coordinate count and max absolute/relative error per parameter group."
+    "Sweep several finite-difference epsilons in float32 and look for a stable error plateau rather than assuming smaller epsilon is always better.",
+    "Report coordinate counts, directional errors and max absolute/relative error per parameter array."
   ],
   "controls": [
     "Use same model implementation/configuration/seed between baseline and candidate.",
     "Use central finite differences with explicit epsilon and identical numerical tolerances.",
-    "No production weights, checkpoints, tokenizer format or app runtime changes."
+    "No production weights, checkpoints, tokenizer format or app runtime changes.",
+    "Use centered finite differences for all numerical comparisons.",
+    "Report absolute error for near-zero gradients; relative error must handle the both-zero case explicitly and must not hide small but materially different gradients.",
+    "Keep forward/loss deterministic and avoid changing optimizer or training state during perturbations."
   ],
   "metrics": [
     "coordinates_checked_per_parameter_group",
+    "directional_checks_per_parameter_group",
     "max_absolute_error_per_group",
     "max_relative_error_per_group",
+    "epsilon_stability_profile",
     "test_duration"
   ],
   "acceptance_criteria": [
-    "Every one of the 14 ParameterSet arrays has at least one finite-difference coordinate checked.",
+    "Every one of the 14 ParameterSet arrays has at least one coordinate finite-difference check, including zero/non-zero analytic values where present.",
+    "Every one of the 14 arrays passes at least one seeded directional-derivative check.",
     "All sampled numerical/analytic values are finite.",
-    "Absolute and relative errors remain within predeclared tolerances with relative error not over-weighting near-zero values.",
-    "Gradle neural/unit suite passes on unchanged baseline and candidate."
+    "Absolute and relative errors remain within predeclared, precision-calibrated tolerances over a stable epsilon range.",
+    "Gradle neural/unit suite passes on unchanged baseline and candidate.",
+    "A negative-control mutation that removes one parameter group's analytic gradient is detected by the checker."
   ],
   "risks": [
     "Finite-difference noise in float32 for near-zero derivatives.",
     "Broader configurations may expose genuine math defects or require calibrated tolerances."
   ],
-  "status_note": "This is a test-coverage hypothesis, not a discovered incorrect model gradient. No test has been executed for this experiment."
+  "status_note": "This is a test-coverage hypothesis, not a discovered incorrect model gradient. The experiment has not been executed.",
+  "research_basis": [
+    {
+      "source": "https://cs231n.stanford.edu/slides/2016/winter1516_lecture6.pdf",
+      "note": "CS231n lecture 6 slide 64 advises centered differences, scale-aware relative comparison, explicit both-zero handling, awareness of float32 and epsilon, and checking selected coordinates in every separate parameter tensor."
+    },
+    {
+      "source": "https://docs.pytorch.org/docs/stable/notes/gradcheck.html",
+      "note": "PyTorch documents central finite differences and warns that defaults are designed for double precision and may fail with lower-precision inputs."
+    },
+    {
+      "source": "https://docs.jax.dev/en/latest/_autosummary/jax.test_util.check_grads.html",
+      "note": "JAX check_grads uses a single randomly selected direction to reduce numerical-check cost; adapt as an additional directional check per tensor group, not as a replacement for coordinate coverage."
+    }
+  ]
 }

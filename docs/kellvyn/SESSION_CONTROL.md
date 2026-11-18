@@ -540,3 +540,7 @@ Abrir uma tarefa isolada `brain-gradient-coverage-001` no clone local, executar 
 - Intocados nesta implementação: `MainActivity.java`, `.github/interface-lock.sha`, UI/layout/efeitos, modelos/pesos/checkpoints neurais, `KellvynRuntime`, `KellvynAgent`, `KellvynOrchestrator` e os módulos do Agent Lab Android.
 - Não há APK novo, teste em emulador, execução neural de produção ou validação no Poco F6.
 - A R&D Studio não faz commit/push/merge automático, não treina pesos por conta própria e não substitui isolamento de processo (Git worktree é isolamento de árvore Git, não sandbox de sistema operacional).
+
+### Refinamento da hipótese KN-003 — 18/11/2026, 20:32 UTC
+
+A pesquisa de métodos de gradcheck refinou `brain-gradient-coverage-001`: além de coordenadas selecionadas em cada um dos 14 arrays, testar uma direção determinística normalizada por array; usar diferenças centrais; calibrar epsilon em float32 por estabilidade; tratar explicitamente gradientes ambos-zero; incluir controle negativo que zera deliberadamente uma família. Referências e decisão estão no `research-ledger.jsonl` e no `GRADIENT_CHECK_AUDIT_2026-11-18.md`. Continua PLANNED / NOT RUN; nenhum código neural foi alterado.
