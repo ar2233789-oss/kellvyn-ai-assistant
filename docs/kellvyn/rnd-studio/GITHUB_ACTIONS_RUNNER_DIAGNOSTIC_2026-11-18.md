@@ -49,3 +49,15 @@ Somente inspecionar; não alterar orçamento, não adicionar cartão e não habi
 6. Se o budget não explicar o bloqueio, enviar ao GitHub Support os run IDs, job IDs, horário UTC, labels e o padrão runner_id=0/steps=[].
 
 Não automatizar a mudança de billing. O Studio não deve modificar plano, orçamento ou método de pagamento.
+
+
+## Nova evidência — 18/11/2026, 23:55 UTC
+
+A nova branch `kellvyn-rnd/agent-trace-duration-port-20261118` repetiu a falha de alocação nos runs `44424776449` e `44424784548`. Em ambos, os três jobs (Python CLI, probe `ubuntu-slim`, Unit/Android instrumented) terminaram com `runner_id=0`, nome de runner vazio e zero steps. Portanto, Python, Gradle e Android tests não começaram.
+
+A documentação oficial atual confirma que repositórios privados consomem o compute incluído da conta e que um budget de Actions com bloqueio ao atingir o limite impede novos GitHub-hosted runners até o próximo ciclo ou ajuste do budget. Isso torna o budget uma hipótese prioritária para inspeção, mas não comprova que seja a causa desta conta:
+- https://docs.github.com/en/actions/concepts/billing-and-usage
+- https://docs.github.com/en/billing/how-tos/set-up-budgets
+- https://docs.github.com/en/billing/reference/product-usage-included
+
+Inspecionar apenas: billing da conta dona do repositório (compute incluído, budget Actions, Amount spent e `Stop usage when budget limit is reached`) e Settings → Actions → General. Não alterar budget, cobrança ou método de pagamento sem autorização explícita. Se não houver bloqueio de billing/política, escalar ao GitHub Support com os run IDs acima.
