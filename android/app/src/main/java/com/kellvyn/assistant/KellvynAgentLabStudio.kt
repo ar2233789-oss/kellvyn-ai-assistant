@@ -10,7 +10,10 @@ import kotlinx.coroutines.withContext
 internal class KellvynAgentLabStudio(
     private val traceStore: KellvynAgentLabTraceStore,
     private val moduleManager: KellvynStudioModuleManager,
-    private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot
+    private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
+    private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
+        KellvynAgentLabTraceRecorderHealth(healthy = true, lastFailureCode = null)
+    }
 ) : KellvynStudioModule {
 
     override val manifest: KellvynStudioModuleManifest = MANIFEST
@@ -26,6 +29,7 @@ internal class KellvynAgentLabStudio(
                 val snapshot = resourceSnapshotProvider()
                 val modules = moduleManager.manifests()
                 val loadedModules = moduleManager.loadedModuleIds()
+                val traceHealth = traceRecorderHealthProvider()
                 val output = buildString {
                     append("KELLVYN AGENT LAB — AMBIENTE\n")
                     append("Módulos registrados: ").append(modules.size)
@@ -342,9 +346,17 @@ internal class KellvynAgentLabStudio(
         fun definition(
             traceStore: KellvynAgentLabTraceStore,
             moduleManager: KellvynStudioModuleManager,
-            resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot
+            resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
+            traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth = {
+                KellvynAgentLabTraceRecorderHealth(healthy = true, lastFailureCode = null)
+            }
         ) = KellvynStudioModuleDefinition(MANIFEST) {
-            KellvynAgentLabStudio(traceStore, moduleManager, resourceSnapshotProvider)
+            KellvynAgentLabStudio(
+                traceStore = traceStore,
+                moduleManager = moduleManager,
+                resourceSnapshotProvider = resourceSnapshotProvider,
+                traceRecorderHealthProvider = traceRecorderHealthProvider
+            )
         }
     }
 }
