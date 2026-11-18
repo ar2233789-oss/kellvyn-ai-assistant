@@ -218,3 +218,19 @@ Nenhum desses testes está aprovado por Gradle/CI até a infraestrutura alocar r
 
 ### Estado de execução
 As novas provas de persistência resiliente, saúde do gravador e telemetria foram escritas. Ainda não foram executadas pelo Gradle/JUnit/Android Runner; GitHub Actions continua falhando antes da alocação de runner. Não há build APK ou validação no Poco F6 nesta etapa.
+
+
+## 17. Estados de avaliação e revisão humana — 18/11/2026
+
+O harness agora distingue PASSED, REVIEW_REQUIRED, FAILED e BLOCKED.
+
+- Evidência verificada conta para a cobertura aprovada.
+- Evidência que o verificador não consegue concluir automaticamente deve ser marcada em reviewRequiredEvidence e recebe REVIEW_REQUIRED.
+- O mesmo critério não pode estar ao mesmo tempo verificado e pendente.
+- Critérios fora da rubrica ou ausentes sem encaminhamento para revisão reprovam o caso.
+- A suíte agrega estados de maneira conservadora: falha/violação reprova; bloqueio permanece bloqueio; revisão necessária nunca é contabilizada como aprovado.
+- A comparação de traces mostra aprovados e pendentes de revisão separadamente.
+
+A classificação não substitui o verificador. Não existe ainda grader semântico validado para todos os 28 cenários. Critérios de texto livre precisam ser classificados por oráculo objetivo, revisão humana ou verificação semântica independente antes de alegar competência.
+
+Testes unitários foram escritos para casos pendentes, critérios desconhecidos/conflitantes, estado agregado da suíte e persistência do estado no trace criptografado; ainda aguardam execução Gradle/Android Runner.
