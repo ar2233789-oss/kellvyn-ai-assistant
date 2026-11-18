@@ -29,7 +29,9 @@ internal enum class KellvynStudioCapability {
     WORKFLOW_AUTOMATION,
     WEB_RESEARCH,
     MEMORY_READ,
-    SECURITY_AUDIT
+    SECURITY_AUDIT,
+    AGENT_DESIGN,
+    AGENT_EVALUATION
 }
 
 internal enum class KellvynStudioPermission {
