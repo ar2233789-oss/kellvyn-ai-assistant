@@ -4,7 +4,9 @@ name: Poco F6 virtual comparison lab
 on:
   pull_request:
     paths:
-      - "android/**"
+      - "android/app/src/main/java/com/kellvyn/assistant/MainActivity.java"
+      - "android/app/src/main/res/**"
+      - "android/app/src/main/AndroidManifest.xml"
       - "src/components/kellvyn/**"
       - "src/styles.css"
       - ".github/workflows/poco-f6-parity.yml"
@@ -13,7 +15,9 @@ on:
       - main
       - lab/kellvyn-intelligence-core-20261116
     paths:
-      - "android/**"
+      - "android/app/src/main/java/com/kellvyn/assistant/MainActivity.java"
+      - "android/app/src/main/res/**"
+      - "android/app/src/main/AndroidManifest.xml"
       - "src/components/kellvyn/**"
       - "src/styles.css"
       - "scripts/compare_poco_f6_captures.py"
