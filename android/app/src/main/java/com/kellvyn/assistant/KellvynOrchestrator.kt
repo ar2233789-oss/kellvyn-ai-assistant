@@ -25,7 +25,8 @@ internal class KellvynOrchestrator(
     private val skillRegistry: KellvynSkillRegistry,
     private val taskBroker: KellvynTaskBroker?,
     private val networkReadEnabled: () -> Boolean,
-    private val specialistProfiles: KellvynSpecialistProfileRegistry
+    private val specialistProfiles: KellvynSpecialistProfileRegistry,
+    private val resourceSnapshotProvider: (suspend () -> KellvynResourceSnapshot)? = null
 ) {
     /** Creates per-run state so concurrent conversations never share delegation budgets. */
     fun newSession(
@@ -208,7 +209,8 @@ internal class KellvynOrchestrator(
             taskBroker = taskBroker,
             traceSessionFactory = {
                 traceSession.forActor("specialist:${decision.role.name.lowercase()}")
-            }
+            },
+            resourceSnapshotProvider = resourceSnapshotProvider
         )
 
         val specialistResult = try {
