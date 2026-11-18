@@ -40,6 +40,7 @@ internal object KellvynSpecialistToolPolicy {
         ),
         KellvynSpecialistRole.PROGRAMMING_ARCHITECT to setOf(
             KellvynStudioCapability.AGENT_DESIGN,
+            KellvynStudioCapability.AGENT_EVALUATION,
             KellvynStudioCapability.CODE_NAVIGATION,
             KellvynStudioCapability.UI_LAYOUT,
             KellvynStudioCapability.DATA_MODELING
@@ -54,6 +55,7 @@ internal object KellvynSpecialistToolPolicy {
         ),
         KellvynSpecialistRole.PLANNING_ANALYST to setOf(
             KellvynStudioCapability.AGENT_DESIGN,
+            KellvynStudioCapability.AGENT_EVALUATION,
             KellvynStudioCapability.WORKFLOW_AUTOMATION,
             KellvynStudioCapability.DEVICE_DIAGNOSTICS,
             KellvynStudioCapability.DATA_MODELING
