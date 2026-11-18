@@ -524,3 +524,42 @@ Usar somente **KN-001 / KN-002 / KN-003** como identificadores técnicos das ver
 - Commits relevantes de código nesta sequência: Governor `322a0b84e8bf4d41f903ffb94009a918b0d15c4f`; monitor `51e197ab1bb4ac1b25ed1e72f662b9591d0fbdcc`; Agent `9a6840e2b6665d8c6ee6c23b41dadb7494d97677`; Broker queue timeout fix `4a46e2e53cf5d12a74cbbd6977a481ec01a70036`; ResourceRuntime `a5e75a578e561f6fea62362d6c1a86c7e936842d`; ResourceTools `8688e8e4ec899b7ccfeeca7d18d31c5781a43b7c`; APK bridge gate `36516acbc7754acdabe63ad30f0c957bac37b073`.
 - Próxima sequência: fila persistente/prioridades e retomada; onTrimMemory + descarte central de caches; manifests de módulos com carregamento lazy; ferramentas por capacidade e por papel; métricas por tarefa; validação real Gradle/AVD e Poco F6 físico.
 - Estado: primeira fundação de admissão/controle compartilhado escrita; laboratório inteiro e os estúdios de design/imagem/3D ainda não implementados. Cérebro conversacional continua sem inferência aprovada ligada ao chat. Interface não foi alterada.
+
+
+## 18. Retomada de oficina após auditoria cruzada — 18/11/2026
+
+**HEAD conferida:** `937001c85205666b013aaf8854c1c830409617ef` em `lab/kellvyn-intelligence-core-20261116`.
+
+A auditoria cruzada confirmou que as três branches históricas do laboratório são linhas divergentes. Não fazer merge geral. Extrair operações úteis e adaptar para a arquitetura headless:
+- Super Lab: auditoria web/Android, execução isolada, evidências e pipeline de cenas.
+- Studio Workbench: comparação raster, análise temporal de efeitos, paletas, desenho, cenas 3D/4D e keyframes.
+- Poco F6 upgrades: paridade visual, captura de raios, recuperação de tela e diagnóstico de AVD.
+
+### Código da oficina atual confirmado
+- Fila SQLite criptografada, com prioridade, tentativas, adiamento, cancelamento de tarefas pendentes e recuperação de tarefas RUNNING.
+- Scheduler com handlers registrados em memória por sessão e execução sob Resource Broker.
+- Worker WorkManager limitado a duas tarefas LIGHT/STANDARD por sessão; HEAVY permanece para execução em primeiro plano.
+- ResourceRuntime com fila persistente, cache reclaimers, callbacks de pressão de memória e descarregamento de módulos ociosos.
+- ModuleManager com manifests, seleção por capacidade, carregamento lazy, leases e verificação de que ferramentas carregadas correspondem ao manifesto.
+- Módulos concretos registrados: Code Navigation, Security Audit e Data Architecture.
+- Automation tool visível ao modelo é somente leitura. O runtime não registra handlers de produção nesta HEAD.
+
+### Ponto de parada preciso
+A fundação da oficina já foi além do broker efêmero descrito nas notas antigas: fila persistente e WorkManager foram escritos. O próximo bloqueio não é “criar fila”; é registrar e validar o primeiro handler concreto com contrato limitado, idempotência e evidência end-to-end. O teste atual do worker vazio não prova execução de tarefa real.
+
+### Primeira tarefa da próxima sessão
+Implementar um handler interno de baixo risco e sem mutação destrutiva, integrá-lo ao runtime e adicionar testes instrumentais para:
+1. enqueue de payload válido e rejeição de payload inválido;
+2. handler explicitamente registrado executa uma vez e grava resumo;
+3. handler ausente é adiado sem bloquear tarefas de outros handlers;
+4. reinício recupera RUNNING de forma at-least-once;
+5. cancelamento, retry e maxAttempts mantêm estados consistentes;
+6. worker em background nunca reivindica HEAVY.
+
+Não habilitar ferramenta de escrita/execução genérica para agentes. Especialistas permanecem READ_ONLY até a confirmação do proprietário e gates independentes.
+
+### Validação e limites
+- Os testes unitários puros do Resource Governor e harnesses locais anteriores são evidência limitada; não substituem Gradle.
+- Os últimos jobs com runner_id=0/zero steps não executaram código.
+- Nenhuma validação física Poco F6 nem APK final está comprovada.
+- Manter layout e interface aprovados sem alterações.
