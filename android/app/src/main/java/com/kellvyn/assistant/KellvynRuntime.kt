@@ -360,17 +360,19 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Runs a sequential, independently verified specialist suite with the currently active
-     * profiles and registered tools. Every case is attached to one encrypted local experiment trace.
-     * The executor and verifier are supplied by trusted application code, never by model output.
+     * Runs a sequential, independently verified specialist suite with active or experimental
+     * candidate profiles and registered tools. Candidate profiles are evaluated in memory only:
+     * this method never stages, approves, promotes or rolls them back. Every case is attached to one
+     * encrypted local experiment trace. Executor/verifier are supplied by trusted application code.
      */
     suspend fun runAgentLabBenchmarkSuite(
         executor: KellvynSpecialistBenchmarkExecutor,
         verifier: KellvynSpecialistBenchmarkVerifier,
         cases: List<KellvynSpecialistBenchmarkCase> = KellvynSpecialistBenchmarkRegistry.default().cases(),
-        activeProjectId: String? = null
+        activeProjectId: String? = null,
+        candidateProfiles: List<KellvynSpecialistProfile>? = null
     ): KellvynSpecialistBenchmarkReport {
-        val profiles = activeSpecialistProfiles()
+        val profiles = candidateProfiles ?: activeSpecialistProfiles()
         val availableTools = createProjectWorkspaceToolRegistry(activeProjectId).descriptions()
         val harness = KellvynSpecialistEvaluationHarness(
             executor = executor,
