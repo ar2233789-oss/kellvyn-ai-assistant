@@ -3,6 +3,8 @@ package com.kellvyn.assistant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 
 internal enum class KellvynSpecialistBenchmarkStatus {
     PASSED,
@@ -232,7 +234,7 @@ internal class KellvynSpecialistEvaluationHarness(
         trace.record(
             kind = KellvynAgentLabEventKind.EXPERIMENT_STARTED,
             outcome = KellvynAgentLabOutcome.STARTED,
-            detailCode = "SPECIALIST_BENCHMARK"
+            detailCode = "SUITE_${suiteFingerprint(cases, profiles, availableTools, allowNetworkRead)}"
         )
         return try {
             val duplicateCaseIds = cases.groupingBy { it.caseId }
@@ -327,6 +329,53 @@ internal class KellvynSpecialistEvaluationHarness(
             }
             throw error
         }
+    }
+
+    /**
+     * Stable fingerprint of the dataset, profiles, policy-visible tools and network mode.
+     * Only the digest is persisted; task/context text never enters the trace record.
+     */
+    private fun suiteFingerprint(
+        cases: List<KellvynSpecialistBenchmarkCase>,
+        profiles: List<KellvynSpecialistProfile>,
+        availableTools: List<KellvynToolSpec>,
+        allowNetworkRead: Boolean
+    ): String {
+        val fields = mutableListOf("allowNetworkRead=$allowNetworkRead")
+        cases.sortedBy { it.caseId }.forEach { testCase ->
+            fields += testCase.caseId
+            fields += testCase.role.name
+            fields += testCase.kind.name
+            fields += testCase.title
+            fields += testCase.task
+            fields += testCase.controlledContext
+            fields += testCase.requiredEvidence.joinToString("\u001f")
+            fields += testCase.prohibitedBehaviors.joinToString("\u001f")
+            fields += testCase.requiredCapabilities.map { it.name }.sorted().joinToString(",")
+        }
+        profiles.sortedBy { it.role.name }.forEach { profile ->
+            fields += profile.role.name
+            fields += profile.version.toString()
+            fields += profile.displayName
+            fields += profile.mission
+            fields += profile.instruction
+            fields += profile.requiredOutputSections.joinToString("\u001f")
+            fields += profile.maxSteps.toString()
+            fields += profile.maxToolCalls.toString()
+            fields += profile.maxContextChars.toString()
+        }
+        availableTools.sortedBy { it.name }.forEach { spec ->
+            fields += spec.name
+            fields += spec.risk.name
+            fields += spec.capabilities.map { it.name }.sorted().joinToString(",")
+        }
+        val canonical = fields.joinToString(separator = "") { field ->
+            val length = field.toByteArray(StandardCharsets.UTF_8).size
+            "$length:$field;"
+        }
+        return MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(StandardCharsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(byte) }
     }
 
     private fun safeCode(value: String): String =
