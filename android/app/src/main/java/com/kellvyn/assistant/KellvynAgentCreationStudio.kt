@@ -19,12 +19,21 @@ internal class KellvynAgentCreationStudio(
                 if (arguments.isNotEmpty()) {
                     return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
                 }
+                val compilation = profiles.compileAll()
+                if (!compilation.success) {
+                    return KellvynToolResult(
+                        false,
+                        "O catálogo não passou pelo Profile Compiler: " + compilation.errors.joinToString(" ")
+                    )
+                }
+                val compiledByRole = compilation.profiles.associateBy { it.role }
                 val catalogue = profiles.profiles().joinToString("\n") { profile ->
                     val capabilities = KellvynSpecialistToolPolicy.capabilitiesFor(profile.role)
                         .map { it.name }
                         .sorted()
                         .joinToString(", ")
-                    "- ${profile.role.name}: ${profile.displayName} (v${profile.version}) — " +
+                    val hash = compiledByRole[profile.role]?.profileSha256?.take(12) ?: "sem-hash"
+                    "- ${profile.role.name}: ${profile.displayName} (v${profile.version}, sha256:$hash) — " +
                         "${profile.mission} Capacidades: $capabilities."
                 }
                 return KellvynToolResult(
@@ -46,7 +55,13 @@ internal class KellvynAgentCreationStudio(
                 val rawRole = arguments["role"]?.trim().orEmpty()
                 val role = KellvynSpecialistRole.values().firstOrNull { it.name == rawRole }
                     ?: return KellvynToolResult(false, "Papel especialista inválido.")
+                val compilation = profiles.compileAll()
+                if (!compilation.success) {
+                    return KellvynToolResult(false, "O perfil não passou pelo Profile Compiler.")
+                }
                 val profile = profiles.requireProfile(role)
+                val compiledProfile = compilation.profiles.firstOrNull { it.role == role }
+                    ?: return KellvynToolResult(false, "O perfil não pôde ser compilado.")
                 val capabilities = KellvynSpecialistToolPolicy.capabilitiesFor(role)
                     .map { it.name }
                     .sorted()
@@ -56,6 +71,7 @@ internal class KellvynAgentCreationStudio(
                     "PERFIL: ${profile.displayName}\n" +
                         "PAPEL: ${profile.role.name}\n" +
                         "VERSÃO: ${profile.version}\n" +
+                        "SHA-256: ${compiledProfile.profileSha256}\n" +
                         "MISSÃO: ${profile.mission}\n" +
                         "INSTRUÇÃO: ${profile.instruction}\n" +
                         "CAPACIDADES DA POLÍTICA CENTRAL: $capabilities\n" +
@@ -74,18 +90,18 @@ internal class KellvynAgentCreationStudio(
                 if (arguments.isNotEmpty()) {
                     return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
                 }
-                val errors = profiles.validationErrors()
-                return if (errors.isEmpty()) {
+                val report = profiles.compileAll()
+                return if (report.success) {
                     KellvynToolResult(
                         true,
-                        "VALIDAÇÃO ESTRUTURAL APROVADA: 14/14 perfis existem, são únicos, versionados, " +
-                            "somente leitura e respeitam os limites. Isto não prova competência cognitiva; " +
-                            "o benchmark comportamental independente continua obrigatório."
+                        "PROFILE COMPILER APROVADO: ${report.profiles.size}/14 perfis compilados; " +
+                            "cada perfil recebeu hash SHA-256 e capacidades resolvidas pela política central. " +
+                            "Isto valida a estrutura, não a competência cognitiva; o benchmark independente continua obrigatório."
                     )
                 } else {
                     KellvynToolResult(
                         false,
-                        "VALIDAÇÃO ESTRUTURAL REPROVADA:\n" + errors.joinToString("\n")
+                        "PROFILE COMPILER REPROVADO:\n" + report.errors.joinToString("\n")
                     )
                 }
             }
