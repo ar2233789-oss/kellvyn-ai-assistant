@@ -253,7 +253,7 @@ internal class KellvynAgentLabTraceStore(
         input.readFully(encrypted)
         check(input.available() == 0) { "O registro contém bytes extras." }
 
-        val event = decodeEvent(cipher.decrypt(encrypted, authenticatedHeader))
+        val event = decodeEvent(cipher.decrypt(encrypted, authenticatedHeader), traceId, occurredAtMillis)
         check(event.traceId == traceId && event.occurredAtMillis == occurredAtMillis)
         return KellvynAgentLabTraceRecord(
             sequence = sequence,
@@ -303,7 +303,11 @@ internal class KellvynAgentLabTraceStore(
             }
         }.toByteArray()
 
-    private fun decodeEvent(bytes: ByteArray): KellvynAgentLabEvent {
+    private fun decodeEvent(
+        bytes: ByteArray,
+        traceId: String,
+        occurredAtMillis: Long
+    ): KellvynAgentLabEvent {
         require(bytes.size in 1..MAX_EVENT_BYTES)
         val input = DataInputStream(ByteArrayInputStream(bytes))
         val kind = enumValueOf<KellvynAgentLabEventKind>(readString(input, MAX_ENUM_BYTES))
@@ -318,27 +322,7 @@ internal class KellvynAgentLabTraceStore(
             ?.let { enumValueOf<KellvynAgentLabOutcome>(it) }
         val detailCode = readNullableString(input, MAX_DETAIL_CODE_BYTES)
         check(input.available() == 0) { "O payload do evento contém dados extras." }
-        // Time and trace ID are authenticated in the record header, not repeated in payload.
-        return PendingDecodedEvent(kind, actor, step, role, toolName, profileHash, duration, outcome, detailCode)
-            .toEventPayloadPlaceholder()
-    }
-
-    /*
-     * decodeEvent is completed by readRecord using authenticated header fields. These helpers
-     * keep the payload schema versioned and make the header the single source of trace identity.
-     */
-    private data class PendingDecodedEvent(
-        val kind: KellvynAgentLabEventKind,
-        val actor: String,
-        val step: Int?,
-        val role: KellvynSpecialistRole?,
-        val toolName: String?,
-        val profileHash: String?,
-        val duration: Long?,
-        val outcome: KellvynAgentLabOutcome?,
-        val detailCode: String?
-    ) {
-        fun toEvent(traceId: String, occurredAtMillis: Long) = KellvynAgentLabEvent(
+        return KellvynAgentLabEvent(
             traceId = traceId,
             occurredAtMillis = occurredAtMillis,
             kind = kind,
@@ -350,10 +334,6 @@ internal class KellvynAgentLabTraceStore(
             durationMillis = duration,
             outcome = outcome,
             detailCode = detailCode
-        )
-        fun toEventPayloadPlaceholder(): KellvynAgentLabEvent = toEvent(
-            traceId = "00000000-0000-0000-0000-000000000000",
-            occurredAtMillis = 1L
         )
     }
 
