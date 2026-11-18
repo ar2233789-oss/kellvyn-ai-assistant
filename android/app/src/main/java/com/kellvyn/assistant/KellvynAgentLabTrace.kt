@@ -162,7 +162,9 @@ internal data class KellvynAgentLabTraceRecorderHealth(
     val hasSuccessfulWrite: Boolean,
     val currentlyWritable: Boolean,
     val failureCount: Int,
-    val lastFailureCode: String?
+    val lastFailureCode: String?,
+    val lastFailureTraceId: String?,
+    val lastFailureEventKind: KellvynAgentLabEventKind?
 ) {
     val healthy: Boolean
         get() = hasSuccessfulWrite && currentlyWritable && failureCount == 0
@@ -180,6 +182,8 @@ internal class KellvynAgentLabTraceStoreRecorder(
     private val failureCount = AtomicInteger(0)
     private val currentlyWritable = java.util.concurrent.atomic.AtomicBoolean(true)
     private val hasSuccessfulWrite = java.util.concurrent.atomic.AtomicBoolean(false)
+    private val lastFailureTraceId = AtomicReference<String?>(null)
+    private val lastFailureEventKind = AtomicReference<KellvynAgentLabEventKind?>(null)
 
     override suspend fun record(event: KellvynAgentLabEvent) {
         try {
@@ -193,6 +197,8 @@ internal class KellvynAgentLabTraceStoreRecorder(
         } catch (error: Exception) {
             failureCount.incrementAndGet()
             lastFailureCode.set(error.javaClass.simpleName.take(64))
+            lastFailureTraceId.set(event.traceId)
+            lastFailureEventKind.set(event.kind)
             currentlyWritable.set(false)
         }
     }
@@ -202,7 +208,9 @@ internal class KellvynAgentLabTraceStoreRecorder(
             hasSuccessfulWrite = hasSuccessfulWrite.get(),
             currentlyWritable = currentlyWritable.get(),
             failureCount = failureCount.get(),
-            lastFailureCode = lastFailureCode.get()
+            lastFailureCode = lastFailureCode.get(),
+            lastFailureTraceId = lastFailureTraceId.get(),
+            lastFailureEventKind = lastFailureEventKind.get()
         )
     }
 }
