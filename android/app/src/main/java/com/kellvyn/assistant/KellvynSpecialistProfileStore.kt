@@ -266,6 +266,22 @@ internal class KellvynSpecialistProfileStore(
         diff(active, candidate)
     }
 
+    fun pendingDiffDetails(
+        role: KellvynSpecialistRole,
+        fallbackActiveProfile: KellvynSpecialistProfile
+    ): List<KellvynSpecialistProfileChange>? = synchronized(lock) {
+        require(fallbackActiveProfile.role == role)
+        val chain = readChain()
+        val active = activeProfileFromChain(fallbackActiveProfile, chain)
+        val roleRecords = chain.filter { it.metadata.role == role }
+        val state = replayRole(role, roleRecords) ?: return@synchronized null
+        val pendingSequence = state.pendingSequence ?: return@synchronized null
+        val candidate = roleRecords.singleOrNull {
+            it.metadata.sequence == pendingSequence
+        }?.profile ?: error("A revisão pendente perdeu seu payload.")
+        diffDetails(active, candidate)
+    }
+
     fun latestRecordSha256(): String? = synchronized(lock) {
         readChain().lastOrNull()?.metadata?.recordSha256
     }
@@ -805,8 +821,8 @@ internal class KellvynSpecialistProfileStore(
         private const val HASH_BYTES = 32
         private const val HASH_LENGTH = 64
         private const val MAX_DIFF_VALUE_CHARS = 1_200
-        private const val MAX_RECORDS = 4_096
-        private const val MAX_RECORD_BYTES = 64 * 1024
+        private const val MAX_RECORDS = 256
+        private const val MAX_RECORD_BYTES = 32 * 1024
         private const val MAX_FILE_BYTES = MAX_RECORD_BYTES + 4 * 1024
         private const val MIN_RECORD_BYTES = 4 + 4 + 8 + 8 + 4 + 1 + 4 + 4 + 4
         private const val MAX_ENUM_BYTES = 64

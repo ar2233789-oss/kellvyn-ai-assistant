@@ -177,16 +177,23 @@ internal class KellvynAgentCreationStudio(
                 } ?: return KellvynToolResult(false, "Papel especialista inválido.")
                 val store = profileStore
                     ?: return KellvynToolResult(false, "O histórico persistente ainda não está conectado.")
-                val records = withContext(Dispatchers.IO) { store.history(role) }
-                if (records.isEmpty()) {
+                val allRecords = withContext(Dispatchers.IO) { store.history(role) }
+                if (allRecords.isEmpty()) {
                     return KellvynToolResult(true, "HISTÓRICO: ${role.name} ainda usa somente o perfil-base.")
                 }
+                val records = allRecords.takeLast(MAX_PROFILE_HISTORY_ITEMS)
+                val omittedCount = allRecords.size - records.size
                 val output = records.joinToString("\n") { record ->
                     "#${record.sequence} ${record.eventType.name} v${record.profileVersion} " +
                         "sha256:${record.profileSha256} base:v${record.baseProfileVersion} " +
                         "por ${record.actor} em ${record.createdAtMillis}: ${record.reason}"
                 }
-                return KellvynToolResult(true, "HISTÓRICO IMUTÁVEL — ${role.name}\n$output")
+                val prefix = if (omittedCount > 0) {
+                    "HISTÓRICO IMUTÁVEL — ${role.name}; mostrando os últimos ${records.size} de ${allRecords.size} eventos.\n"
+                } else {
+                    "HISTÓRICO IMUTÁVEL — ${role.name}\n"
+                }
+                return KellvynToolResult(true, (prefix + output).take(MAX_PROFILE_HISTORY_OUTPUT_CHARS))
             }
         },
         object : KellvynAgentTool {
@@ -200,10 +207,9 @@ internal class KellvynAgentCreationStudio(
                 } ?: return KellvynToolResult(false, "Papel especialista inválido.")
                 val store = profileStore
                     ?: return KellvynToolResult(false, "O histórico persistente ainda não está conectado.")
-                val active = activeProfileRegistry().requireProfile(role)
-                val pending = withContext(Dispatchers.IO) { store.pendingProfile(role) }
-                    ?: return KellvynToolResult(true, "Não existe revisão pendente para ${role.name}.")
-                val diff = store.diffDetails(active, pending)
+                val diff = withContext(Dispatchers.IO) {
+                    store.pendingDiffDetails(role, profiles.requireProfile(role))
+                } ?: return KellvynToolResult(true, "Não existe revisão pendente para ${role.name}.")
                 val diffText = diff.joinToString("\n\n") { change ->
                     "CAMPO: ${change.field}\nANTES:\n${change.before}\nDEPOIS:\n${change.after}"
                 }
@@ -233,6 +239,9 @@ internal class KellvynAgentCreationStudio(
         private const val KIBIBYTE = 1024L
         private const val MAX_BENCHMARK_OUTPUT_CHARS = 7_500
         private const val MAX_PROFILE_DIFF_OUTPUT_CHARS = 6_500
+        private const val MAX_PROFILE_HISTORY_ITEMS = 12
+        private const val MAX_PROFILE_HISTORY_OUTPUT_CHARS = 6_500
+        private const val PROFILE_HISTORY_WORKING_SET_BYTES = 12L * 1024L * 1024L
 
         private val ROLE_PATTERN = "^(" +
             KellvynSpecialistRole.values().joinToString("|") { it.name } +
@@ -243,9 +252,9 @@ internal class KellvynAgentCreationStudio(
                 name = CATALOG_TOOL,
                 description = "Lista os 14 perfis internos, missões, versões e capacidades autorizadas.",
                 risk = KellvynToolRisk.READ_ONLY,
-                timeoutMs = 4_000L,
-                workloadClass = KellvynWorkloadClass.LIGHT,
-                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                timeoutMs = 10_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             ),
             KellvynToolSpec(
@@ -261,18 +270,18 @@ internal class KellvynAgentCreationStudio(
                     )
                 ),
                 risk = KellvynToolRisk.READ_ONLY,
-                timeoutMs = 4_000L,
-                workloadClass = KellvynWorkloadClass.LIGHT,
-                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                timeoutMs = 10_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             ),
             KellvynToolSpec(
                 name = VALIDATE_TOOL,
                 description = "Valida a estrutura dos 14 perfis sem alegar competência do modelo.",
                 risk = KellvynToolRisk.READ_ONLY,
-                timeoutMs = 4_000L,
-                workloadClass = KellvynWorkloadClass.LIGHT,
-                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                timeoutMs = 10_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
             ),
             KellvynToolSpec(
@@ -306,9 +315,9 @@ internal class KellvynAgentCreationStudio(
                     )
                 ),
                 risk = KellvynToolRisk.READ_ONLY,
-                timeoutMs = 4_000L,
-                workloadClass = KellvynWorkloadClass.LIGHT,
-                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                timeoutMs = 10_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             ),
             KellvynToolSpec(
@@ -324,9 +333,9 @@ internal class KellvynAgentCreationStudio(
                     )
                 ),
                 risk = KellvynToolRisk.READ_ONLY,
-                timeoutMs = 4_000L,
-                workloadClass = KellvynWorkloadClass.LIGHT,
-                estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                timeoutMs = 10_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             )
         )
