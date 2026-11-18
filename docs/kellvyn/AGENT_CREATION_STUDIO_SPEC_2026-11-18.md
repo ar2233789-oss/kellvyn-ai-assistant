@@ -1,0 +1,126 @@
+# Arquitetura do Agent Creation Studio invisível da Kellvyn
+
+**Data:** 18/11/2026  
+**Estado:** fase A em implementação; catálogo, inspeção e validação estrutural são a primeira camada. Edição, publicação e promoção automática continuam bloqueadas.  
+**Superfície:** ferramentas internas headless, nunca uma tela de laboratório ou segundo chat.
+
+## 1. Objetivo
+
+O Agent Creation Studio define, configura, avalia e versiona os perfis especialistas usados pela única IA Kellvyn. Não cria 14 modelos neurais independentes. Cria contratos de trabalho especializados que compartilham a mesma inferência central e usam ferramentas conforme a política de menor privilégio.
+
+Esta oficina é transversal aos oito estúdios de execução. Ela equipa e avalia os perfis que usam esses motores; não substitui Software, Android Build & Test, UI/UX, Image, 3D/CAD, Neural, Data/Architecture ou Automation Studio.
+
+## 2. Base encontrada antes da implementação desta fase
+
+Já existiam:
+- enum dos 14 papéis em KellvynAgent;
+- delegação interna com contexto separado e sem delegação recursiva;
+- matriz central de capacidades em KellvynSpecialistToolPolicy;
+- filtragem de ferramentas e bloqueio de mutação para especialistas;
+- skills carregadas sob demanda;
+- teste de contrato cobrindo os 14 papéis;
+- KellvynStudioModuleManager, com manifests, leases, carregamento sob demanda e controle de recursos;
+- fila/broker de recursos, workspace e checkpoints locais.
+
+Lacuna encontrada: a missão e as instruções dos 14 papéis estavam codificadas num bloco when dentro do loop de delegação. Não havia catálogo versionado único, contrato uniforme de saída nem módulo invisível para listar, inspecionar e validar perfis.
+
+## 3. Arquitetura de destino
+
+Pedido do coordenador
+    -> Agent Creation Studio
+    -> Profile Registry
+    -> Capability Mapper (política central; sem autoelevação)
+    -> Skill Binder (não concede permissões)
+    -> Profile Compiler
+    -> Contract/Security Gate
+    -> Isolated Evaluation Harness
+    -> Independent Audit
+    -> Versioned Profile Store
+    -> Explicit promotion / rollback
+    -> KellvynAgent specialist factory
+
+## 4. Subsistemas necessários
+
+1. Profile Registry: papel, versão, missão, limites, instrução e contrato de saída.
+2. Capability Mapper: deriva ferramentas da matriz central; um perfil não pode conceder ferramentas a si próprio.
+3. Skill Binder: associa procedimentos relevantes sob demanda, sem alterar permissões.
+4. Profile Compiler: valida papel, versão, orçamento, risco, seções de saída e hash do perfil.
+5. Evaluation Harness: executa casos fixos e registra prompt, contexto permitido, ferramentas solicitadas, observações e métricas.
+6. Promotion/Audit: promove somente perfil que passou pelos gates; preserva diff, versão anterior, hash, aprovador e rollback.
+
+## 5. Contrato mínimo de perfil
+
+Cada perfil publicado deve possuir:
+- papel estável e versão do esquema;
+- versão do perfil e hash do conteúdo;
+- missão e escopo explícitos;
+- instrução especializada;
+- capacidades resolvidas pela política central;
+- skills recomendadas, com gatilhos e orçamento;
+- ferramentas solicitadas, permitidas e recusadas registradas por execução;
+- risco máximo e política de mutação;
+- limites de passos, chamadas, contexto e tempo;
+- formato de resposta: conclusão, evidência, incerteza e próxima ação;
+- casos de competência e regressão;
+- data, autoria, justificativa e estado de aprovação.
+
+## 6. Segurança e autoridade
+
+- O perfil não concede a si próprio capacidades.
+- KellvynSpecialistToolPolicy permanece a autoridade final de ferramenta e risco.
+- Especialistas não fazem delegação aninhada.
+- Escrita, exclusão, instalação, acessibilidade e rede usam gates separados.
+- Contexto de outro agente e resultados de ferramentas são dados não confiáveis.
+- Perfil não pode alterar prompt confiável, política global ou limites do agente.
+- Revisão experimental não substitui perfil estável até os testes passarem.
+- Falta de versão, hash, evidência ou aprovação impede promoção.
+- Auditor recebe os artefatos e as provas originais, não apenas o resumo do executor.
+
+## 7. Testes do Studio
+
+Catálogo: exatamente os 14 papéis, sem duplicidade, com versões válidas.
+
+Compilador: recusar papel desconhecido, missão vazia, versão inválida, duplicidade, limites acima do orçamento e contrato de saída incompleto.
+
+Permissões: tentar conceder escrita, rede indevida ou capacidade fora da matriz; todas devem falhar.
+
+Isolamento: especialista recebe somente subtarefa e contexto explicitamente selecionados, não todo o histórico privado do coordenador.
+
+Não recursão: qualquer tentativa de delegação aninhada é rejeitada.
+
+Competência: avaliar separadamente pesquisa, exploração de código, revisão, teste, raciocínio, aprendizado, arquitetura, memória, segurança, planejamento, depuração, auditoria, operações e análise visual.
+
+Regressão: toda revisão repete os casos anteriores; a versão estável permanece recuperável.
+
+## 8. Recursos do Poco F6
+
+Registro e compilador de perfis são LIGHT. Harness executa um papel por vez por padrão. Paralelismo só é permitido se Resource Governor comprovar margem de RAM, heap, temperatura e bateria. Testes Android, imagem e 3D usam motores STANDARD/HEAVY carregados sob demanda e liberados ao terminar.
+
+## 9. Fases de implementação
+
+- Fase A: registro de perfis versionados, instruções derivadas, módulo READ_ONLY de catálogo/inspeção/validação.
+- Fase B: Profile Compiler com validação de capacidades, skills, riscos, limites, hash e diff.
+- Fase C: harness isolado de contrato, ferramentas e regressão.
+- Fase D: benchmark de competência cognitiva após conectar o backend neural aprovado.
+- Fase E: armazenamento versionado, promoção explícita, auditoria e rollback.
+
+A Fase A não significa que o Agent Creation Studio inteiro esteja concluído. Validação estrutural não é competência cognitiva demonstrada.
+
+## 10. Estado atualizado em 18/11/2026
+
+Implementado nesta sequência:
+- KellvynSpecialistProfileRegistry com 14 perfis versionados por código;
+- contrato uniforme de saída e limites por perfil;
+- KellvynAgentCreationStudio com catálogo, inspeção e validação somente leitura;
+- capacidades AGENT_DESIGN e AGENT_EVALUATION na matriz de capabilities;
+- integração do catálogo no runtime compartilhado;
+- KellvynAgent passa a obter instruções e limites pelo registro, eliminando o bloco inline de instruções;
+- testes unitários escritos para catálogo, limites, acesso por papel e validação.
+
+Ainda pendente:
+- execução Gradle/CI dos novos testes;
+- persistência/hash e revisão de diff de perfis;
+- criação/edição de versões experimentais e fluxo de promoção com aprovação;
+- harness de competência cognitiva ligado a inferência real;
+- evidência de execução no Poco F6.
+
