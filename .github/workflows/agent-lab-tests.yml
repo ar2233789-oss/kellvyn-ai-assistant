@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - lab/kellvyn-intelligence-core-20261116
+      - 'kellvyn-rnd/**'
     paths:
       - 'android/app/src/main/java/com/kellvyn/assistant/Kellvyn*.kt'
       - 'android/app/src/main/java/com/kellvyn/assistant/neural/**'
@@ -18,6 +19,8 @@ on:
       - 'android/settings.gradle'
       - 'android/gradle.properties'
       - '.github/workflows/agent-lab-tests.yml'
+      - 'tools/kellvyn-rnd-studio/**'
+      - 'docs/kellvyn/rnd-studio/**'
 
 permissions:
   contents: read
@@ -42,6 +45,20 @@ jobs:
           echo "RUNNER_NAME=${RUNNER_NAME:-unknown}"
           uname -a
           echo RUNNER_PROBE_OK
+
+  rnd-studio-python:
+    name: R&D Studio Python CLI tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compile the R&D Studio sources
+        run: python3 -m py_compile tools/kellvyn-rnd-studio/studio.py tools/kellvyn-rnd-studio/test_studio.py
+
+      - name: Test isolated workspace and evidence gates
+        run: python3 tools/kellvyn-rnd-studio/test_studio.py
 
   android-agent-lab:
     name: Unit and Android instrumented tests
