@@ -640,3 +640,15 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Run `44215633371` foi lançado pelos novos testes instrumentais, mas job terminou sem runner/steps/logs; a suíte continua NOT_RUN/BLOCKED.
 - Próxima ação continua restabelecer CI/execução Android válida; não presumir aprovação.
 
+## 22. Memory Read implementado e limitado — 18/11/2026
+
+- `KellvynMemoryTools.kt` adiciona `memory_search` como ferramenta READ_ONLY com capability `MEMORY_READ`.
+- O runtime injeta na ferramenta endereços globais e do projeto ativo já validado. A ferramenta não aceita `project_id`, IDs de scope nem nenhum seletor de escopo vindo do modelo.
+- Retorna somente `NON_SENSITIVE`; registros SENSITIVE_PERSONAL, CREDENTIAL e UNKNOWN são excluídos mesmo quando aprovados para armazenamento. O conteúdo devolvido é sempre rotulado como dado não confiável.
+- Resultados limitados a cinco, 420 caracteres por entrada e 3.200 caracteres totais; inclui ID de referência, tipo, origem, escopo, confiança e proveniência.
+- `KellvynRuntime.createAgent` reconstrói o registry e substitui qualquer ferramenta de nome `memory_search` passada externamente pela versão interna escopada, evitando injeção de uma implementação arbitrária.
+- A política já autoriza `MEMORY_READ` apenas ao Analista de Memória; o teste instrumental da matriz de ferramentas atualiza a expectativa para `memory_search`.
+- `KellvynMemoryToolsTest` cobre isolamento de projeto, filtro de sensíveis/credenciais/desconhecidos, argumento de escopo forjado, limites e metadados READ_ONLY.
+- Verificação isolada: `kotlinc` compilou `KellvynMemoryTools.kt` contra stubs mínimos. Isso NÃO é compilação da aplicação nem teste Gradle.
+- Runs `44217081776` e `44217081826` terminaram sem runner/steps/logs; testes continuam NOT_RUN/BLOCKED.
+- Próxima prioridade: restabelecer runner/Gradle, executar toda a suíte e corrigir apenas defeitos demonstrados. Não promover escrita ou ferramentas operacionais para especialistas antes disso.
