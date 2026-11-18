@@ -5,6 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.nio.file.Files
 
 class KellvynAgentTest {
     @Test
@@ -124,6 +125,40 @@ class KellvynAgentTest {
         assertTrue(resourceEvents[1].detailCode!!.startsWith("END-"))
         assertTrue(resourceEvents[1].detailCode!!.contains("-B86-TMODERATE"))
         assertTrue(resourceEvents[1].detailCode!!.contains("-DC320-CPU2"))
+    }
+
+    @Test
+    fun traceStorageFailureDoesNotAbortAnOtherwiseSuccessfulAgentRun() = runBlocking {
+        val root = Files.createTempDirectory("kellvyn-agent-trace-failure").toFile()
+        val failingCipher = object : KellvynTaskCheckpointCipher {
+            override fun encrypt(plaintext: ByteArray, associatedData: ByteArray): ByteArray {
+                throw IllegalStateException("simulated keystore write failure")
+            }
+
+            override fun decrypt(ciphertext: ByteArray, associatedData: ByteArray): ByteArray {
+                throw IllegalStateException("simulated keystore read failure")
+            }
+        }
+        try {
+            val store = KellvynAgentLabTraceStore(root, failingCipher)
+            val recorder = KellvynAgentLabTraceStoreRecorder(store)
+            val agent = KellvynAgent(
+                inference = FakeEngine(KellvynModelDecision.Final("A tarefa foi concluída.")),
+                tools = KellvynToolRegistry(emptyList()),
+                traceSessionFactory = {
+                    KellvynAgentLabTraceSession.create(recorder)
+                }
+            )
+
+            val result = agent.run("Conclua sem ferramentas.")
+
+            assertTrue("A falha de observabilidade não deve interromper o agente.", result is KellvynAgentResult.Completed)
+            assertFalse(recorder.health().currentlyWritable)
+            assertTrue(recorder.health().failureCount >= 3)
+            assertEquals("IllegalStateException", recorder.health().lastFailureCode)
+        } finally {
+            root.deleteRecursively()
+        }
     }
 
     @Test
