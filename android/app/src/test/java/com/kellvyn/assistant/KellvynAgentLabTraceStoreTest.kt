@@ -172,6 +172,9 @@ class KellvynAgentLabTraceStoreTest {
         val blockedRoot = File(root, "not-a-directory").apply { writeText("file blocks directory creation") }
         val failingStore = KellvynAgentLabTraceStore(blockedRoot, TraceTestCipher())
         val recorder = KellvynAgentLabTraceStoreRecorder(failingStore)
+        assertFalse(recorder.health().hasSuccessfulWrite)
+        assertTrue(recorder.health().currentlyWritable)
+        assertFalse(recorder.health().healthy)
         val event = KellvynAgentLabEvent(
             traceId = "00000000-0000-0000-0000-000000000005",
             occurredAtMillis = 100L,
@@ -183,6 +186,8 @@ class KellvynAgentLabTraceStoreTest {
         recorder.record(event)
         assertFalse(recorder.health().healthy)
         assertEquals("IllegalStateException", recorder.health().lastFailureCode)
+        assertEquals(event.traceId, recorder.health().lastFailureTraceId)
+        assertEquals(KellvynAgentLabEventKind.RUN_STARTED, recorder.health().lastFailureEventKind)
 
         assertTrue(blockedRoot.delete())
         recorder.record(event)
@@ -191,6 +196,8 @@ class KellvynAgentLabTraceStoreTest {
         assertFalse(recorder.health().healthy)
         assertEquals(1, recorder.health().failureCount)
         assertEquals("IllegalStateException", recorder.health().lastFailureCode)
+        assertEquals(event.traceId, recorder.health().lastFailureTraceId)
+        assertEquals(KellvynAgentLabEventKind.RUN_STARTED, recorder.health().lastFailureEventKind)
         assertEquals(1, failingStore.history(event.traceId).size)
     }
 
