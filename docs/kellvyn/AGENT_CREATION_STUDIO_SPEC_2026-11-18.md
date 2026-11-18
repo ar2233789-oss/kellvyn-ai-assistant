@@ -192,3 +192,29 @@ Testes escritos:
 - bloqueio de uma suíte com 29 casos antes de qualquer execução.
 
 Nenhum desses testes está aprovado por Gradle/CI até a infraestrutura alocar runner.
+
+
+## 16. Operação do Agent Lab e limites de avaliação — atualização 18/11/2026
+
+### Métricas de processo
+- Snapshots medem CPU acumulada do processo, tempo monotônico e número de processadores, permitindo calcular uma aproximação de CPU% por janela de execução.
+- A métrica é do processo Android inteiro, não de um agente isolado se houver trabalho concorrente.
+- Não é medição de energia em watts/joules; o percentual de bateria e a faixa térmica são apenas amostras pontuais.
+- Não existe polling permanente: as leituras acontecem nos limites das execuções.
+
+### Persistência e auditoria
+- A persistência de traces é best-effort e não interrompe a tarefa se arquivo/Keystore falhar.
+- O painel distingue estado não testado, saudável, degradado e recuperado com falhas anteriores.
+- Última falha identifica trace e tipo do evento, sem registrar prompt, conteúdo ou argumentos.
+- Recuperar a escrita não recupera eventos perdidos; a lacuna permanece reportada.
+- A limpeza exige confirmação do proprietário e só remove traces antigos, terminais e integralmente verificados. Não é ferramenta do modelo.
+
+### Avaliação de competência
+- As rubricas atuais dos 28 casos são texto livre. Ainda não existe verificador semântico objetivo e validado para todos os requisitos.
+- O executor registra comportamento e evidências operacionais; não produz uma nota semântica nem aprova a própria resposta.
+- Não transformar rubricas textuais em aprovação por correspondência de palavras.
+- Próxima evolução precisa separar critérios determinísticos (estado de ferramenta, artefato, hash, saída de teste, dependência/ordem) de critérios que exigem revisão humana ou avaliação semântica independente.
+- Critério sem oráculo válido deve permanecer REVIEW_REQUIRED/BLOCKED, nunca PASSED por autodeclaração.
+
+### Estado de execução
+As novas provas de persistência resiliente, saúde do gravador e telemetria foram escritas. Ainda não foram executadas pelo Gradle/JUnit/Android Runner; GitHub Actions continua falhando antes da alocação de runner. Não há build APK ou validação no Poco F6 nesta etapa.
