@@ -64,6 +64,20 @@ internal fun interface KellvynSpecialistBenchmarkExecutor {
     ): KellvynSpecialistBenchmarkExecution
 }
 
+/**
+ * Optional executor extension that receives the per-case trace span. Existing test doubles
+ * may keep implementing the smaller SAM contract; the production agent executor uses this
+ * interface so model/tool events become children of the benchmark experiment trace.
+ */
+internal interface KellvynTracedSpecialistBenchmarkExecutor : KellvynSpecialistBenchmarkExecutor {
+    suspend fun executeTraced(
+        testCase: KellvynSpecialistBenchmarkCase,
+        profile: KellvynCompiledSpecialistProfile,
+        allowedTools: List<KellvynToolSpec>,
+        traceSession: KellvynAgentLabTraceSession
+    ): KellvynSpecialistBenchmarkExecution
+}
+
 internal fun interface KellvynSpecialistBenchmarkVerifier {
     suspend fun verify(
         testCase: KellvynSpecialistBenchmarkCase,
@@ -112,7 +126,8 @@ internal class KellvynSpecialistEvaluationHarness(
         testCase: KellvynSpecialistBenchmarkCase,
         profile: KellvynSpecialistProfile,
         availableTools: List<KellvynToolSpec>,
-        allowNetworkRead: Boolean = false
+        allowNetworkRead: Boolean = false,
+        traceSession: KellvynAgentLabTraceSession? = null
     ): KellvynSpecialistBenchmarkResult {
         if (profile.role != testCase.role) {
             return blocked(testCase, "O perfil compilado não corresponde ao papel do caso.")
@@ -133,7 +148,12 @@ internal class KellvynSpecialistEvaluationHarness(
         val allowedTools = availableTools.filter { it.name in permittedNames }
 
         val execution = try {
-            executor.execute(testCase, compiledProfile, allowedTools)
+            val tracedExecutor = executor as? KellvynTracedSpecialistBenchmarkExecutor
+            if (tracedExecutor != null && traceSession != null) {
+                tracedExecutor.executeTraced(testCase, compiledProfile, allowedTools, traceSession)
+            } else {
+                executor.execute(testCase, compiledProfile, allowedTools)
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
@@ -249,7 +269,13 @@ internal class KellvynSpecialistEvaluationHarness(
                         val result = if (profile == null) {
                             blocked(testCase, "Não há perfil compilável para este papel.")
                         } else {
-                            runCase(testCase, profile, availableTools, allowNetworkRead)
+                            runCase(
+                                testCase = testCase,
+                                profile = profile,
+                                availableTools = availableTools,
+                                allowNetworkRead = allowNetworkRead,
+                                traceSession = caseTrace
+                            )
                         }
                         caseTrace.record(
                             kind = KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED,
