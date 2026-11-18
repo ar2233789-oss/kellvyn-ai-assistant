@@ -659,3 +659,39 @@ Ver docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md. A co
 - Agents: duração monotônica nos caminhos de sucesso/falha/bloqueio/cancelamento, quatro testes determinísticos escritos, ainda sem Gradle.
 - Integration: teste atravessa parser KELLVYN/1, agente, orquestrador, ferramenta READ_ONLY e handoff UNTRUSTED usando ProtocolScriptedEngine. Não usa pesos treinados e ainda não chama KellvynIndependentVerifier.
 - KellvynRuntime.isReady() permanece false; o chat ainda não está integrado ao cérebro real.
+
+## 22. Retomada e endurecimento da R&D Studio (18/11/2026, 23:40 UTC)
+
+### HEADs confirmados
+- Branch lab: `d8784b02401889d409a2831c27013ff186c2a765`
+- Brain candidate: `kellvyn-rnd/brain-gradient-coverage-001` — `db943167b82be2b8ca95674ecca81f612f8e3bb2`
+- Agents candidate: `kellvyn-rnd/agent-delegation-duration-001` — `9181f31eb59b5f8c953410f22af89cbf6ba59ba5`
+- Integration + Studio candidate: `kellvyn-rnd/brain-agent-contract-001` — `9da1f906e4d147dfac81f449b6f921ff6d798270`
+
+### Alteração concreta na Studio
+A revisão estática identificou que `task_test` confiava em qualquer `android/gradlew` executável existente na worktree. Um wrapper substituído poderia retornar zero sem executar Gradle e gerar evidência falsa de aprovação.
+
+Commit `9da1f906e4d147dfac81f449b6f921ff6d798270` corrige isso na branch experimental:
+- registra hashes do `gradlew`, `gradlew.bat` (quando presente), `gradle-wrapper.jar` e `gradle-wrapper.properties` no commit-base da tarefa;
+- recusa iniciar testes se esses arquivos divergirem;
+- verifica novamente após o processo e marca `INTEGRITY_FAILURE` se o wrapper mudar;
+- inclui integridade do wrapper no gate de `task_check`;
+- adiciona teste de regressão para wrapper adulterado.
+
+A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT RUN** nesta versão. A versão antiga com 13 testes foi aprovada localmente anteriormente; essa aprovação não cobre o código atual. `py_compile` também precisa ser repetido.
+
+### CI observado após as alterações
+- Lab run `44413219991`, SHA `d8784b0`: três jobs falharam antes dos steps; sem logs e sem execução Python/Gradle.
+- Integration/Studio run `44422679919`, SHA `9da1f90`: jobs `135219431722`, `135219432080` e `135219432199` terminaram em failure com `steps=null` e `logs_url=null`. A suíte Python de 17 testes não executou.
+- Brain run `44412372652` e Agents run `44412360596`: continuam sem execução de steps.
+- Classificação: bloqueio de alocação/execução do runner, causa específica não confirmada. Não reexecutar workflows repetidamente; aguardar inspeção de billing/Actions pelo proprietário ou evidência nova do GitHub Support.
+
+### Próximos gates
+1. Recuperar execução Python da Studio e rodar `py_compile` + 17 testes.
+2. Rodar baseline/candidato Brain com gradcheck por grupo; ainda faltam teste direcional seeded e negative control.
+3. Rodar suíte Agents, incluindo duração monotônica nos quatro caminhos.
+4. Executar Integration; o teste atual usa `ProtocolScriptedEngine`, não checkpoint neural treinado, e não chama o verificador independente.
+5. Só depois revisar diffs e promover candidatos. Nenhuma branch candidata foi mesclada.
+
+### Limites
+`KellvynRuntime.isReady()` continua `false`; cérebro neural não está ligado ao chat de produção. Não há APK, validação em emulador ou teste no Poco F6 desta rodada. Interface, `MainActivity`, pesos e checkpoints seguem intocados.
