@@ -355,7 +355,8 @@ internal class KellvynRuntime(context: Context) {
             specialistProfiles = activeSpecialistProfileRegistry(),
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
-            }
+            },
+            resourceSnapshotProvider = { resourceRuntime.snapshot() }
         )
     }
 
@@ -407,7 +408,10 @@ internal class KellvynRuntime(context: Context) {
             registeredTools = createProjectWorkspaceToolRegistry(activeProjectId),
             config = config,
             taskBroker = taskBroker,
-            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            }
         )
         return runAgentLabBenchmarkSuite(
             executor = executor,
