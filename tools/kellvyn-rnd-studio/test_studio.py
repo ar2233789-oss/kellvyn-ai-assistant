@@ -71,6 +71,35 @@ class StudioTests(unittest.TestCase):
  def test_track_map_blocks_when_required_source_or_test_is_missing(self):
   result=studio.track_map(SimpleNamespace(scope="brain"))
   self.assertEqual(2,result)
+ def test_task_test_executes_selected_suite_and_records_verifiable_evidence(self):
+  work=self.create()
+  android=work/"android"; android.mkdir()
+  wrapper=android/"gradlew"
+  wrapper.write_text("#!/bin/sh\nprintf '%s\\n' \"$@\"\n")
+  wrapper.chmod(0o755)
+  result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  self.assertEqual(0,result)
+  task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  evidence=task["evidence"][-1]
+  self.assertEqual("PASSED",evidence["status"])
+  log=Path(evidence["log"]).read_text()
+  self.assertIn("KellvynTransformerLanguageModelTest",log)
+  self.assertIn("KellvynDecisionProtocolTest",log)
+  self.assertNotIn("KellvynOrchestratorTest",log)
+  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  self.assertEqual("PASS",report["gate"])
+ def test_task_test_nonzero_exit_is_recorded_as_failed_not_passed(self):
+  work=self.create()
+  android=work/"android"; android.mkdir()
+  wrapper=android/"gradlew"
+  wrapper.write_text("#!/bin/sh\nexit 7\n")
+  wrapper.chmod(0o755)
+  result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  self.assertEqual(2,result)
+  task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  self.assertEqual("FAILED",task["evidence"][-1]["status"])
+  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  self.assertEqual("BLOCKED",report["gate"])
  def test_task_records_scope_and_scope_specific_gate(self):
   self.create()
   m=json.loads((studio.TASKS/"brain-core/task.json").read_text())
