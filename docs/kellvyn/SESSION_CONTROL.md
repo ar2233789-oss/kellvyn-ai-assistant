@@ -625,3 +625,37 @@ A R&D Studio externa possui três frentes implementadas no utilitário, e três 
 - KellvynRuntime.isReady() continua false; chat ainda não ligado ao cérebro.
 - Não alterar pesos, interface, MainActivity ou semântica de segurança durante estas experiências.
 - Ao retomar: confirmar HEAD das três branches, rever diffs e evidência; executar os gates quando o runner voltar.
+
+
+## 21. Consolidação do R&D Studio e do bloqueio GitHub Actions (18/11/2026, 22:35 UTC)
+
+### Estado das quatro branches
+- Base lab: 44c54ad41f60d5abeee07c8031b1f499bdd12306.
+- Brain candidate: kellvyn-rnd/brain-gradient-coverage-001, HEAD db943167b82be2b8ca95674ecca81f612f8e3bb2.
+- Agents candidate: kellvyn-rnd/agent-delegation-duration-001, HEAD 9181f31eb59b5f8c953410f22af89cbf6ba59ba5.
+- Integration + Studio candidate: kellvyn-rnd/brain-agent-contract-001, HEAD 8630162bd7d6586663bcb386ad18ebef63e38e46.
+
+Nenhum candidato foi fundido na branch lab.
+
+### Últimas tentativas CI — 22:31 UTC
+- lab run 44412348657;
+- agents run 44412360596;
+- brain run 44412372652;
+- integration run 44412382401.
+Todos os jobs, inclusive o probe ubuntu-slim e o job R&D Studio Python, apresentam runner_id=0, runner_name vazio e steps=[]. Não chegou a executar checkout, Python, Gradle ou Kotlin.
+
+O workflow agora ignora alterações apenas em docs/kellvyn/rnd-studio/**. O job Python permanece ativo quando tools/kellvyn-rnd-studio/** muda, evitando CI acionado só por diário e relatórios.
+
+### Estado da oficina Python
+A versão anterior foi executada localmente em 22:11 UTC: py_compile aprovado e 13/13 testes aprovados (0,626 s). Depois disso foram adicionados três testes: executor de tarefa com wrapper simulado, registro correto de saída não zero e mapeamento de testes por símbolos. A versão atual soma 16 testes, mas os três novos ainda NOT RUN e o repo_map atualizado ainda não foi revalidado por py_compile. Não afirmar 16/16.
+
+### Diagnóstico do runner
+O repositório é privado. A página pública do GitHub indicava Actions operacional em 18/11; a degradação pública de início dos workflows em 16/11 foi resolvida às 16:26 UTC, antes das tentativas noturnas. O padrão runner_id=0/steps=[] acontece antes do workflow iniciar.
+Há hipótese prioritária de bloqueio de conta/orçamento Actions. A documentação oficial explica que, em repositórios privados, runners hospedados consomem compute incluído e que budgets com Stop usage when budget limit is reached podem bloquear novos runners. Relatos comunitários descrevem assinatura igual, incluindo budget Actions de US$ 0 com Usage blocked. Isso não confirma que seja a configuração desta conta.
+Ver docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md. A conta precisa ser inspecionada pelo proprietário em Settings → Billing → Budgets and alerts. Não adicionar cartão, aumentar orçamento ou habilitar gasto pago sem autorização expressa.
+
+### Limites de integração
+- Brain: candidato de cobertura numérica em 14 grupos KN-003, ainda sem Gradle.
+- Agents: duração monotônica nos caminhos de sucesso/falha/bloqueio/cancelamento, quatro testes determinísticos escritos, ainda sem Gradle.
+- Integration: teste atravessa parser KELLVYN/1, agente, orquestrador, ferramenta READ_ONLY e handoff UNTRUSTED usando ProtocolScriptedEngine. Não usa pesos treinados e ainda não chama KellvynIndependentVerifier.
+- KellvynRuntime.isReady() permanece false; o chat ainda não está integrado ao cérebro real.
