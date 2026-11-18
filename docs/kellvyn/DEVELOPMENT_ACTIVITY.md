@@ -144,3 +144,18 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - CI mais recente: Agent Lab activity-ledger runs 44384564919 (script), 44384628285 (blueprint) e 44384702736 (pesquisa). Todos falharam antes do primeiro step, runner_id=0, steps=0. Classificação: runner não alocado / NOT RUN; não é falha comprovada do código.
 - Cérebro neural: KellvynRuntime.isReady() permanece false; sem validação cognitiva de produção.
 - Interface, MainActivity.java, .github/interface-lock.sha e pesos neurais: não alterados nesta sessão.
+
+
+## 20:21 UTC — Kellvyn R&D Studio externo
+
+| Horário UTC | Commit | Alteração |
+|---|---|---|
+| 20:21:19 | `4598cab` | feat(kellvyn): establish brain research and development studio |
+
+- Criada bancada externa em `tools/kellvyn-rnd-studio/`: mapa de código, Git worktree por tarefa, execução de três suítes Gradle allowlisted, diff/proteção/evidência e registro de pesquisa/experimentos.
+- Criados baseline do cérebro, protocolo de experimento e research ledger em `docs/kellvyn/rnd-studio/`.
+- Validação local da CLI: py_compile executado; 6/6 testes Python isolados em repositórios Git temporários. Não são testes Kotlin/Android.
+- Primeiro achado de estudo: `checkGradients()` só seleciona coordenadas com gradiente analítico não nulo; a cobertura pode omitir grupos inteiros de gradientes ausentes. Registrado como hipótese PLANNED, sem alterar o cérebro.
+- CI run `44390151347`: failure antes de steps, `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
+- Cérebro, orquestrador, perfis, Agent Lab Android, interface e pesos permaneceram intocados.
+- Próxima tarefa: hipótese isolada `brain-gradient-coverage-001`, com baseline e teste Gradle real antes de qualquer alteração neural.

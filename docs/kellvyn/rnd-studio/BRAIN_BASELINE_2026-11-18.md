@@ -45,3 +45,24 @@ The specialist roles share the injected inference backend. They are not fourteen
 Read these source files and their matching tests before each brain task: KellvynRuntime.kt, KellvynAgent.kt, KellvynOrchestrator.kt, KellvynLocalNeuralInferenceEngine.kt, KellvynTransformerInferenceEngine.kt, neural/KellvynBpeTokenizer.kt, neural/KellvynTransformerLanguageModel.kt, neural/KellvynTransformerTrainingPipeline.kt, neural/KellvynTransformerTrainingQualityGate.kt.
 
 A source file or class existing does not prove that the main chat calls it. Trace construction, call sites and tests.
+
+
+## Primeiro achado de auditoria de gradientes — 18/11/2026
+
+**Arquivos inspecionados:** `KellvynTransformerLanguageModel.kt` e `KellvynTransformerLanguageModelTest.kt`.
+
+### O que o código faz hoje
+
+`checkGradients()` calcula gradientes analíticos e compara diferenças centrais finitas, mas forma a lista de coordenadas amostráveis somente com índices onde `abs(gradient[index]) > 1e-8`. Depois amostra no máximo `maxCoordinatesPerGroup` dessas coordenadas por array de parâmetros. O teste existente usa um seed/configuração e `maxCoordinatesPerGroup = 2`.
+
+### Lacuna encontrada
+
+Se um grupo inteiro tiver gradiente analítico acidentalmente zerado por uma regressão na retropropagação, ele terá zero coordenadas candidatas e não será auditado. O requisito final `checked > 0` pode continuar satisfeito por outros grupos. Portanto, o relatório pode passar sem verificar aquela família de parâmetros.
+
+**Classificação:** lacuna de cobertura do verificador — não é prova de que a implementação atual tenha um gradiente errado.
+
+### Experimento aberto
+
+`brain-gradient-coverage-001` irá testar uma seleção determinística que inclua coordenadas de gradiente zero e não zero em todos os grupos, múltiplos números de cabeças, seeds, comprimentos de contexto e alvo EOS. Critérios: todo grupo deve produzir amostras numéricas; os erros precisam respeitar limites absolutos e relativos pré-definidos; execução com baseline e candidato em ambiente idêntico.
+
+**Estado:** PLANNED / NOT RUN. Nenhum arquivo neural ou peso foi modificado. Não alterar a implementação até que o Gradle execute e a hipótese possa ser falsificada.

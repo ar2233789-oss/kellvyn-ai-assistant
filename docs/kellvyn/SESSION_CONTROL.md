@@ -490,4 +490,53 @@ Não basta dizer “continue” em uma mensagem do chat. O estado deve ser grava
 
 ## 9. Texto curto para retomar em outro chat
 
-> Continue o trabalho no repositório ar2233789-oss/kellvyn-ai-assistant, branch lab/kellvyn-intelligence-core-20261116. Leia SESSION_CONTROL e ENGINEERING_LAB_BLUEPRINT, confirme HEAD e commits posteriores. Não recrie cérebro, orquestrador, 14 perfis, Agent Creation Studio, Agent Lab Android, traces ou REVIEW_REQUIRED. O Engineering Lab foi criado em scripts/kellvyn-engineering-lab.py: audit gera snapshots UTC e mapa Kotlin; log registra pesquisa/decisões/testes/handoff. Ainda não foi executado por runner. Primeiro destravar runner, executar script audit, revisar snapshots e rodar Gradle/JUnit/Android; não empilhar módulos antes disso. A pesquisa Aider/SWE-agent/OpenHands/LiteRT está em AGENT_CAPABILITY_RESEARCH_ADDENDUM, seção 8.11. Não mexer na interface/pesos protegidos; não alegar testes sem logs; reconciliar diário e este arquivo ao encerrar.
+> Continue o trabalho no repositório ar2233789-oss/kellvyn-ai-assistant, branch lab/kellvyn-intelligence-core-20261116. Leia este arquivo e confirme o HEAD real. A bancada de P&D externa para o desenvolvimento do cérebro está em tools/kellvyn-rnd-studio/ e docs/kellvyn/rnd-studio/. Não confundir com Agent Lab Android, Agent Creation Studio, cérebro, Agent Loop ou Orquestrador. Use worktree isolado por hipótese; registre pesquisa, baseline, candidato, teste e log; nunca declare PASS com evidência ausente ou desatualizada. Primeira hipótese aberta: cobrir lacuna do checkGradients do KN-003, que só amostra parâmetros com gradiente analítico não nulo. Não mexer em pesos, interface, MainActivity ou integração com chat enquanto os testes e gates não sustentarem a mudança.
+
+## 10. Kellvyn R&D Studio — bancada externa de P&D do cérebro (18/11/2026, 20:21 UTC)
+
+**HEAD de implementação confirmado:** `4598cab4e831dd3e1f9d96c0c2158de8e77ff566` — `feat(kellvyn): establish brain research and development studio`. Este checkpoint documental acompanha a implementação; confirme HEAD novamente ao retomar.
+
+### Finalidade e separação
+
+- **Kellvyn R&D Studio:** ferramenta de engenharia no repositório para o assistente estudar código, registrar pesquisa, planejar experimentos falsificáveis, isolar mudanças e exigir evidência de testes.
+- **Não é** tela do aplicativo, Agent Lab Android, Agent Creation Studio, novo cérebro, novo modelo ou substituto do orquestrador.
+- O cérebro fornece a inferência; `KellvynAgent` é o loop operacional; `KellvynOrchestrator` coordena delegações. Continuam componentes distintos.
+- Não recriar os 14 perfis, traces, benchmarks nem ferramentas preexistentes.
+
+### Implementação gravada
+
+- `tools/kellvyn-rnd-studio/studio.py`: CLI Python stdlib-only.
+- `tools/kellvyn-rnd-studio/test_studio.py`: testes da ferramenta usando repositórios Git temporários.
+- `README.md`: instalação/uso, limites e comandos.
+- `docs/kellvyn/rnd-studio/BRAIN_BASELINE_2026-11-18.md`: mapa conceitual do cérebro e sequência inicial de estudo.
+- `EXPERIMENT_PROTOCOL.md`, `research-ledger.jsonl` e catálogo de experimentos.
+
+Operações da CLI:
+- `map`: indexa fontes Kotlin, símbolos, imports, hashes e possíveis arquivos de teste; inventário estático, não prova integração.
+- `task create`: cria branch `kellvyn-rnd/<id>` e Git worktree isolado fora da árvore do repositório.
+- `task test`: executa somente uma das suítes allowlisted: `unit`, `assemble` ou `instrumented`, através do Gradle Wrapper, com timeout limitado.
+- `task check`: verifica diff/whitespace, arquivos protegidos e evidência do teste. Evidência expira logicamente quando HEAD, fingerprint do código ou log mudam.
+- `research` e `experiment create/record`: registram achados, hipóteses e métricas com timestamp UTC.
+
+### Validação da própria bancada
+
+- `python -m py_compile` no script: executado e aprovado no ambiente local de desenvolvimento.
+- 6 testes Python da CLI: executados em repositórios Git temporários; 6/6 passaram (worktree isolado, arquivo protegido, whitespace, teste ausente, evidência obsoleta após mudança e allowlist de suítes).
+- Isso valida controles da CLI em fixtures Git; não executa código Android/Kotlin.
+- O run GitHub Actions `44390151347`, para o commit `4598cab`, terminou failure antes de qualquer step: `runner_id=0`, `steps=[]`, sem runner atribuído. Gradle/JUnit/Android continuam **NOT RUN** por CI.
+
+### Primeiro estudo real do KN-003
+
+A leitura de `KellvynTransformerLanguageModel.checkGradients()` e `KellvynTransformerLanguageModelTest.multiHeadTransformerGradientsMatchFiniteDifferences()` revelou uma lacuna de cobertura: as coordenadas candidatas são filtradas por `abs(gradient) > 1e-8`; grupos sem gradiente não nulo não recebem amostra. O teste atual usa uma configuração/seed, duas cabeças e no máximo duas coordenadas por grupo.
+
+Isto **não prova erro na matemática da retropropagação**. Prova que o verificador numérico não testa coordenadas com gradiente analítico zero, então poderia deixar passar um caminho de gradiente inteiro omitido. A hipótese `brain-gradient-coverage-001` foi registrada como PLANNED. Proposta: amostrar deterministicamente coordenadas de todos os grupos, incluindo zero e não zero, abranger diferentes headCount/seeds/comprimentos de contexto e incluir EOS; medir erro absoluto/relativo por grupo. Nenhum código neural/peso foi alterado neste estudo.
+
+### Próximo passo único
+
+Abrir uma tarefa isolada `brain-gradient-coverage-001` no clone local, executar a baseline de testes neurais, construir a nova cobertura por diferenças finitas, validar com Gradle e só então aceitar ou rejeitar a alteração. Se runner continuar sem alocação, classificar como NOT RUN e não editar a implementação do cérebro às cegas.
+
+### Proteções / estado
+
+- Intocados nesta implementação: `MainActivity.java`, `.github/interface-lock.sha`, UI/layout/efeitos, modelos/pesos/checkpoints neurais, `KellvynRuntime`, `KellvynAgent`, `KellvynOrchestrator` e os módulos do Agent Lab Android.
+- Não há APK novo, teste em emulador, execução neural de produção ou validação no Poco F6.
+- A R&D Studio não faz commit/push/merge automático, não treina pesos por conta própria e não substitui isolamento de processo (Git worktree é isolamento de árvore Git, não sandbox de sistema operacional).
