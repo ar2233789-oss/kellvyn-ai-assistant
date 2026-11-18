@@ -3,13 +3,13 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 17:15 UTC  
+**Última revisão:** 18/11/2026, 17:43 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD de código auditado:** `ca728f95c62603dea4312be955d5624dd35f4b10`  
-**Livro de atividades:** `38eab9baec757e0635bd2c0f5157de4cfb2e180c` — 37 commits desta sessão reconciliados manualmente.
+**HEAD de código auditado antes desta atualização:** `0b4d5834c91ab6deb0f6d693398828a7a6316540`  
+**Livro de atividades:** `0b4d5834c91ab6deb0f6d693398828a7a6316540` — 58 linhas de commits da sessão conciliadas manualmente; commits puramente de manutenção documental não são listados para evitar um ciclo de auto-registro.
 
-> A revisão comparou 33 commits de engenharia e documentação desde o HEAD `b7e2270`, incluindo a integração do trace, o Agent Lab, o executor real de benchmark e as medições de recursos. Confirme o HEAD atual antes de qualquer edição; esta atualização de continuidade também criará um novo commit documental.
+> Esta revisão comparou o histórico desde `b7e2270`, verificou os arquivos de trace, executor, orquestrador, Agent Lab e harness, e conferiu os workflows mais recentes. Confirme o HEAD atual antes de qualquer edição; esta atualização criará um novo commit documental.
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -277,6 +277,57 @@ Esta seção **supersede as lacunas antigas descritas em 6.1** sempre que elas a
 
 ---
 
+## 6.3 Capacidade, eficiência e validação — revisão 18/11/2026, 17:43 UTC
+
+Esta seção atualiza os limites e testes adicionados depois de 6.2. A implementação atual foi lida diretamente no HEAD `0151bec` e os consumidores foram conferidos nos commits `aacfa35` e `3fdac74`. O HEAD documental desta sessão é `0b4d583`.
+
+### Armazenamento de traces
+
+O primeiro limite de 128 eventos por trace era baixo para uma execução extensa e para o benchmark de 28 casos. Também havia custo O(n²): cada append relia e validava toda a cadeia anterior.
+
+A implementação atual:
+- até **1.536 eventos por trace**;
+- até **16 traces**;
+- no máximo **2 KiB por registro**; teto teórico de aproximadamente **48 MiB** para a capacidade máxima;
+- append usa cursor em cache (contagem + hash do último registro) depois da primeira validação;
+- cursor obsoleto de outra instância é detectado pela presença do próximo arquivo e reconstruído a partir da cadeia autenticada antes de gravar;
+- `historyTail(traceId, maxEvents)` valida toda a cadeia, mas retém somente a janela final em memória;
+- summaries mantêm primeiro/último registro e contagem; inspeção comum lê 48 eventos e comparação pode ler até 1.536 eventos por trace;
+- a suíte de benchmark é limitada a **28 casos**, que correspondem ao catálogo atual.
+
+**Trade-off:** append sequencial após a primeira validação mantém cursor em memória. Leituras por janela e summaries continuam percorrendo a cadeia completa para validar integridade; isso é O(n), mas n é limitado a 1.536. Não declarar a leitura por janela como O(1).
+
+### Testes escritos nesta revisão
+
+- `KellvynAgentLabTraceStoreTest.kt`: 140 eventos (além do antigo limite de 128), tail de 12 eventos, contagem/horários do summary, novo store retomando em sequência 141, duas instâncias intercalando append sem sobrescrita.
+- `KellvynSpecialistEvaluationHarnessTest.kt`: suíte com 29 casos bloqueada antes de qualquer execução; o trace termina como BLOCKED.
+- consumidores de histórico do Agent Lab e Runtime foram mudados para `historyTail`, evitando materializar todos os registros em ferramentas de leitura.
+
+**Estado dos testes:** escritos, ainda **NÃO EXECUTADOS**. Não há execução local Gradle/JUnit ou Android instrumented aprovada.
+
+### Estado mais recente do GitHub Actions
+
+- Agent Lab: run `44361347765`, job `135003272287` (Unit/Android) e `135003272941` (probe).
+- Neural: run `44361348005`, job `135003272866`.
+- Activity ledger: run `44361347702`, job `135003273083`.
+- Todos falharam antes do primeiro step: `runner_id=0`, `runner_name=""`, `steps=[]`. Classificação: **RUNNER NÃO ALOCADO / TESTES NOT RUN**. Não é falha Kotlin demonstrada, tampouco aprovação.
+- Não foi possível confirmar, pela conexão atual, se a causa é quota, budget, política ou provisionamento da conta/repositório. Não atribuir causa sem evidência da área privada de Actions/Billing.
+- O workflow do livro de atividades existe, mas também não executa sem runner. Os 58 registros de implementação/documentação foram conciliados manualmente com o histórico do GitHub.
+
+### Limites de conclusão que continuam abertos
+
+- `KellvynRuntime.isReady()` continua `false`; o cérebro neural próprio ainda não está conectado ao chat principal.
+- O executor de benchmark aceita inferência real fornecida, mas ainda não existe evidência de benchmark cognitivo executado contra um backend de produção.
+- O verificador independente é injetado por código confiável; a validade do grader para os 28 cenários não está demonstrada.
+- Não há Gradle/JUnit/Android Runner aprovado, build/APK, instalação em emulador ou teste físico no Poco F6.
+- `MainActivity.java`, `.github/interface-lock.sha`, layout e efeitos visuais permaneceram intocados.
+
+### Próximo gate único
+
+**Restaurar a alocação de GitHub Actions e executar a compilação/testes existentes.** Não acrescentar outro subsistema grande antes de a primeira execução real ocorrer. Corrigir somente falhas comprovadas; depois fortalecer o verificador independente e medir o laboratório no Poco F6.
+
+---
+
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
 - Abrir este arquivo primeiro.
@@ -301,4 +352,4 @@ Não basta dizer “continue” em uma mensagem do chat. O estado deve ser grava
 
 ## 9. Texto curto para retomar em outro chat
 
-> Continue o trabalho da Kellvyn no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Antes de qualquer alteração, leia `docs/kellvyn/SESSION_CONTROL.md`, confirme o HEAD real e confira os commits posteriores. O foco ativo é o Laboratório dos Agentes / Agent Creation Studio. Não refaça o que já existe, não mexa na interface protegida e não acrescente funcionalidades enquanto o CI estiver bloqueado, salvo correção necessária e comprovável. Continue do próximo gate descrito no registro e atualize esse mesmo arquivo antes de encerrar.
+> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Primeiro leia `docs/kellvyn/SESSION_CONTROL.md`, confirme o HEAD real e confira os commits posteriores. Não refaça o Agent Creation Studio nem o orquestrador; eles já existem. O trace automático, o Agent Lab read-only, o executor real de benchmark, a telemetria e o armazenamento com janelas limitadas já estão no código, mas os testes ainda não foram executados. O próximo gate é destravar o runner e executar Gradle/JUnit/Android. Não mexa na interface protegida nem alegue validação sem logs. Antes de encerrar, reconcilie o diário e atualize este mesmo arquivo.
