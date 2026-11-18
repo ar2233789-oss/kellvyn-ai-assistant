@@ -102,6 +102,7 @@ internal class KellvynAgent(
         preconditionEvidence: KellvynPreconditionEvidence? = null
     ): KellvynAgentResult {
         val traceSession = traceSessionFactory()
+        recordResourceSnapshot(traceSession, "START")
         traceSession.record(
             kind = KellvynAgentLabEventKind.RUN_STARTED,
             outcome = KellvynAgentLabOutcome.STARTED,
@@ -117,6 +118,7 @@ internal class KellvynAgent(
                 preconditionEvidence = preconditionEvidence,
                 traceSession = traceSession
             )
+            recordResourceSnapshot(traceSession, "END")
             val terminal = when (result) {
                 is KellvynAgentResult.Completed ->
                     KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED
@@ -135,6 +137,7 @@ internal class KellvynAgent(
             result
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
+                recordResourceSnapshot(traceSession, "CANCELLED")
                 traceSession.record(
                     kind = KellvynAgentLabEventKind.RUN_CANCELLED,
                     outcome = KellvynAgentLabOutcome.FAILED,
