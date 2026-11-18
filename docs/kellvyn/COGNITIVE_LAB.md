@@ -12,7 +12,7 @@ O laboratório é dividido em quatro áreas:
 
 1. **Pesquisa de capacidades:** estudar documentação e demonstrações públicas.
 2. **Implementação original:** escrever componentes específicos de Kellvyn.
-3. **Integração auditada:** incorporar dependências, código ou pesos externos somente após aprovação de origem, licença, versão e compatibilidade.
+3. **Integração auditada:** incorporar bibliotecas, runtimes e componentes auxiliares externos somente após aprovação de origem, licença, versão e compatibilidade. Pesos pré-treinados e adapters de terceiros são proibidos como fundação neural.
 4. **Avaliação:** comparar resultados com tarefas reproduzíveis, testes, logs e evidências.
 
 ## 2. Referências estudadas e tradução para projeto próprio
@@ -87,11 +87,12 @@ O módulo não gera planos em linguagem natural nem executa ferramentas ainda. E
 - usar algoritmos e padrões conhecidos, implementados de forma própria;
 - incorporar código de repositórios públicos com licença compatível e atribuição;
 - incorporar bibliotecas e runtimes licenciados;
-- utilizar pesos de modelos sob licença e termos compatíveis;
-- adaptar pesos por métodos autorizados, preservando lineage, autores e hashes.
+- usar exclusivamente pesos inicializados e treinados pelo próprio projeto;
+- continuar o treinamento dos próprios checkpoints com exemplos locais autorizados e avaliações versionadas.
 
 ### Bloqueado
 - copiar código proprietário, prompts privados, pesos privados ou engenharia reversa proibida;
+- usar pesos pré-treinados, checkpoints ou adapters de modelos externos como cérebro ou fundação da Kellvyn, mesmo que publicados sob licença aberta;
 - remover cabeçalhos, créditos, avisos ou atribuições;
 - copiar um produto inteiro e trocar marca/nome;
 - chamar pesos derivados de treinamento integralmente do zero;
@@ -102,8 +103,8 @@ O módulo não gera planos em linguagem natural nem executa ferramentas ainda. E
 
 Nenhum artefato externo entra no produto sem:
 1. URL oficial e repositório de origem;
-2. versão, commit e hash do arquivo/peso;
-3. licença do código e licença/termos dos pesos separados;
+2. versão, commit e hash do código/biblioteca auxiliar;
+3. licença do código e avisos/termos aplicáveis; não incorporar pesos de modelos externos;
 4. arquivos LICENSE, NOTICE e atribuições exigidas;
 5. auditoria de dependências transitivas e componentes incorporados;
 6. objetivo técnico e justificativa de uso;
