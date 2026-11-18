@@ -56,12 +56,12 @@ O código comprova contratos de papel, instruções próprias, isolamento de sub
 
 ### 2.3 O que ainda não existe ou não está comprovado
 
-- Nenhum handler de produção estava registrado no runtime na HEAD auditada de continuidade.
-- A sessão do Worker vazia não prova execução de tarefa real.
+- O bloqueio de ausência de handler foi endereçado em código: existe um handler embutido READ_ONLY de snapshot, registrado por allowlist no runtime e restaurado no Worker após recriação do processo. Ainda aguarda execução instrumental real.
+- A sessão do Worker vazia, isoladamente, não prova execução de tarefa real; há agora um teste que enfileira uma tarefa e verifica `SUCCEEDED` via `doWork()`, mas ele ainda aguarda runner/execução.
 - Só três módulos de estúdio concretos estavam registrados; isso não equivale aos estúdios completos da especificação.
 - O indexador atual é predominantemente lexical; ainda não é um analisador AST completo.
 - Não há backend neural conversacional aprovado ligado ao chat principal.
-- A suíte Android/Gradle da HEAD não tem uma execução válida comprovada; os jobs recentes vieram sem runner, steps ou logs.
+- A suíte Android/Gradle ainda não tem resultado aprovado. O workflow focado foi criado e os runs recentes estão sendo reexecutados; jobs anteriores terminaram sem runner, steps ou logs. Não confundir falha de alocação com falha do código.
 - Não há medição térmica, de bateria, latência ou RAM feita no Poco F6 físico nesta etapa.
 
 ## 3. O que foi aprendido das referências externas
@@ -122,9 +122,11 @@ Testes obrigatórios:
 
 **Gate:** ao menos um handler real executado por scheduler/queue, com resultado persistido e teste instrumental real. Não abrir ainda ferramentas de escrita genérica.
 
-### Fase 2 — registro de ferramentas e matriz de permissões dos 14 papéis
+### Fase 2 — validar e completar ferramentas dos 14 papéis
 
-Para cada papel, mapear:
+**Já implementado — não recriar:** `KellvynSpecialistToolPolicy.kt` já contém uma matriz explícita de capacidades para os 14 papéis. `KellvynAgent` aplica essa matriz ao filtrar ferramentas READ_ONLY durante delegação; os especialistas não podem conceder capacidade a si mesmos. Há testes básicos e foi acrescentado um teste de contrato da matriz completa com os 14 papéis e os cinco níveis de risco.
+
+O que ainda falta é a execução dos testes e a integração cruzada de cada papel com os manifests/ferramentas reais carregados pelos módulos. Para cada papel, validar:
 - capacidades que precisa;
 - ferramentas exatas que pode descobrir e chamar;
 - schema de entrada/saída;
@@ -135,7 +137,7 @@ Para cada papel, mapear:
 
 Não duplicar motores por papel: os 14 compartilham os mesmos módulos, com ferramentas autorizadas por política. Skills ensinam procedimentos; não concedem permissões.
 
-**Gate:** matriz completa e testes de isolamento/negação para os 14 papéis, mais execução real de ao menos uma tarefa READ_ONLY de cada família de capacidade disponível.
+**Gate:** teste exato da matriz de 14 papéis aprovado; isolamento/negação aprovados; e execução real de ao menos uma tarefa READ_ONLY de cada família de capacidade disponível.
 
 ### Fase 3 — Software Studio
 
@@ -175,6 +177,10 @@ Implementar como módulos independentes e carregados sob demanda:
 Cada módulo tem sua própria suíte, perfil de recursos e gate de licença/dependência. Não inicializar os motores juntos.
 
 ### Fase 6 — Neural Studio próprio e competência
+
+**Estado do cérebro confirmado no código:** KN-001 é o protótipo de previsão de bytes; KN-002 inclui tokenizer BPE byte-fallback e modelo de atenção inicial; KN-003 é um Transformer decoder-only experimental de um único bloco, com RoPE, atenção causal multi-head, Pre-LayerNorm e SwiGLU. O tokenizer, os pesos, o treinamento, os otimizadores e os checkpoints são implementações próprias; os pesos começam com inicialização aleatória reproduzível e são treinados apenas com exemplos/corpus fornecidos explicitamente.
+
+**Limite atual:** KN-003 ainda é um bloco único; profundidade multi-bloco, parâmetros independentes por camada e backpropagation através de múltiplos blocos ainda são trabalho futuro. Existe adaptador de inferência estrito, mas `KellvynRuntime.isReady()` continua falso e `reply()` informa que o cérebro ainda não está conectado. Portanto, o cérebro autoral começou e possui implementações neurais reais, mas não está pronto como inteligência conversacional, não tem competência validada em corpus real e não está conectado ao chat.
 
 - Preservar KN-001/KN-002/KN-003 e respectivos checkpoints.
 - Avançar a arquitetura neural própria conforme a decisão vigente, com parâmetros independentes por bloco, forward causal, backpropagation e gradient checks.
@@ -219,6 +225,10 @@ Não iniciar ainda Image Studio, 3D/CAD ou edição de código autônoma em agen
 
 A branch foi auditada em 18/11/2026. O ponto de referência anterior era `937001c85205666b013aaf8854c1c830409617ef`. Durante a retomada foram acrescentados:
 - rejeição permanente de payload inválido no scheduler, separada de erros transitórios;
-- primeiro handler de diagnóstico READ_ONLY `KellvynResourceSnapshotTaskHandler`.
+- primeiro handler de diagnóstico READ_ONLY `KellvynResourceSnapshotTaskHandler`, com registro no runtime e restauração pelo Worker;
+- testes unitários e instrumentais do scheduler/handler/Worker;
+- teste de contrato completo da matriz de capacidades dos 14 papéis;
+- workflow focado `agent-lab-tests.yml`, para unit tests e Android instrumented tests em AVD;
+- restrição do workflow visual do Poco F6 às mudanças que afetam realmente a UI/manifest/resources, evitando executá-lo para toda alteração Kotlin do cérebro/agentes.
 
-Essa alteração de código ainda não equivale a integração no runtime, build Gradle ou teste executado. O estado desses gates deve ser atualizado após evidência real.
+Os testes novos foram escritos, mas não há aprovação Gradle/AVD comprovada. Nesta sessão não existe Android SDK nem Gradle instalados no ambiente local; os workflows do GitHub são a via de validação e estão sendo observados. O estado desses gates precisa ser atualizado após logs e resultados reais.
