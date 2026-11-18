@@ -572,3 +572,14 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 
 ### Runner
 - Run `44215633371` do workflow de laboratório após o teste de cobertura real terminou sem runner, steps ou logs. Não executar inferência sobre o código a partir desse estado.
+
+## Memory Read do Analista de Memória — 18/11/2026
+
+- Implementada `KellvynMemoryTools.memory_search`, adicionada ao registry de ferramentas local e reconstruída em `createAgent` com a lista exata de endereços autorizados da conversa.
+- Escopo disponível: memória GLOBAL e, quando validado no workspace privado, memória do projeto ativo. O modelo não escolhe projeto nem escopo.
+- Só retorna `NON_SENSITIVE`; registros `SENSITIVE_PERSONAL`, `CREDENTIAL` e `UNKNOWN` são excluídos.
+- Ferramenta READ_ONLY com capability `MEMORY_READ`; somente o papel Analista de Memória recebe essa ferramenta durante delegação. O coordenador central também consegue utilizá-la para contexto próprio.
+- Saída limitada a 5 memórias, 420 caracteres por conteúdo e 3.200 caracteres no total; inclui IDs de referência, proveniência, origem, confiança e aviso de conteúdo não confiável.
+- Testes unitários criados para escopo, sensíveis, credenciais, desconhecidos, argumentos forjados e limites. Teste instrumental de disponibilidade atualiza o papel de Memória para `memory_search`.
+- A fonte isolada `KellvynMemoryTools.kt` passou por `kotlinc` com stubs mínimos: verificação isolada de sintaxe/tipos, não build Gradle do app.
+- Runs recentes `44217081776` (agent lab) e `44217081826` (neural) continuam sem runner, steps e logs: NOT_RUN/BLOCKED.
