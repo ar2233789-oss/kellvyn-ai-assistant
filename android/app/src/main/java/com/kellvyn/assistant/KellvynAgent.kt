@@ -102,7 +102,7 @@ internal class KellvynAgent(
         preconditionEvidence: KellvynPreconditionEvidence? = null
     ): KellvynAgentResult {
         val traceSession = traceSessionFactory()
-        recordResourceSnapshot(traceSession, "START")
+        val resourceBaseline = recordResourceSnapshot(traceSession, "START")
         traceSession.record(
             kind = KellvynAgentLabEventKind.RUN_STARTED,
             outcome = KellvynAgentLabOutcome.STARTED,
@@ -118,7 +118,7 @@ internal class KellvynAgent(
                 preconditionEvidence = preconditionEvidence,
                 traceSession = traceSession
             )
-            recordResourceSnapshot(traceSession, "END")
+            recordResourceSnapshot(traceSession, "END", resourceBaseline)
             val terminal = when (result) {
                 is KellvynAgentResult.Completed ->
                     KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED
@@ -137,7 +137,7 @@ internal class KellvynAgent(
             result
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
-                recordResourceSnapshot(traceSession, "CANCELLED")
+                recordResourceSnapshot(traceSession, "CANCELLED", resourceBaseline)
                 traceSession.record(
                     kind = KellvynAgentLabEventKind.RUN_CANCELLED,
                     outcome = KellvynAgentLabOutcome.FAILED,
@@ -147,6 +147,7 @@ internal class KellvynAgent(
             throw cancelled
         } catch (error: Exception) {
             withContext(NonCancellable) {
+                recordResourceSnapshot(traceSession, "FAILED", resourceBaseline)
                 traceSession.record(
                     kind = KellvynAgentLabEventKind.RUN_FAILED,
                     outcome = KellvynAgentLabOutcome.FAILED,
@@ -429,7 +430,7 @@ internal class KellvynAgent(
     suspend fun run(goal: String): KellvynAgentResult {
         val traceSession = traceSessionFactory()
         val rootRun = traceSession.actor == "coordinator"
-        recordResourceSnapshot(traceSession, "START")
+        val resourceBaseline = recordResourceSnapshot(traceSession, "START")
         traceSession.record(
             kind = if (rootRun) KellvynAgentLabEventKind.RUN_STARTED
                 else KellvynAgentLabEventKind.AGENT_STARTED,
@@ -437,7 +438,7 @@ internal class KellvynAgent(
         )
         return try {
             val result = runLoop(goal, traceSession)
-            recordResourceSnapshot(traceSession, "END")
+            recordResourceSnapshot(traceSession, "END", resourceBaseline)
             val kindAndOutcome = when (result) {
                 is KellvynAgentResult.Completed ->
                     (KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED)
@@ -458,7 +459,7 @@ internal class KellvynAgent(
             result
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
-                recordResourceSnapshot(traceSession, "CANCELLED")
+                recordResourceSnapshot(traceSession, "CANCELLED", resourceBaseline)
                 traceSession.record(
                     kind = if (rootRun) KellvynAgentLabEventKind.RUN_CANCELLED
                         else KellvynAgentLabEventKind.AGENT_FINISHED,
@@ -469,6 +470,7 @@ internal class KellvynAgent(
             throw cancelled
         } catch (error: Exception) {
             withContext(NonCancellable) {
+                recordResourceSnapshot(traceSession, "FAILED", resourceBaseline)
                 traceSession.record(
                     kind = if (rootRun) KellvynAgentLabEventKind.RUN_FAILED
                         else KellvynAgentLabEventKind.AGENT_FINISHED,
@@ -482,15 +484,32 @@ internal class KellvynAgent(
 
     private suspend fun recordResourceSnapshot(
         traceSession: KellvynAgentLabTraceSession,
-        phase: String
-    ) {
-        val provider = resourceSnapshotProvider ?: return
+        phase: String,
+        baseline: KellvynResourceSnapshot? = null
+    ): KellvynResourceSnapshot? {
+        val provider = resourceSnapshotProvider ?: return null
         val snapshot = try {
             provider()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            return
+            return null
+        }
+        val elapsedDelta = baseline?.let {
+            (snapshot.sampledAtElapsedRealtimeMillis - it.sampledAtElapsedRealtimeMillis)
+                .takeIf { delta -> delta > 0L }
+        }
+        val cpuDelta = baseline?.let {
+            (snapshot.processCpuTimeMillis - it.processCpuTimeMillis)
+                .takeIf { delta -> delta >= 0L }
+        }
+        val normalizedCpuPercent = if (elapsedDelta != null && cpuDelta != null) {
+            ((cpuDelta.toDouble() * 100.0) /
+                (elapsedDelta.toDouble() * snapshot.availableProcessors.toDouble()))
+                .toInt()
+                .coerceIn(0, 100)
+        } else {
+            null
         }
         val detailCode = buildString {
             append(phase)
@@ -499,11 +518,16 @@ internal class KellvynAgent(
             append("-P").append(snapshot.processPssBytes / MEBIBYTE)
             append("-B").append(snapshot.batteryPercent ?: "NA")
             append("-T").append(snapshot.thermalBand.name)
+            append("-C").append(snapshot.processCpuTimeMillis)
+            append("-E").append(snapshot.sampledAtElapsedRealtimeMillis)
+            cpuDelta?.let { append("-DC").append(it) }
+            normalizedCpuPercent?.let { append("-CPU").append(it) }
         }.take(80)
         traceSession.record(
             kind = KellvynAgentLabEventKind.RESOURCE_SNAPSHOT,
             detailCode = detailCode
         )
+        return snapshot
     }
 
     private suspend fun runLoop(
