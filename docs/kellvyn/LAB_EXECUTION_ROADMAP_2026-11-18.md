@@ -290,3 +290,7 @@ Runs `44327863319` (Agent Lab) e `44327863230` (Neural Core) concluíram em fail
 
 ## Atualização transversal — Agent Creation Studio E parcial — 18/11/2026
 Foi acrescentado armazenamento privado de revisões de perfil com AES-GCM/Android Keystore, cabeçalho autenticado, cadeia SHA-256, CAS, preparação sem ativação, aprovação explícita por código confiável e rollback apenas para versão aprovada ou perfil-base. O Studio consulta histórico e valores antes/depois por ferramentas READ_ONLY. Testes unitários e instrumentados estão escritos, mas aguardam runner Gradle/Android; não declarar aprovação. Factories KellvynRuntime.createAgent e createProjectWorkspaceAgent tornaram-se suspend para carregar a registry ativa em I/O, sem bloquear a thread principal.
+
+
+## Atualização de capacidade móvel — ledger de perfis — 18/11/2026
+O histórico de perfis agora tem teto explícito de 256 eventos globais, 32 KiB por registro, consultas limitadas aos 12 eventos mais recentes e ferramentas de leitura com estimativa STANDARD de 12 MiB. Isso evita histórico ilimitado e mantém o custo de inspeção previsível. Implementação e testes estão escritos; CI continua sem fornecer runner, steps ou logs.

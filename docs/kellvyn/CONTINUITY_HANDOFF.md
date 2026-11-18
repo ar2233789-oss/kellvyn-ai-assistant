@@ -790,3 +790,14 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 3. Corrigir somente falhas reproduzidas; atualizar a matriz instrumentada se a allowlist real diferir.
 4. Executar teste Android Keystore; após aprovação, implementar a confirmação de revisão no código confiável sem expor essa ação ao modelo.
 5. Só então integrar o executor de benchmark ao backend neural aprovado.
+
+
+## 31. Estado de continuidade — 18/11/2026, 15:20 UTC
+- HEAD confirmado: 6e07def97f59c7cf749e6e9a469eaf1093ec1dd5.
+- O Profile Store foi limitado a 256 registros globais de até 32 KiB cada. Ferramentas de leitura reservam 12 MiB, usam carga STANDARD e a resposta de histórico mostra no máximo 12 eventos. Diff pendente retorna valores antes/depois e faz uma leitura do ledger.
+- Runs do commit cf2434dc9f8f518b483c6484944efc1ddc9a8b4c: Agent Lab 44334107998 / job 134906002466; Neural Core 44334108000 / job 134906002719. Ambos failure sem steps/logs_url.
+- Run do HEAD atual: Agent Lab 44334550347 / job 134907561447; failure sem steps/logs_url. Combined status vazio. Nenhum dos jobs chegou a fornecer evidência de execução do Gradle.
+- O bloqueio de runner continua sem diagnóstico; verificar GitHub Actions -> Billing and licensing -> Usage, Actions included compute usage, spending limit e configuração da conta. Não presumir que o código falhou nem declarar aprovação.
+- MainActivity.java não foi tocada. O hash ainda diverge do interface-lock.sha; não editar a interface nem a lock para esconder a divergência.
+- Nenhum APK, instalação ou teste físico no Poco F6.
+- Próximo passo: obter runner com logs; executar gradle testDebugUnitTest e gradle connectedDebugAndroidTest; corrigir apenas erros com evidência. Depois, construir o fluxo confiável de confirmação do proprietário para revisão de perfil. Não fornecer a ferramenta de promoção ao modelo.
