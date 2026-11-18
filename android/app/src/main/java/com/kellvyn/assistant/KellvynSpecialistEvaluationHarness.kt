@@ -24,11 +24,15 @@ internal data class KellvynSpecialistBenchmarkExecution(
     val failureReason: String? = null
 ) {
     init {
-        require(caseId.isNotBlank() && caseId.length <= 64)
-        require(profileSha256.isNotBlank() && profileSha256.length <= 64)
+        require(caseId.matches(Regex("[a-z0-9][a-z0-9-]{2,63}")))
+        require(profileSha256.matches(Regex("[0-9a-f]{64}")))
         require(responseText.length <= 24_000)
         require(requestedToolNames.size <= 16 && executedToolNames.size <= 16)
+        require((requestedToolNames + executedToolNames).all {
+            it.matches(Regex("[A-Za-z][A-Za-z0-9_]{1,63}"))
+        })
         require(policyViolations.size <= 32)
+        require(policyViolations.all { it.isNotBlank() && it.length <= 300 })
         require(startedAtMillis >= 0L && completedAtMillis >= 0L)
         require(failureReason == null || failureReason.length <= 500)
     }
@@ -42,9 +46,11 @@ internal data class KellvynSpecialistBenchmarkVerification(
 ) {
     init {
         require(verifiedEvidence.size <= 16)
+        require(verifiedEvidence.all { it.isNotBlank() && it.length <= 180 })
         require(evidenceReferences.size <= 16)
         require(evidenceReferences.all { it.isNotBlank() && it.length <= 240 })
         require(notes.size <= 16)
+        require(notes.all { it.isNotBlank() && it.length <= 300 })
     }
 }
 
@@ -68,12 +74,13 @@ internal data class KellvynSpecialistBenchmarkResult(
     val caseId: String,
     val role: KellvynSpecialistRole,
     val status: KellvynSpecialistBenchmarkStatus,
-    val scorePercent: Int,
+    val criteriaCoveragePercent: Int,
     val verifiedEvidenceCount: Int,
     val requiredEvidenceCount: Int,
     val evidenceReferences: Set<String>,
     val durationMillis: Long?,
-    val reasons: List<String>
+    val reasons: List<String>,
+    val notes: List<String> = emptyList()
 )
 
 internal data class KellvynSpecialistBenchmarkReport(
@@ -168,11 +175,7 @@ internal class KellvynSpecialistEvaluationHarness(
         if (verification.evidenceReferences.isEmpty()) {
             reasons += "A verificação independente não anexou referência de evidência."
         }
-        if (verification.notes.isNotEmpty()) {
-            reasons += verification.notes.map { "Nota do verificador: " + it }
-        }
-
-        val score = if (testCase.requiredEvidence.isEmpty()) 0 else
+        val criteriaCoverage = if (testCase.requiredEvidence.isEmpty()) 0 else
             (satisfied.size * 100) / testCase.requiredEvidence.size
         val status = if (reasons.isEmpty()) {
             KellvynSpecialistBenchmarkStatus.PASSED
@@ -184,12 +187,13 @@ internal class KellvynSpecialistEvaluationHarness(
             caseId = testCase.caseId,
             role = testCase.role,
             status = status,
-            scorePercent = score,
+            criteriaCoveragePercent = criteriaCoverage,
             verifiedEvidenceCount = satisfied.size,
             requiredEvidenceCount = testCase.requiredEvidence.size,
             evidenceReferences = verification.evidenceReferences,
             durationMillis = duration.takeIf { it >= 0L },
-            reasons = reasons
+            reasons = reasons,
+            notes = verification.notes
         )
     }
 
@@ -199,6 +203,18 @@ internal class KellvynSpecialistEvaluationHarness(
         availableTools: List<KellvynToolSpec>,
         allowNetworkRead: Boolean = false
     ): KellvynSpecialistBenchmarkReport {
+        val duplicateCaseIds = cases.groupingBy { it.caseId }.eachCount().filterValues { it > 1 }.keys
+        if (duplicateCaseIds.isNotEmpty()) {
+            return KellvynSpecialistBenchmarkReport(
+                cases.map { blocked(it, "O conjunto contém IDs de caso duplicados.") }
+            )
+        }
+        val profileCompilation = KellvynSpecialistProfileCompiler().compileAll(profiles)
+        if (!profileCompilation.success) {
+            val reason = "O conjunto de perfis não passou pelo Profile Compiler: " +
+                profileCompilation.errors.joinToString(" ").take(500)
+            return KellvynSpecialistBenchmarkReport(cases.map { blocked(it, reason) })
+        }
         val profilesByRole = profiles.associateBy { it.role }
         val results = mutableListOf<KellvynSpecialistBenchmarkResult>()
         for (testCase in cases.sortedBy { it.caseId }) {
@@ -219,12 +235,13 @@ internal class KellvynSpecialistEvaluationHarness(
         caseId = testCase.caseId,
         role = testCase.role,
         status = KellvynSpecialistBenchmarkStatus.BLOCKED,
-        scorePercent = 0,
+        criteriaCoveragePercent = 0,
         verifiedEvidenceCount = 0,
         requiredEvidenceCount = testCase.requiredEvidence.size,
         evidenceReferences = emptySet(),
         durationMillis = null,
-        reasons = listOf(reason)
+        reasons = listOf(reason),
+        notes = emptyList()
     )
 
     private fun safeMessage(error: Exception): String =
