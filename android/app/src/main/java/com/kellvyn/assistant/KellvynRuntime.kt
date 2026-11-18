@@ -359,6 +359,34 @@ internal class KellvynRuntime(context: Context) {
         )
     }
 
+    /**
+     * Runs a sequential, independently verified specialist suite with the currently active
+     * profiles and registered tools. Every case is attached to one encrypted local experiment trace.
+     * The executor and verifier are supplied by trusted application code, never by model output.
+     */
+    suspend fun runAgentLabBenchmarkSuite(
+        executor: KellvynSpecialistBenchmarkExecutor,
+        verifier: KellvynSpecialistBenchmarkVerifier,
+        cases: List<KellvynSpecialistBenchmarkCase> = KellvynSpecialistBenchmarkRegistry.default().cases(),
+        activeProjectId: String? = null
+    ): KellvynSpecialistBenchmarkReport {
+        val profiles = activeSpecialistProfiles()
+        val availableTools = createProjectWorkspaceToolRegistry(activeProjectId).descriptions()
+        val harness = KellvynSpecialistEvaluationHarness(
+            executor = executor,
+            verifier = verifier,
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            }
+        )
+        return harness.runSuite(
+            cases = cases,
+            profiles = profiles,
+            availableTools = availableTools,
+            allowNetworkRead = KellvynWebAccessGate.isEnabled(appContext)
+        )
+    }
+
     /** Returns up to 16 newest local trace summaries after validating each event chain. */
     suspend fun agentLabTraceSummaries(): List<KellvynAgentLabTraceSummary> =
         withContext(Dispatchers.IO) { agentLabTraceStore.summaries().take(16) }
