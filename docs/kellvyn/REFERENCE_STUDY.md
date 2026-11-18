@@ -1,6 +1,6 @@
 # Kellvyn — estudo das referências
 
-**Princípio:** estudar capacidades e engenharia de sistemas existentes, aproveitando código aberto, bibliotecas, runtimes e pesos quando a licença permitir. Kellvyn não será uma cópia: a identidade, o sistema cognitivo, a integração, as políticas, os fluxos e a verificação serão próprios; toda contribuição externa terá origem e autoria declaradas.
+**Princípio:** estudar capacidades e engenharia de sistemas existentes, aproveitando documentação, algoritmos publicados, código aberto, bibliotecas e runtimes auxiliares quando a licença permitir. Pesos pré-treinados e adapters de modelos externos não serão usados como cérebro da Kellvyn; a fundação neural é própria e será treinada do zero. Kellvyn não será uma cópia: a identidade, o sistema cognitivo, a integração, as políticas, os fluxos e a verificação serão próprios; toda contribuição externa terá origem e autoria declaradas.
 
 ## 1. Android Studio + Gemini
 
@@ -190,8 +190,8 @@ Os mecanismos públicos inspiram requisitos; não copiar marca, interface ou có
 
 - Quando o componente for uma ideia ou padrão público, estudar, documentar a fonte e implementar o comportamento de forma compatível com a arquitetura Kellvyn.
 - Quando uma biblioteca ou trecho de código aberto for realmente vantajoso, verificar licença e avisos no commit exato, incluir atribuição e documentar mudanças.
-- Pesos abertos podem ser utilizados como fundação neural; registrar modelo-base, versão, autores, licença, hashes, tokenizer, quantização e restrições.
-- Pesos pré-treinados de terceiros e adapters derivados não serão usados como cérebro da Kellvyn. A fundação neural deve ser inicializada e treinada pelo próprio projeto; bibliotecas auxiliares só entram após auditoria de licença.
+- Pesos pré-treinados abertos ou fechados de terceiros, checkpoints e adapters derivados não serão utilizados como fundação ou cérebro da Kellvyn.
+- A fundação neural deve ser inicializada e treinada pelo próprio projeto; bibliotecas e runtimes auxiliares sem pesos de modelo podem ser avaliados após auditoria de licença.
 - Não copiar código interno ou pesos proprietários de Claude, ChatGPT, Gemini ou Replit.
 - Não atribuir à Kellvyn a autoria original de uma biblioteca, modelo, peso, dataset ou implementação externa.
 - Não usar conversas privadas do proprietário como treino sem consentimento específico.
