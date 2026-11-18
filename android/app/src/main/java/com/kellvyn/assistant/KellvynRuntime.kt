@@ -43,6 +43,11 @@ internal class KellvynRuntime(context: Context) {
     private val projectContextRetriever = KellvynProjectContextRetriever(projectWorkspace)
     private val resourceRuntime = KellvynResourceRuntime.get(appContext)
     private val taskBroker = resourceRuntime.taskBroker
+    private val agentLabTraceStore = KellvynAgentLabTraceStore(
+        File(appContext.filesDir, "agent-lab-traces"),
+        KellvynAndroidTaskCheckpointCipher("kellvyn.agent-lab-traces.aes-gcm.v1")
+    )
+    private val agentLabTraceRecorder = KellvynAgentLabTraceStoreRecorder(agentLabTraceStore)
     private val specialistProfileStore = KellvynSpecialistProfileStore(
         File(appContext.filesDir, "specialist-profiles"),
         KellvynAndroidTaskCheckpointCipher("kellvyn.specialist-profiles.aes-gcm.v1")
@@ -71,6 +76,13 @@ internal class KellvynRuntime(context: Context) {
             KellvynAgentCreationStudio.definition(
                 profiles = KellvynSpecialistProfileRegistry.default(),
                 profileStore = specialistProfileStore
+            )
+        )
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynAgentLabStudio.definition(
+                traceStore = agentLabTraceStore,
+                moduleManager = resourceRuntime.studioModules,
+                resourceSnapshotProvider = resourceRuntime::snapshot
             )
         )
     }
@@ -340,9 +352,22 @@ internal class KellvynRuntime(context: Context) {
             taskCheckpoints = taskCheckpointRepository,
             taskBroker = taskBroker,
             networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
-            specialistProfiles = activeSpecialistProfileRegistry()
+            specialistProfiles = activeSpecialistProfileRegistry(),
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            }
         )
     }
+
+    /** Returns up to 16 newest local trace summaries after validating each event chain. */
+    suspend fun agentLabTraceSummaries(): List<KellvynAgentLabTraceSummary> =
+        withContext(Dispatchers.IO) { agentLabTraceStore.summaries().take(16) }
+
+    /** Returns a bounded, integrity-checked timeline for the requested local trace. */
+    suspend fun agentLabTraceHistory(
+        traceId: String
+    ): List<KellvynAgentLabTraceRecord> =
+        withContext(Dispatchers.IO) { agentLabTraceStore.history(traceId).takeLast(48) }
 
     /** Returns the owner-approved profiles; staged drafts never affect this list. */
     suspend fun activeSpecialistProfiles(): List<KellvynSpecialistProfile> =
