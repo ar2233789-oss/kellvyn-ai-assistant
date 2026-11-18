@@ -1,6 +1,8 @@
 package com.kellvyn.assistant
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 
 internal enum class KellvynSpecialistBenchmarkStatus {
     PASSED,
@@ -101,7 +103,10 @@ internal data class KellvynSpecialistBenchmarkReport(
  */
 internal class KellvynSpecialistEvaluationHarness(
     private val executor: KellvynSpecialistBenchmarkExecutor,
-    private val verifier: KellvynSpecialistBenchmarkVerifier
+    private val verifier: KellvynSpecialistBenchmarkVerifier,
+    private val traceSessionFactory: () -> KellvynAgentLabTraceSession = {
+        KellvynAgentLabTraceSession.create()
+    }
 ) {
     suspend fun runCase(
         testCase: KellvynSpecialistBenchmarkCase,
@@ -203,30 +208,106 @@ internal class KellvynSpecialistEvaluationHarness(
         availableTools: List<KellvynToolSpec>,
         allowNetworkRead: Boolean = false
     ): KellvynSpecialistBenchmarkReport {
-        val duplicateCaseIds = cases.groupingBy { it.caseId }.eachCount().filterValues { it > 1 }.keys
-        if (duplicateCaseIds.isNotEmpty()) {
-            return KellvynSpecialistBenchmarkReport(
-                cases.map { blocked(it, "O conjunto contém IDs de caso duplicados.") }
-            )
-        }
-        val profileCompilation = KellvynSpecialistProfileCompiler().compileAll(profiles)
-        if (!profileCompilation.success) {
-            val reason = "O conjunto de perfis não passou pelo Profile Compiler: " +
-                profileCompilation.errors.joinToString(" ").take(500)
-            return KellvynSpecialistBenchmarkReport(cases.map { blocked(it, reason) })
-        }
-        val profilesByRole = profiles.associateBy { it.role }
-        val results = mutableListOf<KellvynSpecialistBenchmarkResult>()
-        for (testCase in cases.sortedBy { it.caseId }) {
-            val profile = profilesByRole[testCase.role]
-            results += if (profile == null) {
-                blocked(testCase, "Não há perfil compilável para este papel.")
+        val trace = traceSessionFactory()
+        trace.record(
+            kind = KellvynAgentLabEventKind.EXPERIMENT_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED,
+            detailCode = "SPECIALIST_BENCHMARK"
+        )
+        return try {
+            val duplicateCaseIds = cases.groupingBy { it.caseId }
+                .eachCount().filterValues { it > 1 }.keys
+            val report = if (duplicateCaseIds.isNotEmpty()) {
+                KellvynSpecialistBenchmarkReport(
+                    cases.map { blocked(it, "O conjunto contém IDs de caso duplicados.") }
+                )
             } else {
-                runCase(testCase, profile, availableTools, allowNetworkRead)
+                val profileCompilation = KellvynSpecialistProfileCompiler().compileAll(profiles)
+                if (!profileCompilation.success) {
+                    val reason = "O conjunto de perfis não passou pelo Profile Compiler: " +
+                        profileCompilation.errors.joinToString(" ").take(500)
+                    KellvynSpecialistBenchmarkReport(cases.map { blocked(it, reason) })
+                } else {
+                    val profilesByRole = profiles.associateBy { it.role }
+                    val compiledByRole = profileCompilation.profiles.associateBy { it.role }
+                    val results = mutableListOf<KellvynSpecialistBenchmarkResult>()
+                    cases.sortedBy { it.caseId }.forEachIndexed { index, testCase ->
+                        val profile = profilesByRole[testCase.role]
+                        val compiledProfile = compiledByRole[testCase.role]
+                        val caseTrace = trace.forActor(
+                            "benchmark:${testCase.role.name.lowercase()}"
+                        )
+                        val caseCode = safeCode(testCase.caseId)
+                        caseTrace.record(
+                            kind = KellvynAgentLabEventKind.BENCHMARK_CASE_STARTED,
+                            step = index + 1,
+                            specialistRole = testCase.role,
+                            profileSha256 = compiledProfile?.profileSha256,
+                            outcome = KellvynAgentLabOutcome.STARTED,
+                            detailCode = caseCode
+                        )
+                        val result = if (profile == null) {
+                            blocked(testCase, "Não há perfil compilável para este papel.")
+                        } else {
+                            runCase(testCase, profile, availableTools, allowNetworkRead)
+                        }
+                        caseTrace.record(
+                            kind = KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED,
+                            step = index + 1,
+                            specialistRole = testCase.role,
+                            profileSha256 = compiledProfile?.profileSha256,
+                            durationMillis = result.durationMillis,
+                            outcome = when (result.status) {
+                                KellvynSpecialistBenchmarkStatus.PASSED ->
+                                    KellvynAgentLabOutcome.SUCCEEDED
+                                KellvynSpecialistBenchmarkStatus.FAILED ->
+                                    KellvynAgentLabOutcome.FAILED
+                                KellvynSpecialistBenchmarkStatus.BLOCKED ->
+                                    KellvynAgentLabOutcome.BLOCKED
+                            },
+                            detailCode = caseCode
+                        )
+                        results += result
+                    }
+                    KellvynSpecialistBenchmarkReport(results)
+                }
             }
+            trace.record(
+                kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                outcome = when {
+                    report.failed > 0 -> KellvynAgentLabOutcome.FAILED
+                    report.blocked > 0 -> KellvynAgentLabOutcome.BLOCKED
+                    else -> KellvynAgentLabOutcome.SUCCEEDED
+                },
+                detailCode = "CASES_${report.total}"
+            )
+            report
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                trace.record(
+                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            withContext(NonCancellable) {
+                trace.record(
+                    kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "BENCHMARK_ERROR"
+                )
+            }
+            throw error
         }
-        return KellvynSpecialistBenchmarkReport(results)
     }
+
+    private fun safeCode(value: String): String =
+        value.uppercase()
+            .replace(Regex("[^A-Z0-9_.:-]"), "_")
+            .take(80)
+            .ifBlank { "CASE" }
 
     private fun blocked(
         testCase: KellvynSpecialistBenchmarkCase,
