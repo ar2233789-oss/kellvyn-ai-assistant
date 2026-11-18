@@ -518,8 +518,6 @@ internal class KellvynAgent(
             append("-P").append(snapshot.processPssBytes / MEBIBYTE)
             append("-B").append(snapshot.batteryPercent ?: "NA")
             append("-T").append(snapshot.thermalBand.name)
-            append("-C").append(snapshot.processCpuTimeMillis)
-            append("-E").append(snapshot.sampledAtElapsedRealtimeMillis)
             cpuDelta?.let { append("-DC").append(it) }
             normalizedCpuPercent?.let { append("-CPU").append(it) }
         }.take(80)
