@@ -659,3 +659,13 @@ Não habilitar ferramenta de escrita/execução genérica para agentes. Especial
 - Limite da prova: não compilou o módulo Android inteiro, não usou o Keystore/SQLite real, não rodou JUnit/Gradle e não é teste instrumental.
 - Runs atuais verificados: `44217467213`, `44217511064` e `44217511082`; jobs sem runner/steps/logs. Classificar NOT_RUN/BLOCKED.
 - Não há ainda validação end-to-end Android da ferramenta nem aprovação CI; próxima prioridade permanece resolver o runner.
+
+## 24. Diagnóstico Android Build/Toolchain para especialistas — 18/11/2026
+
+- Criado módulo lazy `android-build-status`, registrado pelo runtime e compartilhando o `ProjectWorkspaceStore` existente.
+- Tool `android_build_environment_status` tem capability ANDROID_BUILD e risco READ_ONLY; revela somente estado de cache/licença e metadados do último APK, sem caminho absoluto, sem construir, instalar ou executar artefato.
+- Os papéis Test Analyst, Security Analyst, Debugger e Auditor recebem a ferramenta pela política existente. A matriz instrumental real foi atualizada, e teste específico cobre a saída e rejeição de argumentos.
+- A ferramenta não deve ser confundida com Android Build & Test Studio completo: o compilador local existente só cobre perfil Java limitado via ECJ/D8. Kotlin/Compose/Gradle completo, instalação e UIAutomator continuam fora deste módulo.
+- A nova classe passou em typecheck Kotlin isolado com stubs do Android/runtime/module APIs; isso não é compilação Gradle da aplicação.
+- CI dos commits recentes continua NOT_RUN/BLOCKED: runs `44218653002`, `44218652911`, `44218608802` sem runner/steps/logs.
+- Próxima ação: resolver o runner, executar unit/instrumented tests e validar o status tool no emulador; só depois criar ferramenta de build controlada com aprovação exata.
