@@ -24,3 +24,13 @@ Suítes brain, agents e integration selecionam classes Kotlin com Gradle --tests
 Cada tarefa cria branch e Git worktree fora da árvore principal. Alterar código depois do teste invalida a evidência. Worktree não é sandbox de sistema operacional; Gradle executa scripts do repositório, portanto use somente clone confiável. O Studio não faz commit/push/merge automático, não promove pesos/perfis e bloqueia alterações em arquivos visuais protegidos.
 
 A presença de testes no mapa não significa que foram executados. Fakes testam contratos, não competência cognitiva. Gradle, inferência neural real e teste físico no Poco F6 são gates separados.
+
+
+## Experimentos recentes da oficina
+
+Os candidatos Brain, Agents e Integration estão isolados nas branches kellvyn-rnd/* e não foram fundidos. A versão experimental mais recente do Studio na branch brain-agent-contract-001 também adiciona:
+- associação fonte→teste por símbolos mencionados, e não apenas pelo nome do arquivo;
+- teste do wrapper Gradle simulado e do gate de evidência;
+- teste de saída não-zero registrada como FAILED, nunca PASSED.
+
+O snapshot anterior da CLI teve py_compile e 13/13 testes aprovados localmente. A versão experimental atual soma 16 testes, mas três novos testes e o algoritmo atualizado de repository map ainda não foram executados. O CI segue bloqueado antes de qualquer step por runner_id=0. Ver o diagnóstico em docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md.
