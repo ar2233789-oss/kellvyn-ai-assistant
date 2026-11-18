@@ -100,6 +100,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DATA_MODELING
             ),
             KellvynSpecialistRole.REVIEWER to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.CODE_NAVIGATION,
                 KellvynStudioCapability.SECURITY_AUDIT,
                 KellvynStudioCapability.DATA_MODELING,
@@ -132,6 +133,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.MEMORY_READ
             ),
             KellvynSpecialistRole.SECURITY_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.SECURITY_AUDIT,
                 KellvynStudioCapability.CODE_NAVIGATION,
                 KellvynStudioCapability.ANDROID_BUILD
@@ -144,6 +146,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DATA_MODELING
             ),
             KellvynSpecialistRole.DEBUGGER to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.CODE_NAVIGATION,
                 KellvynStudioCapability.ANDROID_BUILD,
                 KellvynStudioCapability.ANDROID_DEVICE_TEST,
@@ -160,6 +163,7 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DATA_MODELING
             ),
             KellvynSpecialistRole.OPERATIONS_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS,
                 KellvynStudioCapability.WORKFLOW_AUTOMATION
             ),
