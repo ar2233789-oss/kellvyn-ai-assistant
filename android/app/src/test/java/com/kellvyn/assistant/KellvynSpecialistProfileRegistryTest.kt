@@ -165,6 +165,18 @@ class KellvynSpecialistProfileRegistryTest {
         assertTrue(result.content.contains("não um resultado de competência"))
         assertTrue(result.content.contains("research-date-conflict"))
         assertTrue(result.content.contains("visual-accessibility-review"))
+
+        val detailed = studio.tools
+            .single { it.spec.name == KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL }
+            .execute(mapOf("role" to "RESEARCHER"))
+        assertTrue(detailed.success)
+        assertTrue(detailed.content.contains("Distingue data do evento"))
+        assertTrue(detailed.content.contains("Inventar URL ou citação"))
+
+        val invalidRole = studio.tools
+            .single { it.spec.name == KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL }
+            .execute(mapOf("role" to "ROOT"))
+        assertFalse(invalidRole.success)
     }
 
     @Test
