@@ -13,7 +13,8 @@ internal enum class KellvynAgentLabEventKind {
     TOOL_FINISHED,
     RUN_COMPLETED,
     RUN_FAILED,
-    RUN_LIMIT_REACHED
+    RUN_LIMIT_REACHED,
+    RUN_CANCELLED
 }
 
 internal enum class KellvynAgentLabOutcome {
@@ -75,11 +76,12 @@ internal interface KellvynAgentLabTraceRecorder {
 internal class KellvynAgentLabTraceSession private constructor(
     val traceId: String,
     private val recorder: KellvynAgentLabTraceRecorder,
-    private val clockMillis: () -> Long
+    private val clockMillis: () -> Long,
+    private val defaultActor: String = "coordinator"
 ) {
     suspend fun record(
         kind: KellvynAgentLabEventKind,
-        actor: String = "coordinator",
+        actor: String? = null,
         step: Int? = null,
         specialistRole: KellvynSpecialistRole? = null,
         toolName: String? = null,
@@ -93,7 +95,7 @@ internal class KellvynAgentLabTraceSession private constructor(
                 traceId = traceId,
                 occurredAtMillis = clockMillis(),
                 kind = kind,
-                actor = actor,
+                actor = actor ?: defaultActor,
                 step = step,
                 specialistRole = specialistRole,
                 toolName = toolName,
@@ -102,6 +104,16 @@ internal class KellvynAgentLabTraceSession private constructor(
                 outcome = outcome,
                 detailCode = detailCode
             )
+        )
+    }
+
+    fun forActor(actor: String): KellvynAgentLabTraceSession {
+        require(actor.matches(Regex("[A-Za-z0-9:_-]{1,64}")))
+        return KellvynAgentLabTraceSession(
+            traceId = traceId,
+            recorder = recorder,
+            clockMillis = clockMillis,
+            defaultActor = actor
         )
     }
 
@@ -121,7 +133,7 @@ internal class KellvynAgentLabTraceSession private constructor(
             clockMillis: () -> Long = System::currentTimeMillis
         ): KellvynAgentLabTraceSession {
             require(KellvynAgentLabEvent.TRACE_ID.matches(traceId))
-            return KellvynAgentLabTraceSession(traceId, recorder, clockMillis)
+            return KellvynAgentLabTraceSession(traceId, recorder, clockMillis, defaultActor = "coordinator")
         }
     }
 }
