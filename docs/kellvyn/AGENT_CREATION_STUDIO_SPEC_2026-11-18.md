@@ -172,3 +172,23 @@ Arquivos centrais adicionados:
 
 **Limite de conclusão:** o executor e os contratos estão escritos, mas o cérebro neural ainda não está conectado ao chat e a suíte não passou por Gradle/Android Runner. Portanto, o Agent Lab é uma infraestrutura de desenvolvimento em construção, não um ambiente já certificado. Não confundir módulo registrado, execução simulada, benchmark executado com inferência real e competência validada.
 
+
+
+## 15. Capacidade do Agent Lab e proteção de recursos — 18/11/2026
+
+O armazenamento dos traces foi ajustado para comportar um benchmark completo sem leitura integral repetida a cada gravação:
+
+- 1.536 eventos por trace, 16 traces no total e registros limitados a 2 KiB; teto teórico aproximado de 48 MiB para os registros.
+- Append usa cursor de sequência/hash em cache e reconcilia cursores obsoletos de outras instâncias antes de gravar.
+- Consultas de histórico usam janela final limitada e ainda validam a cadeia completa; não carregar o trace inteiro para exibir apenas as últimas 48 etapas.
+- O comparador limita cada trace a 1.536 eventos.
+- O harness aceita no máximo 28 casos por suíte, correspondendo ao catálogo oficial atual.
+
+Testes escritos:
+- trace maior que 128 eventos;
+- leitura tail de 12 eventos e resumo com contagem/primeiro/último horário;
+- retomada do cursor após recriação do store;
+- dois stores concorrentes em uma mesma raiz sem sobrescrita;
+- bloqueio de uma suíte com 29 casos antes de qualquer execução.
+
+Nenhum desses testes está aprovado por Gradle/CI até a infraestrutura alocar runner.
