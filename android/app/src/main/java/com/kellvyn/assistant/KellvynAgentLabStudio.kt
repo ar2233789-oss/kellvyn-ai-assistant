@@ -176,6 +176,14 @@ internal class KellvynAgentLabStudio(
                     append("COMPARAÇÃO DE EXPERIMENTOS\n")
                     append("BASELINE: ").append(baselineId).append("\n")
                     append("CANDIDATO: ").append(candidateId).append("\n")
+                    val baselineFingerprint = baseline.map { it.event }
+                        .firstOrNull { it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED }
+                        ?.detailCode ?: "não registrado"
+                    val candidateFingerprint = candidate.map { it.event }
+                        .firstOrNull { it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED }
+                        ?.detailCode ?: "não registrado"
+                    append("Suite fingerprint: ")
+                        .append(baselineFingerprint).append(" → ").append(candidateFingerprint).append("\n")
                     append("Casos aprovados: ").append(baselinePassed)
                         .append("/").append(baselineCases.size)
                         .append(" → ").append(candidatePassed)
