@@ -1,9 +1,11 @@
 package com.kellvyn.assistant
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 
 /**
@@ -26,23 +28,77 @@ internal class KellvynOrchestrator(
     private val specialistProfiles: KellvynSpecialistProfileRegistry
 ) {
     /** Creates per-run state so concurrent conversations never share delegation budgets. */
-    fun newSession(): Session = Session()
+    fun newSession(
+        traceSession: KellvynAgentLabTraceSession = KellvynAgentLabTraceSession.create()
+    ): Session = Session(traceSession)
 
-    inner class Session internal constructor() {
+    inner class Session internal constructor(
+        private val traceSession: KellvynAgentLabTraceSession
+    ) {
         private var completedDelegations = 0
 
         suspend fun dispatch(
-            decision: KellvynModelDecision.Delegate
+            decision: KellvynModelDecision.Delegate,
+            step: Int? = null
         ): KellvynOrchestrationOutcome {
-            val outcome = dispatchInternal(decision, completedDelegations)
-            if (outcome.consumesDelegationSlot) completedDelegations++
-            return outcome
+            traceSession.record(
+                kind = KellvynAgentLabEventKind.DELEGATION_STARTED,
+                step = step,
+                specialistRole = decision.role,
+                outcome = KellvynAgentLabOutcome.STARTED
+            )
+            return try {
+                val outcome = dispatchInternal(
+                    decision = decision,
+                    completedDelegations = completedDelegations,
+                    traceSession = traceSession,
+                    step = step
+                )
+                if (outcome.consumesDelegationSlot) completedDelegations++
+                val profileHash = Regex("PROFILE_SHA256: ([0-9a-f]{64})")
+                    .find(outcome.content)?.groupValues?.getOrNull(1)
+                val resultOutcome = when {
+                    !outcome.consumesDelegationSlot -> KellvynAgentLabOutcome.BLOCKED
+                    outcome.content.contains("ATINGIU LIMITE") -> KellvynAgentLabOutcome.LIMITED
+                    outcome.content.contains("NÃO CONCLUIU") -> KellvynAgentLabOutcome.FAILED
+                    else -> KellvynAgentLabOutcome.SUCCEEDED
+                }
+                traceSession.record(
+                    kind = KellvynAgentLabEventKind.DELEGATION_FINISHED,
+                    step = step,
+                    specialistRole = decision.role,
+                    profileSha256 = profileHash,
+                    durationMillis = null,
+                    outcome = resultOutcome,
+                    detailCode = when (resultOutcome) {
+                        KellvynAgentLabOutcome.SUCCEEDED -> "DELEGATION_OK"
+                        KellvynAgentLabOutcome.BLOCKED -> "DELEGATION_BLOCKED"
+                        KellvynAgentLabOutcome.FAILED -> "DELEGATION_FAILED"
+                        KellvynAgentLabOutcome.LIMITED -> "DELEGATION_LIMITED"
+                        KellvynAgentLabOutcome.STARTED -> "DELEGATION_STARTED"
+                    }
+                )
+                outcome
+            } catch (cancelled: CancellationException) {
+                withContext(NonCancellable) {
+                    traceSession.record(
+                        kind = KellvynAgentLabEventKind.DELEGATION_FINISHED,
+                        step = step,
+                        specialistRole = decision.role,
+                        outcome = KellvynAgentLabOutcome.FAILED,
+                        detailCode = "CANCELLED"
+                    )
+                }
+                throw cancelled
+            }
         }
     }
 
     private suspend fun dispatchInternal(
         decision: KellvynModelDecision.Delegate,
-        completedDelegations: Int
+        completedDelegations: Int,
+        traceSession: KellvynAgentLabTraceSession,
+        step: Int?
     ): KellvynOrchestrationOutcome {
         val source = "specialist:${decision.role.name.lowercase()}"
 
@@ -149,7 +205,10 @@ internal class KellvynOrchestrator(
             skillRegistry = skillRegistry,
             specialistProfiles = specialistProfiles,
             taskCheckpoints = null,
-            taskBroker = taskBroker
+            taskBroker = taskBroker,
+            traceSessionFactory = {
+                traceSession.forActor("specialist:${decision.role.name.lowercase()}")
+            }
         )
 
         val specialistResult = try {
