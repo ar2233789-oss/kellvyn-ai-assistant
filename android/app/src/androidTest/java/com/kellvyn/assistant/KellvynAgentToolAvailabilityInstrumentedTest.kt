@@ -33,20 +33,27 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             val dataModeling = setOf("data_inspect_structure")
             val deviceDiagnostics = setOf("device_resource_snapshot")
             val workflowAutomation = setOf("automation_queue_status")
+            val agentDesign = setOf(
+                KellvynAgentCreationStudio.CATALOG_TOOL,
+                KellvynAgentCreationStudio.INSPECT_TOOL
+            )
+            val agentEvaluation = setOf(KellvynAgentCreationStudio.VALIDATE_TOOL)
 
             val expectedByRole = mapOf(
                 KellvynSpecialistRole.RESEARCHER to dataModeling,
                 KellvynSpecialistRole.CODE_EXPLORER to codeNavigation + dataModeling,
                 KellvynSpecialistRole.REVIEWER to codeNavigation + securityAudit + dataModeling,
-                KellvynSpecialistRole.TEST_ANALYST to deviceDiagnostics + setOf("android_build_environment_status"),
+                KellvynSpecialistRole.TEST_ANALYST to deviceDiagnostics +
+                    setOf("android_build_environment_status") + agentEvaluation,
                 KellvynSpecialistRole.REASONING_ANALYST to dataModeling + deviceDiagnostics,
-                KellvynSpecialistRole.LEARNING_ANALYST to dataModeling,
-                KellvynSpecialistRole.PROGRAMMING_ARCHITECT to codeNavigation + dataModeling,
+                KellvynSpecialistRole.LEARNING_ANALYST to dataModeling + agentEvaluation,
+                KellvynSpecialistRole.PROGRAMMING_ARCHITECT to codeNavigation + dataModeling + agentDesign,
                 KellvynSpecialistRole.MEMORY_ANALYST to setOf("memory_search"),
                 KellvynSpecialistRole.SECURITY_ANALYST to codeNavigation + securityAudit + setOf("android_build_environment_status"),
-                KellvynSpecialistRole.PLANNING_ANALYST to workflowAutomation + deviceDiagnostics + dataModeling,
+                KellvynSpecialistRole.PLANNING_ANALYST to workflowAutomation + deviceDiagnostics + dataModeling + agentDesign,
                 KellvynSpecialistRole.DEBUGGER to codeNavigation + deviceDiagnostics + setOf("android_build_environment_status"),
-                KellvynSpecialistRole.AUDITOR to codeNavigation + securityAudit + dataModeling + setOf("android_build_environment_status"),
+                KellvynSpecialistRole.AUDITOR to codeNavigation + securityAudit + dataModeling +
+                    setOf("android_build_environment_status") + agentDesign + agentEvaluation,
                 KellvynSpecialistRole.OPERATIONS_ANALYST to deviceDiagnostics + workflowAutomation,
                 KellvynSpecialistRole.VISUAL_ANALYST to emptySet()
             )
