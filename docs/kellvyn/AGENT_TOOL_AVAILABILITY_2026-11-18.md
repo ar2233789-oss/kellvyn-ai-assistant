@@ -65,7 +65,7 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 
 | Papel | Capacidade autorizada na política | Ferramenta concreta hoje | Limitação atual |
 |---|---|---|---|
-| Pesquisador | WEB_RESEARCH, DATA_MODELING | `data_inspect_structure` | Pesquisa Web não está registrada como ferramenta do especialista |
+| Pesquisador | WEB_RESEARCH, DATA_MODELING | `data_inspect_structure`; `wikipedia_search` (NETWORK_READ, somente quando Acesso à Web está ligado) | A pesquisa disponível consulta apenas a Wikipédia em português; não é busca genérica da Web nem acesso arbitrário a URLs |
 | Explorador de código | CODE_NAVIGATION, DATA_MODELING | `workspace_list_projects`, `workspace_list_files`, `workspace_read_file`, `code_find_symbols`, `code_find_references`, `code_file_outline`, `data_inspect_structure` | Indexação lexical, sem AST completo |
 | Revisor | CODE_NAVIGATION, SECURITY_AUDIT, DATA_MODELING, UI_LAYOUT | navegação, `security_scan_project`, `data_inspect_structure` | Ferramentas de análise UI/visual ainda ausentes |
 | Analista de testes | ANDROID_BUILD, ANDROID_DEVICE_TEST, DEVICE_DIAGNOSTICS | `android_build_environment_status`, `device_resource_snapshot` | Diagnóstico do compilador Java/D8 disponível; build, instalação, Logcat, screenshots e execução de testes no dispositivo ainda não são ferramentas do especialista |
@@ -86,15 +86,17 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 2. `security-audit` — auditoria estática de projeto.
 3. `data-architecture` — inspeção de estrutura JSON/CSV.
 4. `android-build-status` — diagnóstico READ_ONLY do compilador local Java/ECJ/D8 e do último APK encontrado.
+5. `web-research-wikipedia` — consulta READ_ONLY/NETWORK_READ à API oficial da Wikipédia em português, ativada somente pelo controle de Acesso à Web; permite até cinco resultados, trechos limitados e URL/data de revisão. Não faz pesquisa geral em motores de busca, não busca URLs arbitrárias e não edita conteúdo.
+6. `agent-creation` — catálogo, inspeção, validação, benchmarks, histórico e diff de perfis; as ferramentas expostas ao modelo são somente leitura.
 
-Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos, status de automação e `memory_search` (somente leitura, limitada aos escopos autorizados). O módulo Android registra apenas diagnóstico do ambiente; o builder local pré-existente continua sendo um backend restrito a Java simples (ECJ → D8 → APK assinado), não um Android Studio completo. **Não existem oito estúdios completos ainda.** As capacidades visuais, Android device test e Web research continuam lacunas de implementação.
+Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos, status de automação e `memory_search` (somente leitura, limitada aos escopos autorizados). O módulo Android registra apenas diagnóstico do ambiente; o builder local pré-existente continua sendo um backend restrito a Java simples (ECJ → D8 → APK assinado), não um Android Studio completo. **Seis módulos estão registrados; isso não significa oito estúdios completos.** As capacidades visuais e Android device test continuam lacunas de implementação.
 
 ## 5. Ordem correta para completar a cobertura
 
 1. Fechar a Fase 1: provar handler real, fila, broker, resultado persistido e retomada no Android/Gradle.
 2. Adicionar teste de integração papel → política → manifest → ferramenta real para cada capability existente.
 3. Executar Memory Read no Android: validar escopo, proveniência, exclusão de registros sensíveis/desconhecidos, limites e isolamento por papel (a ferramenta `memory_search` já está implementada; harness Kotlin isolado passou, mas Android/Gradle segue pendente).
-4. Criar Web Research read-only com fonte, data, URL, isolamento de prompt injection e rede opcional.
+4. Ampliar Web Research com fontes além da Wikipédia, mantendo allowlist de domínios, provenance (URL, título, data de publicação/edição e data da consulta), limites de bytes/timeouts, redirecionamento controlado e testes de prompt injection. A ferramenta atual é apenas um adaptador seguro e limitado à Wikipédia em português.
 5. Completar Android Build/Test adapters: status do compilador já existe; build, AVD, captura, Logcat, UIAutomator e verificador de critérios continuam pendentes, com instalação e ações de dispositivo sujeitas a aprovação.
 6. Criar motores UI/UX e Visual Analysis, começando por leitura/comparação antes de edição.
 7. Criar Raster/Vector/3D/CAD somente com módulos sob demanda, formatos/limites definidos, auditoria de dependências e testes de desempenho.
@@ -176,3 +178,12 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - Diagnostica disponibilidade do android.jar cacheado, aceite da licença, compileSdk e metadados do último APK.
 - Não é ferramenta de compilação, instalação ou execução de testes. O backend existente continua Java-only limitado, ECJ → D8.
 - Teste instrumental adicionado; execução depende de CI/AVD real.
+
+## 9. Correção de inventário após inspeção do runtime — 18/11/2026
+- O inventário anterior estava desatualizado: `KellvynRuntime` registra seis módulos, não quatro.
+- A ferramenta de pesquisa Web existe como `wikipedia_search` no módulo `web-research-wikipedia`.
+- A ferramenta é NETWORK_READ, separada das ferramentas READ_ONLY. A política permite a chamada de rede somente ao Pesquisador, quando `networkReadEnabled()` está verdadeiro; o módulo verifica novamente a preferência `web_access` antes de consultar.
+- A API é fixa em `https://pt.wikipedia.org/w/api.php`, rejeita redirecionamentos, limita consulta a 180 caracteres, até cinco resultados, trechos e resposta, e retorna artigos como dados externos não confiáveis.
+- O teste instrumental de disponibilidade confirma que `wikipedia_search` é a única ferramenta NETWORK_READ registrada e que somente o Pesquisador recebe essa capability quando a rede é autorizada. Teste escrito não equivale a execução; CI/Android continuam bloqueados.
+- `agent-creation` também está registrado e é somente leitura para o modelo, incluindo histórico e diff pendente de perfis.
+- Essa correção ajusta apenas a documentação de inventário; nenhum módulo ou permissão foi alterado.
