@@ -1,0 +1,38 @@
+"""Safety tests for the R&D Studio. Uses temporary Git repositories and stdlib only."""
+import importlib.util, subprocess, tempfile, unittest, json
+from pathlib import Path
+from types import SimpleNamespace
+
+src=Path(__file__).with_name("studio.py")
+spec=importlib.util.spec_from_file_location("rnd_studio",src); studio=importlib.util.module_from_spec(spec); spec.loader.exec_module(studio)
+def git(*args,cwd): return subprocess.run(["git",*args],cwd=cwd,text=True,capture_output=True,check=True).stdout.strip()
+
+class StudioTests(unittest.TestCase):
+ def setUp(self):
+  self.tmp=tempfile.TemporaryDirectory(); self.root=Path(self.tmp.name)/"repo"; self.root.mkdir()
+  git("init",cwd=self.root); git("config","user.name","test",cwd=self.root); git("config","user.email","test@example.invalid",cwd=self.root)
+  (self.root/".github").mkdir(); (self.root/"src").mkdir(); (self.root/"src/Protected.kt").write_text("class Protected\n")
+  h=git("hash-object","src/Protected.kt",cwd=self.root); (self.root/".github/interface-lock.sha").write_text(f"{h}  src/Protected.kt\n")
+  git("add",".",cwd=self.root); git("commit","-m","base",cwd=self.root)
+  self.old=(studio.ROOT,studio.TASKS,studio.LOCK); studio.ROOT=self.root; studio.TASKS=self.root.parent/"rnd-tasks"; studio.LOCK=self.root/".github/interface-lock.sha"
+ def tearDown(self): studio.ROOT,studio.TASKS,studio.LOCK=self.old; self.tmp.cleanup()
+ def create(self):
+  studio.task_create(SimpleNamespace(id="brain-core",title="Brain test",objective="Isolate work",base="HEAD",require_test=[]))
+  return studio.TASKS/"brain-core/checkout"
+ def test_worktree_is_separate(self):
+  p=self.create(); self.assertTrue(p.is_dir()); self.assertNotEqual(p,self.root); self.assertEqual("kellvyn-rnd/brain-core",git("branch","--show-current",cwd=p))
+ def test_protected_change_blocks(self):
+  p=self.create(); (p/"src/Protected.kt").write_text("class Changed\n")
+  r=studio.check_report(SimpleNamespace(id="brain-core",require_test=[])); self.assertEqual("FAIL",r["protected"]); self.assertEqual("BLOCKED",r["gate"])
+ def test_untracked_whitespace_blocks(self):
+  p=self.create(); (p/"src/New.kt").write_text("class New  \n")
+  r=studio.check_report(SimpleNamespace(id="brain-core",require_test=[])); self.assertEqual("FAIL",r["diff_check"])
+ def test_missing_test_blocks(self):
+  self.create(); r=studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"])); self.assertEqual(["unit"],r["missing_or_stale_tests"])
+ def test_stale_test_evidence_blocks_after_source_change(self):
+  p=self.create(); m=json.loads((studio.TASKS/"brain-core/task.json").read_text()); log=studio.TASKS/"brain-core/evidence/unit.log"; log.parent.mkdir(exist_ok=True); log.write_text("actual test output\n")
+  m["evidence"].append({"suite":"unit","exit_code":0,"head":studio.head(p),"fingerprint":studio.fingerprint(p,m["base"]),"log":str(log),"log_sha256":studio.digest(log)})
+  (studio.TASKS/"brain-core/task.json").write_text(json.dumps(m)); self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
+  (p/"src/New.kt").write_text("class New\n"); self.assertEqual("BLOCKED",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
+ def test_only_three_gradle_suites_are_exposed(self): self.assertEqual({"unit","assemble","instrumented"},set(studio.TESTS))
+if __name__=="__main__": unittest.main(verbosity=2)
