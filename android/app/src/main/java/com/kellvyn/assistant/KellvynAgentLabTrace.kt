@@ -1,6 +1,8 @@
 package com.kellvyn.assistant
 
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -155,12 +157,39 @@ internal class KellvynAgentLabTraceSession private constructor(
  * Persists each trace event through the same authenticated local cipher used by task
  * checkpoints. File I/O and Keystore-backed encryption never run on the UI thread.
  */
+internal data class KellvynAgentLabTraceRecorderHealth(
+    val healthy: Boolean,
+    val lastFailureCode: String?
+)
+
+/**
+ * Trace persistence is best-effort observability: a disk/Keystore failure must not abort the
+ * actual agent task. The failure is surfaced to the lab and the recorder retries on the next
+ * event, so transient storage failures can recover without restarting the application.
+ */
 internal class KellvynAgentLabTraceStoreRecorder(
     private val store: KellvynAgentLabTraceStore
 ) : KellvynAgentLabTraceRecorder {
+    private val lastFailureCode = AtomicReference<String?>(null)
+
     override suspend fun record(event: KellvynAgentLabEvent) {
-        withContext(Dispatchers.IO) {
-            store.append(event)
+        try {
+            withContext(Dispatchers.IO) {
+                store.append(event)
+            }
+            lastFailureCode.set(null)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            lastFailureCode.set(error.javaClass.simpleName.take(64))
         }
+    }
+
+    fun health(): KellvynAgentLabTraceRecorderHealth {
+        val failure = lastFailureCode.get()
+        return KellvynAgentLabTraceRecorderHealth(
+            healthy = failure == null,
+            lastFailureCode = failure
+        )
     }
 }
