@@ -12,7 +12,10 @@ internal class KellvynSpecialistAgentBenchmarkExecutor(
     private val registeredTools: KellvynToolRegistry,
     private val config: KellvynAgentConfig = KellvynAgentConfig(),
     private val taskBroker: KellvynTaskBroker? = null,
-    private val networkReadEnabled: () -> Boolean = { false }
+    private val networkReadEnabled: () -> Boolean = { false },
+    private val traceSessionFactory: () -> KellvynAgentLabTraceSession = {
+        KellvynAgentLabTraceSession.create()
+    }
 ) : KellvynTracedSpecialistBenchmarkExecutor {
 
     override suspend fun execute(
@@ -23,7 +26,7 @@ internal class KellvynSpecialistAgentBenchmarkExecutor(
         testCase = testCase,
         profile = profile,
         allowedTools = allowedTools,
-        traceSession = null
+        traceSession = traceSessionFactory()
     )
 
     override suspend fun executeTraced(
