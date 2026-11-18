@@ -17,7 +17,7 @@ class StudioTests(unittest.TestCase):
   self.old=(studio.ROOT,studio.TASKS,studio.LOCK); studio.ROOT=self.root; studio.TASKS=self.root.parent/"rnd-tasks"; studio.LOCK=self.root/".github/interface-lock.sha"
  def tearDown(self): studio.ROOT,studio.TASKS,studio.LOCK=self.old; self.tmp.cleanup()
  def create(self):
-  studio.task_create(SimpleNamespace(id="brain-core",title="Brain test",objective="Isolate work",base="HEAD",require_test=[]))
+  studio.task_create(SimpleNamespace(id="brain-core",title="Brain test",objective="Isolate work",scope="brain",base="HEAD",require_test=[]))
   return studio.TASKS/"brain-core/checkout"
  def test_worktree_is_separate(self):
   p=self.create(); self.assertTrue(p.is_dir()); self.assertNotEqual(p,self.root); self.assertEqual("kellvyn-rnd/brain-core",git("branch","--show-current",cwd=p))
@@ -35,4 +35,31 @@ class StudioTests(unittest.TestCase):
   (studio.TASKS/"brain-core/task.json").write_text(json.dumps(m)); self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
   (p/"src/New.kt").write_text("class New\n"); self.assertEqual("BLOCKED",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
  def test_only_three_gradle_suites_are_exposed(self): self.assertEqual({"unit","assemble","instrumented"},set(studio.TESTS))
+ def test_brain_suite_filters_only_neural_and_protocol_classes(self):
+  cmd=studio.suite_command("brain")
+  selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
+  self.assertTrue(any(".neural.KellvynTransformerLanguageModelTest" in x for x in selected))
+  self.assertIn("com.kellvyn.assistant.KellvynDecisionProtocolTest",selected)
+  self.assertFalse(any("Orchestrator" in x or "AgentTest" in x for x in selected))
+ def test_agents_suite_filters_orchestrator_and_specialist_contracts(self):
+  cmd=studio.suite_command("agents")
+  selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
+  self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynAgentDelegationTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynSpecialistToolPolicyTest",selected)
+  self.assertFalse(any(".neural." in x for x in selected))
+ def test_integration_suite_contains_brain_and_agent_boundaries_once(self):
+  cmd=studio.suite_command("integration")
+  selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
+  self.assertIn("com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
+  self.assertEqual(len(selected),len(set(selected)))
+ def test_task_records_scope_and_scope_specific_gate(self):
+  self.create()
+  m=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  self.assertEqual("brain",m["scope"])
+  self.assertEqual(["brain"],m["required_tests"])
+ def test_track_registry_has_three_separate_lanes(self):
+  self.assertEqual({"brain","agents","integration"},set(studio.TRACKS))
+  self.assertTrue(set(studio.TRACKS["brain"]["tests"]).isdisjoint(set(studio.TRACKS["agents"]["tests"])))
 if __name__=="__main__": unittest.main(verbosity=2)

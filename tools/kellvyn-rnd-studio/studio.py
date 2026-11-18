@@ -14,11 +14,107 @@ TESTS = {
     "assemble": ["assembleDebug", "--no-daemon"],
     "instrumented": ["connectedDebugAndroidTest", "--no-daemon"],
 }
+TRACKS = {
+ "brain": {
+  "title": "Brain R&D",
+  "sources": [
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynRuntime.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynLocalNeuralInferenceEngine.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynTransformerInferenceEngine.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynDecisionProtocol.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynBpeTokenizer.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynAttentionLanguageModel.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerLanguageModel.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerTrainingPipeline.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynTransformerTrainingQualityGate.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/neural/KellvynNeuralModelStore.kt"
+  ],
+  "tests": [
+   "com.kellvyn.assistant.KellvynDecisionProtocolTest",
+   "com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",
+   "com.kellvyn.assistant.neural.KellvynAttentionLanguageModelTest",
+   "com.kellvyn.assistant.neural.KellvynBpeTokenizerTest",
+   "com.kellvyn.assistant.neural.KellvynByteModelTest",
+   "com.kellvyn.assistant.neural.KellvynCompletionTrainingTest",
+   "com.kellvyn.assistant.neural.KellvynNeuralModelStoreTest",
+   "com.kellvyn.assistant.neural.KellvynTrainingPipelineTest",
+   "com.kellvyn.assistant.neural.KellvynTransformerLanguageModelTest",
+   "com.kellvyn.assistant.neural.KellvynTransformerTrainingPipelineTest",
+   "com.kellvyn.assistant.neural.KellvynTransformerTrainingQualityGateTest"
+  ],
+  "metrics": ["tokenizer_round_trip","gradient_error_per_group","kv_cache_probability_error","protocol_validity","held_out_loss","latency_ram_thermal_battery"]
+ },
+ "agents": {
+  "title": "Agent R&D",
+  "sources": [
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynAgent.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynOrchestrator.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistToolPolicy.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistEvaluationHarness.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistAgentBenchmarkExecutor.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistBenchmarkRegistry.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistProfileCompiler.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynSpecialistProfileRegistry.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynAgentLabTrace.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynTaskPlanner.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynAgentLimits.kt"
+  ],
+  "tests": [
+   "com.kellvyn.assistant.KellvynAgentDelegationTest",
+   "com.kellvyn.assistant.KellvynAgentLabTraceStoreTest",
+   "com.kellvyn.assistant.KellvynAgentLimitsTest",
+   "com.kellvyn.assistant.KellvynAgentPlanTest",
+   "com.kellvyn.assistant.KellvynAgentSpecialistEvaluationTest",
+   "com.kellvyn.assistant.KellvynAgentTest",
+   "com.kellvyn.assistant.KellvynOrchestratorTest",
+   "com.kellvyn.assistant.KellvynSpecialistAgentBenchmarkExecutorTest",
+   "com.kellvyn.assistant.KellvynSpecialistEvaluationHarnessTest",
+   "com.kellvyn.assistant.KellvynSpecialistProfileRegistryTest",
+   "com.kellvyn.assistant.KellvynSpecialistProfileStoreTest",
+   "com.kellvyn.assistant.KellvynSpecialistToolPolicyTest"
+  ],
+  "metrics": ["routing_accuracy","evidence_coverage","policy_violation_rate","context_leakage","timeout_cancellation_budget","tool_success_rate","delegation_duration_ms","pass_k_reliability","resource_cost"]
+ },
+ "integration": {
+  "title": "Brain + Agent Integration",
+  "sources": [
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynRuntime.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynAgent.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynOrchestrator.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynLocalNeuralInferenceEngine.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynTransformerInferenceEngine.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynDecisionProtocol.kt",
+   "android/app/src/main/java/com/kellvyn/assistant/KellvynAgentLabTrace.kt"
+  ],
+  "tests": [
+   "com.kellvyn.assistant.KellvynDecisionProtocolTest",
+   "com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",
+   "com.kellvyn.assistant.KellvynAgentDelegationTest",
+   "com.kellvyn.assistant.KellvynAgentSpecialistEvaluationTest",
+   "com.kellvyn.assistant.KellvynOrchestratorTest",
+   "com.kellvyn.assistant.KellvynSpecialistAgentBenchmarkExecutorTest",
+   "com.kellvyn.assistant.KellvynSpecialistEvaluationHarnessTest",
+   "com.kellvyn.assistant.KellvynSpecialistToolPolicyTest"
+  ],
+  "metrics": ["valid_decision_rate","inference_to_agent_success","verified_tool_success","verified_delegation_success","untrusted_result_propagation","runtime_connection_status"]
+ }
+}
+SUITE_NAMES = set(TESTS) | set(TRACKS)
 ID = re.compile(r"^[a-z0-9][a-z0-9-]{1,39}$")
 SYMBOL = re.compile(r"^\s*(?:(?:public|internal|private|protected|open|abstract|data|sealed|enum|fun|suspend|inline|override|const)\s+)*(?:class|interface|object|typealias|fun)\s+([A-Za-z_]\w*)", re.M)
 
 def now(): return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
+def suite_command(name):
+    if name in TESTS:
+        return list(TESTS[name])
+    if name not in TRACKS:
+        raise ValueError("unknown test suite: " + name)
+    command = ["testDebugUnitTest", "--no-daemon"]
+    for test_class in TRACKS[name]["tests"]:
+        command.extend(["--tests", test_class])
+    return command
+
 def git(*args, cwd=None, ok=True):
     r = subprocess.run(["git", *args], cwd=cwd or ROOT, text=True, capture_output=True)
     if ok and r.returncode: raise RuntimeError(r.stderr.strip() or r.stdout.strip() or "git failed")
@@ -61,6 +157,39 @@ def repo_map(_):
     (DOCS/"repository-map.md").write_text("# Kotlin source map\n\n"+"\n".join(f"## {x['file']}\nSymbols: {', '.join(s['name'] for s in x['symbols'])}\nTests: {', '.join(x['test_candidates']) or 'not matched'}" for x in rows),encoding="utf-8")
     print(f"sources={len(rows)} tests={len(tests)} map={DOCS/'repository-map.md'}"); return 0
 
+def track_map(a):
+    definition = TRACKS[a.scope]
+    sources = []
+    for relative in definition["sources"]:
+        path = ROOT / relative
+        sources.append({"path": relative, "exists": path.is_file(),
+                        "sha256": digest(path) if path.is_file() else None})
+    found, missing = [], []
+    for class_name in definition["tests"]:
+        path = ROOT / "android/app/src/test/java" / Path(*class_name.split(".")).with_suffix(".kt")
+        item = {"class": class_name, "exists": path.is_file()}
+        (found if path.is_file() else missing).append(item)
+    report = {"generated_at_utc": now(), "head": head(), "scope": a.scope,
+              "title": definition["title"], "sources": sources, "tests": found,
+              "missing_tests": missing, "metrics": definition["metrics"],
+              "note": "Static map only; it does not prove execution or cognitive competence."}
+    target = DOCS / "maps"
+    target.mkdir(parents=True, exist_ok=True)
+    (target / (a.scope + "-map.json")).write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    lines = ["# " + definition["title"], "", "Generated UTC: " + report["generated_at_utc"], "HEAD: " + report["head"], "", "## Sources"]
+    lines += [("- OK: " if x["exists"] else "- MISSING: ") + x["path"] for x in sources]
+    lines += ["", "## Tests"]
+    lines += [("- OK: " if x["exists"] else "- MISSING: ") + x["class"] for x in found]
+    lines += ["- MISSING: " + x["class"] for x in missing]
+    lines += ["", "## Metrics"] + ["- " + x for x in definition["metrics"]]
+    lines += ["", report["note"]]
+    (target / (a.scope + "-map.md")).write_text("\n".join(lines) + "\n", encoding="utf-8")
+    print(json.dumps({"scope": a.scope, "sources_present": sum(x["exists"] for x in sources),
+                      "sources_total": len(sources), "tests_present": len(found),
+                      "tests_total": len(definition["tests"]), "missing_tests": missing}, ensure_ascii=False, indent=2))
+    return 0 if not missing and all(x["exists"] for x in sources) else 2
+
+
 def task_create(a):
     if not ID.fullmatch(a.id): raise ValueError("invalid task id")
     base=git("rev-parse","--verify",f"{a.base}^{{commit}}").stdout.strip(); home=TASKS/a.id; work=home/"checkout"; branch=f"kellvyn-rnd/{a.id}"
@@ -68,7 +197,7 @@ def task_create(a):
     TASKS.mkdir(parents=True,exist_ok=True); home.mkdir(parents=True)
     try: git("worktree","add","-b",branch,str(work),base)
     except Exception: home.rmdir(); raise
-    record={"id":a.id,"title":a.title,"objective":a.objective,"created_at_utc":now(),"base":base,"branch":branch,"worktree":str(work),"protected":snapshot(),"required_tests":a.require_test or ["unit"],"evidence":[]}
+    record={"id":a.id,"title":a.title,"objective":a.objective,"scope":a.scope,"created_at_utc":now(),"base":base,"branch":branch,"worktree":str(work),"protected":snapshot(),"required_tests":a.require_test or [a.scope],"evidence":[]}
     (home/"task.json").write_text(json.dumps(record,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (home/"TASK.md").write_text(f"# {a.title}\n\n{a.objective}\n\nBase: {base}\nBranch: {branch}\n",encoding="utf-8")
     print(f"WORKTREE={work}\nBRANCH={branch}\nBASE={base}"); return 0
@@ -78,7 +207,7 @@ def task_test(a):
     if not wrapper.is_file(): raise FileNotFoundError(wrapper)
     if os.name!="nt" and not os.access(wrapper,os.X_OK): raise PermissionError("gradlew not executable")
     start=time.monotonic(); stamp=datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ"); evidence=TASKS/a.id/"evidence"; evidence.mkdir(exist_ok=True)
-    command=[str(wrapper),*TESTS[a.suite]]
+    command=[str(wrapper),*suite_command(a.suite)]
     try:
         r=subprocess.run(command,cwd=work/"android",text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,timeout=a.timeout)
         code=r.returncode; output=r.stdout; status="PASSED" if code==0 else "FAILED"
@@ -124,7 +253,7 @@ def research_add(a):
 def experiment_create(a):
     p=DOCS/"experiments"/a.id
     if not ID.fullmatch(a.id): raise ValueError("invalid experiment id")
-    p.mkdir(parents=True,exist_ok=False); row={"id":a.id,"title":a.title,"hypothesis":a.hypothesis,"created_at_utc":now(),"baseline_commit":head(),"state":"PLANNED","controls":[],"metrics":[],"runs":[],"acceptance_criteria":[]}
+    p.mkdir(parents=True,exist_ok=False); row={"id":a.id,"title":a.title,"hypothesis":a.hypothesis,"scope":a.scope,"created_at_utc":now(),"baseline_commit":head(),"state":"PLANNED","controls":[],"metrics":[],"runs":[],"acceptance_criteria":[]}
     (p/"experiment.json").write_text(json.dumps(row,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
     (p/"README.md").write_text(f"# {a.title}\n\n## Hypothesis\n{a.hypothesis}\n\nRecord baseline/candidate, controls, metrics, repetitions, acceptance criteria and evidence before drawing conclusions.\n",encoding="utf-8"); print(f"CREATED={p}"); return 0
 
@@ -137,14 +266,15 @@ def experiment_record(a):
 def main():
     p=argparse.ArgumentParser(description="Kellvyn R&D Studio"); s=p.add_subparsers(dest="cmd",required=True)
     x=s.add_parser("map"); x.set_defaults(fn=repo_map)
+    x=s.add_parser("track-map"); x.add_argument("--scope",choices=sorted(TRACKS),required=True); x.set_defaults(fn=track_map)
     t=s.add_parser("task"); q=t.add_subparsers(dest="action",required=True)
-    c=q.add_parser("create"); c.add_argument("--id",required=True); c.add_argument("--title",required=True); c.add_argument("--objective",required=True); c.add_argument("--base",default="HEAD"); c.add_argument("--require-test",action="append",choices=TESTS); c.set_defaults(fn=task_create)
+    c=q.add_parser("create"); c.add_argument("--id",required=True); c.add_argument("--title",required=True); c.add_argument("--objective",required=True); c.add_argument("--scope",choices=sorted(TRACKS),default="integration"); c.add_argument("--base",default="HEAD"); c.add_argument("--require-test",action="append",choices=sorted(SUITE_NAMES)); c.set_defaults(fn=task_create)
     for action,fn in (("test",task_test),("check",task_check)):
         z=q.add_parser(action); z.add_argument("--id",required=True); z.set_defaults(fn=fn)
-        if action=="test": z.add_argument("--suite",required=True,choices=TESTS); z.add_argument("--timeout",type=int,default=1800)
-        else: z.add_argument("--require-test",action="append",choices=TESTS)
+        if action=="test": z.add_argument("--suite",required=True,choices=sorted(SUITE_NAMES)); z.add_argument("--timeout",type=int,default=1800)
+        else: z.add_argument("--require-test",action="append",choices=sorted(SUITE_NAMES))
     r=s.add_parser("research"); r.add_argument("--topic",default="general"); r.add_argument("--title",required=True); r.add_argument("--source",required=True); r.add_argument("--finding",required=True); r.add_argument("--decision",default="pending"); r.add_argument("--confidence",choices=["low","medium","high"],default="medium"); r.set_defaults(fn=research_add)
-    e=s.add_parser("experiment"); v=e.add_subparsers(dest="action",required=True); n=v.add_parser("create"); n.add_argument("--id",required=True); n.add_argument("--title",required=True); n.add_argument("--hypothesis",required=True); n.set_defaults(fn=experiment_create)
+    e=s.add_parser("experiment"); v=e.add_subparsers(dest="action",required=True); n=v.add_parser("create"); n.add_argument("--id",required=True); n.add_argument("--title",required=True); n.add_argument("--hypothesis",required=True); n.add_argument("--scope",choices=sorted(TRACKS),default="integration"); n.set_defaults(fn=experiment_create)
     n=v.add_parser("record"); n.add_argument("--id",required=True); n.add_argument("--variant",required=True,choices=["baseline","candidate"]); n.add_argument("--metric",required=True); n.add_argument("--value",type=float,required=True); n.add_argument("--unit",default="unspecified"); n.add_argument("--evidence",required=True); n.add_argument("--notes",default=""); n.set_defaults(fn=experiment_record)
     a=p.parse_args()
     if getattr(a,"timeout",1800)<1 or getattr(a,"timeout",1800)>3600: raise ValueError("timeout must be 1..3600s")

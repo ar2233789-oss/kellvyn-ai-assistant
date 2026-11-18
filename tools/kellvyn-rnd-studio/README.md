@@ -1,32 +1,26 @@
 # Kellvyn R&D Studio
 
-Esta é a bancada de engenharia para estudar e melhorar o cérebro Kellvyn. Ela serve ao trabalho de desenvolvimento do assistente sobre o repositório. Não é uma tela do app, não é o Agent Lab Android, não cria outro cérebro e não troca o orquestrador pelo cérebro.
+Bancada externa para estudar e desenvolver o cérebro e os agentes Kellvyn, e validar os contratos entre eles. Não é tela do app nem o Agent Lab Android.
 
-Capacidades implementadas:
-- mapa estático de fontes Kotlin, símbolos, imports, hashes e testes candidatos;
-- worktree e branch Git isolados por tarefa/hipótese;
-- registro persistente de pesquisa e experimentos;
-- execução de três suítes Gradle permitidas: unit, assemble e instrumented;
-- gate de diff, arquivos protegidos e evidência de testes.
+Três frentes:
+- Brain: tokenizer, KN-001/002/003, treinamento, pesos, inferência e KELLVYN/1.
+- Agents: KellvynAgent, KellvynOrchestrator, 14 perfis, políticas de ferramentas, planner, traces e avaliação.
+- Integration: inferência -> decisões -> loop do agente -> ferramentas/delegação -> verificador.
 
-Requisitos: clone local do repositório, Python 3.10+ (stdlib only), Git com worktree e ambiente JDK/Android SDK quando executar Gradle.
+Comandos:
 
-Comandos, a partir da raiz do clone:
+    python3 tools/kellvyn-rnd-studio/studio.py track-map --scope brain
+    python3 tools/kellvyn-rnd-studio/studio.py track-map --scope agents
+    python3 tools/kellvyn-rnd-studio/studio.py track-map --scope integration
 
-    python3 tools/kellvyn-rnd-studio/studio.py map
+    python3 tools/kellvyn-rnd-studio/studio.py task create --id agent-delegation-duration-001 --scope agents --title "Delegation duration" --objective "Measure specialist dispatch duration" --require-test agents
+    python3 tools/kellvyn-rnd-studio/studio.py task test --id agent-delegation-duration-001 --suite agents
+    python3 tools/kellvyn-rnd-studio/studio.py task check --id agent-delegation-duration-001
 
-    python3 tools/kellvyn-rnd-studio/studio.py task create --id brain-attention-001 --title "Study attention" --objective "Verify attention math and tests" --require-test unit
+    python3 tools/kellvyn-rnd-studio/studio.py experiment create --id agent-routing-001 --scope agents --title "Agent routing" --hypothesis "Each role receives only permitted tools"
 
-    python3 tools/kellvyn-rnd-studio/studio.py task test --id brain-attention-001 --suite unit
-    python3 tools/kellvyn-rnd-studio/studio.py task check --id brain-attention-001
+Suítes brain, agents e integration selecionam classes Kotlin com Gradle --tests. As suítes unit, assemble e instrumented continuam disponíveis. A suíte integration atual é de contrato unitário; não prova que o chat esteja conectado ao cérebro real. KellvynRuntime.isReady() continua false.
 
-    python3 tools/kellvyn-rnd-studio/studio.py research --topic neural-core --title "Research finding" --source "https://example.org/paper" --finding "Finding in own words" --decision pending
+Cada tarefa cria branch e Git worktree fora da árvore principal. Alterar código depois do teste invalida a evidência. Worktree não é sandbox de sistema operacional; Gradle executa scripts do repositório, portanto use somente clone confiável. O Studio não faz commit/push/merge automático, não promove pesos/perfis e bloqueia alterações em arquivos visuais protegidos.
 
-    python3 tools/kellvyn-rnd-studio/studio.py experiment create --id kv-cache-001 --title "KV cache equivalence" --hypothesis "Cached decode matches full-prefix output"
-    python3 tools/kellvyn-rnd-studio/studio.py experiment record --id kv-cache-001 --variant baseline --metric token_match --value 1.0 --unit ratio --evidence "path/to/log"
-
-Cada tarefa vai para um checkout fora da árvore versionada do repositório, numa branch kellvyn-rnd/<id>. O gate exige que os testes tenham exit code 0, log íntegro, HEAD e fingerprint do workspace ainda iguais ao estado testado. Alterar o código depois do teste invalida a evidência e obriga a executar novamente.
-
-O teste Gradle executa scripts de build do próprio repositório e não é um sandbox de sistema operacional. Usar somente em clone confiável. O Studio não faz commit, push, merge nem promoção automática. Não edita arquivos visuais protegidos: tira snapshot dos hashes definidos em .github/interface-lock.sha e bloqueia se mudarem.
-
-A suíte unit testada nesta entrega é a do próprio Studio, em repositórios Git temporários. Isso não equivale a Gradle/JUnit/Android ter executado no Kellvyn. O mapa é estático e não prova ligação de runtime. O Studio não treina pesos automaticamente, não habilita KellvynRuntime.isReady() e não declara o cérebro pronto.
+A presença de testes no mapa não significa que foram executados. Fakes testam contratos, não competência cognitiva. Gradle, inferência neural real e teste físico no Poco F6 são gates separados.
