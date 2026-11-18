@@ -71,7 +71,8 @@
   ],
   "scope": "brain",
   "candidate_branch": "kellvyn-rnd/brain-gradient-coverage-001",
-  "candidate_head": "a580b6577ed27148decbeae3c0cd7a620a0c41c7",
+  "candidate_head": "db943167b82be2b8ca95674ecca81f612f8e3bb2",
   "candidate_summary": "Candidate samples zero/non-zero coordinates in all 14 named parameter groups, reports per-group counts and restores perturbed values in finally. Added tests cover all groups and headCount 1/2/4. Not compiled or run.",
-  "candidate_run_id": 44405313920
+  "candidate_run_id": 44412372652,
+  "latest_status": "runner_id=0, runner_name empty, steps=[]; Gradle/JUnit NOT_RUN"
 }
