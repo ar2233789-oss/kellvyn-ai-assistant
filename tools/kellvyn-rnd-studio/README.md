@@ -24,3 +24,6 @@ Suítes brain, agents e integration selecionam classes Kotlin com Gradle --tests
 Cada tarefa cria branch e Git worktree fora da árvore principal. Alterar código depois do teste invalida a evidência. Worktree não é sandbox de sistema operacional; Gradle executa scripts do repositório, portanto use somente clone confiável. O Studio não faz commit/push/merge automático, não promove pesos/perfis e bloqueia alterações em arquivos visuais protegidos.
 
 A presença de testes no mapa não significa que foram executados. Fakes testam contratos, não competência cognitiva. Gradle, inferência neural real e teste físico no Poco F6 são gates separados.
+
+
+A suite integration também inclui KellvynBrainAgentIntegrationContractTest. Ela valida o parser KELLVYN/1 real até delegação e handoff UNTRUSTED usando um ProtocolScriptedEngine determinístico. Isso é um contrato transversal, não E2E com pesos neurais ou Runtime de chat.

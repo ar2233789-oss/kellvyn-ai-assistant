@@ -601,3 +601,18 @@ A R&D Studio possui três tracks. Há dois candidatos técnicos em branches expe
 A branch lab continua sendo a base de integração/documentação. As branches kellvyn-rnd/* são experimentos independentes. Ao retomar: confirmar cada HEAD, executar baseline/candidato quando houver runner, registrar evidência, revisar diff e somente então promover por cherry-pick/merge. Nunca tratar commit existente ou teste escrito como teste aprovado.
 
 A frente Integration permanece como hipótese de contrato entre adapter, parser KELLVYN/1, loop, ferramenta, delegação e verificador. Não afirmar integração de chat: KellvynRuntime.isReady() continua false.
+
+
+## 15. Integration R&D — contrato KELLVYN/1 -> agente -> especialista (18/11/2026, 22:02 UTC)
+
+Branch isolada: kellvyn-rnd/brain-agent-contract-001.
+
+Foi adicionada a classe de teste KellvynBrainAgentIntegrationContractTest:
+- caso válido: mensagem KELLVYN/1 DELEGATE é parseada, executa o agente principal e orquestrador, aplica least privilege, executa ferramenta de leitura, mantém resultados como UNTRUSTED e conclui;
+- caso inválido: nome de ferramenta malformado é recusado antes da execução.
+
+A suíte integration no Studio agora seleciona essa classe, com teste do próprio Studio para garantir a inclusão.
+
+Limite fundamental: ProtocolScriptedEngine injeta textos KELLVYN/1 determinísticos. O parser e os loops são código real, mas o modelo é simulado. Isso verifica contrato entre camadas, não capacidade cognitiva nem inferência neural real. KellvynRuntime.isReady() continua false.
+
+CI run 44407125400: runner_id=0 e steps=[] nos dois jobs. Estado IMPLEMENTED_NOT_RUN.

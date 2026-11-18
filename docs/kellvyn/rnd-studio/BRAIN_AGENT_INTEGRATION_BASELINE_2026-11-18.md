@@ -32,3 +32,16 @@ Checkpoint/tokenizer íntegros; qualidade neural elegível para benchmark; decis
 Hipótese brain-agent-contract-001 congela casos para os quatro tipos de decisão e sequencia adapter -> parser -> agent loop -> tool/delegation -> verifier. A primeira rodada usa engine determinística; não comprova competência do modelo.
 
 **Estado:** Runtime de produção desconectado; suíte de contrato preparada, mas não executada.
+
+
+## Contrato transversal implementado — 18/11/2026
+
+Branch: kellvyn-rnd/brain-agent-contract-001.
+
+Foi adicionada a classe KellvynBrainAgentIntegrationContractTest com dois casos:
+1. protocolDelegationRunsSpecialistWithLeastPrivilegeAndUntrustedHandoff — o teste entrega mensagens KELLVYN/1 roteirizadas; o parser cria DELEGATE, o agente principal chama o orquestrador, o especialista recebe somente read_source, executa leitura, devolve observação UNTRUSTED e o agente principal conclui.
+2. malformedWireDecisionFailsBeforeAnyToolExecution — protocolo CALL_TOOL com nome inválido é rejeitado antes de qualquer execução de ferramenta.
+
+A suíte integration da R&D Studio inclui a nova classe. Os testes usam ProtocolScriptedEngine; atravessam o parser real e o loop real de agente/orquestrador, mas não usam checkpoint neural real.
+
+CI run 44407125400 falhou antes dos steps: runner_id=0, steps=[] nos dois jobs. Estado IMPLEMENTED_NOT_RUN; não há aprovação de compilação/execução. KellvynRuntime.isReady() continua false.
