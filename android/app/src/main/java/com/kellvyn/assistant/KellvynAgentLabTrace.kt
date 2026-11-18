@@ -1,9 +1,14 @@
 package com.kellvyn.assistant
 
 import java.util.UUID
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal enum class KellvynAgentLabEventKind {
     RUN_STARTED,
+    AGENT_STARTED,
+    AGENT_FINISHED,
+    RUN_PLANNED,
     MODEL_CALL_STARTED,
     MODEL_DECISION,
     MODEL_CALL_FAILED,
@@ -14,7 +19,11 @@ internal enum class KellvynAgentLabEventKind {
     RUN_COMPLETED,
     RUN_FAILED,
     RUN_LIMIT_REACHED,
-    RUN_CANCELLED
+    RUN_CANCELLED,
+    BENCHMARK_CASE_STARTED,
+    BENCHMARK_CASE_FINISHED,
+    EXPERIMENT_STARTED,
+    EXPERIMENT_FINISHED
 }
 
 internal enum class KellvynAgentLabOutcome {
@@ -79,6 +88,8 @@ internal class KellvynAgentLabTraceSession private constructor(
     private val clockMillis: () -> Long,
     private val defaultActor: String = "coordinator"
 ) {
+    val actor: String get() = defaultActor
+
     suspend fun record(
         kind: KellvynAgentLabEventKind,
         actor: String? = null,
@@ -134,6 +145,21 @@ internal class KellvynAgentLabTraceSession private constructor(
         ): KellvynAgentLabTraceSession {
             require(KellvynAgentLabEvent.TRACE_ID.matches(traceId))
             return KellvynAgentLabTraceSession(traceId, recorder, clockMillis, defaultActor = "coordinator")
+        }
+    }
+}
+
+
+/**
+ * Persists each trace event through the same authenticated local cipher used by task
+ * checkpoints. File I/O and Keystore-backed encryption never run on the UI thread.
+ */
+internal class KellvynAgentLabTraceStoreRecorder(
+    private val store: KellvynAgentLabTraceStore
+) : KellvynAgentLabTraceRecorder {
+    override suspend fun record(event: KellvynAgentLabEvent) {
+        withContext(Dispatchers.IO) {
+            store.append(event)
         }
     }
 }
