@@ -150,8 +150,10 @@ internal class KellvynAgentLabTraceStore(
 
     private fun isTerminal(kind: KellvynAgentLabEventKind): Boolean = when (kind) {
         KellvynAgentLabEventKind.RUN_COMPLETED,
+        KellvynAgentLabEventKind.RUN_PLANNED,
         KellvynAgentLabEventKind.RUN_FAILED,
-        KellvynAgentLabEventKind.RUN_LIMIT_REACHED -> true
+        KellvynAgentLabEventKind.RUN_LIMIT_REACHED,
+        KellvynAgentLabEventKind.RUN_CANCELLED -> true
         else -> false
     }
 
