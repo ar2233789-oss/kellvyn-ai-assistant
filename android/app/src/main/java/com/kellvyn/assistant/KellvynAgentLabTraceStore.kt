@@ -153,7 +153,8 @@ internal class KellvynAgentLabTraceStore(
         KellvynAgentLabEventKind.RUN_PLANNED,
         KellvynAgentLabEventKind.RUN_FAILED,
         KellvynAgentLabEventKind.RUN_LIMIT_REACHED,
-        KellvynAgentLabEventKind.RUN_CANCELLED -> true
+        KellvynAgentLabEventKind.RUN_CANCELLED,
+        KellvynAgentLabEventKind.EXPERIMENT_FINISHED -> true
         else -> false
     }
 
