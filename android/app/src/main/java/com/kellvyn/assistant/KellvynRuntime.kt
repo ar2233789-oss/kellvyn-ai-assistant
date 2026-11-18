@@ -431,7 +431,7 @@ internal class KellvynRuntime(context: Context) {
     suspend fun agentLabTraceHistory(
         traceId: String
     ): List<KellvynAgentLabTraceRecord> =
-        withContext(Dispatchers.IO) { agentLabTraceStore.history(traceId).takeLast(48) }
+        withContext(Dispatchers.IO) { agentLabTraceStore.historyTail(traceId, 48) }
 
     /** Returns the owner-approved profiles; staged drafts never affect this list. */
     suspend fun activeSpecialistProfiles(): List<KellvynSpecialistProfile> =
