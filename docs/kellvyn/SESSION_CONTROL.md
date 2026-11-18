@@ -3,13 +3,14 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 17:43 UTC  
+**Última revisão:** 18/11/2026, 18:08 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD de código auditado antes desta atualização:** `0b4d5834c91ab6deb0f6d693398828a7a6316540`  
-**Livro de atividades:** `0b4d5834c91ab6deb0f6d693398828a7a6316540` — 58 linhas de commits da sessão conciliadas manualmente; commits puramente de manutenção documental não são listados para evitar um ciclo de auto-registro.
+**HEAD de código auditado:** `a31353731761a1437bcb2870c390b5ae101f774f`  
+**Documentação técnica:** pesquisa `5ca3a4d`; especificação `346d57d`.  
+**Livro de atividades:** `8b5f79a697b34c0c024c921db2622fe74d36a7eb` — 82 entradas de implementação/documentação reconciliadas manualmente.
 
-> Esta revisão comparou o histórico desde `b7e2270`, verificou os arquivos de trace, executor, orquestrador, Agent Lab e harness, e conferiu os workflows mais recentes. Confirme o HEAD atual antes de qualquer edição; esta atualização criará um novo commit documental.
+> Esta revisão compara 22 commits posteriores ao estado das 17:43 UTC, confirma o trace/CPU/health/retention e confere os workflows às 18:06 UTC. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -328,6 +329,59 @@ A implementação atual:
 
 ---
 
+## 6.4 Telemetria, resiliência e qualidade do benchmark — revisão 18/11/2026, 18:08 UTC
+
+Esta seção **atualiza e substitui os estados temporais antigos** nas seções 6.1, 6.2 e 6.3. O código atual foi conferido no HEAD `a313537`; as pesquisas e especificações foram atualizadas nos commits `5ca3a4d` e `346d57d`.
+
+### CPU e limites de atribuição
+
+- `KellvynAndroidResourceMonitor` coleta `Process.getElapsedCpuTime()`, `SystemClock.elapsedRealtime()` e `Runtime.availableProcessors()`, além de RAM disponível, heap, PSS, bateria e estado térmico.
+- A coleta ocorre sob demanda no início/fim da execução; não há loop de polling.
+- A variação percentual estima CPU usada pelo **processo Android inteiro** durante a janela. Se outra corrotina/ferramenta trabalhar no mesmo período, ela também entra na medição. Benchmarks sequenciais reduzem o ruído, mas não produzem atribuição exclusiva por agente.
+- Não é medição de energia em joules/watts. Bateria e térmica são amostras, não média contínua.
+- Referências oficiais de API: https://developer.android.com/reference/android/os/Process e https://developer.android.com/reference/android/os/SystemClock.
+
+### Resiliência do registro de traces
+
+- Persistência de observabilidade é best-effort: erro de arquivo/Keystore não interrompe o ciclo real do agente.
+- O recorder rastreia: ainda não testado, saudável, degradado e recuperado com falhas anteriores.
+- Última falha inclui código, traceId e tipo do evento que não foi persistido; o conteúdo do evento não é guardado.
+- Uma gravação posterior pode recuperar a escrita, mas **não recompõe retroativamente o evento perdido**. O painel mantém a falha histórica e identifica o trace potencialmente incompleto.
+- Testes escritos: falha de armazenamento e recuperação; estado inicial não testado; identificação do evento/trace perdido; execução de `KellvynAgent.run()` concluída mesmo quando o recorder falha.
+- Limpeza de retenção: `KellvynRuntime.pruneAgentLabTracesBefore(cutoffMillis, ownerConfirmed)` exige confirmação explícita em código confiável, executa em I/O e remove apenas traces terminais antigos cuja cadeia completa foi validada. Não existe ferramenta de agente para essa operação.
+
+### Avaliação dos 28 cenários — lacuna deliberadamente aberta
+
+- O executor real usa uma inferência fornecida, perfil compilado e ferramentas filtradas pela política; registra chamadas solicitadas/executadas e violações. Não se autoavalia.
+- Os 28 cenários ainda têm `requiredEvidence` e `prohibitedBehaviors` como rubricas em linguagem natural.
+- O harness requer um verificador separado, mas **ainda não existe grader semântico independente e validado para todos os 28 cenários**.
+- Não criar aprovação por busca ingênua de palavras nem usar o próprio especialista para confirmar sua resposta.
+- Próximo trabalho de avaliação: classificar cada critério por tipo de evidência; criar oráculos determinísticos somente para fatos objetivos (resultado de ferramenta, hash/diff/artefato, teste, ordem/dependências); deixar critérios sem oráculo como REVIEW_REQUIRED/BLOCKED e encaminhar revisão humana/semântica independente.
+
+### Testes e CI — estado em 18:06 UTC
+
+- Testes escritos nesta rodada: CPU delta, recorder que falha e recupera, agente que termina mesmo com erro de trace, e identificação do trace/evento perdido.
+- Nenhum desses testes foi executado por Gradle/JUnit/Android Runner.
+- CI HEAD `a313537`:
+  - Agent Lab run `44366062435`: jobs `135019965925` e `135019966794`;
+  - Neural run `44366062495`: job `135019965751`;
+  - Activity ledger run `44366062453`: job `135019966140`.
+- Todos retornaram `runner_id=0`, `runner_name=""`, `steps=[]` antes do primeiro step. Classificação: **RUNNER NÃO ALOCADO / TESTES NOT RUN**; não prova erro Kotlin nem aprovação.
+- O workflow de atividade automática continua instalado, mas não executa sem runner. O diário foi conciliado manualmente até 18:08 UTC no commit `8b5f79a`.
+
+### O que ainda não está provado
+
+- `KellvynRuntime.isReady()` continua `false`; cérebro neural não ligado ao chat principal.
+- Não há execução de benchmark cognitivo com backend de produção aprovado.
+- Não há Gradle/JUnit/Android instrumented aprovado, APK desta rodada, instalação em emulador ou teste físico no Poco F6.
+- Não alterar `MainActivity.java`, `.github/interface-lock.sha`, layout, cores, barras, menus ou efeitos; permaneceram intocados.
+
+### Próximo gate único
+
+**Restaurar a alocação do GitHub Actions e executar as suítes existentes.** Não acrescentar outro subsistema grande antes de compilar e rodar os testes. Depois, implementar verificadores por evidência objetiva e revisão pendente nos critérios não automatizáveis; só então testar inferência neural aprovada e medir no Poco F6.
+
+---
+
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
 - Abrir este arquivo primeiro.
@@ -352,4 +406,4 @@ Não basta dizer “continue” em uma mensagem do chat. O estado deve ser grava
 
 ## 9. Texto curto para retomar em outro chat
 
-> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Primeiro leia `docs/kellvyn/SESSION_CONTROL.md`, confirme o HEAD real e confira os commits posteriores. Não refaça o Agent Creation Studio nem o orquestrador; eles já existem. O trace automático, o Agent Lab read-only, o executor real de benchmark, a telemetria e o armazenamento com janelas limitadas já estão no código, mas os testes ainda não foram executados. O próximo gate é destravar o runner e executar Gradle/JUnit/Android. Não mexa na interface protegida nem alegue validação sem logs. Antes de encerrar, reconcilie o diário e atualize este mesmo arquivo.
+> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Leia este SESSION_CONTROL primeiro, confirme o HEAD e os commits posteriores. Não refaça perfis, Agent Creation Studio, orquestrador, trace ou executor: já existem. Estado atual: traces automáticos com telemetria de CPU/RAM/heap/PSS/bateria/térmica, health de gravação, pruning protegido e benchmark de até 28 casos. A lacuna de avaliação é o grader: as rubricas são texto livre e não há verificador semântico validado. Próximo gate único: destravar o runner e executar Gradle/JUnit/Android; não empilhar módulos enquanto isso. Depois criar oráculos determinísticos e REVIEW_REQUIRED para critérios sem prova objetiva. Não mexer na interface protegida; não alegar testes sem logs; reconciliar o diário e este arquivo ao encerrar.
