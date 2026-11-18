@@ -3,15 +3,14 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 18:22 UTC  
-**Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
-**Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD de código auditado:** `1e79ec6f72a0524bf53b5227c60c98b44886c9c9`  
-**Documentação técnica:** pesquisa `559b8d7`; especificação `c435e8f`.  
-**Livro de atividades:** `c44d824e91f2a991d92eccb6a946e004ca278c5c` — 92 entradas de implementação/documentação reconciliadas manualmente.
+**Última revisão:** 18/11/2026, 19:51 UTC  
+**Repositório:** ar2233789-oss/kellvyn-ai-assistant  
+**Branch de laboratório:** lab/kellvyn-intelligence-core-20261116  
+**HEAD de código auditado:** d4f34046b6f28b97edfdb0168ed1deebce85f8f6  
+**Documentação técnica:** pesquisa d4f3404; especificação c435e8f; bancada 20f1a9d.  
+**Livro de atividades:** atualização de continuidade 7d186d3; commits da sessão reconciliados manualmente até 19:51 UTC.
 
-> Esta revisão compara dez commits posteriores ao estado das 18:08 UTC, confirma a classificação REVIEW_REQUIRED no harness, trace e comparador, e verifica os workflows às 18:22 UTC. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
-
+> Esta revisão adiciona o Engineering Lab (mapa, auditoria estática e registro manual) e pesquisa Aider/SWE-agent/OpenHands/LiteRT. O script foi gravado e ligado ao workflow, mas ainda não executado. Os jobs de auditoria continuam sem runner. Confirme o HEAD real antes de qualquer edição; esta atualização documental criará novo commit.
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
 ---
@@ -20,10 +19,11 @@ Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHu
 
 O foco ativo é o **Agent Lab / laboratório de engenharia de agentes**: ambiente para acompanhar execuções, executar benchmarks reais, comparar perfis candidatos, medir custo de recursos e investigar falhas.
 
-Não confundir três camadas:
+Não confundir quatro camadas:
 - **Cérebro Kellvyn:** backend neural próprio e raciocínio principal; permanece uma frente separada.
 - **Agent Creation Studio:** catálogo, compilação, revisão, versionamento, aprovação e rollback dos 14 perfis.
-- **Agent Lab:** execução, traces, testes, experimentos, comparação e telemetria da engenharia dos agentes.
+- **Agent Lab Android:** execução, traces, testes, experimentos, comparação e telemetria dos agentes dentro do app.
+- **Kellvyn Engineering Lab:** bancada do repositório para pesquisa, mapa de código, auditoria estática, registro UTC e preparação de patches/testes. Não é tela do app nem substituto do Agent Lab Android.
 
 Não voltar para a interface nem recriar os módulos de perfis já existentes. O objetivo é evoluir a bancada e validar o que já foi implementado, não acumular commits sem testes.
 
@@ -431,6 +431,41 @@ Restaurar a alocação dos runners e executar as suítes Gradle/JUnit/Android. N
 
 ---
 
+## 6.6 Kellvyn Engineering Lab — criado em 18/11/2026
+
+### Artefatos
+
+- docs/kellvyn/ENGINEERING_LAB_BLUEPRINT_2026-11-18.md: finalidade, separação das quatro camadas, arquitetura de destino, gates e limites.
+- scripts/kellvyn-engineering-lab.py: comandos audit e log; usa apenas biblioteca padrão do Python.
+- .github/workflows/agent-lab-activity-ledger.yml: após push, chama o gerador de auditoria/mapa e publica snapshots junto com o diário. Os diretórios de snapshots são ignorados pelo próprio trigger para evitar loop.
+- docs/kellvyn/AGENT_CAPABILITY_RESEARCH_ADDENDUM_2026-11-18.md, seção 8.11: pesquisa Aider Repository Map, SWE-agent ACI, OpenHands SDK e LiteRT.
+
+### O que o script deve produzir quando executado
+
+- docs/kellvyn/audits/agent-lab-audit-<UTC>.md e .json: branch, HEAD, horário, fontes Kotlin, testes, símbolos, runners e hash de cada arquivo protegido.
+- docs/kellvyn/audits/REPOSITORY_MAP.md: índice estático de símbolos Kotlin.
+- docs/kellvyn/audits/LATEST.md: ponteiro para o snapshot mais recente.
+- Comando log: anota pesquisa, decisão, implementação, teste, incidente ou handoff no diário com hora UTC, status, evidência e próximo passo.
+
+**Estado real:** script e workflow foram gravados no GitHub. O script não foi executado por nenhum runner nesta sessão; não existe snapshot gerado e não alegar sintaxe/execução validada. O inventário estático também não compila nem testa o app.
+
+### Pesquisa e decisões arquiteturais
+
+- Aider: mapa estrutural compacto antes de editar; adaptar como navegação e depois adicionar dependências fonte→teste.
+- SWE-agent: interface de ferramentas curta, com leitura limitada, busca compacta e validação de patch antes de aceitar.
+- OpenHands: separar núcleo do agente, ferramentas, workspace e eventos; usar workspace isolado para alterações mutáveis.
+- LiteRT: apenas hipótese para medir aceleração do modelo autoral, nunca substituição automática do cérebro.
+
+### Próximo gate
+
+Restaurar runner e executar primeiro python3 scripts/kellvyn-engineering-lab.py audit; revisar os snapshots e corrigir qualquer erro real. Depois executar Gradle/JUnit e instrumentados. Não criar mais ferramentas até esse gate passar. Em seguida, implementar workspace isolado de patches e oráculos de benchmark. Nenhuma alteração de interface ou pesos neurais foi feita.
+
+CI observado nesta etapa:
+- Runs activity-ledger: 44384564919, 44384628285, 44384702736.
+- Todos os jobs encerraram com runner_id=0 e zero steps; portanto o script nem chegou a iniciar.
+
+---
+
 ## 7. Protocolo obrigatório ao iniciar uma nova conversa
 
 - Abrir este arquivo primeiro.
@@ -455,4 +490,4 @@ Não basta dizer “continue” em uma mensagem do chat. O estado deve ser grava
 
 ## 9. Texto curto para retomar em outro chat
 
-> Continue o Agent Lab no repositório `ar2233789-oss/kellvyn-ai-assistant`, branch `lab/kellvyn-intelligence-core-20261116`. Leia SESSION_CONTROL, confirme HEAD e commits posteriores. Não refaça perfis, Agent Creation Studio, orquestrador, trace, executor ou estado REVIEW_REQUIRED; já existem. Os testes cobrem traces, CPU/recorder, execução do agente apesar de falha de gravação, revisão pendente e comparação, mas nenhum foi executado. Próximo gate: destravar runner e executar Gradle/JUnit/Android; não empilhar módulos antes disso. Depois classificar rubricas e criar oráculos objetivos/verificação independente, sem autoavaliação nem busca ingênua de palavras. Não mexer na interface protegida; não alegar testes sem logs; reconciliar o diário e este arquivo ao encerrar.
+> Continue o trabalho no repositório ar2233789-oss/kellvyn-ai-assistant, branch lab/kellvyn-intelligence-core-20261116. Leia SESSION_CONTROL e ENGINEERING_LAB_BLUEPRINT, confirme HEAD e commits posteriores. Não recrie cérebro, orquestrador, 14 perfis, Agent Creation Studio, Agent Lab Android, traces ou REVIEW_REQUIRED. O Engineering Lab foi criado em scripts/kellvyn-engineering-lab.py: audit gera snapshots UTC e mapa Kotlin; log registra pesquisa/decisões/testes/handoff. Ainda não foi executado por runner. Primeiro destravar runner, executar script audit, revisar snapshots e rodar Gradle/JUnit/Android; não empilhar módulos antes disso. A pesquisa Aider/SWE-agent/OpenHands/LiteRT está em AGENT_CAPABILITY_RESEARCH_ADDENDUM, seção 8.11. Não mexer na interface/pesos protegidos; não alegar testes sem logs; reconciliar diário e este arquivo ao encerrar.
