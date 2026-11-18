@@ -40,7 +40,10 @@ internal data class KellvynResourceSnapshot(
     val powerSaveMode: Boolean,
     val batteryPercent: Int?,
     val charging: Boolean,
-    val memoryPressure: KellvynMemoryPressure = KellvynMemoryPressure.NORMAL
+    val memoryPressure: KellvynMemoryPressure = KellvynMemoryPressure.NORMAL,
+    val processCpuTimeMillis: Long = 0L,
+    val sampledAtElapsedRealtimeMillis: Long = 0L,
+    val availableProcessors: Int = 1
 ) {
     init {
         require(totalSystemMemoryBytes > 0L)
@@ -48,6 +51,9 @@ internal data class KellvynResourceSnapshot(
         require(processHeapUsedBytes >= 0L)
         require(processHeapMaxBytes > 0L)
         require(processPssBytes >= 0L)
+        require(processCpuTimeMillis >= 0L)
+        require(sampledAtElapsedRealtimeMillis >= 0L)
+        require(availableProcessors > 0)
         require(batteryPercent == null || batteryPercent in 0..100)
         require(thermalHeadroomForecast == null ||
             (thermalHeadroomForecast.isFinite() && thermalHeadroomForecast >= 0f))
