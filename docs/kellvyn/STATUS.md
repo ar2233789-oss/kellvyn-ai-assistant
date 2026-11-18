@@ -600,3 +600,8 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - O backend existente é Java-only limitado (ECJ → D8 → empacotamento/assinatura); este módulo não adiciona compilação Kotlin/Compose, Gradle completo ou execução UIAutomator.
 - CI atual: runs `44218653002` e `44218652911` terminaram sem runner/steps/logs. Continuam NOT_RUN/BLOCKED.
 - Verificação isolada de tipos do novo módulo com Kotlin compiler/stubs mínimos passou; não substitui Gradle ou teste Android.
+
+### CI após módulo Android Build Status — 18/11/2026
+- Runs `44218653002` (agent lab), `44218652911` (neural core) e `44218608802` (agent lab) foram verificados; jobs sem runner, steps e logs_url.
+- O workflow ainda não executou testes na revisão do quarto módulo. Teste instrumental e contrato estão escritos.
+- Typecheck isolado da classe `KellvynAndroidBuildStatusStudio` com stubs do Android/runtime/module APIs mínimos passou; não é Gradle nem compilação Android real.
