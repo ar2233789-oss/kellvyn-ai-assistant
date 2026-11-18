@@ -389,6 +389,35 @@ internal class KellvynRuntime(context: Context) {
         )
     }
 
+    /**
+     * Convenience entry point for a real local inference engine. It constructs the production
+     * benchmark executor from this runtime's registered tools and shared resource broker.
+     * A separately supplied verifier is still mandatory; the executor never grades itself.
+     */
+    suspend fun runAgentLabBenchmarkSuite(
+        inference: KellvynInferenceEngine,
+        verifier: KellvynSpecialistBenchmarkVerifier,
+        config: KellvynAgentConfig = KellvynAgentConfig(),
+        cases: List<KellvynSpecialistBenchmarkCase> = KellvynSpecialistBenchmarkRegistry.default().cases(),
+        activeProjectId: String? = null,
+        candidateProfiles: List<KellvynSpecialistProfile>? = null
+    ): KellvynSpecialistBenchmarkReport {
+        val executor = KellvynSpecialistAgentBenchmarkExecutor(
+            inference = inference,
+            registeredTools = createProjectWorkspaceToolRegistry(activeProjectId),
+            config = config,
+            taskBroker = taskBroker,
+            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+        )
+        return runAgentLabBenchmarkSuite(
+            executor = executor,
+            verifier = verifier,
+            cases = cases,
+            activeProjectId = activeProjectId,
+            candidateProfiles = candidateProfiles
+        )
+    }
+
     /** Returns up to 16 newest local trace summaries after validating each event chain. */
     suspend fun agentLabTraceSummaries(): List<KellvynAgentLabTraceSummary> =
         withContext(Dispatchers.IO) { agentLabTraceStore.summaries().take(16) }
