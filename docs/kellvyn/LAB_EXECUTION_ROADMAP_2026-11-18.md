@@ -126,7 +126,7 @@ Testes obrigatórios:
 
 **Já implementado — não recriar:** `KellvynSpecialistToolPolicy.kt` já contém uma matriz explícita de capacidades para os 14 papéis. `KellvynAgent` aplica essa matriz ao filtrar ferramentas READ_ONLY durante delegação; os especialistas não podem conceder capacidade a si mesmos. Há testes básicos e foi acrescentado um teste de contrato da matriz completa com os 14 papéis e os cinco níveis de risco.
 
-O que ainda falta é a execução dos testes e a integração cruzada de cada papel com os manifests/ferramentas reais carregados pelos módulos. Para cada papel, validar:
+O catálogo de cobertura real por papel e por ferramenta foi registrado em `AGENT_TOOL_AVAILABILITY_2026-11-18.md`. O que ainda falta é a execução dos testes e a integração cruzada de cada papel com os manifests/ferramentas reais carregados pelos módulos. Para cada papel, validar:
 - capacidades que precisa;
 - ferramentas exatas que pode descobrir e chamar;
 - schema de entrada/saída;
