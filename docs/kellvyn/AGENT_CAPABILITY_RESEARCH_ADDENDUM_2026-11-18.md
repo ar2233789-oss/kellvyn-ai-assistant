@@ -221,3 +221,60 @@ Uma funcionalidade só pode ser declarada concluída quando tiver:
 7. registro de continuidade atualizado.
 
 Um modelo só pode ser chamado de IA conversacional funcional quando um checkpoint treinado e verificável responde através do runtime principal, passa benchmarks fixos de português/ferramentas e funciona em modo offline no dispositivo. A existência do Transformer, do treino ou dos perfis não basta.
+
+
+---
+
+## 7. Atualização de pesquisa — verificação em 18/11/2026, 15:55 UTC
+
+### 7.1 GitHub Actions: sinal exato do job sem runner
+
+A consulta REST detalhada ao run `44338054696` revelou para os dois jobs:
+- `runner_id = 0`;
+- `runner_name = ""`;
+- `steps = []`;
+- `status = completed`, `conclusion = failure`;
+- início e conclusão em aproximadamente dois segundos.
+
+O job mínimo e o job Android falharam antes de qualquer runner ser atribuído. Isso é evidência mais forte que apenas ausência de logs: **não houve runner hospedado alocado**. Não demonstra, por si só, qual regra impediu a atribuição.
+
+A documentação oficial atual diz que, em repositórios privados, o compute incluído depende do plano e o uso elegível de runners hospedados consome o saldo de compute; esse saldo também é compartilhado com Cloud Sandbox compute/memory. Uso acima do incluso pode ser faturado. A documentação também lista limites e políticas de uso. Como não temos acesso aos dados privados de uso, plano e orçamento da conta, compute esgotado é uma hipótese concreta a verificar, não uma causa confirmada.
+
+A página pública de status consultada registra “No incidents reported today” para 18/11/2026 e Actions como Operational no momento da consulta. O incidente com Actions de 16/11/2026 foi resolvido em 16:26 UTC; os jobs da Kellvyn são de 18/11, então esse incidente anterior não explica as falhas observadas.
+
+A próxima ação tem de ser no resumo do run e em Billing and licensing → Usage: obter a mensagem literal e verificar Actions included compute / spending limit. Não fazer novas alterações Kotlin ou repetidos reruns antes disso.
+
+Fontes:
+- https://docs.github.com/en/actions/concepts/billing-and-usage
+- https://docs.github.com/en/actions/how-tos/monitor-workflows/monitoring-workflow-runs
+- https://www.githubstatus.com/
+
+### 7.2 LiteRT: separar aceleração de serviços em nuvem
+
+A página atual da Google confirma:
+- LiteRT CompiledModel executa modelos próprios em CPU/GPU através de uma API unificada;
+- o runtime em Google Play services pode reduzir até cerca de 8 MB do pacote e a Google relata GPU até ~1,4x mais rápida que o antigo TensorFlow Lite GPU delegate; esse benchmark da Google não pode ser extrapolado para o KN-003;
+- o runtime de Google Play services pode contactar servidores Google para atualizações/compatibilidade e envia métricas de dispositivo, app, acelerador, eventos, erros e desempenho;
+- standalone LiteRT é a rota indicada quando o app precisa de custom ops, NPU disponível no standalone ou execução sem Google Play services;
+- a documentação de conversão aceita modelos próprios treinados em PyTorch, TensorFlow ou JAX, com conversores específicos, e recomenda validar a saída exportada contra a implementação original.
+
+Impacto para a Kellvyn:
+1. Não adicionar `play-services-litert` automaticamente ao núcleo offline-first. O envio de métricas e as chamadas periódicas do serviço precisam ser aceitos explicitamente; caso contrário, avaliar o runtime standalone.
+2. A classe KN-003 atual é implementada manualmente em Kotlin e não é um grafo PyTorch/TF/JAX exportável por um clique. Para testar LiteRT seria necessário reimplementar o mesmo grafo em uma estrutura suportada ou criar um conversor, mapear exatamente os pesos próprios e comparar logits/token a token em amostras fixas.
+3. O primeiro baseline obrigatório permanece inferência Kotlin atual, com dataset de prompts fixos e medições no Poco F6. Só migrar se o resultado exportado for numericamente equivalente, suportar cache/generation e melhorar latência/RAM/energia sem quebrar o modo offline.
+4. Não usar nenhum catálogo de modelos pré-treinados ou pesos externos. O caminho de exportação serve apenas para otimizar o modelo autoral da Kellvyn.
+
+Fontes:
+- https://developers.google.com/edge/litert/android/play_services
+- https://developers.google.com/edge/litert/android/compiled_model_java
+- https://developers.google.com/edge/litert/overview
+- https://developers.google.com/edge/litert/android
+- https://developers.googleblog.com/en/smaller-apps-and-faster-gpu-inference-with-litert-in-google-play-services/
+
+### 7.3 Limite de escopo do treinamento móvel
+
+A trilha oficial Google para treinar e implantar LLM em Android demonstra um fluxo educacional, mas o exemplo de geração usa fine-tuning de um GPT-2 pré-treinado e conversão TensorFlow Lite; não é evidência de pré-treinamento competitivo do zero no telefone. O documento oficial também destaca requisitos grandes de armazenamento e computação e que modelos menores podem ser executados em dispositivos modernos. Para a decisão autoral da Kellvyn, os exemplos e dados devem ser próprios/autorizados e as medições são obrigatórias.
+
+Fonte:
+- https://developers.google.com/learn/pathways/llm-on-android
+- https://developers.google.com/edge/litert/overview
