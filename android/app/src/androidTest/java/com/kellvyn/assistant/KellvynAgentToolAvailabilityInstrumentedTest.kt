@@ -55,15 +55,47 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
 
             expectedByRole.forEach { (role, expectedNames) ->
                 assertEquals(
-                    "Ferramentas reais divergiram da matriz de capabilities para $role.",
+                    "Ferramentas READ_ONLY reais divergiram da matriz para $role.",
                     expectedNames,
                     KellvynSpecialistToolPolicy.permittedReadOnlyToolNames(role, registeredSpecs)
                 )
             }
 
-            // Mutating workspace tools must not appear for any specialist, even if discovered.
             assertEquals(
-                setOf("workspace_write_file", "workspace_delete_file"),
+                setOf("wikipedia_search"),
+                registeredSpecs
+                    .filter { it.risk == KellvynToolRisk.NETWORK_READ }
+                    .map { it.name }
+                    .toSet()
+            )
+            assertEquals(
+                "Somente o Pesquisador pode receber NETWORK_READ para WEB_RESEARCH quando habilitado.",
+                setOf("wikipedia_search"),
+                KellvynSpecialistToolPolicy.permittedToolNames(
+                    KellvynSpecialistRole.RESEARCHER,
+                    registeredSpecs,
+                    allowNetworkRead = true
+                ) - KellvynSpecialistToolPolicy.permittedReadOnlyToolNames(
+                    KellvynSpecialistRole.RESEARCHER,
+                    registeredSpecs
+                )
+            )
+            KellvynSpecialistRole.values()
+                .filter { it != KellvynSpecialistRole.RESEARCHER }
+                .forEach { role ->
+                    assertEquals(
+                        emptySet<String>(),
+                        KellvynSpecialistToolPolicy.permittedToolNames(
+                            role,
+                            registeredSpecs,
+                            allowNetworkRead = true
+                        ) - KellvynSpecialistToolPolicy.permittedReadOnlyToolNames(role, registeredSpecs)
+                    )
+                }
+
+            // Only workspace mutations remain outside the specialist registry.
+            assertEquals(
+                setOf("workspace_write_file", "workspace_delete_file", "wikipedia_search"),
                 registeredSpecs
                     .filter { it.risk != KellvynToolRisk.READ_ONLY }
                     .map { it.name }
