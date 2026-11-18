@@ -10,8 +10,10 @@ import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.Dispatchers
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import java.util.concurrent.TimeUnit
 
 /**
  * Application-scoped shared resource services. Runtime, agents and the APK builder use the
@@ -28,6 +30,8 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     }
     private val taskQueue = KellvynPersistentTaskQueue(appContext)
     val taskScheduler = KellvynTaskScheduler(taskQueue, taskBroker)
+    private val builtInHandlerMutex = Mutex()
+    private var builtInTaskHandlersRegistered = false
 
     val studioModules = KellvynStudioModuleManager(
         deviceSdkInt = Build.VERSION.SDK_INT,
@@ -50,6 +54,40 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
         scheduleQueueDrain()
         return id
     }
+
+    /**
+     * Installs only explicitly allowlisted internal handlers. Called by foreground enqueue and
+     * by the WorkManager drain after process recreation; no model-supplied handler IDs are used.
+     */
+    suspend fun ensureBuiltInScheduledTaskHandlers() {
+        builtInHandlerMutex.withLock {
+            if (builtInTaskHandlersRegistered) return@withLock
+            taskScheduler.registerHandler(
+                KellvynResourceSnapshotTaskHandler.HANDLER_ID,
+                KellvynResourceSnapshotTaskHandler { snapshot() }
+            )
+            builtInTaskHandlersRegistered = true
+        }
+    }
+
+    /** Queue a safe read-only probe through the same persistent path used by scheduled work. */
+    suspend fun enqueueResourceSnapshotProbe(): String {
+        ensureBuiltInScheduledTaskHandlers()
+        return enqueueScheduledTask(
+            KellvynQueuedTaskSpec(
+                handlerId = KellvynResourceSnapshotTaskHandler.HANDLER_ID,
+                payload = KellvynResourceSnapshotTaskHandler.PAYLOAD_V1,
+                priority = 60,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 16L * MEBIBYTE,
+                maxAttempts = 2
+            )
+        )
+    }
+
+    /** Bounded status read for audit, diagnostics and tests; never exposes decrypted payloads. */
+    suspend fun scheduledTaskStatus(taskId: String): KellvynQueuedTask? =
+        withContext(Dispatchers.IO) { taskQueue.get(taskId) }
 
     suspend fun registerScheduledTaskHandler(
         handlerId: String,
