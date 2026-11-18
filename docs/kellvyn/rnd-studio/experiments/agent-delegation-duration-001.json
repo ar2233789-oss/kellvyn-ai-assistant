@@ -32,10 +32,10 @@
     "A suíte agents passa.",
     "Sem mudança na semântica de delegação, política ou orçamento."
   ],
-  "status_note": "CI failed before all steps: runner_id=0, steps=[]. Four tests written; do not merge before agents Gradle passes.",
-  "candidate_branch": "kellvyn-rnd/agent-delegation-duration-001",
-  "candidate_head": "9181f31eb59b5f8c953410f22af89cbf6ba59ba5",
-  "candidate_summary": "Candidate adds monotonic timing for completed, failed, budget-blocked and cancelled specialist dispatches, with four deterministic tests. Not compiled or run.",
+  "status_note": "Ported to current lab branch. NOT RUN: do not merge until the focused agents Gradle suite passes on an allocated runner.",
+  "candidate_branch": "kellvyn-rnd/agent-trace-duration-port-20261118",
+  "candidate_head": "15813b58ecc2790672067facf6a33b1571c226ce",
+  "candidate_summary": "Rebased on lab/kellvyn-intelligence-core-20261116. Only KellvynOrchestrator and its unit test changed. Monotonic duration is recorded for completed, blocked, failed and cancelled dispatches; four deterministic tests added. No neural/runtime/UI changes. Awaiting GitHub Actions runner allocation and Gradle.",
   "candidate_run_id": 44412360596,
   "implementation": {
     "test_cases_written": [
@@ -45,5 +45,5 @@
       "recordsDurationWhenSpecialistFails"
     ]
   },
-  "latest_status": "runner_id=0, runner_name empty, steps=[]; Gradle/JUnit NOT_RUN"
+  "latest_status": "Pending new branch CI; earlier run 44412360596 had runner_id=0 and steps=[]; no source test result."
 }
