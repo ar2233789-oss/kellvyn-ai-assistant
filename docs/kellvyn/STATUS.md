@@ -589,3 +589,14 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - Todos terminaram sem runner_id, steps ou logs_url. Estado NOT_RUN/BLOCKED; não demonstram falha de código nem aprovação.
 - A ferramenta `KellvynMemoryTools.kt` passou em verificação isolada local: compilação Kotlin com stubs mínimos para interfaces da camada de agente e harness com repositório falso usando o algoritmo de busca de memória. Resultado: `KELLVYN_MEMORY_TOOL_INTEGRATION_TESTS_PASS`.
 - Isso valida o fluxo isolado da nova ferramenta; não é compilação Gradle do aplicativo, execução Android/Keystore, nem prova de integração em dispositivo.
+
+## Android Build status read-only — 18/11/2026
+
+- Registrado módulo lazy `android-build-status` em `KellvynRuntime`.
+- Nova ferramenta `android_build_environment_status`, capability `ANDROID_BUILD`, risco READ_ONLY, sem argumentos, workload LIGHT.
+- Relata cache de `android.jar`, aceite da licença SDK e metadados limitados do último APK; declara explicitamente que não executa instalação ou teste e não prova funcionamento do APK.
+- Reusa o `ProjectWorkspaceStore` que o runtime já possui, sem abrir uma store adicional.
+- Política entrega ferramenta apenas a Test Analyst, Security Analyst, Debugger e Auditor. Teste instrumental da matriz real foi atualizado e teste próprio cobre output/argument rejection.
+- O backend existente é Java-only limitado (ECJ → D8 → empacotamento/assinatura); este módulo não adiciona compilação Kotlin/Compose, Gradle completo ou execução UIAutomator.
+- CI atual: runs `44218653002` e `44218652911` terminaram sem runner/steps/logs. Continuam NOT_RUN/BLOCKED.
+- Verificação isolada de tipos do novo módulo com Kotlin compiler/stubs mínimos passou; não substitui Gradle ou teste Android.
