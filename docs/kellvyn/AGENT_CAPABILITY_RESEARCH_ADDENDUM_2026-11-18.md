@@ -343,3 +343,20 @@ A matriz de benchmark roda um caso por vez. A promoção continua fora das ferra
 6. Medir RAM, PSS, heap, bateria, temperatura, latência e taxa de conclusão no Poco F6 antes de autorizar paralelismo.
 7. Só conectar o benchmark à inferência de produção depois do gate de qualidade neural e de um teste de ponta a ponta.
 
+
+
+## 8.6 Capacidade e custo de armazenamento do Agent Lab — atualização 18/11/2026
+
+A primeira versão do trace tinha um teto de 128 eventos por execução e relia a cadeia inteira a cada append. Isso era insuficiente para um benchmark completo e gerava trabalho de I/O crescente. A implementação foi endurecida:
+
+- Capacidade por trace: **1.536 eventos**.
+- Retenção global: **até 16 traces**.
+- Cada registro mantém limite de 2 KiB; o teto teórico do payload de eventos fica em torno de **48 MiB** para a capacidade máxima configurada (sem contar metadados do sistema de arquivos).
+- O cursor de append mantém em memória somente contagem e hash do último evento, após validar a cadeia na primeira leitura.
+- Se outra instância do armazenamento tiver escrito desde a última utilização do cursor, a presença do próximo arquivo força reconstrução do cursor a partir da cadeia autenticada antes de escrever.
+- `historyTail` valida toda a cadeia criptográfica, mas retém apenas a janela final solicitada. Listagem e inspeção comum deixam de materializar todos os registros na memória; comparação tem teto explícito de 1.536 eventos por trace.
+- A suíte de avaliação foi limitada aos 28 casos catalogados por trace para evitar crescimento arbitrário do histórico.
+
+Os testes adicionados cobrem: 140 eventos (ultrapassando o antigo limite), leitura de uma janela de 12 eventos, reconstrução após criar uma nova instância do store, integridade da contagem/horários e conflito de cursores entre duas instâncias. Os testes estão **escritos, ainda não executados** por bloqueio de runner.
+
+Trade-off deliberado: histórico por janela economiza RAM, mas ainda percorre todos os registros para validar a cadeia SHA-256. Não é correto apresentar isso como leitura O(1). O append sequencial fica O(1) depois do primeiro cursor validado; a primeira abertura, inspeção e comparação continuam O(n), com n limitado a 1.536.
