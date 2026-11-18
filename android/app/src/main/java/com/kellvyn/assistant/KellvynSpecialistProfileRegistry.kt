@@ -80,25 +80,11 @@ internal class KellvynSpecialistProfileRegistry(
     fun requireProfile(role: KellvynSpecialistRole): KellvynSpecialistProfile =
         byRole[role] ?: error("Perfil especialista ausente: " + role.name)
 
+    fun compileAll(): KellvynProfileCompilationReport =
+        KellvynSpecialistProfileCompiler().compileAll(profiles())
+
     /** Structural checks only; behavioral competence requires separate benchmark execution. */
-    fun validationErrors(): List<String> {
-        val errors = mutableListOf<String>()
-        if (byRole.keys != KellvynSpecialistRole.values().toSet()) {
-            errors += "O catálogo não cobre exatamente os 14 papéis."
-        }
-        for (profile in profiles()) {
-            if (KellvynSpecialistToolPolicy.capabilitiesFor(profile.role).isEmpty()) {
-                errors += "O papel ${profile.role.name} não possui capacidades na política central."
-            }
-            if (profile.allowDelegation || profile.allowMutation) {
-                errors += "O papel ${profile.role.name} excede os limites de execução."
-            }
-            if (profile.maxSteps > 8 || profile.maxToolCalls > 6) {
-                errors += "O papel ${profile.role.name} excede o orçamento permitido."
-            }
-        }
-        return errors
-    }
+    fun validationErrors(): List<String> = compileAll().errors
 
     companion object {
         private val OUTPUT_SECTIONS = listOf(
