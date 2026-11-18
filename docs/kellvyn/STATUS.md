@@ -563,3 +563,12 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 - `poco-f6-parity.yml` agora é acionado por mudanças em MainActivity, recursos, manifesto e UI web; mudanças Kotlin internas deixam de disparar comparação visual desnecessária.
 - Runs `44214073878` (agent lab, tentativa 2) e `44214499919` (agent lab, nova execução) terminaram sem runner/steps/logs. Run `44214499742` (neural core) também terminou sem runner/steps/logs. São estados NOT_RUN/BLOCKED; não há falha Kotlin diagnosticada nem teste aprovado.
 - O ambiente local desta sessão não tem Gradle nem Android SDK. Não afirmar build ou teste local.
+
+### Cobertura real dos papéis — atualização 18/11/2026
+- Documento `AGENT_TOOL_AVAILABILITY_2026-11-18.md` registra as ferramentas que realmente aparecem nos manifests/runtime e o que continua ausente por papel.
+- Novo teste instrumental `KellvynAgentToolAvailabilityInstrumentedTest.kt` abre `KellvynRuntime`, obtém os ToolSpecs efetivamente registrados e confere o conjunto permitido para cada um dos 14 papéis.
+- Fixtures antigas de `KellvynAgentDelegationTest` e `KellvynAgentSpecialistEvaluationTest` foram corrigidas: agora a ferramenta READ_ONLY declara capability autorizada para o papel; a ferramenta REVERSIBLE_WRITE declara a mesma capability para testar que o risco, sozinho, ainda a bloqueia.
+- `KellvynTaskScheduler.registerHandler` agora remove do allowlist em memória um handler cuja atualização durável falhar, evitando estado parcial de registro.
+
+### Runner
+- Run `44215633371` do workflow de laboratório após o teste de cobertura real terminou sem runner, steps ou logs. Não executar inferência sobre o código a partir desse estado.
