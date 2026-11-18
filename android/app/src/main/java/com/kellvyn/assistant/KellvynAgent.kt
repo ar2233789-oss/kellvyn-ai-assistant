@@ -28,7 +28,10 @@ internal class KellvynAgent(
     private val taskCheckpoints: KellvynTaskCheckpointRepository? = null,
     private val taskBroker: KellvynTaskBroker? = null,
     private val networkReadEnabled: () -> Boolean = { false },
-    private val specialistProfiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default()
+    private val specialistProfiles: KellvynSpecialistProfileRegistry = KellvynSpecialistProfileRegistry.default(),
+    private val traceSessionFactory: () -> KellvynAgentLabTraceSession = {
+        KellvynAgentLabTraceSession.create()
+    }
 ) {
     private val taskPlanner = KellvynTaskPlanner()
     private val orchestrator = KellvynOrchestrator(
@@ -351,7 +354,61 @@ internal class KellvynAgent(
     }
 
     suspend fun run(goal: String): KellvynAgentResult {
-        val orchestrationSession = orchestrator.newSession()
+        val traceSession = traceSessionFactory()
+        val rootRun = traceSession.actor == "coordinator"
+        traceSession.record(
+            kind = if (rootRun) KellvynAgentLabEventKind.RUN_STARTED
+                else KellvynAgentLabEventKind.AGENT_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED
+        )
+        return try {
+            val result = runLoop(goal, traceSession)
+            val kindAndOutcome = when (result) {
+                is KellvynAgentResult.Completed ->
+                    (KellvynAgentLabEventKind.RUN_COMPLETED to KellvynAgentLabOutcome.SUCCEEDED)
+                is KellvynAgentResult.Failed ->
+                    (KellvynAgentLabEventKind.RUN_FAILED to KellvynAgentLabOutcome.FAILED)
+                is KellvynAgentResult.LimitReached ->
+                    (KellvynAgentLabEventKind.RUN_LIMIT_REACHED to KellvynAgentLabOutcome.LIMITED)
+                is KellvynAgentResult.Planned ->
+                    (KellvynAgentLabEventKind.RUN_PLANNED to KellvynAgentLabOutcome.SUCCEEDED)
+            }
+            traceSession.record(
+                kind = if (rootRun) kindAndOutcome.first else KellvynAgentLabEventKind.AGENT_FINISHED,
+                outcome = kindAndOutcome.second,
+                detailCode = result.javaClass.simpleName.uppercase()
+                    .replace(Regex("[^A-Z0-9_.:-]"), "_")
+                    .take(80)
+            )
+            result
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = if (rootRun) KellvynAgentLabEventKind.RUN_CANCELLED
+                        else KellvynAgentLabEventKind.AGENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = if (rootRun) KellvynAgentLabEventKind.RUN_FAILED
+                        else KellvynAgentLabEventKind.AGENT_FINISHED,
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "UNHANDLED_EXCEPTION"
+                )
+            }
+            throw error
+        }
+    }
+
+    private suspend fun runLoop(
+        goal: String,
+        traceSession: KellvynAgentLabTraceSession
+    ): KellvynAgentResult {
+        val orchestrationSession = orchestrator.newSession(traceSession)
         val normalizedGoal = goal.trim()
         if (normalizedGoal.isEmpty()) {
             return KellvynAgentResult.Failed("O objetivo da tarefa está vazio.", 0, 0)
@@ -498,7 +555,12 @@ internal class KellvynAgent(
                 }
             }
             val decision = try {
-                executeInference(contextMessages, "agent-inference-$step")
+                executeInference(
+                    history = contextMessages,
+                    requestId = "agent-inference-$step",
+                    traceSession = traceSession,
+                    step = step
+                )
             } catch (deferred: KellvynTaskDeferredException) {
                 return KellvynAgentResult.LimitReached(
                     "A inferência foi adiada pelo gerenciador de recursos: ${deferred.message}",
@@ -517,7 +579,7 @@ internal class KellvynAgent(
 
             when (decision) {
                 is KellvynModelDecision.Delegate -> {
-                    val outcome = orchestrationSession.dispatch(decision)
+                    val outcome = orchestrationSession.dispatch(decision, step)
                     messages += outcome.asObservation(config.maxObservationChars)
                 }
 
@@ -649,7 +711,13 @@ internal class KellvynAgent(
                     }
 
                     val result = try {
-                        executeTool(tool, decision.arguments, "run-${step}-${toolCalls}-${tool.spec.name}")
+                        executeTool(
+                            tool = tool,
+                            arguments = decision.arguments,
+                            requestId = "run-${step}-${toolCalls}-${tool.spec.name}",
+                            traceSession = traceSession,
+                            step = step
+                        )
                     } catch (deferred: KellvynTaskDeferredException) {
                         return KellvynAgentResult.LimitReached(
                             "A ferramenta foi adiada pelo gerenciador de recursos (${deferred.reasonCode}). " +
@@ -684,56 +752,148 @@ internal class KellvynAgent(
 
     private suspend fun executeInference(
         history: List<KellvynAgentMessage>,
-        requestId: String
+        requestId: String,
+        traceSession: KellvynAgentLabTraceSession,
+        step: Int
     ): KellvynModelDecision {
-        val executeWithTimeout: suspend () -> KellvynModelDecision = {
-            try {
-                withTimeout(config.modelTimeoutMs) {
-                    inference.next(history, tools.descriptions())
-                }
-            } catch (timeout: TimeoutCancellationException) {
-                currentCoroutineContext().ensureActive()
-                throw IllegalStateException("O modelo neural excedeu o tempo de inferência permitido.", timeout)
-            }
-        }
-        val broker = taskBroker ?: return executeWithTimeout()
-        return broker.execute(
-            KellvynResourceRequest(
-                taskId = requestId.take(96),
-                workload = KellvynWorkloadClass.STANDARD,
-                estimatedWorkingSetBytes = 128L * MEBIBYTE
-            ),
-            operation = executeWithTimeout
+        val startedAt = System.currentTimeMillis()
+        traceSession.record(
+            kind = KellvynAgentLabEventKind.MODEL_CALL_STARTED,
+            step = step,
+            outcome = KellvynAgentLabOutcome.STARTED
         )
+        return try {
+            val executeWithTimeout: suspend () -> KellvynModelDecision = {
+                try {
+                    withTimeout(config.modelTimeoutMs) {
+                        inference.next(history, tools.descriptions())
+                    }
+                } catch (timeout: TimeoutCancellationException) {
+                    currentCoroutineContext().ensureActive()
+                    throw IllegalStateException(
+                        "O modelo neural excedeu o tempo de inferência permitido.",
+                        timeout
+                    )
+                }
+            }
+            val broker = taskBroker
+            val decision = if (broker == null) {
+                executeWithTimeout()
+            } else {
+                broker.execute(
+                    KellvynResourceRequest(
+                        taskId = requestId.take(96),
+                        workload = KellvynWorkloadClass.STANDARD,
+                        estimatedWorkingSetBytes = 128L * MEBIBYTE
+                    ),
+                    operation = executeWithTimeout
+                )
+            }
+            traceSession.record(
+                kind = KellvynAgentLabEventKind.MODEL_DECISION,
+                step = step,
+                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                outcome = KellvynAgentLabOutcome.SUCCEEDED,
+                detailCode = decision.javaClass.simpleName.uppercase()
+            )
+            decision
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = KellvynAgentLabEventKind.MODEL_CALL_FAILED,
+                    step = step,
+                    durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            traceSession.record(
+                kind = KellvynAgentLabEventKind.MODEL_CALL_FAILED,
+                step = step,
+                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                outcome = KellvynAgentLabOutcome.FAILED,
+                detailCode = "MODEL_ERROR"
+            )
+            throw error
+        }
     }
 
     private suspend fun executeTool(
         tool: KellvynAgentTool,
         arguments: Map<String, String>,
-        requestId: String
+        requestId: String,
+        traceSession: KellvynAgentLabTraceSession,
+        step: Int
     ): KellvynToolResult {
-        if (tool is KellvynResourceManagedAgentTool) {
-            return tool.executeWithResourceControl(arguments)
-        }
-        val executeWithTimeout: suspend () -> KellvynToolResult = {
-            try {
-                withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
-                    tool.execute(arguments)
-                }
-            } catch (timeout: TimeoutCancellationException) {
-                currentCoroutineContext().ensureActive()
-                KellvynToolResult(false, "A ferramenta excedeu o tempo limite depois de obter os recursos necessários.")
-            }
-        }
-        val broker = taskBroker ?: return executeWithTimeout()
-        return broker.execute(
-            KellvynResourceRequest(
-                taskId = requestId.take(96),
-                workload = tool.spec.workloadClass,
-                estimatedWorkingSetBytes = tool.spec.estimatedWorkingSetBytes
-            ),
-            operation = executeWithTimeout
+        val startedAt = System.currentTimeMillis()
+        traceSession.record(
+            kind = KellvynAgentLabEventKind.TOOL_STARTED,
+            step = step,
+            toolName = tool.spec.name,
+            outcome = KellvynAgentLabOutcome.STARTED
         )
+        return try {
+            val result = if (tool is KellvynResourceManagedAgentTool) {
+                tool.executeWithResourceControl(arguments)
+            } else {
+                val executeWithTimeout: suspend () -> KellvynToolResult = {
+                    try {
+                        withTimeout(minOf(tool.spec.timeoutMs, config.maxToolTimeoutMs)) {
+                            tool.execute(arguments)
+                        }
+                    } catch (timeout: TimeoutCancellationException) {
+                        currentCoroutineContext().ensureActive()
+                        KellvynToolResult(
+                            false,
+                            "A ferramenta excedeu o tempo limite depois de obter os recursos necessários."
+                        )
+                    }
+                }
+                val broker = taskBroker
+                if (broker == null) executeWithTimeout() else broker.execute(
+                    KellvynResourceRequest(
+                        taskId = requestId.take(96),
+                        workload = tool.spec.workloadClass,
+                        estimatedWorkingSetBytes = tool.spec.estimatedWorkingSetBytes
+                    ),
+                    operation = executeWithTimeout
+                )
+            }
+            traceSession.record(
+                kind = KellvynAgentLabEventKind.TOOL_FINISHED,
+                step = step,
+                toolName = tool.spec.name,
+                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                outcome = if (result.success) KellvynAgentLabOutcome.SUCCEEDED
+                    else KellvynAgentLabOutcome.FAILED,
+                detailCode = if (result.success) "TOOL_OK" else "TOOL_REPORTED_FAILURE"
+            )
+            result
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) {
+                traceSession.record(
+                    kind = KellvynAgentLabEventKind.TOOL_FINISHED,
+                    step = step,
+                    toolName = tool.spec.name,
+                    durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                    outcome = KellvynAgentLabOutcome.FAILED,
+                    detailCode = "CANCELLED"
+                )
+            }
+            throw cancelled
+        } catch (error: Exception) {
+            traceSession.record(
+                kind = KellvynAgentLabEventKind.TOOL_FINISHED,
+                step = step,
+                toolName = tool.spec.name,
+                durationMillis = (System.currentTimeMillis() - startedAt).coerceAtLeast(0L),
+                outcome = KellvynAgentLabOutcome.FAILED,
+                detailCode = "TOOL_EXCEPTION"
+            )
+            throw error
+        }
     }
 
     private fun observation(source: String, success: Boolean, content: String) =
