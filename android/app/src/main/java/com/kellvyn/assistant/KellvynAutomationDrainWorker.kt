@@ -26,6 +26,9 @@ class KellvynAutomationDrainWorker(
         }
 
         return try {
+            // Rebuild the explicit handler allowlist after process recreation before claiming work.
+            resources.ensureBuiltInScheduledTaskHandlers()
+
             // The timeout applies to the complete worker session, not each individual tool.
             // Cancellation returns a claimed task to the durable queue through the scheduler.
             withTimeoutOrNull(MAX_WORKER_SESSION_MILLIS) {
