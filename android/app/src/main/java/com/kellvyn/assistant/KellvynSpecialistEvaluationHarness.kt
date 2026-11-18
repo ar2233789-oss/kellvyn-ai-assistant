@@ -8,6 +8,7 @@ import java.security.MessageDigest
 
 internal enum class KellvynSpecialistBenchmarkStatus {
     PASSED,
+    REVIEW_REQUIRED,
     FAILED,
     BLOCKED
 }
@@ -46,11 +47,14 @@ internal data class KellvynSpecialistBenchmarkExecution(
 internal data class KellvynSpecialistBenchmarkVerification(
     val verifiedEvidence: Set<String>,
     val evidenceReferences: Set<String>,
-    val notes: List<String> = emptyList()
+    val notes: List<String> = emptyList(),
+    val reviewRequiredEvidence: Set<String> = emptySet()
 ) {
     init {
         require(verifiedEvidence.size <= 16)
         require(verifiedEvidence.all { it.isNotBlank() && it.length <= 180 })
+        require(reviewRequiredEvidence.size <= 16)
+        require(reviewRequiredEvidence.all { it.isNotBlank() && it.length <= 180 })
         require(evidenceReferences.size <= 16)
         require(evidenceReferences.all { it.isNotBlank() && it.length <= 240 })
         require(notes.size <= 16)
@@ -106,6 +110,9 @@ internal data class KellvynSpecialistBenchmarkReport(
 ) {
     val passed: Int get() = results.count { it.status == KellvynSpecialistBenchmarkStatus.PASSED }
     val failed: Int get() = results.count { it.status == KellvynSpecialistBenchmarkStatus.FAILED }
+    val reviewRequired: Int get() = results.count {
+        it.status == KellvynSpecialistBenchmarkStatus.REVIEW_REQUIRED
+    }
     val blocked: Int get() = results.count { it.status == KellvynSpecialistBenchmarkStatus.BLOCKED }
     val total: Int get() = results.size
 }
@@ -194,20 +201,38 @@ internal class KellvynSpecialistEvaluationHarness(
             return blocked(testCase, "A verificação independente falhou: " + safeMessage(error))
         }
 
-        val satisfied = verification.verifiedEvidence.intersect(testCase.requiredEvidence.toSet())
-        val missingEvidence = testCase.requiredEvidence.toSet() - satisfied
+        val requiredEvidence = testCase.requiredEvidence.toSet()
+        val satisfied = verification.verifiedEvidence.intersect(requiredEvidence)
+        val reviewRequired = verification.reviewRequiredEvidence.intersect(requiredEvidence)
+        val unknownVerified = verification.verifiedEvidence - requiredEvidence
+        val unknownReview = verification.reviewRequiredEvidence - requiredEvidence
+        val conflictingEvidence = satisfied.intersect(reviewRequired)
+        if (unknownVerified.isNotEmpty()) {
+            reasons += "O verificador citou critérios que não pertencem ao caso: " +
+                unknownVerified.sorted().joinToString("; ")
+        }
+        if (unknownReview.isNotEmpty()) {
+            reasons += "O verificador encaminhou critérios inexistentes para revisão: " +
+                unknownReview.sorted().joinToString("; ")
+        }
+        if (conflictingEvidence.isNotEmpty()) {
+            reasons += "O mesmo critério foi marcado como verificado e pendente de revisão: " +
+                conflictingEvidence.sorted().joinToString("; ")
+        }
+        val missingEvidence = requiredEvidence - satisfied - reviewRequired
         if (missingEvidence.isNotEmpty()) {
-            reasons += "Critérios não comprovados: " + missingEvidence.sorted().joinToString("; ")
+            reasons += "Critérios sem prova nem encaminhamento para revisão: " +
+                missingEvidence.sorted().joinToString("; ")
         }
         if (verification.evidenceReferences.isEmpty()) {
             reasons += "A verificação independente não anexou referência de evidência."
         }
         val criteriaCoverage = if (testCase.requiredEvidence.isEmpty()) 0 else
             (satisfied.size * 100) / testCase.requiredEvidence.size
-        val status = if (reasons.isEmpty()) {
-            KellvynSpecialistBenchmarkStatus.PASSED
-        } else {
-            KellvynSpecialistBenchmarkStatus.FAILED
+        val status = when {
+            reasons.isNotEmpty() -> KellvynSpecialistBenchmarkStatus.FAILED
+            reviewRequired.isNotEmpty() -> KellvynSpecialistBenchmarkStatus.REVIEW_REQUIRED
+            else -> KellvynSpecialistBenchmarkStatus.PASSED
         }
 
         return KellvynSpecialistBenchmarkResult(
@@ -237,12 +262,23 @@ internal class KellvynSpecialistEvaluationHarness(
             detailCode = "SUITE_${suiteFingerprint(cases, profiles, availableTools, allowNetworkRead)}"
         )
         return try {
-            if (cases.size > MAX_CASES_PER_SUITE) {
+            val report = if (cases.size > MAX_CASES_PER_SUITE) {
                 val reason = "A suíte excede o limite seguro de $MAX_CASES_PER_SUITE casos por trace."
                 KellvynSpecialistBenchmarkReport(cases.map { blocked(it, reason) })
             } else {
                 runValidatedSuite(cases, profiles, availableTools, allowNetworkRead, trace)
             }
+            trace.record(
+                kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
+                outcome = when {
+                    report.failed > 0 -> KellvynAgentLabOutcome.FAILED
+                    report.blocked > 0 -> KellvynAgentLabOutcome.BLOCKED
+                    report.reviewRequired > 0 -> KellvynAgentLabOutcome.REVIEW_REQUIRED
+                    else -> KellvynAgentLabOutcome.SUCCEEDED
+                },
+                detailCode = "CASES_${report.total}"
+            )
+            report
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 trace.record(
@@ -324,6 +360,8 @@ internal class KellvynSpecialistEvaluationHarness(
                                     KellvynAgentLabOutcome.SUCCEEDED
                                 KellvynSpecialistBenchmarkStatus.FAILED ->
                                     KellvynAgentLabOutcome.FAILED
+                                KellvynSpecialistBenchmarkStatus.REVIEW_REQUIRED ->
+                                    KellvynAgentLabOutcome.REVIEW_REQUIRED
                                 KellvynSpecialistBenchmarkStatus.BLOCKED ->
                                     KellvynAgentLabOutcome.BLOCKED
                             },
@@ -334,15 +372,6 @@ internal class KellvynSpecialistEvaluationHarness(
                     KellvynSpecialistBenchmarkReport(results)
                 }
             }
-            trace.record(
-                kind = KellvynAgentLabEventKind.EXPERIMENT_FINISHED,
-                outcome = when {
-                    report.failed > 0 -> KellvynAgentLabOutcome.FAILED
-                    report.blocked > 0 -> KellvynAgentLabOutcome.BLOCKED
-                    else -> KellvynAgentLabOutcome.SUCCEEDED
-                },
-                detailCode = "CASES_${report.total}"
-            )
             report
     }
 
