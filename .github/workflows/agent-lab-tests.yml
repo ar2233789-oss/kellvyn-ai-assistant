@@ -28,8 +28,8 @@ concurrency:
 
 jobs:
   runner-allocation-probe:
-    name: Minimal runner allocation probe
-    runs-on: ubuntu-latest
+    name: Minimal runner allocation probe (ubuntu-slim)
+    runs-on: ubuntu-slim
     timeout-minutes: 2
     steps:
       - name: Confirm hosted runner allocation
