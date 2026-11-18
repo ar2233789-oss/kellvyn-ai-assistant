@@ -3,11 +3,11 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última conferência:** 18/11/2026, 15:30 UTC  
+**Última conferência:** 18/11/2026, 15:41 UTC  
 **Repositório:** `ar2233789-oss/kellvyn-ai-assistant`  
 **Branch de laboratório:** `lab/kellvyn-intelligence-core-20261116`  
-**HEAD confirmado nesta conferência:** `80c00fc30204d9e58359a4a719d7bd8b4b3e013b`  
-**Commit:** [80c00fc — Record repeated GitHub Actions runner failure](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/80c00fc30204d9e58359a4a719d7bd8b4b3e013b)
+**HEAD confirmado antes desta atualização:** `e453b98ef859992d12c766830564676c4ebbbe7b`  
+**Commit:** [e453b98 — keep runner probe inside agent lab workflow](https://github.com/ar2233789-oss/kellvyn-ai-assistant/commit/e453b98ef859992d12c766830564676c4ebbbe7b)
 
 > Se o HEAD atual for diferente, primeiro leia os commits posteriores e atualize este estado. Este documento não autoriza sobrescrever trabalho posterior.
 
@@ -86,9 +86,30 @@ O aplicativo final continua sendo Android nativo, offline-first, para Poco F6 / 
 - Não há prova de teste físico no Poco F6 nesta rodada.
 - Não alegar desempenho, RAM, calor, bateria ou funcionamento no aparelho sem medições.
 
+### Diagnóstico adicional do runner — 18/11/2026, 15:41 UTC
+- A página pública GitHub Status foi consultada: Actions aparece como Operational no momento da consulta. Isso afasta uma declaração de outage global ativa, mas não revela a causa particular desta conta/repositório.
+- Foi criado um workflow isolado `.github/workflows/runner-probe.yml` para executar somente um `echo` num `ubuntu-latest`. Run `44337962674`, job `134919715612`: failure em aproximadamente 3 segundos, sem steps e sem logs_url. O arquivo isolado foi removido depois para não manter workflow redundante.
+- O workflow Agent Lab recebeu um job mínimo `runner-allocation-probe` sem checkout, Gradle, Android SDK ou ações externas. Run `44338054696`: job de teste `134920052636` e probe `134920052769` terminaram em failure; ambos com `steps=null` e `logs_url=null`.
+- Os arquivos alterados para esse diagnóstico foram somente `.github/workflows/agent-lab-tests.yml` e o workflow temporário de probe, que foi removido. O probe mínimo permanece como job separado no workflow Agent Lab.
+- Classificação: **falha antes de iniciar qualquer step em dois tipos de workflow; Gradle/JUnit/Android não executaram.** Isto prova ausência de execução, não falha do código. A causa específica (quota/compute da conta, política da organização/repositório ou provisionamento do runner) ainda não está exposta pelo conector.
+- Repositório é privado. A documentação oficial do GitHub informa que o compute incluído para Actions em repositórios privados depende do plano da conta; não foi possível ler a página privada de uso/cobrança nem as configurações de Actions por esta conexão. Não afirmar que quota/billing é a causa sem a tela/erro correspondente.
+- Código do chat foi inspecionado: `KellvynRuntime.isReady()` retorna literalmente `false`; `KellvynRuntime.reply()` retorna indisponibilidade de inferência. `MainActivity.sendMessage()` verifica `isReady()` e não envia a solicitação ao agente quando o cérebro não está pronto. O modelo próprio experimental existe em código, mas ainda não está ligado ao chat com um checkpoint conversacional treinado/validado.
+- Consequência: gerar agora um APK, mesmo se fosse possível, não entregaria uma IA conversacional funcionando. Não chamar esse estado de “IA pronta” nem prometer entrega integral hoje.
+
 ## 6. Próxima tarefa única — continuar daqui
 
-**Desbloquear a execução verificável do CI, sem acrescentar novas funcionalidades antes disso.**
+**Obter diagnóstico da falha de alocação do runner da conta/repositório, sem alterar código funcional até haver execução real.**
+
+A prova mínima já falhou antes dos steps. A ação que exige o proprietário da conta é abrir o run [44338054696](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44338054696) e verificar a mensagem exibida no resumo dos jobs; conferir também a utilização incluída de GitHub Actions e o limite de gasto da conta em Billing and licensing → Usage. O conector atual não expõe essas configurações privadas nem a mensagem de falha pré-runner. Registrar o erro exato, sem pressupor que seja billing.
+
+Quando o runner executar:
+1. executar primeiro os unit tests;
+2. executar depois os instrumented tests Android;
+3. corrigir apenas falhas concretas dos logs;
+4. só então completar a confirmação do proprietário no fluxo do Profile Store e ligar o harness de benchmark à inferência real, com verificador independente.
+
+**Bloqueio de produto:** o chat ainda não é uma IA funcional. Antes de declarar a IA pronta, o próprio modelo precisa ser treinado, carregar um checkpoint validado e responder por `KellvynRuntime.reply()`; hoje `isReady() == false`. Nenhum APK atual pode ser apresentado como a IA completa.
+
 
 Ordem:
 1. Confirmar o HEAD e os workflows associados à branch.
