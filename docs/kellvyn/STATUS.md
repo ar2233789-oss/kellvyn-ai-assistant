@@ -637,3 +637,15 @@ Restabelecer execução real de CI/Gradle ou obter uma execução Android local 
 
 - Pesquisa documentada em AGENT_CAPABILITY_RESEARCH_2026-11-18.md: Lovable/Lovable Academy, Replit Agent, Android Studio Gemini, Cursor, OpenAI Agents SDK, LangGraph, Nano Banana e curso Android Basics with Compose.
 - Especificação do construtor de perfis em AGENT_CREATION_STUDIO_SPEC_2026-11-18.md.
+
+
+### Agent Creation Studio — catálogo de competência e harness — 18/11/2026
+
+- Criado `KellvynSpecialistBenchmarkRegistry.kt` com 28 casos de avaliação em português: dois por papel, incluindo qualidade, segurança, prompt injection, regressão, recursos, persistência, auditoria, depuração e análise visual.
+- Verificação estática do arquivo no HEAD: 28 IDs únicos, exatamente dois casos para cada um dos 14 papéis e nenhuma capability de caso fora da matriz central.
+- O módulo `KellvynAgentCreationStudio` expõe `agent_benchmark_catalog`: sem argumento lista os 28 cenários; com `role` retorna rubricas detalhadas. A ferramenta é READ_ONLY e fica disponível apenas aos papéis com AGENT_EVALUATION.
+- Criado `KellvynSpecialistEvaluationHarness.kt`: execução sequencial, lista restrita de ferramentas, validação do hash do perfil, detecção de solicitações/execuções não autorizadas e aprovação apenas quando um verificador independente comprova todos os critérios e anexa referências.
+- Criados testes em `KellvynSpecialistEvaluationHarnessTest.kt` para aprovação com evidência, bloqueio de ferramenta indevida, divergência de hash, referência ausente, isolamento de Web Research e execução sequencial de suite.
+- Smoke harness local Kotlin/JVM com stubs e cópias equivalentes das classes de perfil/Studio/harness: compilou e executou suite sintética de 28 casos, com 28/28 aprovados; também reprovou tentativa de ferramenta de escrita. Não compilou byte-for-byte o arquivo de 28 cenários, não usou o módulo Android/Gradle e não usou o cérebro real. Isso valida a mecânica do harness, não a competência cognitiva.
+- CI mais recente: runs `44327863319` e `44327863230` falharam sem steps/logs_url; não há diagnóstico de compilação e os testes JUnit continuam sem execução comprovada.
+- O harness ainda não foi conectado a uma inferência neural aprovada nem possui verificador factual de produção. O catálogo não deve ser anunciado como benchmark cognitivo já executado.
