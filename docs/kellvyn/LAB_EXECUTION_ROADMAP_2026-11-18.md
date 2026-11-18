@@ -255,3 +255,18 @@ Os testes novos foram escritos, mas não há aprovação Gradle/AVD comprovada. 
 - A política já autoriza ANDROID_BUILD aos papéis Test Analyst, Security Analyst, Debugger e Auditor; teste instrumental da disponibilidade real foi atualizado para verificar que apenas esses papéis recebem a ferramenta.
 - O backend de build atual continua limitado a Java simples via ECJ/D8. Não é Gradle/Android Studio completo nem Android Device Test.
 - Fonte e testes foram adicionados, mas CI/Gradle continua sem runner/steps/logs.
+
+## Fase transversal — Agent Creation Studio, Fase A — 18/11/2026
+
+A auditoria confirmou que o gerenciador de módulos e a delegação dos 14 papéis já existiam, mas não havia registro versionado de perfis nem módulo de criação dos agentes. O bloco de instruções dos especialistas estava embutido no loop de KellvynAgent.
+
+A Fase A foi escrita nesta branch:
+1. Registro de 14 perfis versionados por código, com missão, instrução, formato de resposta e limites.
+2. Módulo headless READ_ONLY com ferramentas para listar, inspecionar e validar perfis.
+3. Integração do registro no loop de delegação.
+4. Capacidades AGENT_DESIGN/AGENT_EVALUATION e política de acesso restrita a papéis determinados.
+5. Testes unitários escritos para perfis, limites e acesso ao módulo.
+
+O runtime passa a registrar seis módulos. Isso é uma contagem de módulos de ferramenta registrados, não a conclusão dos oito motores descritos na especificação.
+
+Estado de validação: código e testes adicionados ao repositório; execução Gradle/CI ainda pendente. A validação estrutural 14/14 não mede a competência cognitiva real do cérebro. Próxima etapa: executar os testes, corrigir falhas reais, depois implementar o Profile Compiler com hash/diff e harness independente de competência.
