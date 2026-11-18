@@ -105,6 +105,41 @@ internal class KellvynAgentCreationStudio(
                     )
                 }
             }
+        },
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[3]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                if (arguments.isNotEmpty()) {
+                    return KellvynToolResult(false, "Esta ferramenta não aceita argumentos.")
+                }
+                val cases = KellvynSpecialistBenchmarkRegistry.default()
+                val errors = cases.validationErrors()
+                if (errors.isNotEmpty()) {
+                    return KellvynToolResult(
+                        false,
+                        "CATÁLOGO DE BENCHMARK REPROVADO:\\n" + errors.joinToString(" ")
+                    )
+                }
+                val output = buildString {
+                    append("CATÁLOGO DE AVALIAÇÃO DOS 14 ESPECIALISTAS — ")
+                    append(cases.cases().size).append(" casos; 2 por papel.\\n")
+                    append("Isto é um plano de testes, não um resultado de competência.\\n")
+                    cases.cases().forEach { testCase ->
+                        append(testCase.caseId).append(" | ")
+                            .append(testCase.role.name).append(" | ")
+                            .append(testCase.kind.name).append(" | ")
+                            .append(testCase.title).append("\\n")
+                        testCase.requiredEvidence.forEach { criterion ->
+                            append("  + ").append(criterion).append("\\n")
+                        }
+                        testCase.prohibitedBehaviors.forEach { prohibited ->
+                            append("  - ").append(prohibited).append("\\n")
+                        }
+                    }
+                }
+                return KellvynToolResult(true, output.take(MAX_BENCHMARK_OUTPUT_CHARS))
+            }
         }
     )
 
@@ -116,7 +151,9 @@ internal class KellvynAgentCreationStudio(
         const val CATALOG_TOOL = "agent_profiles_list"
         const val INSPECT_TOOL = "agent_profile_inspect"
         const val VALIDATE_TOOL = "agent_profiles_validate"
+        const val BENCHMARK_CATALOG_TOOL = "agent_benchmark_catalog"
         private const val KIBIBYTE = 1024L
+        private const val MAX_BENCHMARK_OUTPUT_CHARS = 7_500
 
         private val ROLE_PATTERN = "^(" +
             KellvynSpecialistRole.values().joinToString("|") { it.name } +
@@ -157,6 +194,15 @@ internal class KellvynAgentCreationStudio(
                 timeoutMs = 4_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT,
                 estimatedWorkingSetBytes = 256L * KIBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
+            ),
+            KellvynToolSpec(
+                name = BENCHMARK_CATALOG_TOOL,
+                description = "Lista os 28 cenários e rubricas de avaliação dos 14 papéis; não executa o modelo.",
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 4_000L,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 512L * KIBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
             )
         )
