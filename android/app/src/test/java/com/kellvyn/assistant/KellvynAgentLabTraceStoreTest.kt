@@ -69,6 +69,44 @@ class KellvynAgentLabTraceStoreTest {
     }
 
     @Test
+    fun supportsTracesLargerThanLegacy128EventLimitAndReadsBoundedTail() {
+        val traceId = "00000000-0000-0000-0000-000000000003"
+        repeat(140) { index ->
+            store.append(
+                KellvynAgentLabEvent(
+                    traceId = traceId,
+                    occurredAtMillis = 1_000L + index,
+                    kind = KellvynAgentLabEventKind.MODEL_CALL_STARTED,
+                    step = index + 1,
+                    outcome = KellvynAgentLabOutcome.STARTED
+                )
+            )
+        }
+
+        val tail = store.historyTail(traceId, 12)
+        assertEquals(12, tail.size)
+        assertEquals(129L, tail.first().sequence)
+        assertEquals(140L, tail.last().sequence)
+        assertEquals(140, store.summaries().single().eventCount)
+        assertEquals(1_000L, store.summaries().single().startedAtMillis)
+        assertEquals(1_139L, store.summaries().single().lastEventAtMillis)
+
+        // A fresh store instance must rebuild its append cursor from the verified disk chain.
+        val reopened = KellvynAgentLabTraceStore(root, TraceTestCipher())
+        val finalRecord = reopened.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = 1_140L,
+                kind = KellvynAgentLabEventKind.RUN_COMPLETED,
+                outcome = KellvynAgentLabOutcome.SUCCEEDED
+            )
+        )
+        assertEquals(141L, finalRecord.sequence)
+        assertEquals(141, reopened.historyTail(traceId, 200).size)
+        assertEquals(KellvynAgentLabEventKind.RUN_COMPLETED, reopened.summaries().single().terminalKind)
+    }
+
+    @Test
     fun cancelledRunIsTerminalAndEligibleForExplicitRetentionPruning() {
         val traceId = "00000000-0000-0000-0000-000000000001"
         store.append(
