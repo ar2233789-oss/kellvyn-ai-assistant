@@ -26,7 +26,8 @@ internal class KellvynOrchestrator(
     private val taskBroker: KellvynTaskBroker?,
     private val networkReadEnabled: () -> Boolean,
     private val specialistProfiles: KellvynSpecialistProfileRegistry,
-    private val resourceSnapshotProvider: (suspend () -> KellvynResourceSnapshot)? = null
+    private val resourceSnapshotProvider: (suspend () -> KellvynResourceSnapshot)? = null,
+    private val monotonicNanos: () -> Long = System::nanoTime
 ) {
     /** Creates per-run state so concurrent conversations never share delegation budgets. */
     fun newSession(
@@ -42,6 +43,7 @@ internal class KellvynOrchestrator(
             decision: KellvynModelDecision.Delegate,
             step: Int? = null
         ): KellvynOrchestrationOutcome {
+            val startedAtNanos = monotonicNanos()
             traceSession.record(
                 kind = KellvynAgentLabEventKind.DELEGATION_STARTED,
                 step = step,
@@ -69,7 +71,7 @@ internal class KellvynOrchestrator(
                     step = step,
                     specialistRole = decision.role,
                     profileSha256 = profileHash,
-                    durationMillis = null,
+                    durationMillis = elapsedMillis(startedAtNanos),
                     outcome = resultOutcome,
                     detailCode = when (resultOutcome) {
                         KellvynAgentLabOutcome.SUCCEEDED -> "DELEGATION_OK"
@@ -87,6 +89,7 @@ internal class KellvynOrchestrator(
                         kind = KellvynAgentLabEventKind.DELEGATION_FINISHED,
                         step = step,
                         specialistRole = decision.role,
+                        durationMillis = elapsedMillis(startedAtNanos),
                         outcome = KellvynAgentLabOutcome.FAILED,
                         detailCode = "CANCELLED"
                     )
@@ -250,6 +253,13 @@ internal class KellvynOrchestrator(
             content = "PROFILE_SHA256: ${compiledProfile.profileSha256}\n$specialistSummary",
             consumesDelegationSlot = true
         )
+    }
+
+
+    /** Uses monotonic time so wall-clock corrections cannot corrupt specialist latency. */
+    private fun elapsedMillis(startedAtNanos: Long): Long {
+        val elapsedNanos = monotonicNanos() - startedAtNanos
+        return if (elapsedNanos <= 0L) 0L else elapsedNanos / 1_000_000L
     }
 
     private fun rejected(
