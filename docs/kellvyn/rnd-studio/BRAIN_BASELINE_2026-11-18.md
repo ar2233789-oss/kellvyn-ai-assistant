@@ -76,3 +76,8 @@ A implementação candidata está em kellvyn-rnd/brain-gradient-coverage-001; a 
 ## Referência ao candidato atual
 
 O candidato de verificação dos gradientes está isolado em kellvyn-rnd/brain-gradient-coverage-001, estado IMPLEMENTED_NOT_RUN. Ver SESSION_CONTROL seção 16 e o experimento brain-gradient-coverage-001 para commits e resultados do runner. A branch lab não contém o patch.
+
+
+## Checkpoint 22:35 UTC
+
+Branch experimental atual: kellvyn-rnd/brain-gradient-coverage-001, HEAD db943167b82be2b8ca95674ecca81f612f8e3bb2. Run 44412372652 voltou a falhar antes de qualquer step (runner_id=0, runner_name vazio, steps=[]). O candidato segue IMPLEMENTED_NOT_RUN; a baseline/candidata Gradle não foi executada.
