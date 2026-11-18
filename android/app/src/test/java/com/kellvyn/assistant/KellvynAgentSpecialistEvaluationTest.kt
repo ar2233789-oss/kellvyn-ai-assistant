@@ -36,6 +36,7 @@ class KellvynAgentSpecialistEvaluationTest {
         )
 
         for (roleCase in roleCases) {
+            val allowedCapability = KellvynSpecialistToolPolicy.capabilitiesFor(roleCase.role).first()
             val delegatedTask = "Analise exclusivamente a tarefa ${roleCase.role.name}."
             val engine = SpecialistEvaluationEngine(
                 KellvynModelDecision.Delegate(
@@ -48,13 +49,18 @@ class KellvynAgentSpecialistEvaluationTest {
                 KellvynModelDecision.Final("Resultado revisado pelo Kellvyn principal.")
             )
             val readTool = SpecialistEvaluationTool(
-                KellvynToolSpec("read_source", "Lê um arquivo autorizado")
+                KellvynToolSpec(
+                    name = "read_source",
+                    description = "Lê um arquivo autorizado",
+                    capabilities = setOf(allowedCapability)
+                )
             )
             val writeTool = SpecialistEvaluationTool(
                 KellvynToolSpec(
                     name = "write_source",
                     description = "Altera um arquivo",
-                    risk = KellvynToolRisk.REVERSIBLE_WRITE
+                    risk = KellvynToolRisk.REVERSIBLE_WRITE,
+                    capabilities = setOf(allowedCapability)
                 )
             )
             val agent = KellvynAgent(
