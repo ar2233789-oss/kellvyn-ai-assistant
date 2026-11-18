@@ -426,3 +426,49 @@ O protocolo de avaliação agora separa quatro estados: PASSED, REVIEW_REQUIRED,
 Testes escritos: critério pendente não passa nem falha automaticamente; critério inventado/conflitante falha; suíte agregada termina como REVIEW_REQUIRED; outcome sobrevive à leitura do trace cifrado. Um ajuste também garante evento final de experimento para suítes bloqueadas antes de executar (por exemplo, acima de 28 casos).
 
 **Limite preservado:** isso não cria um grader semântico. O verificador continua fornecido por código confiável; os 28 critérios ainda precisam ser classificados em provas objetivas, revisão humana ou verificação semântica independente. Nenhum benchmark de competência foi executado no backend neural de produção.
+
+
+## 8.11 Pesquisa de interfaces de engenharia para agentes e bancada do desenvolvedor — 18/11/2026
+
+Esta pesquisa foi feita para melhorar o ambiente de desenvolvimento do Kellvyn, não para substituir seu cérebro ou importar frameworks inteiros.
+
+### Aider — Repository Map
+Aider constrói um mapa compacto de arquivos, símbolos, tipos e assinaturas; seleciona contexto relevante usando relações do grafo do repositório. A finalidade é reduzir edições que ignoram abstrações existentes.
+
+**Decisão:** criar primeiro um mapa Kotlin estático e datado. Ele é um índice de navegação, não um parser AST. Próxima evolução possível: dependências entre símbolos e ligação fonte→teste, desde que a compilação esteja funcionando.
+
+Fonte: https://aider.chat/docs/repomap.html
+
+### SWE-agent — Agent-Computer Interface
+O trabalho do SWE-agent defende interfaces de ferramentas adaptadas às capacidades dos agentes. A documentação ACI descreve validação sintática antes de aceitar edição, visualização de arquivo por janelas limitadas e busca compacta para reduzir sobrecarga de contexto.
+
+**Decisão:** o futuro executor de engenharia deve operar por ferramentas estreitas e estruturadas: listar, pesquisar, ler trechos, propor patch, validar diff, executar teste permitido e retornar evidência. Não dar shell irrestrito nem acesso direto ao workspace estável. Cada patch mutável deverá ser isolado.
+
+Fontes:
+- https://papers.nips.cc/paper/2024/hash/5a7c947568c1b1328ccc5230172e1e7c-Abstract-Conference.html
+- https://github.com/SWE-agent/SWE-agent/blob/main/docs/background/aci.md
+
+### OpenHands — separação de camadas
+O SDK atual separa núcleo do agente, ferramentas, workspace e servidor/API, com eventos tipados e componentes composáveis. A arquitetura também distingue o painel de controle do processo que executa as ações.
+
+**Decisão:** preservar cérebro original → orquestrador → política/ferramentas → workspace/executor → auditor/verificador. O Agent Lab do app não deve virar uma segunda IA nem misturar o cérebro com uma interface de desenvolvimento. Para tarefas mutáveis, planejar workspaces isolados e integração via diff após revisão.
+
+Fontes:
+- https://github.com/OpenHands/software-agent-sdk
+- https://docs.openhands.dev/sdk/arch/overview
+- https://github.com/OpenHands/OpenHands/blob/main/docs/architecture.md
+
+### LiteRT — hipótese para otimização, não substituição
+A documentação oficial do LiteRT descreve inferência no dispositivo e a API CompiledModel nas versões recentes. É uma rota possível de aceleração caso o grafo do modelo autoral possa ser exportado e preservado.
+
+**Decisão:** não alterar o backend neural agora. Antes, documentar operadores e formas do grafo, criar um conjunto fixo de entradas/saídas e comparar equivalência numérica, latência, memória, térmica e bateria no Poco F6. A compatibilidade GPU deve ser medida, não presumida.
+
+Fonte: https://developers.google.com/edge/litert/overview
+
+### Artefato criado nesta sessão
+
+- `docs/kellvyn/ENGINEERING_LAB_BLUEPRINT_2026-11-18.md`: separa cérebro, Agent Creation Studio, Agent Lab Android e Engineering Lab; define pipeline, gates e próximos passos.
+- `scripts/kellvyn-engineering-lab.py`: ferramenta stdlib-only para auditoria estrutural, mapa de símbolos Kotlin e registro manual de pesquisa/decisões/testes/incidentes/handoff.
+- `.github/workflows/agent-lab-activity-ledger.yml`: atualizado para gerar snapshots de auditoria e mapa após pushes, sem disparar recursivamente a si mesmo.
+
+**Limite:** os arquivos foram gravados no GitHub, mas o script ainda não foi executado num runner. Portanto não existe snapshot produzido nem validação de sintaxe/execução deste novo script nesta sessão. O CI anterior continua bloqueado antes de qualquer step.
