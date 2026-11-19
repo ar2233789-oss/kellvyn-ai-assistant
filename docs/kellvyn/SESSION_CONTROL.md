@@ -770,15 +770,15 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 - Mapa semântico TS/TSX pela TypeScript Compiler API: exports/declarations, imports locais/externos/não resolvidos, chamadas, referências e arquivos de teste.
 - Executor com allowlist de ambiente filho, rejeição de nomes de variáveis sensíveis, redaction de padrões comuns e encerramento de grupos de processos POSIX em timeout.
 - Kotlin LSP preflight: launcher via PATH ou `KOTLIN_LSP_EXECUTABLE`; runtime JDK25 via `KOTLIN_LSP_JAVA_HOME`; não altera JDK17 do Gradle. Detecção não equivale a importação Android ou análise semântica aprovada.
-- Laboratório Android `android-animation-audit`: captura screenrecord do app já em primeiro plano por serial ADB explícito; recolhe gfxinfo/framestats, PSS, bateria, estado térmico e display; extrai quadros com FFmpeg; gera SHA-256 do vídeo e de cada frame. Não instala APK, não abre o app, não toca na UI nem muda configurações.
-- O relatório usa `CAPTURED` apenas para coleta completa; `quality_assessment=NOT_EVALUATED`. Isso não declara fluidez ou fidelidade visual. `PARTIAL` e `BLOCKED` continuam distintos.
+- Laboratório Android `android-animation-audit`: captura screenrecord do app já em primeiro plano por serial ADB explícito; recolhe gfxinfo/framestats, PSS, bateria, estado térmico e display; extrai quadros com FFmpeg; gera SHA-256 do vídeo e de cada frame; rotula cenário, confere foreground ao final e salva checkpoint mínimo em falha pós-preflight. Não instala APK, não abre o app, não toca na UI nem muda configurações.
+- O relatório e o diário da Workbench usam `CAPTURED` apenas para coleta completa; `quality_assessment=NOT_EVALUATED`. Isso não declara fluidez ou fidelidade visual. `PARTIAL` e `BLOCKED` continuam distintos.
 
 ### Contagem de testes e evidência
 - Workbench principal: 31 métodos Python.
-- Parser/contratos do coletor Android: 14 métodos Python.
+- Parser/contratos do coletor Android: 16 métodos Python.
 - R&D Studio: 20 métodos Python.
 - Mapa TS: 2 casos Node.
-- Total inventariado: 65 métodos Python + 2 casos Node. Todos são testes escritos, não resultados de execução.
+- Total inventariado: 67 métodos Python + 2 casos Node. Todos são testes escritos, não resultados de execução.
 - Probes isolados antigos: mapa TS 2/2 e helpers de executor 4/4 em harness separado. Não equivalem às suites do checkout e não validam Android.
 - Último CI para o HEAD-base desta atualização: run `44566228844`, job `135708586394`. O job terminou em failure com `steps=[]`, sem logs. Classificação correta: **RUNNER_ALLOCATION_BLOCKED / NOT_RUN**, não falha comprovada de compilação.
 - A captura Android também permanece NOT_RUN: nenhum ADB/AVD autorizado foi usado nesta sessão.
