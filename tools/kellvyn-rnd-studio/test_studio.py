@@ -14,7 +14,7 @@ class StudioTests(unittest.TestCase):
   (self.root/".github").mkdir(); (self.root/"src").mkdir(); (self.root/"src/Protected.kt").write_text("class Protected\n")
   wrapper_dir=self.root/"android/gradle/wrapper"; wrapper_dir.mkdir(parents=True)
   gradlew=self.root/"android/gradlew"
-  gradlew.write_text("#!/bin/sh\nif [ -f ../force-gradle-failure ]; then exit 7; fi\nprintf '%s\\n' \"$@\"\n")
+  gradlew.write_text("#!/bin/sh\nif [ -f ../force-gradle-failure ]; then exit 7; fi\nprintf '%s\n' \"$@\"\n")
   gradlew.chmod(0o755)
   (wrapper_dir/"gradle-wrapper.jar").write_bytes(b"trusted-test-wrapper")
   (wrapper_dir/"gradle-wrapper.properties").write_text("distributionUrl=https://services.gradle.org/distributions/gradle-test.zip\n")
@@ -122,7 +122,7 @@ class StudioTests(unittest.TestCase):
  def fake_system_gradle(self, script=None):
   executable=self.root.parent/"trusted-gradle"/"gradle"
   executable.parent.mkdir(parents=True,exist_ok=True)
-  executable.write_text(script or "#!/bin/sh\\nif [ \"$1\" = \"--version\" ]; then echo 'Gradle 8.13'; exit 0; fi\\nprintf '%s\\n' \"$@\"\\n")
+  executable.write_text(script or "#!/bin/sh\nif [ \"$1\" = \"--version\" ]; then echo 'Gradle 8.13'; exit 0; fi\nprintf '%s\n' \"$@\"\n")
   executable.chmod(0o755)
   os.environ["KELLVYN_GRADLE_EXECUTABLE"]=str(executable)
   os.environ["KELLVYN_GRADLE_VERSION"]="8.13"
@@ -146,7 +146,7 @@ class StudioTests(unittest.TestCase):
   executable=self.fake_system_gradle()
   work=self.create()
   marker=self.root.parent/"tampered-gradle-ran"
-  executable.write_text(f"#!/bin/sh\\ntouch '{marker}'\\necho 'Gradle 8.13'\\n")
+  executable.write_text(f"#!/bin/sh\ntouch '{marker}'\necho 'Gradle 8.13'\n")
   executable.chmod(0o755)
   with self.assertRaisesRegex(RuntimeError,"Gradle wrapper integrity"):
    studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
@@ -157,7 +157,7 @@ class StudioTests(unittest.TestCase):
  def test_task_create_blocks_when_wrapper_and_trusted_system_gradle_are_absent(self):
   self.remove_wrapper_and_commit()
   os.environ["KELLVYN_GRADLE_EXECUTABLE"]=str(self.root.parent/"missing-gradle")
-  with self.assertRaisesRegex(RuntimeError,"no pinned system Gradle"):
+  with self.assertRaisesRegex(RuntimeError,"configured system Gradle executable is missing"):
    self.create()
  def test_repo_map_matches_test_files_by_referenced_symbols(self):
   main=self.root/"android/app/src/main/java/sample"; main.mkdir(parents=True)
