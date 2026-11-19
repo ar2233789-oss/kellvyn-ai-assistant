@@ -181,6 +181,125 @@ class KellvynTransformerTrainingPipelineTest {
         assertNotNull(trained.manifest.entries.firstOrNull { it.split == KellvynTrainingSplit.TEST })
     }
 
+    @Test
+    fun pretrainingUsesOnlyTrainDocumentsAndKeepsHeldOutSplitsUntouched() {
+        val documents = sampleDocuments()
+        val config = KellvynTransformerTrainingConfig(
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 16,
+            seed = 6_401L,
+            maxMerges = 12,
+            epochsPerExample = 2,
+            maxTotalTrainingSteps = 10_000L,
+            weightDecay = 0.0f
+        )
+        val trained = KellvynTransformerTrainingPipeline.pretrainDocuments(
+            documents = documents,
+            config = config,
+            createdAtMillis = 1_800_000_520_020L
+        )
+        val trainOnlyTokenizer = KellvynBpeTokenizer.train(
+            corpus = documents
+                .filter { it.split == KellvynTrainingSplit.TRAIN }
+                .sortedBy { it.id }
+                .map { it.text },
+            maxMerges = config.maxMerges
+        )
+        val expectedSteps = documents
+            .filter { it.split == KellvynTrainingSplit.TRAIN }
+            .sumOf {
+                (trained.tokenizer.encode(it.text).size - 1L) * config.epochsPerExample
+            }
+
+        assertEquals(trainOnlyTokenizer.vocabularySize, trained.tokenizer.vocabularySize)
+        assertEquals(trainOnlyTokenizer.mergeCount, trained.tokenizer.mergeCount)
+        assertEquals(expectedSteps, trained.model.trainingSteps)
+        assertEquals(expectedSteps, trained.manifest.totalTrainingSteps)
+        assertEquals(documents.size, trained.manifest.entries.size)
+        assertTrue(trained.manifest.initialValidationLoss.isFinite())
+        assertTrue(trained.manifest.finalValidationLoss.isFinite())
+        assertTrue(trained.manifest.heldOutTestLoss.isFinite())
+        assertTrue(trained.manifest.entries.any { it.split == KellvynTrainingSplit.VALIDATION })
+        assertTrue(trained.manifest.entries.any { it.split == KellvynTrainingSplit.TEST })
+    }
+
+    @Test
+    fun documentPretrainingIsReproducibleWhenInputOrderChanges() {
+        val documents = sampleDocuments()
+        val config = KellvynTransformerTrainingConfig(
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 16,
+            seed = 6_402L,
+            maxMerges = 8,
+            epochsPerExample = 2,
+            weightDecay = 0.0f
+        )
+        val first = KellvynTransformerTrainingPipeline.pretrainDocuments(
+            documents, config, createdAtMillis = 1_800_000_520_021L
+        )
+        val reordered = KellvynTransformerTrainingPipeline.pretrainDocuments(
+            documents.reversed(), config, createdAtMillis = 1_800_000_520_021L
+        )
+
+        assertEquals(first.tokenizer.vocabularySize, reordered.tokenizer.vocabularySize)
+        assertEquals(first.tokenizer.mergeCount, reordered.tokenizer.mergeCount)
+        assertEquals(first.model.trainingSteps, reordered.model.trainingSteps)
+        assertEquals(first.model.parameterFingerprint(), reordered.model.parameterFingerprint())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun documentPretrainingRejectsDuplicateContentAcrossPartitions() {
+        val documents = listOf(
+            trainingDocument("train-document", "Conteúdo duplicado", KellvynTrainingSplit.TRAIN),
+            trainingDocument("validation-document", "Conteúdo duplicado", KellvynTrainingSplit.VALIDATION),
+            trainingDocument("test-document", "Outro conteúdo", KellvynTrainingSplit.TEST)
+        )
+        KellvynTransformerTrainingPipeline.pretrainDocuments(documents)
+    }
+
+    private fun sampleDocuments() = listOf(
+        trainingDocument(
+            "train-document-1",
+            "Kellvyn aprende padrões de linguagem com documentos autorizados.",
+            KellvynTrainingSplit.TRAIN
+        ),
+        trainingDocument(
+            "train-document-2",
+            "O modelo prevê o próximo token e aprende relações entre palavras.",
+            KellvynTrainingSplit.TRAIN
+        ),
+        trainingDocument(
+            "validation-document",
+            "A validação mede a generalização do modelo em texto não treinado.",
+            KellvynTrainingSplit.VALIDATION
+        ),
+        trainingDocument(
+            "test-document",
+            "O conjunto de teste permanece separado do treinamento.",
+            KellvynTrainingSplit.TEST
+        )
+    )
+
+    private fun trainingDocument(
+        id: String,
+        text: String,
+        split: KellvynTrainingSplit
+    ) = KellvynTrainingDocument(
+        id = id,
+        text = text,
+        split = split,
+        provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kn003-pretraining-test/$id",
+            rightsEvidence = "Documento sintético criado pelo proprietário para teste."
+        )
+    )
+
     private fun sampleExamples() = listOf(
         instruction(
             "train-1",
