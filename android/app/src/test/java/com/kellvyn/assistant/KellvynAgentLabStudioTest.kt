@@ -134,6 +134,166 @@ class KellvynAgentLabStudioTest {
     }
 
     @Test
+    fun experimentComparisonAllowsProfileChangesWhenCasesAndToolPolicyMatch() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-compare-profile").toFile()
+        try {
+            val store = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendExperiment(
+                store = store,
+                traceId = "00000000-0000-0000-0000-000000000091",
+                at = 10_000L,
+                casesFingerprint = "1".repeat(64),
+                profileFingerprint = "a".repeat(64),
+                toolsFingerprint = "c".repeat(64),
+                outcomes = mapOf(
+                    "case-one" to KellvynAgentLabOutcome.SUCCEEDED,
+                    "case-two" to KellvynAgentLabOutcome.FAILED
+                ),
+                terminal = KellvynAgentLabOutcome.FAILED,
+                profileHash = "a".repeat(64)
+            )
+            appendExperiment(
+                store = store,
+                traceId = "00000000-0000-0000-0000-000000000092",
+                at = 20_000L,
+                casesFingerprint = "1".repeat(64),
+                profileFingerprint = "b".repeat(64),
+                toolsFingerprint = "c".repeat(64),
+                outcomes = mapOf(
+                    "case-one" to KellvynAgentLabOutcome.SUCCEEDED,
+                    "case-two" to KellvynAgentLabOutcome.SUCCEEDED
+                ),
+                terminal = KellvynAgentLabOutcome.SUCCEEDED,
+                profileHash = "b".repeat(64)
+            )
+
+            val result = createStudio(root, emptyManager(), false).tools.single {
+                it.spec.name == KellvynAgentLabStudio.TRACE_COMPARE_TOOL
+            }.execute(
+                mapOf(
+                    "baseline_trace_id" to "00000000-0000-0000-0000-000000000091",
+                    "candidate_trace_id" to "00000000-0000-0000-0000-000000000092"
+                )
+            )
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("Comparabilidade: CONTROLADA"))
+            assertTrue(result.content.contains("Variação de aprovações: 1"))
+            assertTrue(result.content.contains("Fingerprint dos perfis:"))
+            assertFalse(result.content.contains("Variação de aprovações: NÃO CALCULADA"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun experimentComparisonWithholdsDeltaWhenToolPolicyChanges() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-compare-tools").toFile()
+        try {
+            val store = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000093", 30_000L,
+                "2".repeat(64), "a".repeat(64), "c".repeat(64),
+                mapOf("case-one" to KellvynAgentLabOutcome.SUCCEEDED), KellvynAgentLabOutcome.SUCCEEDED,
+                "a".repeat(64)
+            )
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000094", 40_000L,
+                "2".repeat(64), "b".repeat(64), "d".repeat(64),
+                mapOf("case-one" to KellvynAgentLabOutcome.SUCCEEDED), KellvynAgentLabOutcome.SUCCEEDED,
+                "b".repeat(64)
+            )
+
+            val result = createStudio(root, emptyManager(), false).tools.single {
+                it.spec.name == KellvynAgentLabStudio.TRACE_COMPARE_TOOL
+            }.execute(
+                mapOf(
+                    "baseline_trace_id" to "00000000-0000-0000-0000-000000000093",
+                    "candidate_trace_id" to "00000000-0000-0000-0000-000000000094"
+                )
+            )
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("Comparabilidade: NÃO CONTROLADA"))
+            assertTrue(result.content.contains("Variação de aprovações: NÃO CALCULADA"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun experimentComparisonRejectsDifferentBenchmarkDefinitions() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-compare-cases").toFile()
+        try {
+            val store = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000095", 50_000L,
+                "3".repeat(64), "a".repeat(64), "c".repeat(64),
+                mapOf("case-one" to KellvynAgentLabOutcome.SUCCEEDED), KellvynAgentLabOutcome.SUCCEEDED,
+                "a".repeat(64)
+            )
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000096", 60_000L,
+                "4".repeat(64), "a".repeat(64), "c".repeat(64),
+                mapOf("case-one" to KellvynAgentLabOutcome.SUCCEEDED), KellvynAgentLabOutcome.SUCCEEDED,
+                "a".repeat(64)
+            )
+
+            val result = createStudio(root, emptyManager(), false).tools.single {
+                it.spec.name == KellvynAgentLabStudio.TRACE_COMPARE_TOOL
+            }.execute(
+                mapOf(
+                    "baseline_trace_id" to "00000000-0000-0000-0000-000000000095",
+                    "candidate_trace_id" to "00000000-0000-0000-0000-000000000096"
+                )
+            )
+
+            assertFalse(result.success)
+            assertTrue(result.content.contains("fingerprints do conjunto de casos divergem"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun experimentComparisonWithholdsDeltaWhenCaseCoverageIsIncomplete() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-compare-coverage").toFile()
+        try {
+            val store = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000097", 70_000L,
+                "5".repeat(64), "a".repeat(64), "c".repeat(64),
+                mapOf(
+                    "case-one" to KellvynAgentLabOutcome.SUCCEEDED,
+                    "case-two" to KellvynAgentLabOutcome.SUCCEEDED
+                ), KellvynAgentLabOutcome.SUCCEEDED, "a".repeat(64)
+            )
+            appendExperiment(
+                store, "00000000-0000-0000-0000-000000000098", 80_000L,
+                "5".repeat(64), "b".repeat(64), "c".repeat(64),
+                mapOf("case-one" to KellvynAgentLabOutcome.SUCCEEDED),
+                KellvynAgentLabOutcome.SUCCEEDED, "b".repeat(64)
+            )
+
+            val result = createStudio(root, emptyManager(), false).tools.single {
+                it.spec.name == KellvynAgentLabStudio.TRACE_COMPARE_TOOL
+            }.execute(
+                mapOf(
+                    "baseline_trace_id" to "00000000-0000-0000-0000-000000000097",
+                    "candidate_trace_id" to "00000000-0000-0000-0000-000000000098"
+                )
+            )
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("Comparabilidade: NÃO CONTROLADA"))
+            assertTrue(result.content.contains("Variação de aprovações: NÃO CALCULADA"))
+            assertTrue(result.content.contains("NÃO CONTROLADA — há mudança de ferramentas/política, cobertura incompleta"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun delegationMetricsAggregateOnlyRecordedOperationalEvidence() = runBlocking {
         val root = Files.createTempDirectory("agent-lab-delegations").toFile()
         try {
@@ -168,6 +328,50 @@ class KellvynAgentLabStudioTest {
         } finally {
             root.deleteRecursively()
         }
+    }
+
+    private fun appendExperiment(
+        store: KellvynAgentLabTraceStore,
+        traceId: String,
+        at: Long,
+        casesFingerprint: String,
+        profileFingerprint: String,
+        toolsFingerprint: String,
+        outcomes: Map<String, KellvynAgentLabOutcome>,
+        terminal: KellvynAgentLabOutcome,
+        profileHash: String
+    ) {
+        var timestamp = at
+        fun append(
+            kind: KellvynAgentLabEventKind,
+            outcome: KellvynAgentLabOutcome,
+            detailCode: String,
+            profileSha256: String? = null
+        ) {
+            store.append(
+                KellvynAgentLabEvent(
+                    traceId = traceId,
+                    occurredAtMillis = timestamp++,
+                    kind = kind,
+                    outcome = outcome,
+                    detailCode = detailCode,
+                    profileSha256 = profileSha256
+                )
+            )
+        }
+
+        append(KellvynAgentLabEventKind.EXPERIMENT_STARTED, KellvynAgentLabOutcome.STARTED, "CASES_$casesFingerprint")
+        append(KellvynAgentLabEventKind.EXPERIMENT_STARTED, KellvynAgentLabOutcome.STARTED, "PROFILES_$profileFingerprint")
+        append(KellvynAgentLabEventKind.EXPERIMENT_STARTED, KellvynAgentLabOutcome.STARTED, "TOOLS_$toolsFingerprint")
+        outcomes.forEach { (caseId, result) ->
+            append(
+                KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED,
+                result,
+                caseId,
+                profileHash
+            )
+        }
+        append(KellvynAgentLabEventKind.EXPERIMENT_FINISHED, terminal, "CASES_${outcomes.size}")
     }
 
     private fun appendDelegation(
