@@ -34,9 +34,49 @@ class KellvynTransformerLanguageModelTest {
             maxCoordinatesPerGroup = 2
         )
 
-        assertTrue(report.checkedParameters >= 10)
+        assertEquals(
+            setOf(
+                "tokenEmbeddings", "queryWeights", "keyWeights", "valueWeights",
+                "attentionOutputWeights", "normAttentionGamma", "normAttentionBeta",
+                "normFeedForwardGamma", "normFeedForwardBeta", "gateWeights",
+                "upWeights", "downWeights", "outputWeights", "outputBias"
+            ),
+            report.checkedParametersByGroup.keys
+        )
+        assertTrue(report.checkedParametersByGroup.values.all { it >= 1 })
+        assertEquals(report.checkedParametersByGroup.values.sum(), report.checkedParameters)
         assertTrue("absolute gradient error was ${report.maxAbsoluteError}", report.maxAbsoluteError < 0.004)
         assertTrue("relative gradient error was ${report.maxRelativeError}", report.maxRelativeError < 0.06)
+    }
+
+    @Test
+    fun gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn verifica gradientes em português."),
+            maxMerges = 0
+        )
+        val context = tokenizer.encode("Oi")
+        val target = tokenizer.encode("!").single()
+        for (headCount in listOf(1, 2, 4)) {
+            val model = KellvynTransformerLanguageModel.createForTokenizer(
+                tokenizer = tokenizer,
+                contextLength = 8,
+                embeddingSize = 8,
+                headCount = headCount,
+                feedForwardSize = 12,
+                seed = 5200L + headCount
+            )
+            val report = model.checkGradients(
+                contextTokenIds = context,
+                targetTokenId = target,
+                epsilon = 0.005,
+                maxCoordinatesPerGroup = 3
+            )
+            assertEquals(14, report.checkedParametersByGroup.size)
+            assertTrue(report.checkedParametersByGroup.values.all { it in 1..3 })
+            assertTrue(report.maxAbsoluteError.isFinite())
+            assertTrue(report.maxRelativeError.isFinite())
+        }
     }
 
     @Test

@@ -66,7 +66,8 @@ internal class KellvynTransformerLanguageModel private constructor(
     data class GradientCheckReport(
         val maxAbsoluteError: Double,
         val maxRelativeError: Double,
-        val checkedParameters: Int
+        val checkedParameters: Int,
+        val checkedParametersByGroup: Map<String, Int>
     )
 
     private data class ParameterSet(
@@ -100,6 +101,23 @@ internal class KellvynTransformerLanguageModel private constructor(
             downWeights,
             outputWeights,
             outputBias
+        )
+
+        fun namedArrays(): List<Pair<String, FloatArray>> = listOf(
+            "tokenEmbeddings" to tokenEmbeddings,
+            "queryWeights" to queryWeights,
+            "keyWeights" to keyWeights,
+            "valueWeights" to valueWeights,
+            "attentionOutputWeights" to attentionOutputWeights,
+            "normAttentionGamma" to normAttentionGamma,
+            "normAttentionBeta" to normAttentionBeta,
+            "normFeedForwardGamma" to normFeedForwardGamma,
+            "normFeedForwardBeta" to normFeedForwardBeta,
+            "gateWeights" to gateWeights,
+            "upWeights" to upWeights,
+            "downWeights" to downWeights,
+            "outputWeights" to outputWeights,
+            "outputBias" to outputBias
         )
     }
 
@@ -147,6 +165,8 @@ internal class KellvynTransformerLanguageModel private constructor(
         private const val MAX_TRAINING_TOKENS = 100_000
         private const val MAX_TRAINING_STEPS_PER_CALL = 50_000L
         private const val GRADIENT_CLIP_NORM = 1.0
+        private const val GRADIENT_CHECK_ZERO_THRESHOLD = 1.0e-8f
+        private const val GRADIENT_CHECK_RELATIVE_ERROR_FLOOR = 1.0e-4
         private const val BETA1 = 0.9
         private const val BETA2 = 0.999
         private const val ADAM_EPSILON = 1.0e-8
@@ -708,35 +728,90 @@ internal class KellvynTransformerLanguageModel private constructor(
         require(maxCoordinatesPerGroup in 1..8)
 
         val gradients = computeGradients(contextTokenIds, targetTokenId).parameters
+        val parameterGroups = parameters.namedArrays()
+        val gradientGroups = gradients.namedArrays()
+        require(parameterGroups.map { it.first } == gradientGroups.map { it.first })
+
         var maxAbsolute = 0.0
         var maxRelative = 0.0
         var checked = 0
-        for ((values, gradient) in parameters.arrays().zip(gradients.arrays())) {
-            val candidates = gradient.indices.filter { abs(gradient[it]) > 1.0e-8f }
-            val samples = minOf(maxCoordinatesPerGroup, candidates.size)
-            for (sample in 0 until samples) {
-                val candidatePosition = if (samples == 1) 0
-                    else sample * (candidates.size - 1) / (samples - 1)
-                val parameterIndex = candidates[candidatePosition]
-                val original = values[parameterIndex]
-                values[parameterIndex] = (original.toDouble() + epsilon).toFloat()
-                val plus = singleLoss(contextTokenIds, targetTokenId)
-                values[parameterIndex] = (original.toDouble() - epsilon).toFloat()
-                val minus = singleLoss(contextTokenIds, targetTokenId)
-                values[parameterIndex] = original
-
-                val numeric = (plus - minus) / (2.0 * epsilon)
-                val analytic = gradient[parameterIndex].toDouble()
-                require(numeric.isFinite() && analytic.isFinite())
-                val absolute = abs(numeric - analytic)
-                val relative = absolute / max(1.0e-7, abs(numeric) + abs(analytic))
-                maxAbsolute = max(maxAbsolute, absolute)
-                maxRelative = max(maxRelative, relative)
-                checked++
+        val checkedByGroup = linkedMapOf<String, Int>()
+        for (groupIndex in parameterGroups.indices) {
+            val (groupName, values) = parameterGroups[groupIndex]
+            val gradient = gradientGroups[groupIndex].second
+            val selectedCoordinates = selectGradientCheckCoordinates(
+                gradient,
+                maxCoordinatesPerGroup
+            )
+            require(selectedCoordinates.isNotEmpty()) {
+                "O grupo de parâmetros $groupName não recebeu coordenadas para verificação."
             }
+            for (parameterIndex in selectedCoordinates) {
+                val original = values[parameterIndex]
+                try {
+                    values[parameterIndex] = (original.toDouble() + epsilon).toFloat()
+                    val plus = singleLoss(contextTokenIds, targetTokenId)
+                    values[parameterIndex] = (original.toDouble() - epsilon).toFloat()
+                    val minus = singleLoss(contextTokenIds, targetTokenId)
+
+                    val numeric = (plus - minus) / (2.0 * epsilon)
+                    val analytic = gradient[parameterIndex].toDouble()
+                    require(numeric.isFinite() && analytic.isFinite())
+                    val absolute = abs(numeric - analytic)
+                    val relativeScale = max(
+                        GRADIENT_CHECK_RELATIVE_ERROR_FLOOR,
+                        abs(numeric) + abs(analytic)
+                    )
+                    val relative = absolute / relativeScale
+                    maxAbsolute = max(maxAbsolute, absolute)
+                    maxRelative = max(maxRelative, relative)
+                    checked++
+                } finally {
+                    values[parameterIndex] = original
+                }
+            }
+            checkedByGroup[groupName] = selectedCoordinates.size
         }
-        require(checked > 0)
-        return GradientCheckReport(maxAbsolute, maxRelative, checked)
+        require(checked > 0 && checkedByGroup.size == parameterGroups.size)
+        require(checkedByGroup.values.all { it > 0 })
+        return GradientCheckReport(maxAbsolute, maxRelative, checked, checkedByGroup)
+    }
+
+    /**
+     * Always samples each parameter group, including coordinates whose analytic gradient
+     * is zero. A missing backpropagation path must not silently remove the group from the
+     * numerical check. When both kinds exist, one representative of each kind is selected.
+     */
+    private fun selectGradientCheckCoordinates(
+        gradient: FloatArray,
+        maximum: Int
+    ): List<Int> {
+        if (gradient.isEmpty()) return emptyList()
+        val nonZero = gradient.indices.filter {
+            abs(gradient[it]) > GRADIENT_CHECK_ZERO_THRESHOLD
+        }
+        val zero = gradient.indices.filter {
+            abs(gradient[it]) <= GRADIENT_CHECK_ZERO_THRESHOLD
+        }
+        val selected = linkedSetOf<Int>()
+
+        if (nonZero.isNotEmpty()) selected += nonZero[nonZero.size / 2]
+        if (zero.isNotEmpty() && selected.size < maximum) {
+            selected += zero[zero.size / 2]
+        }
+        if (selected.isEmpty()) selected += gradient.lastIndex
+
+        var sample = 0
+        while (selected.size < minOf(maximum, gradient.size)) {
+            val candidate = if (maximum == 1 || gradient.size == 1) {
+                gradient.size / 2
+            } else {
+                sample * (gradient.size - 1) / (maximum - 1)
+            }
+            selected += candidate
+            sample++
+        }
+        return selected.sorted()
     }
 
     private fun validateOptimizerArguments(learningRate: Float, weightDecay: Float) {
