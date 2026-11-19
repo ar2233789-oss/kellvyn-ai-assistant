@@ -203,9 +203,11 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Trains the original KN-003 decoder-only Transformer from authorized local instruction
-     * examples and stores its own tokenizer, weights, optimizer moments and manifest.
-     * This does not connect the model to chat or silently replace the KN-002 experiment.
+     * Starts a fresh KN-003 run from this project's random initialization using authorized
+     * instruction examples. This intentionally does not continue an existing bundle.
+     * To preserve pretrained weights, call fineTuneOwnTransformerModel instead.
+     *
+     * This operation does not connect the model to chat or replace the KN-002 experiment.
      */
     suspend fun trainOwnTransformerModel(
         examples: List<KellvynInstructionTrainingExample>,
