@@ -228,6 +228,28 @@ class LedgerTests(unittest.TestCase):
             finally:
                 wb.ROOT, wb.RUNS, wb.LEDGER = old
 
+    def test_run_capture_preserves_blocked_and_partial_exit_states(self):
+        import sys
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old = (wb.ROOT, wb.RUNS, wb.LEDGER)
+            wb.ROOT = root
+            wb.RUNS = root / "artifacts" / "runs"
+            wb.LEDGER = root / "docs" / "ledger.jsonl"
+            try:
+                blocked = wb.run_capture(
+                    "blocked-probe", [sys.executable, "-c", "raise SystemExit(3)"],
+                    cwd=root, timeout_s=10, blocked_exit_codes={3}
+                )
+                partial = wb.run_capture(
+                    "partial-probe", [sys.executable, "-c", "raise SystemExit(4)"],
+                    cwd=root, timeout_s=10, partial_exit_codes={4}
+                )
+                self.assertEqual("BLOCKED", blocked["status"])
+                self.assertEqual("PARTIAL", partial["status"])
+            finally:
+                wb.ROOT, wb.RUNS, wb.LEDGER = old
+
     def test_run_capture_drops_secret_environment_and_redacts_outputs_and_manifest(self):
         import sys
         with tempfile.TemporaryDirectory() as td:
@@ -350,6 +372,15 @@ class CliTests(unittest.TestCase):
         self.assertTrue(wb.STUDIO.name == "studio.py")
         self.assertEqual("blender_pipeline.py", wb.BLENDER_PIPELINE.name)
 
+
+    def test_parser_exposes_android_animation_audit_command(self):
+        args = wb.build_parser().parse_args([
+            "android-animation-audit", "--serial", "emulator-5554"
+        ])
+        self.assertEqual("emulator-5554", args.serial)
+        self.assertEqual("com.kellvyn.assistant", args.package)
+        self.assertEqual(10, args.duration)
+        self.assertIsNone(args.frame_budget_ms)
 
     def test_dashboard_is_a_static_report_with_timeline_and_run_status(self):
         with tempfile.TemporaryDirectory() as td:
