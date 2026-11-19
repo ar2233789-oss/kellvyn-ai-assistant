@@ -463,7 +463,8 @@ def capture_android_animation(
     report["limitations"] = [
         "gfxinfo framestats is an app-level frame timing source and does not replace Perfetto FrameTimeline.",
         "The capture measures only the current visible scenario; run each animation/effect combination separately.",
-        "Capture is marked PARTIAL if the app is no longer foreground at the end of the recording.",
+        "Foreground is checked immediately before and after the recording; temporary focus loss between those checks is not continuously monitored.",
+        "Capture is marked PARTIAL if the app is not foreground at the end of the recording.",
         "screenrecord adds measurement overhead; treat gfxinfo timing as diagnostic and confirm suspected jank with Perfetto or Macrobenchmark."
         "frame_budget_ms is optional and must be selected for the target refresh rate; no refresh rate is assumed.",
         "A video and frame-timing report do not prove visual correctness; compare sampled frames with a requirement-aware baseline."
