@@ -80,9 +80,11 @@ class KellvynAgentTest {
                 processPssBytes = 260L * 1024L * 1024L,
                 lowMemory = false,
                 thermalBand = KellvynThermalBand.LIGHT,
-                thermalHeadroomForecast = null,
+                thermalHeadroomForecast = 0.42f,
                 powerSaveMode = false,
                 batteryPercent = 87,
+                availableAppDataBytes = 768L * 1024L * 1024L,
+                totalAppDataBytes = 1024L * 1024L * 1024L,
                 charging = false,
                 processCpuTimeMillis = 100L,
                 sampledAtElapsedRealtimeMillis = 1_000L,
@@ -96,9 +98,11 @@ class KellvynAgentTest {
                 processPssBytes = 280L * 1024L * 1024L,
                 lowMemory = false,
                 thermalBand = KellvynThermalBand.MODERATE,
-                thermalHeadroomForecast = null,
+                thermalHeadroomForecast = 0.32f,
                 powerSaveMode = false,
                 batteryPercent = 86,
+                availableAppDataBytes = 512L * 1024L * 1024L,
+                totalAppDataBytes = 1024L * 1024L * 1024L,
                 charging = false,
                 processCpuTimeMillis = 420L,
                 sampledAtElapsedRealtimeMillis = 3_000L,
@@ -125,6 +129,10 @@ class KellvynAgentTest {
         assertTrue(resourceEvents[1].detailCode!!.startsWith("END-"))
         assertTrue(resourceEvents[1].detailCode!!.contains("-B86-TMODERATE"))
         assertTrue(resourceEvents[1].detailCode!!.contains("-DC320-CPU2"))
+        assertTrue(resourceEvents[0].detailCode!!.contains("-S768"))
+        assertTrue(resourceEvents[1].detailCode!!.contains("-S512"))
+        assertTrue(resourceEvents[0].detailCode!!.contains("-TH42"))
+        assertTrue(resourceEvents[1].detailCode!!.contains("-TH32"))
     }
 
     @Test
