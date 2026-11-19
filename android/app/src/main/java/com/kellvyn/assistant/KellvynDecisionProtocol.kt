@@ -10,8 +10,8 @@ import java.nio.charset.StandardCharsets
  * Strict, versioned wire format between the local neural model and the agent.
  *
  * Free-form model output is never executed. Only a complete protocol message with bounded,
- * valid fields becomes a typed decision. Every arbitrary string is UTF-8 hex so delimiters,
- * newlines and control characters cannot change the structure.
+ * valid fields becomes a typed decision. Tool/plan/delegation fields use UTF-8 hex.
+ * Final user-facing text may use a bounded single-line UTF-8 field to avoid doubling its size.
  */
 internal object KellvynDecisionProtocol {
     private const val HEADER = "KELLVYN/1"
@@ -56,8 +56,22 @@ internal object KellvynDecisionProtocol {
 
     private fun parseFinal(lines: List<String>): ParseResult {
         require(lines.size == 4) { "FINAL exige exatamente um texto." }
-        require(lines[2].startsWith("TEXT\t")) { "Campo TEXT ausente." }
-        val text = decodeHex(lines[2].substringAfter('\t')).trim()
+        val field = lines[2]
+        val text = when {
+            field.startsWith("TEXT\t") ->
+                decodeHex(field.substringAfter('\t')).trim()
+            field.startsWith("TEXT_RAW\t") -> {
+                val raw = field.substringAfter('\t')
+                require(raw.toByteArray(StandardCharsets.UTF_8).size <= MAX_TEXT_BYTES) {
+                    "A resposta final excedeu o limite de bytes."
+                }
+                require(raw.none { it.isISOControl() }) {
+                    "TEXT_RAW aceita somente uma linha UTF-8 sem caracteres de controle."
+                }
+                raw.trim()
+            }
+            else -> throw IllegalArgumentException("Campo TEXT/TEXT_RAW ausente.")
+        }
         require(text.isNotEmpty()) { "A resposta final está vazia." }
         return ParseResult.Accepted(KellvynModelDecision.Final(text))
     }
