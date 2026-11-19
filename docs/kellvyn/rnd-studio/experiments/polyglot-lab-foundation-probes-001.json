@@ -66,12 +66,13 @@
   },
   "latest_ci_observation": {
     "workflow": "Kellvyn Workbench — tooling validation",
-    "run_id": 44575908967,
-    "job_id": 135743226910,
+    "run_id": 44576134219,
+    "job_id": 135744014615,
+    "head": "bcb5c6988032ad1e214ce16d22f4a38f4318c296",
     "status": "failure before first workflow step",
     "jobs_have_steps": false,
     "logs_available": false,
-    "classification": "RUNNER_ALLOCATION_BLOCKED / NOT_RUN; no Kotlin/Python/TypeScript compile or test failure has been demonstrated."
+    "classification": "RUNNER_ALLOCATION_BLOCKED / NOT_RUN; no compilation or test failure has been demonstrated."
   },
   "acceptance_criteria": [
     "GitHub Workbench workflow receives a runner and starts steps.",
@@ -82,7 +83,7 @@
     "Security and process-control behavior is covered by the complete repository unit tests.",
     "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
   ],
-  "note": "Current inventory: 67 Python test methods (31 Workbench + 16 Android animation audit + 20 R&D Studio) and two Node semantic-map tests. They remain NOT_RUN in CI. The older isolated harness probes are pinned to their source blob SHAs and do not validate the current HEAD.",
+  "note": "Current inventory: 67 Python test methods (31 Workbench + 16 Android animation audit + 20 R&D Studio) and two Node semantic-map tests. They remain NOT_RUN in CI. This latest workflow run had no job steps/logs, so it is not a code failure.",
   "workbench_test_inventory": {
     "tools/kellvyn-workbench/tests/test_workbench.py": {
       "method_count": 31,
