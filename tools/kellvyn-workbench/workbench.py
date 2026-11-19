@@ -656,7 +656,7 @@ def write_checkpoint(summary: str, next_step: str, *, done: list[str], blocked: 
     append_event("CHECKPOINT", "RECORDED", summary, session_id=session_id, paths=[str(STATE_JSON.relative_to(ROOT)), str(STATE_MD.relative_to(ROOT))], evidence=[state["repository"]["head"]], metadata={"next_step": next_step})
 
 
-def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None) -> dict[str, Any]:
+def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None, blocked_exit_codes: set[int] | None = None, partial_exit_codes: set[int] | None = None) -> dict[str, Any]:
     if timeout_s < 1 or timeout_s > 7200:
         raise ValueError("timeout must be between 1 and 7200 seconds")
     run_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
@@ -699,7 +699,14 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
             status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process tree terminated"
         stdout_thread.join(timeout=10); stderr_thread.join(timeout=10)
         if status != "TIMED_OUT":
-            status = "PASSED" if exit_code == 0 else "FAILED"
+            if exit_code == 0:
+                status = "PASSED"
+            elif exit_code in (blocked_exit_codes or set()):
+                status = "BLOCKED"
+            elif exit_code in (partial_exit_codes or set()):
+                status = "PARTIAL"
+            else:
+                status = "FAILED"
     except FileNotFoundError as exc:
         status, error = "BLOCKED", f"executable missing: {exc.filename}"
         stderr_path.write_text(error + "\n", encoding="utf-8")
@@ -988,6 +995,41 @@ def cmd_android_smoke(args: argparse.Namespace) -> int:
     return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
+def cmd_android_animation_audit(args: argparse.Namespace) -> int:
+    script = Path(__file__).resolve().parent / "android_animation_audit.py"
+    if not shutil.which("adb"):
+        print("BLOCKED: adb is not installed.", file=sys.stderr)
+        append_event("ANDROID_ANIMATION_AUDIT", "BLOCKED", "ADB is not installed.")
+        return 3
+    output_base = Path(args.output)
+    output_base = output_base if output_base.is_absolute() else ROOT / output_base
+    output_base = within_repo(output_base)
+    output_base.mkdir(parents=True, exist_ok=True)
+    command = [
+        sys.executable, str(script),
+        "--serial", args.serial,
+        "--package", args.package,
+        "--duration", str(args.duration),
+        "--frame-sample-fps", str(args.frame_sample_fps),
+        "--output", str(output_base)
+    ]
+    if args.frame_budget_ms is not None:
+        command.extend(["--frame-budget-ms", str(args.frame_budget_ms)])
+    result = run_capture(
+        "android-animation-audit", command,
+        timeout_s=args.timeout, session_id=args.session,
+        blocked_exit_codes={3}, partial_exit_codes={4}
+    )
+    stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
+    stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
+    if stdout:
+        print(stdout[-10000:])
+    if stderr:
+        print(stderr[-6000:], file=sys.stderr)
+    print(f"ANDROID_ANIMATION_AUDIT={result['status']} RUN={result['run_id']}")
+    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
+
+
 def cmd_web_audit(args: argparse.Namespace) -> int:
     script = Path(__file__).resolve().parent / "web_audit.mjs"
     package_status = node_package_status("playwright")
@@ -1114,6 +1156,7 @@ def build_parser() -> argparse.ArgumentParser:
     z = q.add_parser("test"); z.add_argument("--id", required=True); z.add_argument("--suite", required=True, choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"]); z.add_argument("--timeout", type=int, default=1800); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     z = q.add_parser("check"); z.add_argument("--id", required=True); z.add_argument("--require-test", action="append", choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"], default=[]); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     p = sub.add_parser("android-smoke"); p.add_argument("--apk", required=True); p.add_argument("--output", default="artifacts/workbench/android/latest"); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_smoke)
+    p = sub.add_parser("android-animation-audit"); p.add_argument("--serial", required=True); p.add_argument("--package", default="com.kellvyn.assistant"); p.add_argument("--duration", type=int, default=10); p.add_argument("--frame-sample-fps", type=float, default=2.0); p.add_argument("--frame-budget-ms", type=float, default=None); p.add_argument("--output", default="artifacts/workbench/android-animation"); p.add_argument("--timeout", type=int, default=180); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_animation_audit)
     p = sub.add_parser("web-audit"); p.add_argument("--url", default="http://127.0.0.1:4173/"); p.add_argument("--output", default="artifacts/workbench/web/latest"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--session", default=""); p.set_defaults(func=cmd_web_audit)
     p = sub.add_parser("typescript-map"); p.add_argument("--output", default="artifacts/workbench/maps/typescript-semantic-map.json"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--fail-on-diagnostics", action="store_true"); p.add_argument("--session", default=""); p.set_defaults(func=cmd_typescript_map)
     p = sub.add_parser("report"); p.set_defaults(func=cmd_report)
