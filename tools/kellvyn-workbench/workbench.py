@@ -1009,6 +1009,7 @@ def cmd_android_animation_audit(args: argparse.Namespace) -> int:
         sys.executable, str(script),
         "--serial", args.serial,
         "--package", args.package,
+        "--scenario", args.scenario,
         "--duration", str(args.duration),
         "--frame-sample-fps", str(args.frame_sample_fps),
         "--output", str(output_base)
@@ -1156,7 +1157,7 @@ def build_parser() -> argparse.ArgumentParser:
     z = q.add_parser("test"); z.add_argument("--id", required=True); z.add_argument("--suite", required=True, choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"]); z.add_argument("--timeout", type=int, default=1800); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     z = q.add_parser("check"); z.add_argument("--id", required=True); z.add_argument("--require-test", action="append", choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"], default=[]); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     p = sub.add_parser("android-smoke"); p.add_argument("--apk", required=True); p.add_argument("--output", default="artifacts/workbench/android/latest"); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_smoke)
-    p = sub.add_parser("android-animation-audit"); p.add_argument("--serial", required=True); p.add_argument("--package", default="com.kellvyn.assistant"); p.add_argument("--duration", type=int, default=10); p.add_argument("--frame-sample-fps", type=float, default=2.0); p.add_argument("--frame-budget-ms", type=float, default=None); p.add_argument("--output", default="artifacts/workbench/android-animation"); p.add_argument("--timeout", type=int, default=180); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_animation_audit)
+    p = sub.add_parser("android-animation-audit"); p.add_argument("--serial", required=True); p.add_argument("--package", default="com.kellvyn.assistant"); p.add_argument("--scenario", default="manual-unspecified"); p.add_argument("--duration", type=int, default=10); p.add_argument("--frame-sample-fps", type=float, default=2.0); p.add_argument("--frame-budget-ms", type=float, default=None); p.add_argument("--output", default="artifacts/workbench/android-animation"); p.add_argument("--timeout", type=int, default=180); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_animation_audit)
     p = sub.add_parser("web-audit"); p.add_argument("--url", default="http://127.0.0.1:4173/"); p.add_argument("--output", default="artifacts/workbench/web/latest"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--session", default=""); p.set_defaults(func=cmd_web_audit)
     p = sub.add_parser("typescript-map"); p.add_argument("--output", default="artifacts/workbench/maps/typescript-semantic-map.json"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--fail-on-diagnostics", action="store_true"); p.add_argument("--session", default=""); p.set_defaults(func=cmd_typescript_map)
     p = sub.add_parser("report"); p.set_defaults(func=cmd_report)
