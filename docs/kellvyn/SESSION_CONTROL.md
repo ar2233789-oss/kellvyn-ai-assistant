@@ -3,7 +3,7 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 19/11/2026 — continuidade de agentes e laboratório  
+**Última revisão:** 19/11/2026 — foco atual: estudar e construir o cérebro neural próprio Kellvyn; agentes/laboratório de agentes em pausa  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch-base de engenharia:** kellvyn-rnd/agent-trace-duration-port-20261118  
 **Branch experimental ativa:** kellvyn-rnd/reasoning-alternatives-20261119  
@@ -12,14 +12,14 @@ Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHu
 **Últimos estudos:** auditoria KN-003 de gradientes e método de diferenças finitas, em `docs/kellvyn/rnd-studio/`.  
 **CI observado:** run 44392690462 — `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
 
-> Prioridade ativa: usar a Kellvyn R&D Studio externa para estudar e melhorar o cérebro próprio. Agent Lab Android e Agent Creation Studio são camadas distintas e não substituem essa bancada. Confirme sempre o HEAD real; o commit deste checkpoint é auto-referencial e será reconciliado pelo diário quando o runner voltar.
+> Prioridade ativa (19/11/2026): estudar e construir o cérebro neural próprio Kellvyn em ciclos simultâneos de pesquisa, auditoria de código, implementação pequena e validação. A Kellvyn R&D Studio externa é a bancada para esse trabalho, não o produto final. Novos agentes e expansão do Agent Lab/Agent Creation Studio ficam pausados; estudar esses sistemas como referência não autoriza ampliar sua implementação agora. Não declarar capacidade sem teste real. Confirme sempre o HEAD real e leia os commits posteriores antes de editar.
 > Se o HEAD atual for diferente, leia os commits posteriores antes de editar. Este documento não autoriza sobrescrever trabalho posterior.
 
 ---
 
 ## 1. Objetivo ativo — não desviar
 
-A prioridade ativa é a **Kellvyn R&D Studio externa**: uma bancada de engenharia para o assistente estudar a arquitetura neural própria, pesquisar métodos, formular hipóteses falsificáveis, isolar alterações, executar testes, comparar evidências e melhorar o cérebro sem perder continuidade. Não é uma tela do usuário nem um módulo do app.
+A prioridade ativa é **estudar e construir o cérebro neural próprio Kellvyn**, avançando em paralelo por quatro frentes: (1) pesquisa documental atualizada das referências; (2) auditoria do código neural, tokenizer, treinamento, memória e contexto já existentes; (3) implementação incremental de melhorias específicas; (4) validação com testes reproduzíveis e benchmarks. A Kellvyn R&D Studio externa é a bancada para isolar hipóteses, guardar evidências e validar essas mudanças; não é uma tela do usuário nem o cérebro. Novos agentes e expansão do laboratório de agentes permanecem em pausa.
 
 Não confundir estas camadas:
 - **Cérebro Kellvyn (KN):** modelo/tokenizer/pesos próprios e inferência neural; não está conectado ao chat de produção.
