@@ -360,7 +360,12 @@ def capture_android_animation(
         "gfxinfo": "gfxinfo-framestats.txt",
         "frames_directory": frames_dir.relative_to(ROOT).as_posix()
     }
+    video_digest = hashlib.sha256()
+    with video.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            video_digest.update(chunk)
     report["video_bytes"] = video.stat().st_size
+    report["video_sha256"] = video_digest.hexdigest()
     report["video_extraction"] = "NOT_RUN"
 
     if ffmpeg_path:
@@ -377,6 +382,11 @@ def capture_android_animation(
         frame_count = len(list(frames_dir.glob("frame_*.png")))
         report["video_extraction"] = "PASSED" if extraction.returncode == 0 and frame_count else "FAILED"
         report["frame_count"] = frame_count
+        if frame_count:
+            report["frame_hashes"] = [
+                {"file": frame.name, "sha256": hashlib.sha256(frame.read_bytes()).hexdigest()}
+                for frame in sorted(frames_dir.glob("frame_*.png"))
+            ]
     else:
         report["video_extraction"] = "BLOCKED_FFMPEG_NOT_INSTALLED"
         report["frame_count"] = 0
