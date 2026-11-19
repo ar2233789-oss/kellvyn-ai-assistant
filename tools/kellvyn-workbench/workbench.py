@@ -656,7 +656,7 @@ def write_checkpoint(summary: str, next_step: str, *, done: list[str], blocked: 
     append_event("CHECKPOINT", "RECORDED", summary, session_id=session_id, paths=[str(STATE_JSON.relative_to(ROOT)), str(STATE_MD.relative_to(ROOT))], evidence=[state["repository"]["head"]], metadata={"next_step": next_step})
 
 
-def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None, blocked_exit_codes: set[int] | None = None, partial_exit_codes: set[int] | None = None) -> dict[str, Any]:
+def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None, blocked_exit_codes: set[int] | None = None, partial_exit_codes: set[int] | None = None, captured_exit_codes: set[int] | None = None) -> dict[str, Any]:
     if timeout_s < 1 or timeout_s > 7200:
         raise ValueError("timeout must be between 1 and 7200 seconds")
     run_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
@@ -699,7 +699,9 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
             status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process tree terminated"
         stdout_thread.join(timeout=10); stderr_thread.join(timeout=10)
         if status != "TIMED_OUT":
-            if exit_code == 0:
+            if exit_code in (captured_exit_codes or set()):
+                status = "CAPTURED"
+            elif exit_code == 0:
                 status = "PASSED"
             elif exit_code in (blocked_exit_codes or set()):
                 status = "BLOCKED"
@@ -838,7 +840,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not argv: raise ValueError("run requires an explicit executable and arguments after --")
     result = run_capture(args.name, argv, cwd=cwd, timeout_s=args.timeout, session_id=args.session)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
+    return 0 if result["status"] == "CAPTURED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_debug(args: argparse.Namespace) -> int:
@@ -1019,7 +1021,7 @@ def cmd_android_animation_audit(args: argparse.Namespace) -> int:
     result = run_capture(
         "android-animation-audit", command,
         timeout_s=args.timeout, session_id=args.session,
-        blocked_exit_codes={3}, partial_exit_codes={4}
+        blocked_exit_codes={3}, partial_exit_codes={4}, captured_exit_codes={0}
     )
     stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
     stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
