@@ -63,12 +63,12 @@ Janky frames: 12 (5.00%)
         self.assertIsNone(audit.parse_meminfo_pss_kb("No memory summary"))
 
     def test_parses_battery_level_and_temperature(self):
-        report = audit.parse_battery_info("  level: 73\\n  scale: 100\\n  temperature: 354\\n")
+        report = audit.parse_battery_info("  level: 73\n  scale: 100\n  temperature: 354\n")
         self.assertEqual(73.0, report["level_percent"])
         self.assertEqual(35.4, report["temperature_c"])
 
     def test_parses_display_refresh_rates_without_assuming_one(self):
-        rates = audit.parse_display_refresh_rates("refreshRate=120.0\\nmode fps: 60.0\\nrefreshRate=120.0")
+        rates = audit.parse_display_refresh_rates("refreshRate=120.0\nmode fps: 60.0\nrefreshRate=120.0")
         self.assertEqual([60.0, 120.0], rates)
         self.assertEqual([], audit.parse_display_refresh_rates("no refresh field"))
 
