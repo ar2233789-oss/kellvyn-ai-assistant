@@ -858,3 +858,13 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - JUnit tests adicionados em KellvynThermalHeadroomSamplerTest.kt.
 - Run 44428910941 / job 135240881720: runner_id=0, steps=[]; Gradle/JUnit/Android não iniciaram.
 - HEAD confirmado nesta sequência antes do checkpoint: 7270287f2119edce943f92cc6d1e309b8d727a86. Não mesclar ainda; executar suíte completa quando houver runner real.
+
+
+## 38. Capacidade de armazenamento e Worker sob restrição — 19/11/2026
+- ResourceSnapshot passa a incluir availableAppDataBytes e totalAppDataBytes opcionais. O monitor lê StatFs(filesDir) durante snapshot on-demand; sem polling. A leitura representa o volume privado de dados do app, não o armazenamento total nominal do telefone.
+- Snapshot diagnóstico passa a informar armazenamento privado disponível/total, processCpuTimeMillis e availableProcessors. Teste unitário de resumo cobre valores convertidos em MiB.
+- WorkManager queue drain agora requer requiresBatteryNotLow e requiresStorageNotLow. Teste instrumentado verifica ambas as condições no WorkRequest publicado.
+- APIs oficiais confirmadas: StatFs.availableBytes e Constraints.Builder.setRequiresStorageNotLow.
+- Run 44430446144 / job 135246159400: runner_id=0, steps=[]; Python/Gradle/Android continuam NOT RUN.
+- Harness local puro da política térmica/OEM: 5/5; depois da inclusão de campos de armazenamento e sua validação: 6/6 em cópia isolada da lógica. Sampler térmico puro: 4/4. Isso não prova Gradle/JUnit da aplicação, integração Android ou comportamento térmico/armazenamento no Poco F6.
+- Próximo: obter runner local/hosted que execute testes; fazer CoGo PoC em cópia isolada após medir RAM livre/temperatura; sem alterar toolchain ou instalar runner no aparelho pessoal sem decisão explícita.

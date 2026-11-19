@@ -250,3 +250,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Quatro cenários da classe pura compilados/executados localmente com kotlinc 1.9.0/JRE21; resultado 4/4. Isso não é Gradle/JUnit/Android instrumented nem validação térmica no Poco F6.
 - Testes JUnit adicionados ao branch.
 - Run 44428910941 / job 135240881720: runner_id=0, steps=[]; suíte Python/Gradle/Android NOT RUN.
+
+
+## 00:40 UTC — telemetria de armazenamento e proteção do Worker
+- ResourceSnapshot agora coleta StatFs(filesDir): espaço disponível/total no volume privado de dados do app. Também reporta CPU acumulada e número de processadores.
+- Relatório READ_ONLY mostra métricas de armazenamento em MiB. Amostragem apenas quando chamada; nenhum polling contínuo adicionado.
+- WorkManager queue drain passou a exigir armazenamento não baixo além de bateria não baixa. Teste instrumentado confere as duas constraints.
+- Teste de snapshot verifica storage, CPU e processadores. Gradle/Android ainda NOT RUN devido ao runner.
+- Run 44430446144/job 135246159400 confirmou runner_id=0 e steps=[]. Nenhuma etapa iniciou.
+- Harness local puro: policy térmica/OEM/storage 6/6; thermal sampler 4/4. Não equivale à build Android.

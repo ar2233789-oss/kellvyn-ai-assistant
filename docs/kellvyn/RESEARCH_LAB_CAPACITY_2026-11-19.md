@@ -205,3 +205,35 @@ Referências:
 ### Estado CI da rodada térmica
 - Run 44428910941 / job 135240881720: runner_id=0, runner_name vazio, steps=[]; execução encerrada antes do primeiro step.
 - Classificação: NOT RUN / runner não alocado. Não houve compilação Gradle nem JUnit/Android.
+
+
+## 9. Medição de armazenamento e proteção do Worker — 19/11/2026
+
+A bancada precisava enxergar não só RAM e temperatura, mas também o espaço de dados disponível para arquivos locais, checkpoints, caches e APKs. Foi acrescentada uma leitura sob demanda do volume privado do app com Android StatFs:
+- bytes disponíveis para aplicações e capacidade total do volume onde fica filesDir;
+- tempo de CPU acumulado do processo e número de processadores disponíveis no snapshot;
+- relatório READ_ONLY passa a expor valores em MiB e "unknown" quando a API não oferece leitura.
+
+A fila WorkManager agora exige duas condições de sistema antes de drenar tarefas em segundo plano:
+- bateria não baixa (já existia);
+- armazenamento não baixo (nova condição nativa requiresStorageNotLow).
+
+O snapshot continua sendo observação sob demanda; não foi criado polling de espaço, bateria, CPU ou temperatura. O armazenamento observado é o volume privado de dados do app, não uma promessa de que todo o armazenamento nominal do aparelho esteja livre.
+
+Testes escritos:
+- teste do relatório verifica os bytes convertidos em MiB, CPU e processadores;
+- teste instrumentado verifica que o WorkRequest publicado inclui as restrições battery-not-low e storage-not-low.
+- Ambos aguardam runner Android; não foram executados por Gradle/JUnit.
+
+Referências oficiais:
+- https://developer.android.com/reference/android/os/StatFs#getAvailableBytes()
+- https://developer.android.com/reference/androidx/work/Constraints.Builder#setRequiresStorageNotLow(boolean)
+- https://developer.android.com/reference/androidx/work/Constraints#requiresStorageNotLow()
+
+### CI depois das melhorias de armazenamento
+- Run 44430446144, branch atual: job 135246159400, runner_id=0, steps=[].
+- Classificação: runner não alocado / NOT RUN. O job não chegou a executar Python, Gradle, JUnit ou instrumented tests.
+
+### Evidência local delimitada
+- Sampler térmico puro Kotlin: 4 cenários determinísticos passaram localmente com kotlinc/JRE.
+- Política de limiares térmicos/OEM: harness puro local da lógica de decisão passou 5 cenários; após acrescentar invariantes de armazenamento ao snapshot, a cópia isolada da regra passou 6/6. Esses harnesses não são o Gradle da aplicação nem compilação do monitor Android.
