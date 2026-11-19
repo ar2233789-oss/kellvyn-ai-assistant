@@ -259,7 +259,17 @@ internal class KellvynSpecialistEvaluationHarness(
         trace.record(
             kind = KellvynAgentLabEventKind.EXPERIMENT_STARTED,
             outcome = KellvynAgentLabOutcome.STARTED,
-            detailCode = "SUITE_${suiteFingerprint(cases, profiles, availableTools, allowNetworkRead)}"
+            detailCode = "CASES_${caseSetFingerprint(cases)}"
+        )
+        trace.record(
+            kind = KellvynAgentLabEventKind.EXPERIMENT_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED,
+            detailCode = "PROFILES_${profileSetFingerprint(profiles)}"
+        )
+        trace.record(
+            kind = KellvynAgentLabEventKind.EXPERIMENT_STARTED,
+            outcome = KellvynAgentLabOutcome.STARTED,
+            detailCode = "TOOLS_${toolPolicyFingerprint(availableTools, allowNetworkRead)}"
         )
         return try {
             val report = if (cases.size > MAX_CASES_PER_SUITE) {
@@ -376,43 +386,70 @@ internal class KellvynSpecialistEvaluationHarness(
     }
 
     /**
-     * Stable fingerprint of the dataset, profiles, policy-visible tools and network mode.
-     * Only the digest is persisted; task/context text never enters the trace record.
+     * Fingerprint only the benchmark definition. It must stay stable when a candidate profile
+     * changes, otherwise the lab cannot compare the intended baseline/candidate experiment.
+     * Only digests are persisted; task/context content never enters trace records.
      */
-    private fun suiteFingerprint(
-        cases: List<KellvynSpecialistBenchmarkCase>,
-        profiles: List<KellvynSpecialistProfile>,
+    private fun caseSetFingerprint(
+        cases: List<KellvynSpecialistBenchmarkCase>
+    ): String = digestFields(buildList {
+        add("caseCount=${cases.size}")
+        cases.sortedBy { it.caseId }.forEach { testCase ->
+            add(testCase.caseId)
+            add(testCase.role.name)
+            add(testCase.kind.name)
+            add(testCase.title)
+            add(testCase.task)
+            add(testCase.controlledContext)
+            add(testCase.requiredEvidence.joinToString("\u001f"))
+            add(testCase.prohibitedBehaviors.joinToString("\u001f"))
+            add(testCase.requiredCapabilities.map { it.name }.sorted().joinToString(","))
+        }
+    })
+
+    /** Profile fingerprint is deliberately separate: profile changes are the experiment variable. */
+    private fun profileSetFingerprint(
+        profiles: List<KellvynSpecialistProfile>
+    ): String = digestFields(buildList {
+        add("profileCount=${profiles.size}")
+        profiles.sortedBy { it.role.name }.forEach { profile ->
+            add(profile.role.name)
+            add(profile.version.toString())
+            add(profile.displayName)
+            add(profile.mission)
+            add(profile.instruction)
+            add(profile.requiredOutputSections.joinToString("\u001f"))
+            add(profile.maxSteps.toString())
+            add(profile.maxToolCalls.toString())
+            add(profile.maxContextChars.toString())
+        }
+    })
+
+    /**
+     * Tool/policy fingerprint covers every exposed tool contract field that may affect a run.
+     * A changed toolset or network mode makes quality deltas confounded and must be disclosed.
+     */
+    private fun toolPolicyFingerprint(
         availableTools: List<KellvynToolSpec>,
         allowNetworkRead: Boolean
-    ): String {
-        val fields = mutableListOf("allowNetworkRead=$allowNetworkRead")
-        cases.sortedBy { it.caseId }.forEach { testCase ->
-            fields += testCase.caseId
-            fields += testCase.role.name
-            fields += testCase.kind.name
-            fields += testCase.title
-            fields += testCase.task
-            fields += testCase.controlledContext
-            fields += testCase.requiredEvidence.joinToString("\u001f")
-            fields += testCase.prohibitedBehaviors.joinToString("\u001f")
-            fields += testCase.requiredCapabilities.map { it.name }.sorted().joinToString(",")
-        }
-        profiles.sortedBy { it.role.name }.forEach { profile ->
-            fields += profile.role.name
-            fields += profile.version.toString()
-            fields += profile.displayName
-            fields += profile.mission
-            fields += profile.instruction
-            fields += profile.requiredOutputSections.joinToString("\u001f")
-            fields += profile.maxSteps.toString()
-            fields += profile.maxToolCalls.toString()
-            fields += profile.maxContextChars.toString()
-        }
+    ): String = digestFields(buildList {
+        add("allowNetworkRead=$allowNetworkRead")
+        add("toolCount=${availableTools.size}")
         availableTools.sortedBy { it.name }.forEach { spec ->
-            fields += spec.name
-            fields += spec.risk.name
-            fields += spec.capabilities.map { it.name }.sorted().joinToString(",")
+            add(spec.name)
+            add(spec.description)
+            add(spec.requiredArguments.sorted().joinToString(","))
+            add(spec.optionalArguments.sorted().joinToString(","))
+            add(spec.risk.name)
+            add(spec.timeoutMs.toString())
+            add(spec.argumentSchemas.sortedBy { it.name }.joinToString("\u001f"))
+            add(spec.workloadClass.name)
+            add(spec.estimatedWorkingSetBytes.toString())
+            add(spec.capabilities.map { it.name }.sorted().joinToString(","))
         }
+    })
+
+    private fun digestFields(fields: List<String>): String {
         val canonical = fields.joinToString(separator = "") { field ->
             val length = field.toByteArray(StandardCharsets.UTF_8).size
             "$length:$field;"
