@@ -82,7 +82,7 @@
     "Security and process-control behavior is covered by the complete repository unit tests.",
     "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
   ],
-  "note": "Inventory and safeguards updated; repository suites remain NOT_RUN. Local/fixture tests have not been executed in this session.",
+  "note": "All repository suites remain NOT_RUN for current branch HEAD; inventory counts are test definitions only.",
   "workbench_test_inventory": {
     "tools/kellvyn-workbench/tests/test_workbench.py": {
       "method_count": 31,
@@ -117,7 +117,12 @@
       "Labels capture scenarios such as chuva, raios and chuva+raios",
       "Requires the exact target app to remain foreground through the end of capture",
       "Persists a minimal failure manifest when capture fails after preflight",
-      "Workbench ledger preserves CAPTURED instead of converting successful capture into PASSED"
+      "Workbench ledger preserves CAPTURED instead of converting successful capture into PASSED",
+      "Labels each scenario with a validated short name (chuva, raios, chuva+raios)",
+      "Uses exact package token matching to avoid package-prefix false positives",
+      "Checks foreground package before and after recording and reports PARTIAL if it is not foreground at the end",
+      "Persists minimal failure manifest only after device preflight created the run directory",
+      "Preserves CAPTURED state through the outer Workbench run ledger"
     ],
     "tests": {
       "method_count": 16,
@@ -128,14 +133,15 @@
       "No automatic UI state control or deterministic effect replay yet",
       "Frame budget must be supplied for the expected refresh rate; the tool does not assume 60 or 120 Hz",
       "Capture includes the full visible screen and requires private content/notifications to be closed",
-      "screenrecord adds measurement overhead; gfxinfo results are diagnostic and should be confirmed with Perfetto/Macrobenchmark."
+      "screenrecord adds measurement overhead; gfxinfo results are diagnostic and should be confirmed with Perfetto/Macrobenchmark.",
+      "screenrecord adds measurement overhead; gfxinfo timings are diagnostic and must be confirmed using Perfetto/Macrobenchmark where needed."
     ],
     "result_semantics": {
       "capture_status": "CAPTURED",
       "partial_status": "PARTIAL",
       "blocked_status": "BLOCKED",
       "quality_assessment": "NOT_EVALUATED",
-      "note": "CAPTURED means artifacts were collected and the target app stayed foreground through the capture. It is not a performance or visual-quality pass."
+      "note": "CAPTURED means artifacts were collected and the target package was foreground at both pre/post checks. Temporary focus changes between checks are not continuously monitored. It is not a performance or visual-quality pass."
     },
     "artifact_integrity": "SHA-256 recorded for MP4 and each extracted frame",
     "preflight": "Explicit serial, online/authorized ADB, booted device, installed package and foreground app are required before creating the run folder."
