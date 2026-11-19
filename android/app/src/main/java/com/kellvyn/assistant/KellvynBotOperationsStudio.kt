@@ -58,6 +58,7 @@ internal data class KellvynBotRuntimeProbe(
 
 internal class KellvynBotOperationsStudio(
     private val probeProvider: suspend () -> List<KellvynBotRuntimeProbe>,
+    private val brainReplyReadyProvider: () -> Boolean = { false },
     private val clock: () -> Long = System::currentTimeMillis
 ) : KellvynStudioModule {
     override val manifest: KellvynStudioModuleManifest = MANIFEST
@@ -73,6 +74,9 @@ internal class KellvynBotOperationsStudio(
                 val probes = probeProvider()
                 val output = buildString {
                     append("DIAGNÓSTICO DE BOTS KELLVYN — SOMENTE LEITURA\n")
+                    append("IA de resposta local: ")
+                        .append(if (brainReplyReadyProvider()) "PRONTA" else "NÃO PRONTA")
+                        .append("\n\n")
                     probes.sortedBy { it.platform }.forEach { probe ->
                         append("\n").append(probe.describe(clock())).append("\n")
                     }
@@ -118,10 +122,14 @@ internal class KellvynBotOperationsStudio(
             toolSpecs = listOf(TOOL_SPEC)
         )
 
-        fun definition(context: android.content.Context): KellvynStudioModuleDefinition {
+        fun definition(
+            context: android.content.Context,
+            brainReplyReadyProvider: () -> Boolean = { false }
+        ): KellvynStudioModuleDefinition {
             val app = context.applicationContext
             return KellvynStudioModuleDefinition(MANIFEST) {
                 KellvynBotOperationsStudio(
+                    brainReplyReadyProvider = brainReplyReadyProvider,
                     probeProvider = {
                         val prefs = app.getSharedPreferences("kellvyn_native", android.content.Context.MODE_PRIVATE)
                         listOf(
