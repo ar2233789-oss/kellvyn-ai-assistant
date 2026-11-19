@@ -332,7 +332,7 @@ As referências abaixo fundamentam a arquitetura; não significam que as bibliot
 - testes unitários novos para matriz, suite web, segredos e timeout de descendentes;
 - manifesto R&D Studio reconciliado para 20 métodos de teste. Os 20 continuam sem execução comprovada no snapshot atual.
 
-**Não implementado ainda:** sandbox descartável com limites reais, parsers/Analysis API semânticos, grafo de impacto, tracing OTel completo, benchmark/animation lab Android, benchmark cognitivo com checkpoint treinado e DAG durável integrado. Não declarar a Fase 0 concluída antes dos testes reais e da auditoria independente do patch.
+**Não implementado ainda:** sandbox descartável com limites reais, análise semântica Kotlin/Java/Python, grafo de impacto, tracing OTel completo, replay automatizado de estados visuais, Perfetto/Macrobenchmark Android, benchmark cognitivo com checkpoint treinado e DAG durável integrado. Não declarar a Fase 0 concluída antes dos testes reais e da auditoria independente do patch.
 
 
 ## 9. Entrega incremental — poliglot foundation, 19/11/2026
@@ -352,7 +352,7 @@ Status: DRAFT / IMPLEMENTED_NOT_RUN.
 
 ### Testes escritos / estado
 - 31 métodos Python em `tools/kellvyn-workbench/tests/test_workbench.py`.
-- 11 métodos de parser/contratos Android no `test_android_animation_audit.py`.
+- 14 métodos de parser/contratos Android no `test_android_animation_audit.py`.
 - Dois casos Node em `tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs`.
 - 20 métodos em `tools/kellvyn-rnd-studio/test_studio.py`.
 - **Nenhuma das suítes foi executada no runner para este HEAD.** Os testes permanecem NOT_RUN; a captura Android permanece NOT_RUN porque nenhum ADB/AVD autorizado foi disponibilizado.
