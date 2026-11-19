@@ -348,8 +348,6 @@ def capture_android_animation(
     output.mkdir(parents=True, exist_ok=False)
     frames_dir = output / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
-    save_text("activities-before.txt", activities.stdout)
-
     device_properties = []
     for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk"):
         value = adb_command(adb, serial, "shell", "getprop", prop, timeout_s=10, allow_failure=True)
