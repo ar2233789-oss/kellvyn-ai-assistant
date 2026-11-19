@@ -736,3 +736,26 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Próximo passo
 Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
+
+
+## 11.2. Correções do debugger da Workbench — 19/11/2026
+
+**Branch isolada:** `kellvyn-rnd/workbench-debugger-false-positive-001`  
+**Commit de código:** `e66d2bced362b9166c0fcb540f5c85c7e782cb5d`
+
+### Correções realizadas
+- Indicadores de crash deixam de ser detectados em texto corrido/documentação; passam a exigir linhas compatíveis com Logcat AndroidRuntime/libc ou marcadores de exceção no início da linha.
+- Findings do debugger são apresentados na ordem do log de origem, independentemente da ordem das expressões regulares.
+- Adicionados casos positivos para AndroidRuntime/F libc e negativos para documentação; teste específico verifica a ordem cronológica e a ausência de campos internos.
+
+### Evidência local
+- 17/17 testes da Workbench aprovados no workspace Git isolado.
+- `py_compile` aprovado para `workbench.py`, `visual_diff.py` e `creative/blender_pipeline.py`.
+- Este host tem Git/Python/Java/Node/FFmpeg/Pillow/Playwright; não tem Gradle, ADB nem Blender.
+
+### Validação remota
+- Actions run `44464377433`, no commit `e66d2bced362b9166c0fcb540f5c85c7e782cb5d`: falha anterior aos steps; `steps=[]`. Python/Gradle/Android/Blender não foram iniciados pelo runner.
+- Classificação: **CI NOT RUN — runner não alocado**, não falha de código e não aprovação de CI.
+
+### Regra de promoção
+Manter o candidato isolado até existir execução real da workflow. Não mesclar na branch de trabalho apenas com base na aprovação local.

@@ -292,3 +292,11 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | `da26e3ed1d692fa775ef03181a63ee71820f49b2` | Adicionado teste de regressão da detecção de Playwright Node |
 
 **Validação local:** 14/14 testes Python aprovados e `py_compile` aprovado. Gradle, ADB e Blender não estão instalados no host; build Android, smoke em AVD e render Blender real continuam NOT RUN/BLOCKED. Não confundir pipeline escrito com execução validada.
+
+
+## 2026-11-19 05:26:32.809 UTC — debugger da Workbench
+- Corrigido falso positivo que marcava menções em documentação como crash; padrões de FATAL/ANR exigem linha compatível com log de execução.
+- Corrigida ordenação dos findings para respeitar os offsets reais no log de origem.
+- Testes locais: 17/17 aprovados; py_compile aprovado.
+- Actions run 44464377433 falhou sem steps; CI permanece NOT RUN por runner não alocado. Sem Gradle/ADB/Blender neste host.
+- Candidato isolado em `kellvyn-rnd/workbench-debugger-false-positive-001`; não mesclado.
