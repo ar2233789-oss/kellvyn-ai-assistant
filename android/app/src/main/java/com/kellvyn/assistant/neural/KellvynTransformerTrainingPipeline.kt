@@ -581,6 +581,12 @@ internal object KellvynTransformerTrainingPipeline {
         val model = KellvynTransformerLanguageModel.readCheckpoint(
             ByteArrayInputStream(checkpoint)
         )
+        require(
+            model.trainingSteps == base.model.trainingSteps &&
+                model.parameterFingerprint() == base.model.parameterFingerprint()
+        ) {
+            "A cópia de segurança do checkpoint base não preservou pesos e estado de treino."
+        }
 
         fun meanCompletionLoss(partition: List<EncodedExample>): Double {
             var weightedLoss = 0.0
