@@ -196,6 +196,7 @@ def write_failure_manifest(
     status: str,
     serial: str,
     package: str,
+    scenario: str,
     error: Exception
 ) -> Path | None:
     """Persist a minimal failure checkpoint only when device preflight created the run folder."""
@@ -208,6 +209,7 @@ def write_failure_manifest(
         "quality_assessment": "NOT_EVALUATED",
         "serial": serial,
         "package": package,
+        "scenario": scenario,
         "finished_at_utc": datetime.now(timezone.utc).isoformat(),
         "error_type": type(error).__name__,
         "error": "Capture did not complete; inspect the Workbench stderr artifact for the failure details.",
@@ -503,7 +505,7 @@ def main(argv: list[str] | None = None) -> int:
     except AuditBlocked as exc:
         if run_dir is not None:
             write_failure_manifest(
-                run_dir, status="BLOCKED", serial=args.serial, package=args.package, error=exc
+                run_dir, status="BLOCKED", serial=args.serial, package=args.package, scenario=args.scenario, error=exc
             )
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
@@ -511,7 +513,7 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, ValueError, RuntimeError) as exc:
         if run_dir is not None:
             write_failure_manifest(
-                run_dir, status="FAILED", serial=args.serial, package=args.package, error=exc
+                run_dir, status="FAILED", serial=args.serial, package=args.package, scenario=args.scenario, error=exc
             )
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "FAILED", "reason": f"{type(exc).__name__}: {exc}"}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
