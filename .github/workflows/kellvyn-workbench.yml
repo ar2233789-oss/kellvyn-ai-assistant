@@ -62,6 +62,7 @@ jobs:
           mkdir -p artifacts/workbench/ci
           python -m py_compile \
             tools/kellvyn-workbench/workbench.py \
+            tools/kellvyn-workbench/android_animation_audit.py \
             tools/kellvyn-workbench/visual_diff.py \
             tools/kellvyn-workbench/creative/blender_pipeline.py
           bash -n tools/kellvyn-workbench/android_smoke.sh
