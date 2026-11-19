@@ -10,6 +10,7 @@ import android.os.Build
 import android.os.Debug
 import android.os.PowerManager
 import android.os.SystemClock
+import android.os.StatFs
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -77,6 +78,8 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
             batteryManager?.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
         }.getOrNull()
         val batteryPercent = rawBattery?.takeIf { it in 0..100 }
+        // Measure the app-private data volume on demand; do not poll storage in the background.
+        val dataStorage = runCatching { StatFs(appContext.filesDir.absolutePath) }.getOrNull()
 
         return KellvynResourceSnapshot(
             totalSystemMemoryBytes = totalMemory,
@@ -92,6 +95,8 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
             thermalHeadroomForecast = readThermalHeadroomCached(),
             thermalModerateHeadroomThreshold = thermalHeadroomThresholds.first,
             thermalSevereHeadroomThreshold = thermalHeadroomThresholds.second,
+            availableAppDataBytes = dataStorage?.availableBytes?.coerceAtLeast(0L),
+            totalAppDataBytes = dataStorage?.totalBytes?.coerceAtLeast(0L),
             powerSaveMode = powerManager?.isPowerSaveMode ?: false,
             batteryPercent = batteryPercent,
             charging = charging,
