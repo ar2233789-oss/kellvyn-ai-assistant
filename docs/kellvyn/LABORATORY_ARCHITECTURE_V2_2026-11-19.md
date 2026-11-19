@@ -302,6 +302,9 @@ As referências abaixo fundamentam a arquitetura; não significam que as bibliot
 - Android system tracing/Perfetto: https://developer.android.com/topic/performance/tracing
 - Android Power Profiler e disponibilidade variável de power rails por dispositivo: https://developer.android.com/studio/profile/power-profiler
 - Playwright visual comparisons e necessidade de ambiente de baseline consistente: https://playwright.dev/docs/test-snapshots
+- Android ADB screenrecord (MP4, bitrate/time limit e limitações): https://developer.android.com/tools/adb
+- Android dumpsys gfxinfo/framestats para temporização de UI: https://developer.android.com/tools/dumpsys
+- Slow/frozen frames e FrameTimeline/Perfetto: https://developer.android.com/topic/performance/issues/render
 - NIST IR 8397, verificações mínimas de software: https://csrc.nist.gov/pubs/ir/8397/final
 - GitHub secure use e riscos de runners self-hosted persistentes: https://docs.github.com/en/actions/reference/security/secure-use
 - GitHub ephemeral self-hosted runners: https://docs.github.com/en/actions/reference/runners/self-hosted-runners
@@ -340,6 +343,7 @@ Status: DRAFT / IMPLEMENTED_NOT_RUN.
 
 ### Código presente
 - Matriz de toolchain por domínio com JDK, javac, Kotlin compiler CLI, Gradle, Android SDK, ADB, Node, npm, Bun, Blender, FFmpeg, ShellCheck, actionlint, Tree-sitter e possíveis executores Podman/Docker.
+- Detecção opcional do Kotlin Language Server por PATH ou `KOTLIN_LSP_EXECUTABLE`; runtime JDK25 separado por `KOTLIN_LSP_JAVA_HOME`, sem alterar o JDK17 do Gradle. Estados distinguem binário ausente, caminho inválido, JDK ausente/incorreto e READY_UNVALIDATED.
 - Suites de projeto TS/TSX com Bun e lockfile frozen.
 - Mapa semântico TypeScript com declarações, imports, resolução local/externa, chamadas e referências a partir do TypeScript Compiler API.
 - Política de ambiente e limpeza de logs/manifests do executor; cancelamento de grupos de processos em POSIX.
@@ -347,10 +351,11 @@ Status: DRAFT / IMPLEMENTED_NOT_RUN.
 - Workflow Workbench agora dispara quando package.json, bun.lock, tsconfig ou código TS/TSX muda, tanto em push quanto em pull_request.
 
 ### Testes escritos / estado
-- 23 métodos Python em `tools/kellvyn-workbench/tests/test_workbench.py`.
+- 31 métodos Python em `tools/kellvyn-workbench/tests/test_workbench.py`.
+- 11 métodos de parser/contratos Android no `test_android_animation_audit.py`.
 - Dois casos Node em `tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs`.
 - 20 métodos em `tools/kellvyn-rnd-studio/test_studio.py`.
-- **Nenhuma das três suítes foi executada no runner para este HEAD.** Testes permanecem NOT_RUN.
+- **Nenhuma das suítes foi executada no runner para este HEAD.** Os testes permanecem NOT_RUN; a captura Android permanece NOT_RUN porque nenhum ADB/AVD autorizado foi disponibilizado.
 - O último run de Workbench observado encerrou antes de qualquer step; não classificar como falha de código nem aprovação. O bloqueio de alocação continua sendo gate externo.
 
 ### Próximo experimento de linguagem — Kotlin
