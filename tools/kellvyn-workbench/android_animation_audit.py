@@ -165,9 +165,13 @@ def parse_thermal_status(text: str) -> int | None:
             return int(match.group(1))
     return None
 
-def classify_capture_status(video_extraction: str, valid_frames: int) -> str:
+def classify_capture_status(
+    video_extraction: str,
+    valid_frames: int,
+    app_foreground_after: bool
+) -> str:
     """Classify artifact completeness only; deliberately does not grade animation quality."""
-    if video_extraction == "FAILED" or valid_frames <= 0 or video_extraction != "PASSED":
+    if video_extraction != "PASSED" or valid_frames <= 0 or not app_foreground_after:
         return "PARTIAL"
     return "CAPTURED"
 
@@ -393,6 +397,11 @@ def capture_android_animation(
     report["frame_metrics"] = frame_metrics
     pss_before = parse_meminfo_pss_kb(before_snapshots.get("memory", ""))
     pss_after = parse_meminfo_pss_kb(after_snapshots.get("memory", ""))
+    app_foreground_after = foreground_package(
+        after_snapshots.get("activities", ""), package
+    )
+    report["app_foreground_before_capture"] = True
+    report["app_foreground_after_capture"] = app_foreground_after
     report["resource_metrics"] = {
         "memory_total_pss_kb_before": pss_before,
         "memory_total_pss_kb_after": pss_after,
@@ -438,13 +447,17 @@ def capture_android_animation(
 
     report["finished_at_utc"] = datetime.now(timezone.utc).isoformat()
     report["status"] = classify_capture_status(
-        report["video_extraction"], frame_metrics.get("valid_frames", 0)
+        report["video_extraction"],
+        frame_metrics.get("valid_frames", 0),
+        app_foreground_after
     )
     # CAPTURED means the artifacts are complete; it is not an animation-quality pass.
     report["quality_assessment"] = "NOT_EVALUATED"
     report["limitations"] = [
         "gfxinfo framestats is an app-level frame timing source and does not replace Perfetto FrameTimeline.",
         "The capture measures only the current visible scenario; run each animation/effect combination separately.",
+        "Capture is marked PARTIAL if the app is no longer foreground at the end of the recording.",
+        "screenrecord adds measurement overhead; treat gfxinfo timing as diagnostic and confirm suspected jank with Perfetto or Macrobenchmark."
         "frame_budget_ms is optional and must be selected for the target refresh rate; no refresh rate is assumed.",
         "A video and frame-timing report do not prove visual correctness; compare sampled frames with a requirement-aware baseline."
     ]
