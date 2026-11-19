@@ -3,6 +3,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -11,6 +12,20 @@ spec = importlib.util.spec_from_file_location("kellvyn_workbench", MODULE)
 wb = importlib.util.module_from_spec(spec)
 assert spec and spec.loader
 spec.loader.exec_module(wb)
+
+class ToolchainTests(unittest.TestCase):
+    def test_node_playwright_is_detected_separately_from_python_module(self):
+        import subprocess
+        completed = subprocess.CompletedProcess(
+            args=["node", "-e", "require.resolve('playwright')"], returncode=1,
+            stdout="", stderr="Cannot find module 'playwright'"
+        )
+        with mock.patch.object(wb.shutil, "which", return_value="/usr/bin/node"), \
+             mock.patch.object(wb.subprocess, "run", return_value=completed):
+            self.assertEqual("NOT_INSTALLED", wb.node_package_status("playwright"))
+        with mock.patch.object(wb.shutil, "which", return_value=None):
+            self.assertEqual("BLOCKED_NODE_MISSING", wb.node_package_status("playwright"))
+
 
 class LedgerTests(unittest.TestCase):
     def test_empty_ledger_is_valid(self):
