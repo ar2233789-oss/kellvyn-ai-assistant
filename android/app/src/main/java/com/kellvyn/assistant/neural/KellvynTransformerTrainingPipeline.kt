@@ -223,10 +223,9 @@ internal object KellvynTransformerTrainingPipeline {
             val epochExamples = trainEncoded.shuffled(Random(config.seed + epoch.toLong()))
             for (example in epochExamples) {
                 cancellationCheck()
-                model.trainCompletion(
+                model.trainCompletionEpoch(
                     promptTokenIds = example.prompt,
                     completionTokenIds = example.completion,
-                    epochs = 1,
                     learningRate = config.learningRate,
                     weightDecay = config.weightDecay,
                     cancellationCheck = cancellationCheck
