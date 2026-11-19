@@ -10,6 +10,7 @@ import argparse
 import csv
 import json
 import math
+import os
 import re
 import shutil
 import subprocess
@@ -244,8 +245,12 @@ def capture_android_animation(
             f"{package} is not confirmed as the resumed/top-resumed app; bring it to the foreground before recording"
         )
 
+    device_properties = []
+    for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk", "ro.build.fingerprint"):
+        value = adb_command(adb, serial, "shell", "getprop", prop, timeout_s=10, allow_failure=True)
+        device_properties.append(f"{prop}={value.stdout.strip()}")
+    save_text("device-info.txt", "\\n".join(device_properties))
     for name, args, timeout in (
-        ("device-properties.txt", ("shell", "getprop"), 15),
         ("display-before.txt", ("shell", "dumpsys", "display"), 20),
         ("battery-before.txt", ("shell", "dumpsys", "battery"), 15),
         ("thermal-before.txt", ("shell", "dumpsys", "thermalservice"), 15),
