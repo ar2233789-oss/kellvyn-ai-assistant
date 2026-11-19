@@ -159,6 +159,7 @@ Janky frames: 12 (5.00%)
                 status="FAILED",
                 serial="emulator-5554",
                 package="com.kellvyn.assistant",
+                scenario="chuva+raios",
                 error=RuntimeError("API_KEY=should-not-be-written")
             )
             self.assertEqual(output / "animation-audit.json", manifest)
@@ -166,6 +167,7 @@ Janky frames: 12 (5.00%)
             report = json.loads(manifest.read_text(encoding="utf-8"))
             self.assertEqual("FAILED", report["status"])
             self.assertEqual("NOT_EVALUATED", report["quality_assessment"])
+            self.assertEqual("chuva+raios", report["scenario"])
             self.assertNotIn("should-not-be-written", manifest.read_text(encoding="utf-8"))
 
     def test_rejects_output_outside_repository(self):
