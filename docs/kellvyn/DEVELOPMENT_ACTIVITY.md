@@ -283,3 +283,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Não houve alteração em `MainActivity`, interface/layout, `main` ou ativação do cérebro. `KellvynRuntime.isReady() == false` permanece intencional.
 - Próxima prioridade: obter executor real, executar suíte Python/Gradle/JUnit, corrigir somente erros reproduzidos e então validar a integração dos novos módulos no Android instrumentado.
 
+## Workbench externa — 19/11/2026
+
+| Commit | Alteração |
+|---|---|
+| `fb7928c34e7335e376f5df694adf24d5f5ce7583` | Criada bancada externa com auditoria, diário, checkpoints, execução isolada com logs/timeouts, debugger, diff visual, scripts web/Android e Blender criativo |
+| `2e3c332301937640f3ae4ab3f845c97474f0a228` | Corrigida detecção de dependência Playwright do Node, separando-a do módulo Python |
+| `da26e3ed1d692fa775ef03181a63ee71820f49b2` | Adicionado teste de regressão da detecção de Playwright Node |
+
+**Validação local:** 14/14 testes Python aprovados e `py_compile` aprovado. Gradle, ADB e Blender não estão instalados no host; build Android, smoke em AVD e render Blender real continuam NOT RUN/BLOCKED. Não confundir pipeline escrito com execução validada.
