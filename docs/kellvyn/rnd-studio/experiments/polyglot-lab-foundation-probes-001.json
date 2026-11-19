@@ -66,7 +66,9 @@
   },
   "latest_ci_observation": {
     "workflow": "Kellvyn Workbench — tooling validation",
-    "status": "failure before first workflow step",
+    "run_id": 44565871879,
+    "job_id": 135707307415,
+    "status": "failure before first step",
     "jobs_have_steps": false,
     "logs_available": false,
     "classification": "RUNNER_ALLOCATION_BLOCKED / NOT_RUN; this is not evidence of a code compilation failure."
@@ -80,14 +82,14 @@
     "Security and process-control behavior is covered by the complete repository unit tests.",
     "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
   ],
-  "note": "This record tracks the current branch inventory. The local probes listed above remain isolated harness results and do not convert repository test suites into PASSED.",
+  "note": "This record inventories current implementations. Test counts are written-test counts only; no repository suite or Android capture is marked PASSED.",
   "workbench_test_inventory": {
     "tools/kellvyn-workbench/tests/test_workbench.py": {
       "method_count": 31,
       "status": "NOT_RUN"
     },
     "tools/kellvyn-workbench/tests/test_android_animation_audit.py": {
-      "method_count": 11,
+      "method_count": 14,
       "status": "NOT_RUN"
     },
     "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs": {
@@ -114,7 +116,7 @@
       "Separates PASSED, PARTIAL and BLOCKED"
     ],
     "tests": {
-      "method_count": 11,
+      "method_count": 14,
       "status": "NOT_RUN"
     },
     "limitations": [
@@ -122,6 +124,15 @@
       "No automatic UI state control or deterministic effect replay yet",
       "Frame budget must be supplied for the expected refresh rate; the tool does not assume 60 or 120 Hz",
       "Capture includes the full visible screen and requires private content/notifications to be closed"
-    ]
+    ],
+    "result_semantics": {
+      "capture_status": "CAPTURED",
+      "partial_status": "PARTIAL",
+      "blocked_status": "BLOCKED",
+      "quality_assessment": "NOT_EVALUATED",
+      "note": "CAPTURED means all required capture artifacts were collected; it is not a performance or visual-quality pass."
+    },
+    "artifact_integrity": "SHA-256 recorded for MP4 and each extracted frame",
+    "preflight": "Explicit serial, online/authorized ADB, booted device, installed package and foreground app are required before creating the run folder."
   }
 }
