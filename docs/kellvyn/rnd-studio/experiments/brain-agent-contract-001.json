@@ -1,6 +1,6 @@
 {
   "schema": "kellvyn-rnd-experiment/v1",
-  "id": "brain-agent-contract-001",
+  "id": "kn-agent-contract-001",
   "scope": "integration",
   "title": "Contrato entre decisão neural, loop de agentes e verificador",
   "created_at_utc": "2026-11-18T20:48:00Z",
@@ -33,11 +33,11 @@
     "Runtime permanece não conectado até gate neural real."
   ],
   "status_note": "The current tools/kellvyn-rnd-studio/test_studio.py snapshot contains 20 test methods. The earlier 16-count manifest and three-test pending list were stale. The 13/13 result belongs to an older snapshot; all 20 current methods remain unverified on the current snapshot. Latest CI evidence remains NOT_RUN due to runner_id=0 / steps=[]. Kotlin contract tests are also NOT_RUN.",
-  "candidate_branch": "kellvyn-rnd/brain-agent-contract-001",
+  "candidate_branch": "kellvyn-rnd/kn-agent-contract-001",
   "candidate_head": "8630162bd7d6586663bcb386ad18ebef63e38e46",
   "candidate_run_id": 44412382401,
   "implementation": {
-    "test_class": "KellvynBrainAgentIntegrationContractTest",
+    "test_class": "KellvynKNAgentIntegrationContractTest",
     "cases": [
       "protocolDelegationRunsSpecialistWithLeastPrivilegeAndUntrustedHandoff",
       "malformedWireDecisionFailsBeforeAnyToolExecution"
@@ -60,9 +60,9 @@
       "test_missing_test_blocks",
       "test_stale_test_evidence_blocks_after_source_change",
       "test_only_three_gradle_suites_are_exposed",
-      "test_brain_suite_filters_only_neural_and_protocol_classes",
+      "test_kn_suite_filters_only_neural_and_protocol_classes",
       "test_agents_suite_filters_orchestrator_and_specialist_contracts",
-      "test_integration_suite_contains_brain_and_agent_boundaries_once",
+      "test_integration_suite_contains_kn_and_agent_boundaries_once",
       "test_track_maps_create_complete_manifests_for_all_scopes",
       "test_track_map_blocks_when_required_source_or_test_is_missing",
       "test_task_test_executes_selected_suite_and_records_verifiable_evidence",
