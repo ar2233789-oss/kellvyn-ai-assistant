@@ -237,6 +237,10 @@ class LedgerTests(unittest.TestCase):
             wb.RUNS = root / "artifacts" / "runs"
             wb.LEDGER = root / "docs" / "ledger.jsonl"
             try:
+                captured = wb.run_capture(
+                    "captured-probe", [sys.executable, "-c", "print('capture complete')"],
+                    cwd=root, timeout_s=10, captured_exit_codes={0}
+                )
                 blocked = wb.run_capture(
                     "blocked-probe", [sys.executable, "-c", "raise SystemExit(3)"],
                     cwd=root, timeout_s=10, blocked_exit_codes={3}
@@ -245,6 +249,7 @@ class LedgerTests(unittest.TestCase):
                     "partial-probe", [sys.executable, "-c", "raise SystemExit(4)"],
                     cwd=root, timeout_s=10, partial_exit_codes={4}
                 )
+                self.assertEqual("CAPTURED", captured["status"])
                 self.assertEqual("BLOCKED", blocked["status"])
                 self.assertEqual("PARTIAL", partial["status"])
             finally:
