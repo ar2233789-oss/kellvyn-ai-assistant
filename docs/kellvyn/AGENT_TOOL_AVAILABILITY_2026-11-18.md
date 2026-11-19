@@ -69,7 +69,7 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 | Explorador de código | CODE_NAVIGATION, DATA_MODELING | `workspace_list_projects`, `workspace_list_files`, `workspace_read_file`, `code_find_symbols`, `code_find_references`, `code_file_outline`, `data_inspect_structure` | Indexação lexical, sem AST completo |
 | Revisor | CODE_NAVIGATION, SECURITY_AUDIT, DATA_MODELING, UI_LAYOUT | navegação, `security_scan_project`, `data_inspect_structure` | Ferramentas de análise UI/visual ainda ausentes |
 | Analista de testes | ANDROID_BUILD, ANDROID_DEVICE_TEST, DEVICE_DIAGNOSTICS | `android_build_environment_status`, `device_resource_snapshot` | Diagnóstico do compilador Java/D8 disponível; build, instalação, Logcat, screenshots e execução de testes no dispositivo ainda não são ferramentas do especialista |
-| Analista de raciocínio | DATA_MODELING, DEVICE_DIAGNOSTICS | `data_inspect_structure`, `device_resource_snapshot` | Sem ferramentas específicas de avaliação de raciocínio |
+| Analista de raciocínio | AGENT_EVALUATION, CODE_NAVIGATION, WEB_RESEARCH, DATA_MODELING, DEVICE_DIAGNOSTICS | `code_find_symbols`, `code_find_references`, `code_file_outline`, `workspace_list_projects`, `workspace_list_files`, `workspace_read_file`, `data_inspect_structure`, ferramentas READ_ONLY do Agent Lab e `wikipedia_search` somente com Acesso à Web ligado | Não executa ferramentas mutáveis; pesquisa geral da Web e solver formal ainda não existem; métricas/benchmark não comprovam raciocínio neural enquanto não houver checkpoint treinado e verificador real |
 | Analista de aprendizado | NEURAL_TRAINING, NEURAL_INFERENCE, DATA_MODELING | `data_inspect_structure` | Treino/inferência existem como APIs de runtime próprias, mas não como ferramentas especializadas do agente |
 | Arquiteto de programação | CODE_NAVIGATION, UI_LAYOUT, DATA_MODELING | navegação e `data_inspect_structure` | UI_LAYOUT sem motor concreto; sem ferramenta de edição/build para especialista |
 | Analista de memória | MEMORY_READ | `memory_search` | Consulta somente memórias não sensíveis nos escopos global e projeto ativo desta conversa; limite de 5 resultados e saída truncada; nunca escreve/apaga |
@@ -87,6 +87,14 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 - `AGENT_EVALUATION`: Reviewer, Test Analyst, Learning Analyst, Programming Architect, Security Analyst, Planning Analyst, Debugger, Auditor e Operations Analyst recebem ferramentas READ_ONLY de inspeção de traces, comparação, métricas e prontidão; casos que também exigem DEVICE_DIAGNOSTICS ou AGENT_DESIGN continuam sujeitos à capability adicional.
 - `bot_runtime_health` exige `WORKFLOW_AUTOMATION`: Planning Analyst e Operations Analyst podem consultar Telegram/Discord. O módulo informa WhatsApp como não implementado.
 - A atualização de disponibilidade não concede escrita, exclusão, execução de build, instalação, controle de dispositivo, promoção de perfil ou reinício de bot.
+
+
+### Atualização focada — Analista de raciocínio (19/11/2026)
+
+- Perfil versionado como v2 com procedimento de comparação de rotas, busca de contraexemplos, análise de pré-condições/dependências/riscos/permissões, custo de recursos, critério de aceite, fallback e experimento mínimo reversível.
+- A política central concede somente leitura de código/dados e Agent Lab; `NETWORK_READ` continua condicionado ao controle de Acesso à Web do proprietário. Nenhuma escrita, shell, instalação ou controle de dispositivo foi concedido.
+- O benchmark `reasoning-alternative-delivery-routes` substitui o caso genérico de contradição por um caso de rotas alternativas diante de runner não alocado, com privacidade do repositório e segurança do Poco F6 como restrições.
+- A alteração é estrutural e de contrato. Competência cognitiva permanece NÃO TESTADA até motor treinado, verificador independente e execução real.
 
 ## 4. Módulos concretos registrados no runtime
 
