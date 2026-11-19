@@ -385,3 +385,16 @@ A fórmula matemática, a inicialização e os pesos não mudam. O ganho esperad
 Verificação estática: todas as chamadas de `rotateInPlace` foram relidas após a mudança; forward, geração e gradientes agora usam `RotaryFactors`. Testes existentes que cobrem esses caminhos: `multiHeadTransformerGradientsMatchFiniteDifferences`, `gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds`, `incrementalKvCacheMatchesFullPrefixAcrossContextEviction`, `incrementalGenerationAndFullPrefixGreedyGenerationProduceSameTokens` e `restoredCheckpointRetainsIncrementalKvCacheEquivalenceAfterWindowSlides`.
 
 CI do commit `e134daa73662a7debacf6377d20a64254c333556`: workflow run `44627801410` terminou como failure; o job ainda não apresenta steps nem logs. Portanto os testes acima continuam **NÃO EXECUTADOS** nesta sessão.
+
+
+### Reuso de fatores RoPE entre forward e retropropagação
+
+Commit `187fdf3635f1486a9ebba6c415fd8651756571cb`:
+- `ForwardPass` agora mantém os fatores RoPE calculados para cada posição.
+- O cálculo forward usa o mesmo conjunto de fatores para query e key da última posição.
+- A retropropagação usa o mesmo conjunto salvo para desfazer a rotação de query e de todas as keys, sem recalcular seno/cosseno.
+- O custo extra de memória é proporcional a comprimento do contexto × pares por cabeça; para a configuração padrão é pequeno e precisa ser medido no aparelho.
+
+Revisão estática confirmou um único construtor de `ForwardPass`, todas as chamadas de rotação usando `RotaryFactors` e o array de fatores propagado até a retropropagação. Um snippet Kotlin isolado também compilou a sintaxe de `Array(length, ::createRotaryFactors)` e acesso à constante do companion object; isso é apenas uma verificação de sintaxe auxiliar, **não** uma compilação do projeto Android.
+
+CI do commit mais recente deste bloco ainda encerra sem steps/logs. Os testes de gradiente e de equivalência do KV cache permanecem não executados.
