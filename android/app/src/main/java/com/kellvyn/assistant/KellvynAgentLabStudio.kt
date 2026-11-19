@@ -476,7 +476,8 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
-        }    )
+        }
+    )
 
     override fun trimTransientResources(level: KellvynCachePressure) = Unit
 
@@ -585,7 +586,7 @@ internal class KellvynAgentLabStudio(
                 workloadClass = KellvynWorkloadClass.STANDARD,
                 estimatedWorkingSetBytes = 16L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
-            )
+            ),
             KellvynToolSpec(
                 name = BENCHMARK_READINESS_TOOL,
                 description = "Audita os 14 perfis ativos, o Profile Compiler, os 28 casos e a cobertura por papel. Não executa benchmark nem declara competência cognitiva.",
@@ -594,7 +595,7 @@ internal class KellvynAgentLabStudio(
                 workloadClass = KellvynWorkloadClass.STANDARD,
                 estimatedWorkingSetBytes = 8L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
-            ),
+            )
         )
 
         private val MANIFEST = KellvynStudioModuleManifest(
