@@ -567,3 +567,14 @@ O KN-003 agora acrescenta o token EOS dedicado ao final de cada documento no pr�
 Commits:
 - `5deeffef0fb1b20d344200079020a7791cf46576` — acrescenta EOS por documento.
 - `d8ca28306f32399c64ed0f612c2c8f0dd79dd09d` — ajusta a contagem e a verificação do EOS no teste.
+
+
+### Proteção adicional da continuação do treinamento
+
+- Antes de aplicar qualquer atualização de fine-tuning, a cópia do checkpoint base é restaurada a partir do próprio formato KN-003, incluindo momentos do AdamW.
+- O pipeline compara fingerprint SHA-256 dos parâmetros e contador de passos entre a base e a cópia restaurada; qualquer divergência interrompe o ajuste fino.
+- O bundle que já estava persistido só é substituído após o treino, avaliação de validação/teste e retorno bem-sucedido do pipeline.
+
+Commit: `d06c7655fbb9dfa8e94b34a68d644398714f2c16`.
+
+Com isso, a sequência de aprendizado no código não reinicializa o modelo ao passar de pré-treinamento para ajuste supervisionado. A correção estática e os testes foram gravados; ainda precisam de execução Gradle/JUnit para serem aprovados.
