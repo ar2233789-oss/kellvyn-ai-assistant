@@ -106,6 +106,34 @@ class PolyglotToolchainTests(unittest.TestCase):
             else:
                 wb.os.environ["KOTLIN_LSP_JAVA_HOME"] = old_home
 
+    def test_kotlin_lsp_accepts_an_explicit_executable_path_outside_path(self):
+        fake_home = self.root / "jdk25"
+        java = fake_home / "bin" / "java"
+        java.parent.mkdir(parents=True)
+        java.write_text('#!/bin/sh\\necho \'openjdk version "25.0.1"\' >&2\\n')
+        java.chmod(0o755)
+        server = self.root / "kotlin-lsp" / "bin" / "intellij-server"
+        server.parent.mkdir(parents=True)
+        server.write_text("#!/bin/sh\\nexit 0\\n")
+        server.chmod(0o755)
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        with mock.patch.dict(wb.os.environ, {
+            "KOTLIN_LSP_JAVA_HOME": str(fake_home),
+            "KOTLIN_LSP_EXECUTABLE": str(server)
+        }):
+            with mock.patch.object(wb.shutil, "which", return_value=None):
+                matrix = wb.toolchain_matrix({}, {})
+        self.assertEqual("READY_UNVALIDATED", matrix["kotlin_semantic_analysis"]["status"])
+        self.assertEqual(str(server.resolve()), matrix["kotlin_semantic_analysis"]["language_server"])
+        self.assertEqual(str(server), matrix["kotlin_semantic_analysis"]["configured_executable"])
+
+    def test_kotlin_lsp_blocks_a_missing_explicit_executable(self):
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        with mock.patch.dict(wb.os.environ, {"KOTLIN_LSP_EXECUTABLE": str(self.root / "missing" / "intellij-server")}):
+            with mock.patch.object(wb.shutil, "which", return_value=None):
+                matrix = wb.toolchain_matrix({}, {})
+        self.assertEqual("BLOCKED_LSP_EXECUTABLE_MISSING", matrix["kotlin_semantic_analysis"]["status"])
+
     def test_kotlin_lsp_is_blocked_when_its_separate_jdk_is_missing(self):
         (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
         with mock.patch.dict(wb.os.environ, {"KOTLIN_LSP_JAVA_HOME": ""}):
