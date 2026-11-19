@@ -1,6 +1,7 @@
 package com.kellvyn.assistant.neural
 
 import java.security.MessageDigest
+import kotlin.random.Random
 
 internal data class KellvynTransformerTrainingConfig(
     val contextLength: Int = 256,
@@ -135,9 +136,11 @@ internal object KellvynTransformerTrainingPipeline {
             }
         }
 
-        val train = examples.filter { it.split == KellvynTrainingSplit.TRAIN }
-        val validation = examples.filter { it.split == KellvynTrainingSplit.VALIDATION }
-        val test = examples.filter { it.split == KellvynTrainingSplit.TEST }
+        // Canonical ordering makes tokenizer training and the epoch schedule independent
+        // of the order in which callers supplied the dataset.
+        val train = examples.filter { it.split == KellvynTrainingSplit.TRAIN }.sortedBy { it.id }
+        val validation = examples.filter { it.split == KellvynTrainingSplit.VALIDATION }.sortedBy { it.id }
+        val test = examples.filter { it.split == KellvynTrainingSplit.TEST }.sortedBy { it.id }
         require(train.isNotEmpty() && validation.isNotEmpty() && test.isNotEmpty()) {
             "As três partições são obrigatórias: TRAIN, VALIDATION e TEST."
         }
@@ -211,16 +214,24 @@ internal object KellvynTransformerTrainingPipeline {
         }
 
         val initialValidationLoss = meanCompletionLoss(validationEncoded)
-        for (example in trainEncoded) {
+
+        // Train one pass over the complete dataset per epoch. Training all epochs of
+        // one example before moving to the next causes severe order bias/forgetting.
+        // A seeded shuffle gives reproducible SGD while varying example order per epoch.
+        repeat(config.epochsPerExample) { epoch ->
             cancellationCheck()
-            model.trainCompletion(
-                promptTokenIds = example.prompt,
-                completionTokenIds = example.completion,
-                epochs = config.epochsPerExample,
-                learningRate = config.learningRate,
-                weightDecay = config.weightDecay,
-                cancellationCheck = cancellationCheck
-            )
+            val epochExamples = trainEncoded.shuffled(Random(config.seed + epoch.toLong()))
+            for (example in epochExamples) {
+                cancellationCheck()
+                model.trainCompletion(
+                    promptTokenIds = example.prompt,
+                    completionTokenIds = example.completion,
+                    epochs = 1,
+                    learningRate = config.learningRate,
+                    weightDecay = config.weightDecay,
+                    cancellationCheck = cancellationCheck
+                )
+            }
         }
         cancellationCheck()
         val finalValidationLoss = meanCompletionLoss(validationEncoded)
