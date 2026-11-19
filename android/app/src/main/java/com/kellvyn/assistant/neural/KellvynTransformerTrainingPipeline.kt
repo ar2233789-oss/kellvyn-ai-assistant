@@ -468,6 +468,23 @@ internal object KellvynTransformerTrainingPipeline {
         require(base.model.trainingSteps > 0L) {
             "O ajuste fino exige um checkpoint KN-003 previamente treinado."
         }
+        require(
+            base.model.config.vocabularySize == base.tokenizer.vocabularySize &&
+                base.manifest.vocabularySize == base.tokenizer.vocabularySize &&
+                base.manifest.contextLength == base.model.config.contextLength &&
+                base.manifest.embeddingSize == base.model.config.embeddingSize &&
+                base.manifest.headCount == base.model.config.headCount &&
+                base.manifest.feedForwardSize == base.model.config.feedForwardSize
+        ) {
+            "A arquitetura do checkpoint, tokenizer e manifesto base não confere."
+        }
+        require(
+            base.manifest.entries.any { it.split == KellvynTrainingSplit.TRAIN } &&
+                base.manifest.entries.any { it.split == KellvynTrainingSplit.VALIDATION } &&
+                base.manifest.entries.any { it.split == KellvynTrainingSplit.TEST }
+        ) {
+            "O manifesto base precisa preservar TRAIN, VALIDATION e TEST."
+        }
         val endOfSequenceTokenId = requireNotNull(base.tokenizer.endOfSequenceTokenId) {
             "O tokenizer base não possui token EOS; não é possível ajustar respostas supervisionadas."
         }
