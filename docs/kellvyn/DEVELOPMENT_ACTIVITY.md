@@ -311,3 +311,9 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Perfil pode mudar como variável candidata; o relatório ainda ressalva que identidade/checkpoint do modelo não está fingerprintado.
 - Testes do Agent Lab adicionados para mudança de perfil, ferramentas divergentes, bateria divergente e cobertura incompleta; teste antigo do harness atualizado para três fingerprints.
 - **NOT RUN:** Gradle/JUnit não foram executados. Run Build APK `44534146166`/job `135595015706` terminou sem steps e não é o workflow Agent Lab. Não classificar como falha de Kotlin/Gradle.
+
+## 19/11/2026 — checkpoint CI após endurecimento do Agent Lab
+
+- HEAD observado: `1fc210c6ade761cc5b4965b3bd99ee077cd0c1b1`; PR #24 segue draft e não mesclada.
+- Run `44535437579` / job `135599463253`: Build APK em failure sem steps, logs ou artefatos; combined status sem checks.
+- Classificação: execução de Build APK não iniciada/sem evidência de steps. Não chamar de falha de código, nem confundir com a suíte `agent-lab-tests.yml`. Gradle/JUnit/Android instrumented seguem NOT RUN.
