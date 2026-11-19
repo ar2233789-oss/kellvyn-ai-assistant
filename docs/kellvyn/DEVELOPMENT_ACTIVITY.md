@@ -268,3 +268,18 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - CI run 44432449442: job runner_id=0, steps=[]; NOT RUN.
 - Kotlin sampler isolado 4/4; simulação Python de coordenadas 36.848 combinações. Testes completos do projeto continuam pendentes.
 - Auditoria de prontidão criada: docs/kellvyn/IA_READINESS_AUDIT_2026-11-19.md. Sem bundle de pesos e sem corpus TRAIN/VALIDATION/TEST; Runtime continua desligado corretamente.
+
+## 19/11/2026 — evolução do Agent Lab e Bot Operations
+
+- Estudo técnico do GitHub Copilot/Microsoft Copilot SDK 2.0 incorporado à pesquisa existente; foco em custom agents, tool allowlists/MCP, sessões isoladas, journal retomável, host-owned tools e coordenador/worker. Nenhuma dependência externa adicionada.
+- Corrigidos delimitadores de listas de ferramentas em `KellvynAgentLabStudio.kt` e `KellvynAgentCreationStudio.kt` (commits `5625bf3` e `6decdf3`).
+- Criado `KellvynBotOperationsStudio` com `bot_runtime_health` READ_ONLY; registrado em `KellvynRuntime`. Telegram/Discord reportam estado e última evidência de polling/heartbeat; WhatsApp continua explicitamente indisponível.
+- `BotRuntimeService` passou a persistir timestamps do status e da última resposta/ACK. O agente só lê enabled/tokenConfigured/estado/idade; tokens brutos nunca entram no contexto.
+- Criados `KellvynBotOperationsStudioTest.kt` e testes de matriz instrumentada atualizados. Ainda NOT RUN.
+- Varredura léxica dos arquivos Kotlin alterados mais recentes: sem delimitadores desequilibrados. Não equivale ao compilador Kotlin.
+- Documentação adicionada: estudo Copilot, matriz de tools reconciliada, plano de conclusão dos agentes/labs e continuidade.
+- Branch HEAD observado durante a rodada: `643afb120a23e054ef57e634e602ba00615973fb`; compare anterior ao último commit documental: 71 commits ahead/0 behind e 41 arquivos.
+- CI run `44442872173` / job `135287790227`: zero steps/logs; nenhum runner iniciou Python, Gradle, JUnit ou Android tests. Nenhum resultado aprovado.
+- Não houve alteração em `MainActivity`, interface/layout, `main` ou ativação do cérebro. `KellvynRuntime.isReady() == false` permanece intencional.
+- Próxima prioridade: obter executor real, executar suíte Python/Gradle/JUnit, corrigir somente erros reproduzidos e então validar a integração dos novos módulos no Android instrumentado.
+
