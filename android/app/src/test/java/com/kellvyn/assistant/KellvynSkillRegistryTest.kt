@@ -70,6 +70,56 @@ class KellvynSkillRegistryTest {
         assertTrue(systemMessage.content.contains("Nunca declare APK funcional"))
     }
 
+    @Test
+    fun appBuilderSkillLoadsForProjectCreationWithoutGrantingCapabilities() {
+        val registry = KellvynSkillRegistry.default()
+        val matches = registry.selectFor(
+            "Crie um aplicativo Android do zero; planeje, construa e teste o projeto."
+        )
+        val builder = matches.firstOrNull { it.skill.id == "app-builder-workflow" }
+
+        assertTrue(builder != null)
+        assertTrue(builder!!.skill.instructions.contains("PLAN → BUILD → TEST"))
+        assertTrue(builder.skill.instructions.contains("Uma skill não concede permissões"))
+        assertTrue(matches.any { it.skill.id == "android-build-verification" })
+    }
+
+    @Test
+    fun agentLabSkillLoadsForBenchmarkAndIndependentVerificationTasks() {
+        val registry = KellvynSkillRegistry.default()
+        val matches = registry.selectFor(
+            "Compare o benchmark dos 14 agentes com o baseline e verifique traces e evidências independentes."
+        )
+
+        assertTrue(matches.any { it.skill.id == "agent-lab-evaluation" })
+        val lab = matches.first { it.skill.id == "agent-lab-evaluation" }
+        assertTrue(lab.skill.instructions.contains("REVIEW_REQUIRED"))
+        assertTrue(lab.skill.instructions.contains("O próprio agente nunca dá nota"))
+    }
+
+    @Test
+    fun botOperationsSkillSeparatesTransportFromBrainAndProtectsCredentials() {
+        val registry = KellvynSkillRegistry.default()
+        val matches = registry.selectFor(
+            "Diagnostique o bot do Telegram: confira heartbeat, conexão e prontidão da IA antes de reconectar."
+        )
+        val bot = matches.firstOrNull { it.skill.id == "bot-operations" }
+
+        assertTrue(bot != null)
+        assertTrue(bot!!.skill.instructions.contains("Nunca solicite que o proprietário cole o token"))
+        assertTrue(bot.skill.instructions.contains("Transporte conectado não comprova"))
+        assertTrue(bot.skill.instructions.contains("WhatsApp permanece indisponível"))
+    }
+
+    @Test
+    fun productResearchDoesNotLoadTheAppBuilderSkill() {
+        val registry = KellvynSkillRegistry.default()
+
+        val matches = registry.selectFor("Pesquisar recursos do Replit e Cursor.")
+
+        assertEquals(listOf("web-research"), matches.map { it.skill.id })
+    }
+
     private fun skill(id: String, instructions: String) = KellvynSkillDefinition(
         id = id,
         description = "Skill de teste.",
