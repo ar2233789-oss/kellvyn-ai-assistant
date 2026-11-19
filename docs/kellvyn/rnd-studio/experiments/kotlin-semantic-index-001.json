@@ -3,7 +3,7 @@
   "id": "kotlin-semantic-index-001",
   "title": "Escolha reproduzível do analisador semântico Kotlin para o laboratório",
   "scope": "agents",
-  "created_at_utc": "2026-11-19T00:00:00Z",
+  "created_at_utc": "2026-11-19T15:51:12.651Z",
   "state": "PLANNED",
   "candidate_branch": "kellvyn-rnd/polyglot-lab-foundation-20261119",
   "hypothesis": "Uma ferramenta baseada no K2/Analysis API ou no Kotlin Language Server pode produzir um índice de símbolos, tipos, referências e chamadas para o projeto Android real sem modificar fontes, interface ou runtime do APK.",
@@ -94,7 +94,7 @@
   "decision_rule": "Escolher a variante que importe o projeto real e tenha maior precisão de relações semânticas com custo de memória/tempo aceitável. Se ambas falharem no Android Gradle Plugin atual, manter Kotlin indexing como BLOCKED e usar PSI/Tree-sitter apenas para sintaxe, sem rotular como semântico.",
   "execution": {
     "status": "NOT_RUN",
-    "notes": "Este registro define o experimento; nenhuma variante foi instalada ou executada nesta sessão."
+    "notes": "Plano criado; nenhuma variante instalada ou executada nesta sessão."
   },
   "sources": [
     "https://analysis-api.kotlinlang.org/",
