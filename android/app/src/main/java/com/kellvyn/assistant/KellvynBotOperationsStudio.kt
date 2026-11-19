@@ -16,23 +16,29 @@ internal data class KellvynBotRuntimeProbe(
     val tokenConfigured: Boolean,
     val lastStatus: String?,
     val lastStatusAtMillis: Long?,
-    val lastHeartbeatAtMillis: Long?
+    val lastHeartbeatAtMillis: Long?,
+    val heartbeatIntervalMillis: Long? = null
 ) {
     fun describe(nowMillis: Long): String {
+        val staleAfterMillis = staleAfterMillis()
+        val heartbeatTimestampInFuture = lastHeartbeatAtMillis?.let { it > nowMillis } == true
+        val statusTimestampInFuture = lastStatusAtMillis?.let { it > nowMillis } == true
         val status = when {
             !adapterImplemented -> "ADAPTADOR NÃO IMPLEMENTADO"
             !enabled -> "DESATIVADO"
             !tokenConfigured -> "ATIVADO, MAS SEM CREDENCIAL"
             lastHeartbeatAtMillis == null -> "SEM HEARTBEAT OBSERVADO"
-            elapsed(nowMillis, lastHeartbeatAtMillis) > HEARTBEAT_STALE_AFTER_MILLIS ->
-                "HEARTBEAT DESATUALIZADO"
+            heartbeatTimestampInFuture -> "RELÓGIO DO DISPOSITIVO INCONSISTENTE"
+            elapsed(nowMillis, lastHeartbeatAtMillis) > staleAfterMillis -> "HEARTBEAT DESATUALIZADO"
             else -> "HEARTBEAT RECENTE"
         }
         val heartbeatAge = lastHeartbeatAtMillis?.let {
-            "${elapsed(nowMillis, it) / 1_000}s atrás"
+            if (it > nowMillis) "timestamp no futuro; relógio inconsistente"
+            else "${elapsed(nowMillis, it) / 1_000}s atrás"
         } ?: "nunca registrado"
         val statusAge = lastStatusAtMillis?.let {
-            "${elapsed(nowMillis, it) / 1_000}s atrás"
+            if (it > nowMillis) "timestamp no futuro; relógio inconsistente"
+            else "${elapsed(nowMillis, it) / 1_000}s atrás"
         } ?: "nunca registrado"
         val method = when (platform.lowercase()) {
             "telegram" -> "resposta bem-sucedida do long polling"
@@ -45,9 +51,23 @@ internal data class KellvynBotRuntimeProbe(
                 .append("; credencial configurada=").append(tokenConfigured).append("\n")
             append("  evidência mais recente (").append(method).append("): ")
                 .append(heartbeatAge).append("\n")
+            append("  limite de atraso do heartbeat: ").append(staleAfterMillis / 1_000)
+                .append("s; intervalo informado: ")
+                .append(heartbeatIntervalMillis?.let { "${it / 1_000}s" } ?: "não informado")
+                .append("\n")
             append("  último estado: ")
                 .append(lastStatus?.take(120) ?: "sem estado registrado")
                 .append(" (").append(statusAge).append(")")
+        }
+    }
+
+    private fun staleAfterMillis(): Long {
+        val interval = heartbeatIntervalMillis
+            ?.coerceIn(KellvynHeartbeatWatchdog.MIN_INTERVAL_MILLIS, KellvynHeartbeatWatchdog.MAX_INTERVAL_MILLIS)
+        return if (platform.equals("discord", ignoreCase = true) && interval != null) {
+            maxOf(HEARTBEAT_STALE_AFTER_MILLIS, interval * 2L + DISCORD_ACK_GRACE_MILLIS)
+        } else {
+            HEARTBEAT_STALE_AFTER_MILLIS
         }
     }
 
@@ -56,6 +76,7 @@ internal data class KellvynBotRuntimeProbe(
 
     companion object {
         const val HEARTBEAT_STALE_AFTER_MILLIS = 90_000L
+        private const val DISCORD_ACK_GRACE_MILLIS = 10_000L
     }
 }
 
@@ -156,6 +177,8 @@ internal class KellvynBotOperationsStudio(
                                 lastStatusAtMillis = prefs.getLong("bot_status_updated_at_discord", 0L)
                                     .takeIf { it > 0L },
                                 lastHeartbeatAtMillis = prefs.getLong("bot_last_heartbeat_discord", 0L)
+                                    .takeIf { it > 0L },
+                                heartbeatIntervalMillis = prefs.getLong("bot_heartbeat_interval_ms_discord", 0L)
                                     .takeIf { it > 0L }
                             ),
                             KellvynBotRuntimeProbe(
