@@ -28,11 +28,13 @@ export class AgentEngine {
     return task.id;
   }
 }
+export const AGENT_LABEL = "agent";
 `);
   fs.writeFileSync(path.join(root, "src", "agent.test.ts"), `
-import { AgentEngine, type AgentTask } from "./agent";
+import { AGENT_LABEL, AgentEngine, type AgentTask } from "./agent";
 const task: AgentTask = { id: "probe" };
 new AgentEngine().run(task);
+void AGENT_LABEL;
 `);
   return root;
 }
@@ -48,6 +50,7 @@ test("semantic map resolves exported symbols, local imports, calls and test refe
   assert.equal(report.summary.error_diagnostics, 0, JSON.stringify(report.diagnostics));
   assert.ok(report.declarations.some(item => item.name === "AgentEngine" && item.exported));
   assert.ok(report.declarations.some(item => item.name === "AgentTask" && item.exported));
+  assert.ok(report.declarations.some(item => item.name === "AGENT_LABEL" && item.exported));
   assert.ok(report.imports.some(item => item.specifier === "./agent" && item.resolved && item.project_local && item.to === "src/agent.ts"));
   assert.ok(report.calls.some(item => item.symbol === "AgentEngine" || item.symbol === "run"));
   assert.ok(report.test_files.includes("src/agent.test.ts"));
@@ -62,7 +65,7 @@ test("semantic map distinguishes resolved local and external imports from missin
     name: "fixture-lib",
     types: "index.d.ts"
   }));
-  fs.writeFileSync(path.join(packageRoot, "index.d.ts"), "export declare class ExternalThing { ping(): string }\\n");
+  fs.writeFileSync(path.join(packageRoot, "index.d.ts"), "export declare class ExternalThing { ping(): string }\n");
   fs.writeFileSync(path.join(root, "src", "agent.test.ts"), `
 import { AgentEngine } from "./agent";
 import { ExternalThing } from "fixture-lib";
@@ -82,6 +85,7 @@ void item;
   assert.equal(external?.resolved, true);
   assert.equal(external?.project_local, false);
   assert.equal(external?.to, "node_modules/fixture-lib/index.d.ts");
+  assert.ok(report.calls.some(item => item.symbol === "ExternalThing" && item.project_local === false));
   assert.equal(missing?.resolved, false);
   assert.equal(missing?.to, null);
   assert.ok(report.summary.error_diagnostics > 0);
