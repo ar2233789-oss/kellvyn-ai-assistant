@@ -82,14 +82,14 @@
     "Security and process-control behavior is covered by the complete repository unit tests.",
     "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
   ],
-  "note": "This record inventories current implementations. Test counts are written-test counts only; no repository suite or Android capture is marked PASSED.",
+  "note": "Inventory and safeguards updated; repository suites remain NOT_RUN. Local/fixture tests have not been executed in this session.",
   "workbench_test_inventory": {
     "tools/kellvyn-workbench/tests/test_workbench.py": {
       "method_count": 31,
       "status": "NOT_RUN"
     },
     "tools/kellvyn-workbench/tests/test_android_animation_audit.py": {
-      "method_count": 14,
+      "method_count": 16,
       "status": "NOT_RUN"
     },
     "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs": {
@@ -113,24 +113,29 @@
       "Collects pre/post PSS, battery, thermal and display snapshots",
       "Extracts sampled PNG frames via FFmpeg when installed",
       "Calculates frame duration percentiles and optional explicit frame-budget overruns",
-      "Separates PASSED, PARTIAL and BLOCKED"
+      "Separates PASSED, PARTIAL and BLOCKED",
+      "Labels capture scenarios such as chuva, raios and chuva+raios",
+      "Requires the exact target app to remain foreground through the end of capture",
+      "Persists a minimal failure manifest when capture fails after preflight",
+      "Workbench ledger preserves CAPTURED instead of converting successful capture into PASSED"
     ],
     "tests": {
-      "method_count": 14,
+      "method_count": 16,
       "status": "NOT_RUN"
     },
     "limitations": [
       "gfxinfo is not Perfetto FrameTimeline",
       "No automatic UI state control or deterministic effect replay yet",
       "Frame budget must be supplied for the expected refresh rate; the tool does not assume 60 or 120 Hz",
-      "Capture includes the full visible screen and requires private content/notifications to be closed"
+      "Capture includes the full visible screen and requires private content/notifications to be closed",
+      "screenrecord adds measurement overhead; gfxinfo results are diagnostic and should be confirmed with Perfetto/Macrobenchmark."
     ],
     "result_semantics": {
       "capture_status": "CAPTURED",
       "partial_status": "PARTIAL",
       "blocked_status": "BLOCKED",
       "quality_assessment": "NOT_EVALUATED",
-      "note": "CAPTURED means all required capture artifacts were collected; it is not a performance or visual-quality pass."
+      "note": "CAPTURED means artifacts were collected and the target app stayed foreground through the capture. It is not a performance or visual-quality pass."
     },
     "artifact_integrity": "SHA-256 recorded for MP4 and each extracted frame",
     "preflight": "Explicit serial, online/authorized ADB, booted device, installed package and foreground app are required before creating the run folder."
