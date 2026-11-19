@@ -465,3 +465,30 @@ Testes adicionados:
 - equivalência entre argmax direto dos logits e argmax após softmax.
 
 **Resultado validado até agora:** arquivos e commits presentes no GitHub; snippet sintático isolado aprovado. **Resultado ainda não validado:** Gradle, JUnit, qualidade neural, medição de velocidade no Poco F6 e APK. Não há ganho percentual medido.
+
+
+### Otimização do tokenizer BPE em treino e codificação
+
+Commits:
+- `506ebc67d0d0a92e82444ed67ae8136564a091d2` — codificação aplica merges em um `IntArray` compactado no lugar, eliminando uma lista nova por merge.
+- `32b55a23c4d68f669973e95d511a322c34124ac3` — treinamento do BPE mantém sequências em buffers primitivos e as compacta in-place após cada merge; remove cópias/listas intermediárias por sequência e rodada.
+
+Detalhes:
+- `encode(text)` cria um buffer de IDs UTF-8 e compacta o prefixo ativo conforme cada merge consome pares. O tamanho nunca aumenta, então o buffer inicial sempre basta.
+- Durante o treino do tokenizer, cada documento tem buffer próprio de IDs e tamanho ativo. A contagem de frequências percorre apenas a região ativa e as atualizações não substituem a sequência por uma nova `List<Int>`.
+- A lógica de escolha dos pares, frequência, desempate por IDs e ordem dos merges permanece a mesma.
+
+Verificação auxiliar executada com Kotlin/JVM instalado no ambiente:
+- Implementação in-place comparada com a referência baseada em lista.
+- 25.000 sequências aleatórias, cada uma com séries aleatórias de merges.
+- **733.926 operações de merge comparadas, todas equivalentes**.
+- Isso valida o algoritmo de compactação isoladamente, mas não compila a classe real do app nem substitui os testes de tokenizer no Gradle.
+
+Testes do projeto que continuam aplicáveis:
+- `byteFallbackRoundTripsPortugueseAndUnicodeExactly`
+- `trainingIsDeterministicForTheSameOrderedCorpus`
+- `checkpointRestoresMergeTableAndRoundTripBehavior`
+- `endOfSequenceTokenIsDedicatedAndNeverProducedByTextEncoding`
+- `legacyVersionOneCheckpointRestoresWithoutInventingAnEosToken`
+
+O benchmark de velocidade real de tokenização ainda não foi medido; a redução de alocações é estrutural e o ganho de tempo precisa ser medido no aparelho.
