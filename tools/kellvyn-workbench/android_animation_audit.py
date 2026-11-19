@@ -131,10 +131,20 @@ def safe_output_path(value: str) -> Path:
     return resolved
 
 
+def child_environment() -> dict[str, str]:
+    import os
+    allowed = {
+        "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ",
+        "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_USER_HOME"
+    }
+    return {key: value for key, value in os.environ.items() if key in allowed}
+
+
 def run_command(argv: list[str], timeout_s: int, *, allow_failure: bool = False) -> subprocess.CompletedProcess[str]:
     try:
         result = subprocess.run(
-            argv, cwd=ROOT, text=True, capture_output=True, timeout=timeout_s, check=False
+            argv, cwd=ROOT, text=True, capture_output=True, timeout=timeout_s,
+            check=False, env=child_environment()
         )
     except FileNotFoundError as exc:
         raise AuditBlocked(f"executable not installed: {exc.filename}") from exc
@@ -338,23 +348,26 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         output = safe_output_path(args.output)
+        run_dir = output / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
         result = capture_android_animation(
             serial=args.serial,
             package=args.package,
-            output=output,
+            output=run_dir,
             duration_s=args.duration,
             frame_sample_fps=args.frame_sample_fps,
             frame_budget_ms=args.frame_budget_ms,
             bit_rate=args.bit_rate
         )
+        result["output_directory"] = run_dir.relative_to(ROOT).as_posix()
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result["status"] == "PASSED" else 2
+        return 0 if result["status"] == "PASSED" else 4
     except AuditBlocked as exc:
-        result = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
-        print(json.dumps(result, ensure_ascii=False, indent=2), file=sys.stderr)
+        report = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
+        print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
         return 3
     except (OSError, ValueError, RuntimeError) as exc:
-        print(f"ANDROID_ANIMATION_AUDIT_ERROR: {type(exc).__name__}: {exc}", file=sys.stderr)
+        report = {"schema": "kellvyn-android-animation-audit/v1", "status": "FAILED", "reason": f"{type(exc).__name__}: {exc}"}
+        print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
         return 2
 
 
