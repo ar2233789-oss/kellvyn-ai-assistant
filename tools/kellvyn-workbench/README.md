@@ -118,7 +118,7 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
 
 O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
 
-**Inventário atual:** 31 métodos Python na suíte principal da Workbench, sete testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+**Inventário atual:** 31 métodos Python na suíte principal da Workbench, 11 testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
 
 
 ## Analisador semântico Kotlin (pré-requisitos)
@@ -135,7 +135,8 @@ python3 tools/kellvyn-workbench/workbench.py doctor
 ```
 
 Estados:
-- `OPTIONAL_NOT_INSTALLED`: servidor não detectado e sem override de caminho;\n- `BLOCKED_LSP_EXECUTABLE_MISSING`: caminho explícito configurado, mas arquivo não executável;
+- `OPTIONAL_NOT_INSTALLED`: servidor não detectado e sem override de caminho;
+- `BLOCKED_LSP_EXECUTABLE_MISSING`: caminho explícito configurado, mas arquivo não executável;
 - `BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED`: servidor detectado, variável do JDK separado ausente;
 - `BLOCKED_JDK25_REQUIRED`: JDK configurado não é 25;
 - `READY_UNVALIDATED`: binário + JDK 25 detectados, mas importação Android e queries semânticas ainda não validadas.
