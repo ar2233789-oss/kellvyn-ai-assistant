@@ -36,7 +36,6 @@ class KellvynAgentCreationStudioTest {
         assertTrue(result.content.contains("MUTAÇÃO: DESATIVADA"))
         assertTrue(result.content.contains("PREVIEW_ONLY"))
         assertEquals(active, registry.requireProfile(KellvynSpecialistRole.RESEARCHER))
-        assertEquals(1, registry.profiles().size.coerceAtMost(14))
         assertEquals(14, registry.profiles().size)
     }
 
