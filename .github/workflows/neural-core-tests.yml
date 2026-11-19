@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - lab/kellvyn-intelligence-core-20261116
+      - kellvyn-rnd/reasoning-alternatives-20261119
     paths:
       - 'android/app/src/main/java/com/kellvyn/assistant/neural/**'
       - 'android/app/src/main/java/com/kellvyn/assistant/KellvynAgent.kt'
