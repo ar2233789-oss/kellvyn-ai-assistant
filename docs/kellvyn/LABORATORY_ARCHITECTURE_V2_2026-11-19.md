@@ -233,6 +233,8 @@ Nenhuma etapa posterior pode transformar `NOT_RUN` em `PASSED`. Uma alteração 
 ### Fase 0 — corrigir a confiança na bancada
 - **Implementado, ainda NOT_RUN:** reconciliação da contagem dos 20 testes da R&D Studio; matriz de toolchain por domínio; suites TS/TSX typecheck/Vitest/ESLint/Vite; seleção pelo Bun lockfile; ambiente filho com allowlist, redaction e cancelamento de grupos POSIX.
 - **Implementado, ainda NOT_RUN:** mapa semântico TS/TSX via TypeScript Compiler API e casos para import local, pacote externo e import ausente.
+- **Implementado, ainda NOT_RUN:** laboratório Android de animação via `android-animation-audit`: captura limitada por ADB `screenrecord`, coleta `gfxinfo framestats`, PSS antes/depois, bateria, térmica e display; extração opcional de frames via FFmpeg; exige serial explícito e app em primeiro plano, sem instalar/abrir/tocar no app.
+- **Implementado, ainda NOT_RUN:** parsers de frame timing, jank budget explícito, frozen frames >700 ms, PSS, temperatura/nível da bateria, thermal status e refresh rates reportados. Nenhuma frequência de tela é presumida.
 - **Pendente:** conectar Workbench ↔ R&D Studio com IDs de execução, hashes de diff/evidência e invalidar automaticamente resultados quando HEAD/fingerprint mudar.
 - **Pendente:** validar política de segredos com fixtures adicionais e documentar as variáveis ambientais não secretas aceitas por cada adaptador.
 - **Pendente:** executor com isolamento real de OS/rede/filesystem; não promover worktree a sandbox.
@@ -371,3 +373,12 @@ Critérios:
 
 A documentação oficial indica que o Kotlin Language Server é mantido pela JetBrains e inclui diagnostics, semantic highlighting e call hierarchy, mas está em alpha e declara suporte experimental ao Android Gradle Plugin. A documentação da Analysis API confirma modo standalone para ferramentas CLI e alerta sobre mudanças incompatíveis durante o desenvolvimento. Portanto, a decisão deve vir do experimento, não de preferência.
 
+
+
+### Fontes Android para o primeiro coletor de animação
+
+- ADB `screenrecord`: vídeo MP4, time limit, bitrate e limites/compatibilidade documentados oficialmente: https://developer.android.com/tools/adb
+- `dumpsys gfxinfo <package> framestats`: temporização detalhada dos frames recentes: https://developer.android.com/tools/dumpsys
+- FrameTimeline/Perfetto continua sendo o próximo nível para investigar slow/frozen frames e trilhas do pipeline gráfico: https://developer.android.com/topic/performance/issues/render
+
+**Limite:** o coletor externo implementado nesta branch usa screenrecord + gfxinfo; não chama Macrobenchmark, não exporta Perfetto e não conduz os estados de UI. Cada cenário (chuva, raios e combinação) precisa ser preparado e identificado antes da captura. O resultado de vídeo é evidência, não aprovação de fidelidade visual.
