@@ -880,3 +880,20 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Auditoria detalhada em docs/kellvyn/IA_READINESS_AUDIT_2026-11-19.md. O Runtime segue isReady=false, reply stub; não há bundle de pesos versionado nem corpus treinado.
 - KN-003 default: vocabulário 512, contexto256, embedding32, 4 heads, FF64, um bloco, 43.648 parâmetros estimados. Treinador limita corpus a 500KB, até 1.000 exemplos, 100.000 passos e contexto 256. Ainda é protótipo pequeno, não LLM geral.
 - Não ligar o Runtime até bundle/proveniência/Quality Gate/benchmark comportamental/Gradle/Android/AVD/Poco F6 passarem.
+
+## 40. Copilot, correções estruturais e operações de bots — 19/11/2026
+
+- Estudo do GitHub Copilot e do Microsoft Copilot SDK 2.0 acrescentado a `AGENT_CAPABILITY_RESEARCH_2026-11-18.md`: custom agents com ferramentas/MCP limitadas, instruções/skills por escopo, sessões isoladas, journal retomável e coordenador com workers. Adaptar padrões; não adicionar SDK, cloud, créditos ou inferência remota como dependência Kellvyn.
+- Auditoria de código encontrou dois delimitadores de lista quebrados: `KellvynAgentLabStudio.kt` e `KellvynAgentCreationStudio.kt`. Corrigidos em commits `5625bf31ec09afa7893effa988195b63878b42d6` e `6decdf355db7cf74aa0f1b2f3f7e408fc6291987`.
+- Varredura léxica de delimitadores foi repetida nos fontes relevantes e não encontrou parênteses/chaves/colchetes desequilibrados. Isso é verificação estrutural, não compilação Kotlin.
+- Criado `KellvynBotOperationsStudio.kt`, ferramenta READ_ONLY `bot_runtime_health`, registrada como módulo `bot-operations`. Não expõe tokens e não executa start/stop/send.
+- `BotRuntimeService` grava timestamp do último estado, resposta bem-sucedida de polling Telegram e ACK de heartbeat Discord. O relatório classifica heartbeat como recente até 90 segundos; mostra WhatsApp como não implementado.
+- Criados dois testes unitários de diagnóstico e atualizada a matriz instrumentada de ferramentas para incluir a capability WORKFLOW_AUTOMATION (Planning Analyst e Operations Analyst).
+- Atualizada `AGENT_TOOL_AVAILABILITY_2026-11-18.md`: oito módulos registrados nesta branch (incluindo Agent Lab e Bot Operations), sem afirmar oito estúdios completos.
+- Novo plano `AGENT_LAB_FINISH_SEQUENCE_2026-11-19.md` define gates e ordem: execução real de testes → contratos dos 14 papéis → Agent Lab → Software Factory/App Tests → bot operations → integração com cérebro → módulos visuais depois.
+- Git compare contra `lab/kellvyn-intelligence-core-20261116`: 71 commits ahead, 0 behind, 41 arquivos no diff. HEAD confirmado: `3f9a8ec0bed15bdb41cc1700318cb10b5c18d720`.
+- GitHub Actions run `44442872173`, job `135287790227`: falha sem steps e sem logs. Python/Gradle/JUnit/Android instrumented não iniciaram. Não declarar build/teste aprovado.
+- WhatsApp Cloud API continua bloqueado pela exigência de endpoint HTTPS público de webhook; sem hosting/túnel autorizado, não existe fluxo oficial de entrada local-only para habilitar neste APK.
+- `KellvynRuntime.isReady() == false`; nenhum bundle de pesos treinado foi adicionado. Chat e bots não devem ser declarados operacionais com IA até passar os gates do cérebro.
+- Nenhuma edição de MainActivity/interface/layout nesta rodada; branch `main` não foi alterada. Não mesclar até executar testes reais e revisar o diff completo.
+
