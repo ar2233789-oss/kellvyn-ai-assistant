@@ -133,6 +133,7 @@ internal class KellvynTransformerLanguageModel private constructor(
         val normalizedInputInverseStd: FloatArray,
         val queryRotated: FloatArray,
         val keysRotated: Array<FloatArray>,
+        val rotaryFactorsByPosition: Array<RotaryFactors>,
         val values: Array<FloatArray>,
         val attentionWeights: Array<FloatArray>,
         val attentionConcat: FloatArray,
@@ -1046,12 +1047,11 @@ internal class KellvynTransformerLanguageModel private constructor(
             }
         }
 
-        val finalRotaryFactors = createRotaryFactors(last)
+        val finalRotaryFactors = pass.rotaryFactorsByPosition[last]
         val dQueryRaw = dQueryRotated.copyOf()
         rotateInPlace(dQueryRaw, finalRotaryFactors, inverse = true)
         val dKeysRaw = Array(length) { position ->
-            val factors = if (position == last) finalRotaryFactors
-                else createRotaryFactors(position)
+            val factors = pass.rotaryFactorsByPosition[position]
             dKeysRotated[position].copyOf().also {
                 rotateInPlace(it, factors, inverse = true)
             }
@@ -1157,16 +1157,15 @@ internal class KellvynTransformerLanguageModel private constructor(
             normalizedInputInverseStd[position] = normalized.inverseStandardDeviation
         }
 
-        val finalRotaryFactors = createRotaryFactors(last)
+        val rotaryFactorsByPosition = Array(length, ::createRotaryFactors)
+        val finalRotaryFactors = rotaryFactorsByPosition[last]
         val queryRotated = linear(
             normalizedInputs[last], parameters.queryWeights, d, d
         )
         rotateInPlace(queryRotated, finalRotaryFactors)
         val keysRotated = Array(length) { position ->
-            val factors = if (position == last) finalRotaryFactors
-                else createRotaryFactors(position)
             linear(normalizedInputs[position], parameters.keyWeights, d, d)
-                .also { rotateInPlace(it, factors) }
+                .also { rotateInPlace(it, rotaryFactorsByPosition[position]) }
         }
         val values = Array(length) { position ->
             linear(normalizedInputs[position], parameters.valueWeights, d, d)
@@ -1246,6 +1245,7 @@ internal class KellvynTransformerLanguageModel private constructor(
             normalizedInputInverseStd,
             queryRotated,
             keysRotated,
+            rotaryFactorsByPosition,
             values,
             attentionWeights,
             attentionConcat,
