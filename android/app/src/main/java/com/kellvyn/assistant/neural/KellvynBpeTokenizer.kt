@@ -48,16 +48,32 @@ internal class KellvynBpeTokenizer private constructor(
         require(inputBytes.size.toLong() * merges.size.toLong() <= MAX_TRAINING_WORK) {
             "A codificação excederia o orçamento experimental de processamento."
         }
-        var tokens = inputBytes.map { byte -> byte.toInt() and 0xff }
-        for (merge in merges) {
-            tokens = applyMerge(
-                tokens,
-                merge.leftTokenId,
-                merge.rightTokenId,
-                merge.mergedTokenId
-            )
+        // Keep the working sequence in one primitive buffer. Every BPE merge
+        // only shrinks or preserves the token count, so compaction can happen in-place
+        // without allocating a new List<Int> for each merge.
+        val tokens = IntArray(inputBytes.size) { index ->
+            inputBytes[index].toInt() and 0xff
         }
-        return tokens.toIntArray()
+        var tokenCount = tokens.size
+        for (merge in merges) {
+            var read = 0
+            var write = 0
+            while (read < tokenCount) {
+                if (
+                    read + 1 < tokenCount &&
+                    tokens[read] == merge.leftTokenId &&
+                    tokens[read + 1] == merge.rightTokenId
+                ) {
+                    tokens[write++] = merge.mergedTokenId
+                    read += 2
+                } else {
+                    tokens[write++] = tokens[read]
+                    read++
+                }
+            }
+            tokenCount = write
+        }
+        return tokens.copyOf(tokenCount)
     }
 
     /** Decodes tokens back to their exact UTF-8 byte stream. */
