@@ -175,9 +175,18 @@ class BotRuntimeService : Service() {
 
     private fun writeStatus(platform: String, value: String) {
         getSharedPreferences(PREFS, MODE_PRIVATE).edit()
-            .putString("bot_status_" + platform, value.take(160)).apply()
+            .putString("bot_status_" + platform, value.take(160))
+            .putLong("bot_status_updated_at_" + platform, System.currentTimeMillis())
+            .apply()
         val active = listOf("telegram", "discord").any { enabled(it) && !BotTokenStore.read(this, it).isNullOrBlank() }
         if (active && foregroundStarted) enterForeground("Bots: " + value.take(70))
+    }
+
+    /** Stores only the time of an observed API response/heartbeat ACK, never payloads or tokens. */
+    private fun recordHeartbeat(platform: String) {
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putLong("bot_last_heartbeat_" + platform, System.currentTimeMillis())
+            .apply()
     }
 
     private fun enterForeground(text: String) {
@@ -222,6 +231,7 @@ class BotRuntimeService : Service() {
         while (currentCoroutineContext().isActive && enabled("telegram")) {
             try {
                 val updates = withContext(Dispatchers.IO) { pollTelegram(token, offset) }
+                recordHeartbeat("telegram")
                 writeStatus("telegram", "Conectado")
                 for (update in updates) {
                     offset = maxOf(offset, update.id + 1L)
@@ -357,6 +367,7 @@ class BotRuntimeService : Service() {
                                     })
                                 }
                                 7, 9 -> close()
+                                11 -> recordHeartbeat("discord")
                                 0 -> {
                                     val eventName = packet.optString("t", "")
                                     val data = packet.optJSONObject("d")
