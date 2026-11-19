@@ -70,7 +70,9 @@ class PolyglotToolchainTests(unittest.TestCase):
         with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/podman" if name == "podman" else None):
             matrix = wb.toolchain_matrix({}, {})
         self.assertEqual("DETECTED_UNVALIDATED", matrix["sandbox"]["status"])
-        self.assertEqual("NOT_AVAILABLE", wb.toolchain_matrix({}, {})["sandbox"]["status"])
+        with mock.patch.object(wb.shutil, "which", return_value=None):
+            unavailable = wb.toolchain_matrix({}, {})
+        self.assertEqual("NOT_AVAILABLE", unavailable["sandbox"]["status"])
         self.assertEqual("BLOCKED", matrix["android_kotlin_java"]["status"])
 
 
@@ -172,7 +174,7 @@ class LedgerTests(unittest.TestCase):
             child_code = "import time,pathlib; time.sleep(1.5); pathlib.Path(" + repr(str(sentinel)) + ").write_text('survived')"
             parent_code = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c'," + repr(child_code) + "]); time.sleep(30)"
             try:
-                result = wb.run_capture("process-tree-timeout", [sys.executable, "-c", parent_code], cwd=root, timeout_s=0.5)
+                result = wb.run_capture("process-tree-timeout", [sys.executable, "-c", parent_code], cwd=root, timeout_s=1)
                 self.assertEqual("TIMED_OUT", result["status"])
                 time.sleep(1.8)
                 self.assertFalse(sentinel.exists(), "descendant process survived timeout termination")
