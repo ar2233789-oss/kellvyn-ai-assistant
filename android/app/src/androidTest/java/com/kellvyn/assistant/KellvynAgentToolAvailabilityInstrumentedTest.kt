@@ -37,12 +37,22 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 KellvynAgentCreationStudio.CATALOG_TOOL,
                 KellvynAgentCreationStudio.INSPECT_TOOL,
                 KellvynAgentCreationStudio.PROFILE_HISTORY_TOOL,
-                KellvynAgentCreationStudio.PROFILE_PENDING_DIFF_TOOL
+                KellvynAgentCreationStudio.PROFILE_PENDING_DIFF_TOOL,
+                KellvynAgentCreationStudio.PROFILE_REVISION_PREVIEW_TOOL
+            )
+            val agentLabTools = setOf(
+                KellvynAgentLabStudio.ENVIRONMENT_STATUS_TOOL,
+                KellvynAgentLabStudio.TRACE_LIST_TOOL,
+                KellvynAgentLabStudio.TRACE_INSPECT_TOOL,
+                KellvynAgentLabStudio.TRACE_COMPARE_TOOL,
+                KellvynAgentLabStudio.SPECIALIST_MATRIX_TOOL,
+                KellvynAgentLabStudio.DELEGATION_METRICS_TOOL,
+                KellvynAgentLabStudio.BENCHMARK_READINESS_TOOL
             )
             val agentEvaluation = setOf(
                 KellvynAgentCreationStudio.VALIDATE_TOOL,
                 KellvynAgentCreationStudio.BENCHMARK_CATALOG_TOOL
-            )
+            ) + agentLabTools
 
             val expectedByRole = mapOf(
                 KellvynSpecialistRole.RESEARCHER to dataModeling,
@@ -50,7 +60,8 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 KellvynSpecialistRole.REVIEWER to codeNavigation + securityAudit + dataModeling,
                 KellvynSpecialistRole.TEST_ANALYST to deviceDiagnostics +
                     setOf("android_build_environment_status") + agentEvaluation,
-                KellvynSpecialistRole.REASONING_ANALYST to dataModeling + deviceDiagnostics,
+                KellvynSpecialistRole.REASONING_ANALYST to dataModeling + deviceDiagnostics +
+                    setOf(KellvynAgentLabStudio.ENVIRONMENT_STATUS_TOOL),
                 KellvynSpecialistRole.LEARNING_ANALYST to dataModeling + agentEvaluation,
                 KellvynSpecialistRole.PROGRAMMING_ARCHITECT to codeNavigation + dataModeling + agentDesign,
                 KellvynSpecialistRole.MEMORY_ANALYST to setOf("memory_search"),
