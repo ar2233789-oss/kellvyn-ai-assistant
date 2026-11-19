@@ -374,8 +374,15 @@ def debug_log(log_path: Path) -> dict[str, Any]:
         ("JAVA_COMPILER", re.compile(r"(?m)^(.+?\.java):(\d+):\s*error:\s*(.+)$")),
         ("STACK_FRAME", re.compile(r"(?m)^\s*at\s+[\w.$<>]+\(([^():]+):(\d+)\)")),
         ("PYTHON_TRACEBACK", re.compile(r"(?m)^\s*File \"([^\"]+)\", line (\d+), in (.+)$")),
-        ("ANR", re.compile(r"(?i)(Application Not Responding|ANR in [^\s]+|am_anr)")),
-        ("FATAL", re.compile(r"(?i)(FATAL EXCEPTION|Fatal signal|SIGSEGV|OutOfMemoryError|StackOverflowError)")),
+        ("ANR", re.compile(r"(?im)^\s*(?:Application Not Responding|ANR in [^\s]+|am_anr)\b.*$")),
+        # Crash markers must be actual log lines, not phrases mentioned in documentation.
+        # Support AndroidRuntime threadtime/brief formats and libc fatal-signal lines.
+        ("FATAL", re.compile(
+            r"(?im)^\s*(?:(?:\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\.\d+\s+\d+\s+\d+\s+E\s+AndroidRuntime:\s*)|"
+            r"(?:E/AndroidRuntime:\s*)|(?:F libc\s+\([^)]*\):\s*))?"
+            r"(?:FATAL EXCEPTION\b.*|Fatal signal\b.*|SIGSEGV\b.*|"
+            r"(?:java\.lang\.)?(?:OutOfMemoryError|StackOverflowError)\b.*)$"
+        )),
         ("EXCEPTION_SUMMARY", re.compile(r"(?m)^(?:Caused by:\s*)?([A-Za-z_$][\w.$]*(?:Exception|Error))(?::\s*(.*))?$")),
         ("GRADLE_FAILURE", re.compile(r"(?ms)^\* What went wrong:\s*\n(.*?)(?=^\* Try:|^\* Get more help|^BUILD (?:FAILED|SUCCESSFUL)|\Z)")),
     ]

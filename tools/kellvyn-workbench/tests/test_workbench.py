@@ -126,6 +126,38 @@ class DiagnosticTests(unittest.TestCase):
             self.assertTrue(any(x.get("line") == 42 for x in report["findings"]))
             self.assertTrue(any(x.get("line") == 88 for x in report["findings"]))
 
+    def test_fatal_phrase_in_documentation_is_not_classified_as_crash(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            log = root / "documentation.txt"
+            log.write_text("The debugger recognizes FATAL EXCEPTION and StackOverflowError markers in logs.\n")
+            original = wb.ROOT
+            wb.ROOT = root
+            try:
+                report = wb.debug_log(log)
+            finally:
+                wb.ROOT = original
+            fatal = [item for item in report["findings"] if item["kind"] == "FATAL"]
+            self.assertEqual([], fatal)
+
+    def test_androidruntime_and_libc_crash_lines_are_detected(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            log = root / "logcat.txt"
+            log.write_text(
+                "11-19 02:05:01.123 1234 1234 E AndroidRuntime: FATAL EXCEPTION: main\n"
+                "java.lang.IllegalStateException: sample crash\n"
+                "F libc (1234): Fatal signal 11 (SIGSEGV), code 1\n"
+            )
+            original = wb.ROOT
+            wb.ROOT = root
+            try:
+                report = wb.debug_log(log)
+            finally:
+                wb.ROOT = original
+            fatal = [item for item in report["findings"] if item["kind"] == "FATAL"]
+            self.assertEqual(2, len(fatal), fatal)
+
     def test_outside_repository_path_is_rejected(self):
         with tempfile.TemporaryDirectory() as td:
             original = wb.ROOT
