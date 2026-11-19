@@ -281,7 +281,14 @@ class KellvynTransformerLanguageModelTest {
         val cachedSession = model.newGenerationSession(prompt)
         val cachedTokens = mutableListOf<Int>()
         repeat(12) {
+            val probabilityReference = cachedSession.nextTokenProbabilities()
+            val probabilityArgmax = probabilityReference.indices.maxBy { probabilityReference[it] }
             val token = cachedSession.predictNext()
+            assertEquals(
+                "Greedy logits must select the same token as softmax probabilities.",
+                probabilityArgmax,
+                token
+            )
             cachedTokens += token
             cachedSession.appendToken(token)
         }
