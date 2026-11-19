@@ -644,3 +644,48 @@ O escopo final cobre: conversa e raciocínio; memória global e por projeto; pes
 A especificação também registra os bloqueios atuais, incluindo o chat ainda desconectado, o KN-003 experimental de aproximadamente 43,6 mil parâmetros, ausência de corpus treinado e ausência de execução Gradle/JUnit confirmada. O plano foi dividido em portões: CI/build; escalabilidade arquitetural; dados e treinamento; ligação da inferência ao chat; memória/ferramentas; laboratório; multimodal; validação final no Poco F6.
 
 A criação deste documento é uma entrega de arquitetura e auditoria, não uma implementação das capacidades listadas. Nenhum novo teste de aplicativo foi executado por esta alteração documental.
+
+
+## 21. Redução do custo do protocolo de resposta e recuperação do build Android
+
+### Saída final em texto natural
+Foi ampliado o parser KELLVYN/1 para aceitar dois formatos em decisões FINAL:
+- \`TEXT\t<hex UTF-8>\`: formato antigo, mantido para compatibilidade.
+- \`TEXT_RAW\t<texto UTF-8 em uma linha>\`: novo formato natural, limitado a 8.000 bytes e sem caracteres de controle.
+
+Os campos de CALL_TOOL, PLAN e DELEGATE continuam em hexadecimal, preservando a separação de campos e evitando que conteúdo arbitrário altere a estrutura. TEXT_RAW rejeita quebras de linha, NUL e outros caracteres de controle; a resposta não é executada como instrução nem altera a semântica de ferramentas.
+
+O prompt do adaptador KN-003 agora instrui FINAL a produzir TEXT_RAW natural e mantém HEX para os campos estruturados. Isso elimina a expansão aproximada de 2x do hexadecimal em respostas finais, mas não remove o limite de tokens da geração nem prova que o modelo aprendeu a emitir esse formato.
+
+Testes adicionados ao código:
+- aceita resposta natural UTF-8 com acentos e pontuação;
+- continua aceitando o formato HEX legado (teste existente);
+- rejeita resposta multilinha e caracteres de controle em TEXT_RAW;
+- rejeita texto acima do teto de 8.000 bytes.
+
+Commits:
+- \`8b9bac7c73e82f29bf3bc4390a4e87d5697d55fd\` — parser compatível com TEXT_RAW.
+- \`1d7beb64648b1f6e5c8a38a0e6cc58d60bc93873\` — prompt de inferência atualizado.
+- \`e347fdab11c725080668cf2f209f5a9cc52440ff\` — testes de formato natural.
+- \`6f4414cd0a1b0ac59c546c59fd932c7714c38727\` — teste do limite de bytes.
+
+**Validação:** os testes foram escritos e os arquivos foram relidos no GitHub; não foram executados por Gradle/JUnit nesta sessão.
+
+### Diagnóstico adicional do ambiente de build
+A branch contém \`android/build.gradle\` com Android Gradle Plugin 8.13.2 e Kotlin Android plugin 2.3.20; \`android/app/build.gradle\` usa compileSdk 35, e \`android/settings.gradle\` inclui o módulo \`:app\`. Não foram encontrados \`gradlew\`, \`gradlew.bat\`, \`gradle/wrapper/gradle-wrapper.properties\` ou \`gradle-wrapper.jar\` nos caminhos usuais da branch.
+
+A documentação oficial Android declara que AGP 8.13 exige no mínimo Gradle 8.13. A action oficial \`gradle/actions/setup-gradle\` permite instalar uma versão explícita de Gradle e executar builds em projetos sem wrapper. Fonte: https://developer.android.com/build/releases/about-agp e https://github.com/gradle/actions/blob/main/docs/setup-gradle.md.
+
+Para remover a dependência de um wrapper ausente, foi criada uma execução independente:
+- \`.github/workflows/kellvyn-android-validation.yml\`
+- provisiona Java 17, Android SDK/API 35 e Gradle 8.13;
+- executa \`:app:testDebugUnitTest\` e \`:app:assembleDebug\`;
+- publica relatórios de teste e APK debug como artifacts quando gerados;
+- é acionada na branch de pesquisa, em PR para main e manualmente.
+
+Commit: \`1ec3144d840b39a49148a6ce9c5b19df1331db31\`.
+
+**Estado:** workflow criado, ainda sem resultado de execução verificado nesta auditoria. O job anterior observado continua classificado como falha sem steps/logs; isso não é prova de erro Kotlin nem de build aprovado. Próximo passo objetivo: observar a nova execução e corrigir qualquer erro real de ambiente, compilação ou teste mostrado pelos logs.
+
+### Por que não foi iniciada agora a expansão para vários blocos
+O arquivo KN-003 declara explicitamente ser um Transformer de bloco único e reserva multi-block depth, backpropagation por camada e caches por camada para um marco arquitetural posterior. Fazer essa migração sem um build/teste executável arriscaria quebrar checkpoints, gradientes e inferência sem detectar o defeito. A expansão de camadas continua necessária; foi deliberadamente colocada depois da recuperação do ciclo de validação.
