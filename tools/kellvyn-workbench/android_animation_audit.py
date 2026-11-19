@@ -24,6 +24,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[2]
 SERIAL_RE = re.compile(r"^[A-Za-z0-9._:-]{1,128}$")
 PACKAGE_RE = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
+SCENARIO_RE = re.compile(r"^[\w .+:-]{1,80}$", re.UNICODE)
 
 
 class AuditBlocked(RuntimeError):
@@ -262,6 +263,7 @@ def capture_android_animation(
     serial: str,
     package: str,
     output: Path,
+    scenario: str = "manual-unspecified",
     duration_s: int = 10,
     frame_sample_fps: float = 2.0,
     frame_budget_ms: float | None = None,
@@ -271,6 +273,8 @@ def capture_android_animation(
         raise ValueError("invalid ADB serial")
     if not PACKAGE_RE.fullmatch(package):
         raise ValueError("invalid Android package name")
+    if not SCENARIO_RE.fullmatch(scenario):
+        raise ValueError("scenario must be 1..80 safe letters, numbers, spaces or . _ + : - characters")
     if not 5 <= duration_s <= 60:
         raise ValueError("duration must be between 5 and 60 seconds")
     if not 0.5 <= frame_sample_fps <= 10.0:
@@ -301,6 +305,7 @@ def capture_android_animation(
         "status": "RUNNING",
         "serial": serial,
         "package": package,
+        "scenario": scenario,
         "duration_limit_seconds": duration_s,
         "frame_sample_fps": frame_sample_fps,
         "frame_budget_ms": frame_budget_ms,
@@ -471,6 +476,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Capture Android animation video, gfxinfo and resource snapshots.")
     parser.add_argument("--serial", required=True, help="Exact authorized ADB serial; no device auto-selection.")
     parser.add_argument("--package", default="com.kellvyn.assistant")
+    parser.add_argument("--scenario", default="manual-unspecified", help="Short label such as chuva, raios or chuva+raios.")
     parser.add_argument("--duration", type=int, default=10)
     parser.add_argument("--frame-sample-fps", type=float, default=2.0)
     parser.add_argument("--frame-budget-ms", type=float, default=None)
@@ -485,6 +491,7 @@ def main(argv: list[str] | None = None) -> int:
             serial=args.serial,
             package=args.package,
             output=run_dir,
+            scenario=args.scenario,
             duration_s=args.duration,
             frame_sample_fps=args.frame_sample_fps,
             frame_budget_ms=args.frame_budget_ms,
