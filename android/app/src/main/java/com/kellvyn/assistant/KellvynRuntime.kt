@@ -83,7 +83,8 @@ internal class KellvynRuntime(context: Context) {
                 traceStore = agentLabTraceStore,
                 moduleManager = resourceRuntime.studioModules,
                 resourceSnapshotProvider = resourceRuntime::snapshot,
-                traceRecorderHealthProvider = agentLabTraceRecorder::health
+                traceRecorderHealthProvider = agentLabTraceRecorder::health,
+                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
             )
         )
     }
