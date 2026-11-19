@@ -141,7 +141,7 @@ def gradle_version(executable):
     )
     if result.returncode:
         raise RuntimeError("trusted Gradle --version check failed: " + (result.stdout or "")[-1000:])
-    match = re.search(r"(?m)^\\s*Gradle\\s+([0-9][A-Za-z0-9.+-]*)\\s*$", result.stdout or "")
+    match = re.search(r"(?m)^\s*Gradle\s+([0-9][A-Za-z0-9.+-]*)\s*$", result.stdout or "")
     if not match:
         raise RuntimeError("could not identify the Gradle version from --version output")
     return match.group(1)
