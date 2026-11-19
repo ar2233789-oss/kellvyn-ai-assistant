@@ -492,3 +492,35 @@ Testes do projeto que continuam aplicáveis:
 - `legacyVersionOneCheckpointRestoresWithoutInventingAnEosToken`
 
 O benchmark de velocidade real de tokenização ainda não foi medido; a redução de alocações é estrutural e o ganho de tempo precisa ser medido no aparelho.
+
+
+## 16. Nova capacidade neural: pré-treinamento de documentos em KN-003
+
+**Problema identificado:** KN-003 só tinha pipeline de treino supervisionado com prompt/completion. O treinamento com documentos estava implementado apenas no KN-002. Isso limitava o Transformer principal a aprender respostas de exemplos de instrução, sem uma primeira fase explícita de previsão contínua do próximo token sobre documentos.
+
+**Implementação adicionada:**
+- `KellvynTransformerLanguageModel.trainTokensEpoch`: aplica uma época de previsão do próximo token sem avaliações de loss redundantes.
+- `KellvynTransformerTrainingPipeline.pretrainDocuments`: treina tokenizer e KN-003 a partir de documentos locais autorizados.
+- O tokenizer aprende merges somente com documentos TRAIN.
+- VALIDATION e TEST são mantidos fora do treinamento e usados somente para medir generalização.
+- Verificações de IDs duplicados, conteúdo repetido entre partições, tamanho por documento, tamanho do corpus, credenciais/segredos e limites de passos.
+- Os documentos são ordenados por ID e embaralhados deterministicamente por época.
+- Manifesto de proveniência inclui permissão, licença, fonte, evidência de direitos, hash de conteúdo e configuração.
+- `KellvynRuntime.pretrainOwnTransformerFromDocuments` executa o trabalho na fila de tarefa pesada, respeita cancelamento e salva o mesmo bundle KN-003 local usado pelo treino supervisionado.
+
+Testes adicionados:
+- `rawTokenEpochPrimitiveMatchesSingleEpochTrainingExactly`
+- `pretrainingUsesOnlyTrainDocumentsAndKeepsHeldOutSplitsUntouched`
+- `documentPretrainingIsReproducibleWhenInputOrderChanges`
+- `documentPretrainingRejectsDuplicateContentAcrossPartitions`
+
+Commits:
+- `581e3f5ef3b3b9773db6ec90ccb79db340ef66a0` — primitive de treino de uma época para sequências de tokens.
+- `806c160fe3c6686fc80ff22b6cc5817f44dffd43` — pipeline de pré-treinamento por documentos.
+- `db4287c9c4e3e1319be190259923210fe4ef53f8` — testes da pipeline de documentos.
+- `b285096b84a272bf2eb05756d1c39400586a5a6f` — teste de equivalência da primitive de tokens.
+- `6b95309078ab46a599c550912cc3d088524241b8` — integração da operação no runtime.
+
+**Limite:** o modelo continua sendo KN-003 de um bloco e a pipeline continua sujeita aos limites experimentais de corpus/passo já documentados. Adicionar pré-treinamento de documentos melhora a etapa de aprendizagem de linguagem, mas não cria conhecimento sem dados adequados nem demonstra conversa geral. O treino real ainda depende de documentos autorizados fornecidos pelo proprietário e de testes executados.
+
+Validação nesta sessão: os seis arquivos do modelo, pipeline, runtime e testes foram relidos no GitHub e os pontos de integração foram confirmados. O CI continua sem executar Gradle/JUnit (jobs falham sem steps/logs); esses novos testes permanecem **NÃO EXECUTADOS**.
