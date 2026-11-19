@@ -291,6 +291,7 @@ def probe_java_major_version(java_executable: Path) -> int | None:
     except (OSError, subprocess.SubprocessError):
         return None
 
+
 def detect_package_manager() -> str | None:
     """Choose the package manager from the repository lockfile; never guess from PATH alone."""
     candidates = (
