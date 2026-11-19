@@ -111,32 +111,37 @@ internal class KellvynBpeTokenizer private constructor(
         output.flush()
     }
 
-    private fun applyMerge(
-        input: List<Int>,
-        leftTokenId: Int,
-        rightTokenId: Int,
-        mergedTokenId: Int
-    ): List<Int> {
-        if (input.size < 2) return input
-        val output = ArrayList<Int>(input.size)
-        var index = 0
-        while (index < input.size) {
-            if (
-                index + 1 < input.size &&
-                input[index] == leftTokenId &&
-                input[index + 1] == rightTokenId
-            ) {
-                output += mergedTokenId
-                index += 2
-            } else {
-                output += input[index]
-                index++
+    companion object {
+        /**
+         * A BPE training sequence whose active prefix is compacted in place after
+         * each merge. Merges never increase the number of IDs, so the backing buffer
+         * allocated from UTF-8 bytes is always large enough.
+         */
+        private class MutableSequence(val tokenIds: IntArray) {
+            var size: Int = tokenIds.size
+                private set
+
+            fun applyMerge(leftTokenId: Int, rightTokenId: Int, mergedTokenId: Int) {
+                var read = 0
+                var write = 0
+                val previousSize = size
+                while (read < previousSize) {
+                    if (
+                        read + 1 < previousSize &&
+                        tokenIds[read] == leftTokenId &&
+                        tokenIds[read + 1] == rightTokenId
+                    ) {
+                        tokenIds[write++] = mergedTokenId
+                        read += 2
+                    } else {
+                        tokenIds[write++] = tokenIds[read]
+                        read++
+                    }
+                }
+                size = write
             }
         }
-        return output
-    }
 
-    companion object {
         private const val BASE_VOCABULARY_SIZE = 256
         private const val CHECKPOINT_MAGIC = 0x4B564250 // "KVBP"
         private const val CHECKPOINT_VERSION = 2
@@ -165,7 +170,7 @@ internal class KellvynBpeTokenizer private constructor(
             require(corpus.isNotEmpty()) { "O corpus de treinamento está vazio." }
             require(maxMerges in 0..MAX_MERGES) { "Quantidade de merges fora do limite." }
 
-            val sequences = mutableListOf<List<Int>>()
+            val sequences = mutableListOf<MutableSequence>()
             var totalBytes = 0L
             for (text in corpus) {
                 cancellationCheck?.invoke()
@@ -175,7 +180,10 @@ internal class KellvynBpeTokenizer private constructor(
                     "O corpus excede o limite experimental de bytes."
                 }
                 if (bytes.isNotEmpty()) {
-                    sequences += bytes.map { byte -> byte.toInt() and 0xff }
+                    val tokenIds = IntArray(bytes.size) { index ->
+                        bytes[index].toInt() and 0xff
+                    }
+                    sequences += MutableSequence(tokenIds)
                 }
             }
             require(sequences.isNotEmpty()) { "O corpus não contém texto treinável." }
@@ -194,8 +202,9 @@ internal class KellvynBpeTokenizer private constructor(
                 val frequencies = HashMap<Long, Int>()
                 for (sequence in sequences) {
                     cancellationCheck?.invoke()
+                    val tokenIds = sequence.tokenIds
                     for (index in 0 until sequence.size - 1) {
-                        val key = pairKey(sequence[index], sequence[index + 1])
+                        val key = pairKey(tokenIds[index], tokenIds[index + 1])
                         frequencies[key] = (frequencies[key] ?: 0) + 1
                     }
                 }
@@ -229,12 +238,7 @@ internal class KellvynBpeTokenizer private constructor(
 
                 for (sequenceIndex in sequences.indices) {
                     if (sequenceIndex and 31 == 0) cancellationCheck?.invoke()
-                    sequences[sequenceIndex] = applyStaticMerge(
-                        sequences[sequenceIndex],
-                        left,
-                        right,
-                        mergedId
-                    )
+                    sequences[sequenceIndex].applyMerge(left, right, mergedId)
                 }
             }
 
@@ -338,31 +342,6 @@ internal class KellvynBpeTokenizer private constructor(
                 }
             }
             return output.toByteArray()
-        }
-
-        private fun applyStaticMerge(
-            input: List<Int>,
-            leftTokenId: Int,
-            rightTokenId: Int,
-            mergedTokenId: Int
-        ): List<Int> {
-            if (input.size < 2) return input
-            val output = ArrayList<Int>(input.size)
-            var index = 0
-            while (index < input.size) {
-                if (
-                    index + 1 < input.size &&
-                    input[index] == leftTokenId &&
-                    input[index + 1] == rightTokenId
-                ) {
-                    output += mergedTokenId
-                    index += 2
-                } else {
-                    output += input[index]
-                    index++
-                }
-            }
-            return output
         }
 
         private fun pairKey(left: Int, right: Int): Long =
