@@ -578,3 +578,58 @@ Commits:
 Commit: `d06c7655fbb9dfa8e94b34a68d644398714f2c16`.
 
 Com isso, a sequência de aprendizado no código não reinicializa o modelo ao passar de pré-treinamento para ajuste supervisionado. A correção estática e os testes foram gravados; ainda precisam de execução Gradle/JUnit para serem aprovados.
+
+
+## 19. Pesquisa complementar: agentes Android, Replit e aceleração on-device
+
+### Android Studio Agent Mode — práticas atuais observadas
+A documentação oficial descreve:
+- objetivos grandes convertidos em planos e subtarefas;
+- ferramentas invocadas pelo agente e alterações em múltiplos arquivos;
+- ciclo iterativo de build/reparo;
+- aprovação/revisão de alterações;
+- possibilidade de conversas paralelas no painel;
+- deploy em dispositivo, captura de tela, inspeção visual e consulta ao Logcat para confirmar erros e mudanças.
+
+**Aplicação ao processo Kellvyn:** executar pesquisas independentes (treinamento, arquitetura, runtime Android e avaliação) em paralelo; concentrar alterações por arquivo em uma sequência serializada para evitar conflitos; exigir diffs e testes. A verificação Android futura deve combinar build, instalação, tela, logs e regressão.
+
+### Replit Agent — práticas atuais observadas
+A documentação oficial atual distingue:
+- **Plan:** planejamento, decomposição ordenada, arquitetura e aprovação de tarefas sem editar projeto;
+- **Build:** implementação;
+- **App Testing:** teste funcional no navegador e correção;
+- **Checkpoints:** restauração de estado anterior;
+- **Skills:** instruções carregadas sob demanda para não ocupar continuamente o contexto;
+- **MCP/integrations:** acesso a ferramentas e serviços externos;
+- **Scheduled Deployments:** execução agendada que depende de hospedagem/integrações e segredos, portanto não é uma solução offline-first.
+
+A documentação também descreve modos de esforço e um Turbo mais rápido, mas com custo potencialmente maior. Para Kellvyn, a lição é escolher profundidade de raciocínio conforme risco e manter verificações determinísticas; não adotar um modo caro nem depender de API keys/hospedagem como fundação do aplicativo.
+
+### LiteRT — limite entre runtime e cérebro
+A documentação Google AI Edge atual recomenda a API `CompiledModel` para inferência on-device, com opções de CPU/GPU e acesso a NPU conforme dispositivo/runtime. A API oferece buffers e execução assíncrona. Isso pode ser avaliado como runtime auxiliar para **pesos Kellvyn próprios**, desde que exista um grafo/exportação compatível e o resultado seja comparado com a implementação de referência.
+
+Não é uma solução para treinar o Transformer atual do zero, não fornece os pesos Kellvyn e não deve ser adicionado por popularidade. A documentação explica que o backend/operadores suportados importam; cada export precisa de equivalência numérica e benchmark no Poco F6. Não usar Gemma nem qualquer checkpoint oferecido nos exemplos da documentação.
+
+### Benchmark Android — protocolo mais rápido e confiável
+- **Microbenchmark:** medir o custo de funções isoladas como encode do BPE, RoPE, atualização AdamW e previsão greedy.
+- **Macrobenchmark:** medir o fluxo completo do app, desde abrir/retomar chat até responder/usar ferramenta; gera resultados e traces.
+- **Android Studio Profiler:** localizar CPU hotspots, alocações, heap e GC; usar build debuggable para gravar alocações, lembrando que essa instrumentação altera o custo observado.
+- **Build profileable/release:** usar para medir desempenho próximo do uso real, sem overhead do debugger.
+
+A rotina de aceleração deve ser: encontrar hotspot com profiler → microbenchmark isolado → otimizar → microbenchmark de regressão → macrobenchmark do fluxo → validação física no Poco F6.
+
+Fontes oficiais consultadas:
+- Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
+- Android Studio AI overview: https://developer.android.com/studio/gemini/overview
+- Android Studio Agent Mode com device, screenshots e Logcat: https://developer.android.com/blog/posts/llm-flexibility-agent-mode-improvements-and-new-agentic-experiences-in-android-studio-otter-3-feature-drop
+- Replit Plan: https://docs.replit.com/pt/references/agent/plan-mode
+- Replit Agent modes: https://docs.replit.com/pt/references/agent/agent-modes
+- Replit Agent overview: https://docs.replit.com/pt/references/agent/overview
+- Replit scheduled automation / Skills / MCP: https://docs.replit.com/pt/build/build-an-agent
+- LiteRT overview: https://developers.google.com/edge/litert/overview
+- LiteRT on-device inference: https://developers.google.com/edge/litert/inference
+- Android Macrobenchmark: https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview
+- Android Profiler: https://developer.android.com/studio/profile
+- Android Java/Kotlin allocations: https://developer.android.com/studio/profile/record-java-kotlin-allocations
+
+**Decisão de engenharia:** não integrar LiteRT ainda. Primeiro concluir correção e validação do KN-003; depois avaliar exportabilidade do grafo e comparar CPU pura versus CompiledModel no hardware-alvo.
