@@ -269,6 +269,170 @@ internal object KellvynTransformerTrainingPipeline {
         return KellvynTransformerTrainingResult(tokenizer, model, manifest)
     }
 
+    /**
+     * Unsupervised next-token pretraining from authorized local documents.
+     *
+     * The tokenizer is learned from TRAIN documents only. VALIDATION and TEST remain
+     * held out. Each epoch shuffles documents deterministically and updates the same
+     * KN-003 weights one document at a time.
+     */
+    fun pretrainDocuments(
+        documents: List<KellvynTrainingDocument>,
+        config: KellvynTransformerTrainingConfig = KellvynTransformerTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        cancellationCheck: () -> Unit = {}
+    ): KellvynTransformerTrainingResult {
+        cancellationCheck()
+        require(createdAtMillis > 0L)
+        require(documents.size in 3..MAX_EXAMPLES) {
+            "Forneça documentos de treino, validação e teste."
+        }
+        require(documents.map { it.id }.distinct().size == documents.size) {
+            "Há IDs de documentos Transformer duplicados."
+        }
+
+        val orderedDocuments = documents.sortedBy { it.id }
+        var totalBytes = 0L
+        val contentHashes = mutableSetOf<String>()
+        for (document in orderedDocuments) {
+            cancellationCheck()
+            val byteCount = document.text.toByteArray(Charsets.UTF_8).size
+            require(byteCount in 1..MAX_EXAMPLE_BYTES) {
+                "O documento Transformer ${document.id} excede o limite individual."
+            }
+            require(!containsSecretMaterial(document.text)) {
+                "O documento Transformer ${document.id} parece conter credenciais ou chave privada."
+            }
+            totalBytes += byteCount.toLong()
+            require(totalBytes <= MAX_TOTAL_BYTES) {
+                "O corpus Transformer excede o limite experimental de bytes."
+            }
+            require(contentHashes.add(sha256(document.text))) {
+                "Documento duplicado entre partições Transformer; isso causaria vazamento."
+            }
+        }
+
+        val trainDocuments = orderedDocuments.filter {
+            it.split == KellvynTrainingSplit.TRAIN
+        }
+        val validationDocuments = orderedDocuments.filter {
+            it.split == KellvynTrainingSplit.VALIDATION
+        }
+        val testDocuments = orderedDocuments.filter {
+            it.split == KellvynTrainingSplit.TEST
+        }
+        require(
+            trainDocuments.isNotEmpty() &&
+                validationDocuments.isNotEmpty() &&
+                testDocuments.isNotEmpty()
+        ) {
+            "As três partições são obrigatórias: TRAIN, VALIDATION e TEST."
+        }
+
+        val tokenizer = KellvynBpeTokenizer.train(
+            corpus = trainDocuments.map { it.text },
+            maxMerges = config.maxMerges,
+            cancellationCheck = cancellationCheck
+        )
+
+        fun encode(partition: List<KellvynTrainingDocument>): List<Pair<String, IntArray>> =
+            partition.map { document ->
+                cancellationCheck()
+                val tokens = tokenizer.encode(document.text)
+                require(tokens.size in 2..MAX_TOKENIZED_EXAMPLE) {
+                    "O documento Transformer ${document.id} precisa produzir entre 2 e 100000 tokens."
+                }
+                document.id to tokens
+            }
+
+        val trainEncoded = encode(trainDocuments)
+        val validationEncoded = encode(validationDocuments)
+        val testEncoded = encode(testDocuments)
+        val plannedSteps = trainEncoded.sumOf { (_, tokens) ->
+            (tokens.size - 1L) * config.epochsPerExample.toLong()
+        }
+        require(plannedSteps in 1..config.maxTotalTrainingSteps) {
+            "O pré-treinamento Transformer excederia o orçamento total de passos."
+        }
+        require(trainEncoded.all { (_, tokens) ->
+            (tokens.size - 1L) * config.epochsPerExample.toLong() <= MAX_STEPS_PER_EXAMPLE
+        }) {
+            "Um documento Transformer excederia o limite de passos por chamada."
+        }
+
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            headCount = config.headCount,
+            feedForwardSize = config.feedForwardSize,
+            seed = config.seed
+        )
+
+        fun meanLoss(partition: List<Pair<String, IntArray>>): Double {
+            var weightedLoss = 0.0
+            var tokenCount = 0L
+            for ((_, tokens) in partition) {
+                cancellationCheck()
+                val count = tokens.size - 1
+                weightedLoss += model.evaluateLoss(tokens) * count.toDouble()
+                tokenCount += count.toLong()
+            }
+            require(tokenCount > 0L)
+            return weightedLoss / tokenCount.toDouble()
+        }
+
+        val initialValidationLoss = meanLoss(validationEncoded)
+        repeat(config.epochsPerExample) { epoch ->
+            cancellationCheck()
+            val epochDocuments = trainEncoded.shuffled(Random(config.seed + epoch.toLong()))
+            for ((_, tokens) in epochDocuments) {
+                cancellationCheck()
+                model.trainTokensEpoch(
+                    tokenIds = tokens,
+                    learningRate = config.learningRate,
+                    weightDecay = config.weightDecay,
+                    cancellationCheck = cancellationCheck
+                )
+            }
+        }
+        cancellationCheck()
+        val finalValidationLoss = meanLoss(validationEncoded)
+        val heldOutTestLoss = meanLoss(testEncoded)
+        cancellationCheck()
+
+        val entries = orderedDocuments.map { document ->
+            KellvynTrainingManifestEntry(
+                id = document.id,
+                split = document.split,
+                permission = document.provenance.permission,
+                licenseId = document.provenance.licenseId,
+                sourceReference = document.provenance.sourceReference,
+                rightsEvidence = document.provenance.rightsEvidence,
+                contentSha256 = sha256(document.text)
+            )
+        }
+        val manifest = KellvynTransformerTrainingManifest(
+            createdAtMillis = createdAtMillis,
+            entries = entries,
+            maxMerges = tokenizer.mergeCount,
+            contextLength = model.config.contextLength,
+            embeddingSize = model.config.embeddingSize,
+            headCount = model.config.headCount,
+            feedForwardSize = model.config.feedForwardSize,
+            seed = model.config.seed,
+            epochsPerExample = config.epochsPerExample,
+            learningRate = config.learningRate,
+            weightDecay = config.weightDecay,
+            initialValidationLoss = initialValidationLoss,
+            finalValidationLoss = finalValidationLoss,
+            heldOutTestLoss = heldOutTestLoss,
+            totalTrainingSteps = model.trainingSteps,
+            vocabularySize = model.config.vocabularySize
+        )
+        return KellvynTransformerTrainingResult(tokenizer, model, manifest)
+    }
+
     private fun containsSecretMaterial(text: String): Boolean =
         SECRET_ASSIGNMENT.containsMatchIn(text) ||
             BEARER_TOKEN.containsMatchIn(text) ||
