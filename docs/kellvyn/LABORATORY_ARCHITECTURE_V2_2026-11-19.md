@@ -211,33 +211,36 @@ Adotar semântica compatível com spans de agente/ferramenta para exportação e
 
 Nenhuma etapa posterior pode transformar `NOT_RUN` em `PASSED`. Uma alteração de fonte depois do teste invalida a evidência daquele HEAD.
 
-## 5. Falhas concretas encontradas na infraestrutura atual
+## 5. Auditoria de lacunas — estado depois da primeira expansão
 
-1. R&D Studio e Workbench existem, mas operam como ferramentas separadas e sem um catálogo único de adaptadores.
-2. O R&D Studio mapeia Kotlin por regex e usa Git worktree; não possui análise semântica Kotlin nem isolamento de sistema operacional.
-3. Workbench reconhece Python, Java, Gradle, ADB, Blender, Node e FFmpeg, mas não dá visão suficiente de JDK/SDK/build-tools, Kotlin compiler, TypeScript/Vitest/ESLint, ShellCheck/actionlint, browser e isolamento.
-4. A suíte Workbench tem verificações de sintaxe Python/Shell/MJS e os testes das próprias ferramentas, mas não oferece comandos próprios para os scripts reais `npm test`, `npm run lint`, `npm run build` e `tsc --noEmit` do projeto TS/TSX.
-5. A auditoria de código mistura heurísticas sintáticas e referências lexicais; não tem mapa semântico completo de chamadas e tipos.
-6. `run_capture` herda `os.environ` no processo filho, grava o comando completo no manifesto e encerra apenas o processo pai no timeout; precisa de política explícita de ambiente, redaction e encerramento do grupo de processos.
-7. O executor genérico não usa sandbox de sistema operacional. Worktree protege organização do Git, não credenciais, rede ou arquivos do host.
-8. A documentação de R&D Studio está inconsistente: `test_studio.py` contém 20 métodos `test_*`, enquanto README/manifesto antigo dizem 16 e três pendentes.
-9. Workflows separados validam Workbench, Agent Lab, APK e cérebro, mas não formam ainda um único pipeline com artefatos relacionados ao mesmo HEAD e matriz de gates.
-10. O Android app atual não inclui dependências Jetpack Compose. Testes de animações Compose não podem ser aplicados cegamente ao app existente; usar a tecnologia real da tela.
+1. A R&D Studio e a Workbench continuam como ferramentas separadas. Ainda falta um catálogo/contrato comum de adaptadores, IDs de tarefas e um pipeline único de evidências.
+2. O R&D Studio ainda mapeia Kotlin por heurísticas/regex. Nesta branch foi adicionado um mapa semântico TS/TSX baseado no TypeScript Compiler API; **isso não resolve Kotlin, Java, Python ou o restante das linguagens**.
+3. A Workbench agora inventaria pré-requisitos por domínio (Android/Kotlin/Java, TS/TSX, Python, shell/workflows, ADB, visual/mídia e sandbox candidato). Detecção de toolchain não equivale a execução comprovada nem garante compatibilidade completa.
+4. As suites TS/TSX `web-typecheck`, `web-unit`, `web-lint` e `web-build` estão implementadas e selecionam Bun pelo `bun.lock`. O CI fixa Bun 1.4.5 e instala em modo frozen; os gates ainda aguardam execução real.
+5. O mapa semântico TS/TSX consulta declarações, aliases, imports, chamadas e referências com o compilador do próprio projeto. Um defeito encontrado na primeira revisão — retorno incompatível do resolvedor de módulos — foi corrigido, e os testes agora distinguem import local, pacote externo e import ausente. A correção ainda precisa passar por Node tests reais.
+6. `run_capture` agora limita o ambiente herdado, rejeita variáveis explicitamente sensíveis, redige padrões comuns de credenciais e encerra o grupo de processos POSIX no timeout. Isso reduz exposição acidental, mas não é sandbox e não garante detectar todos os formatos possíveis de segredo.
+7. O executor ainda roda no host e o Git worktree não é isolamento de sistema operacional. Até existir runner efêmero/VM/contêiner com rede e filesystem limitados, executar somente código confiável e classificar código não confiável como `BLOCKED`.
+8. A contagem da R&D Studio foi reconciliada: o snapshot atual contém 20 métodos `test_*`; README e manifesto já não devem reportar 16 nem manter a antiga lista de três testes pendentes. Os 20 métodos continuam NOT_RUN no snapshot atual.
+9. O Workbench tem 23 métodos de teste Python e dois testes Node para o mapa semântico TS. Inventário de testes não é evidência de aprovação: nenhum deles deve ser reportado como PASS até um runner executar o SHA atual.
+10. Workflows Workbench, Agent Lab, APK e núcleo neural ainda são pipelines separados. O Workbench passou a incluir o gate web/TypeScript, mas não há um DAG único relacionando pesquisa, Brain, Agents, integração, Android e evidências no mesmo HEAD.
+11. O app Android atual não declara Jetpack Compose. Testes Compose não devem ser aplicados à interface existente; validar Views/Java por Espresso/UI Automator, screenshots e Macrobenchmark quando a infraestrutura estiver disponível.
+
 
 ## 6. Roadmap de implementação
 
 ### Fase 0 — corrigir a confiança na bancada
-- Reconciliar a contagem/documentação dos 20 testes da R&D Studio.
-- Atualizar `doctor` com toolchain matrix por área, distinguindo não instalado, detectado, pronto e comprovado.
-- Adicionar suites explícitas TS/TSX: typecheck, Vitest, lint e build, com preflight de dependências.
-- Remover segredos de ambientes e manifests; encerrar grupos de processos; classificar execução não isolada como não segura para código não confiável.
-- Conectar o histórico Workbench ↔ R&D Studio com IDs de execução e hashes de evidência.
+- **Implementado, ainda NOT_RUN:** reconciliação da contagem dos 20 testes da R&D Studio; matriz de toolchain por domínio; suites TS/TSX typecheck/Vitest/ESLint/Vite; seleção pelo Bun lockfile; ambiente filho com allowlist, redaction e cancelamento de grupos POSIX.
+- **Implementado, ainda NOT_RUN:** mapa semântico TS/TSX via TypeScript Compiler API e casos para import local, pacote externo e import ausente.
+- **Pendente:** conectar Workbench ↔ R&D Studio com IDs de execução, hashes de diff/evidência e invalidar automaticamente resultados quando HEAD/fingerprint mudar.
+- **Pendente:** validar política de segredos com fixtures adicionais e documentar as variáveis ambientais não secretas aceitas por cada adaptador.
+- **Pendente:** executor com isolamento real de OS/rede/filesystem; não promover worktree a sandbox.
 
 ### Fase 1 — compreensão de código de verdade
-- Integrar parser incremental multi-linguagem.
-- Adicionar adaptadores Kotlin semantic, TypeScript semantic, Java compiler, Python AST, XML/YAML/JSON e shell.
-- Produzir grafo de dependências e impacto com proveniência de cada aresta.
-- Relacionar símbolos a testes e workflows sem heurística silenciosa.
+- **Já existe:** mapa semântico TypeScript/TSX com o checker do compilador do projeto; precisa executar os testes e validar o mapa gerado no repositório real.
+- Prioridade Kotlin: comparar Kotlin Analysis API Standalone e Kotlin Language Server oficial. O LSP oferece diagnósticos, símbolos, semantic highlighting e call hierarchy; a integração Android Gradle Plugin é experimental e o servidor está em alpha. Analysis API Standalone permite consultas de símbolos/tipos em CLI, mas ainda está em desenvolvimento ativo. Criar experimento reproduzível antes de escolher dependência.
+- Adicionar Java Compiler API/javac, Python AST e parsers XML/YAML/JSON/shell.
+- Tree-sitter pode prover parsing incremental uniforme, mas não substitui resolução semântica específica de Kotlin/TS/Java.
+- Produzir grafo de dependências e impacto com proveniência de cada aresta e distinguir relações semânticas de relações heurísticas.
 
 ### Fase 2 — executor isolado
 - Definir contrato `SandboxExecutor`, preflight e política de recursos.
@@ -319,3 +322,46 @@ As referências abaixo fundamentam a arquitetura; não significam que as bibliot
 - manifesto R&D Studio reconciliado para 20 métodos de teste. Os 20 continuam sem execução comprovada no snapshot atual.
 
 **Não implementado ainda:** sandbox descartável com limites reais, parsers/Analysis API semânticos, grafo de impacto, tracing OTel completo, benchmark/animation lab Android, benchmark cognitivo com checkpoint treinado e DAG durável integrado. Não declarar a Fase 0 concluída antes dos testes reais e da auditoria independente do patch.
+
+
+## 9. Entrega incremental — poliglot foundation, 19/11/2026
+
+Branch: `kellvyn-rnd/polyglot-lab-foundation-20261119`  
+PR: [#25 — Build out the polyglot engineering lab foundation](https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/25)  
+Status: DRAFT / IMPLEMENTED_NOT_RUN.
+
+### Código presente
+- Matriz de toolchain por domínio com JDK, javac, Kotlin compiler CLI, Gradle, Android SDK, ADB, Node, npm, Bun, Blender, FFmpeg, ShellCheck, actionlint, Tree-sitter e possíveis executores Podman/Docker.
+- Suites de projeto TS/TSX com Bun e lockfile frozen.
+- Mapa semântico TypeScript com declarações, imports, resolução local/externa, chamadas e referências a partir do TypeScript Compiler API.
+- Política de ambiente e limpeza de logs/manifests do executor; cancelamento de grupos de processos em POSIX.
+- Revisão do resolvedor de módulos TS encontrou e corrigiu um contrato quebrado (retornava string/null enquanto o consumidor esperava objeto); o novo teste inclui pacote local de fixture.
+- Workflow Workbench agora dispara quando package.json, bun.lock, tsconfig ou código TS/TSX muda, tanto em push quanto em pull_request.
+
+### Testes escritos / estado
+- 23 métodos Python em `tools/kellvyn-workbench/tests/test_workbench.py`.
+- Dois casos Node em `tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs`.
+- 20 métodos em `tools/kellvyn-rnd-studio/test_studio.py`.
+- **Nenhuma das três suítes foi executada no runner para este HEAD.** Testes permanecem NOT_RUN.
+- O último run de Workbench observado encerrou antes de qualquer step; não classificar como falha de código nem aprovação. O bloqueio de alocação continua sendo gate externo.
+
+### Próximo experimento de linguagem — Kotlin
+ID proposto: `kotlin-semantic-index-001`.
+
+Hipótese: uma camada semântica Kotlin pode mapear símbolos, tipos, referências e call hierarchy sobre o projeto Android sem alterar o APK nem adicionar custo ao runtime do app.
+
+Variantes:
+1. Kotlin Analysis API Standalone, alinhada à versão de Kotlin/K2 do projeto.
+2. Kotlin Language Server oficial via LSP, usando Gradle project import e requests de document symbols, definitions, references e call hierarchy.
+
+Critérios:
+- importar o projeto Android real sem substituir sua toolchain;
+- resolver uma amostra fixa de símbolos entre cérebro, orquestrador, agentes, ferramentas e testes;
+- distinguir símbolo resolvido, externo, ambíguo e ausente;
+- medir cold start, cache hit, tempo, RSS e memória máxima;
+- gerar saída JSON determinística, versionada e com proveniência dos arquivos;
+- não escrever arquivos fonte nem depender de serviços pagos;
+- não aceitar a rota como semanticamente válida se o projeto Android não importar.
+
+A documentação oficial indica que o Kotlin Language Server é mantido pela JetBrains e inclui diagnostics, semantic highlighting e call hierarchy, mas está em alpha e declara suporte experimental ao Android Gradle Plugin. A documentação da Analysis API confirma modo standalone para ferramentas CLI e alerta sobre mudanças incompatíveis durante o desenvolvimento. Portanto, a decisão deve vir do experimento, não de preferência.
+
