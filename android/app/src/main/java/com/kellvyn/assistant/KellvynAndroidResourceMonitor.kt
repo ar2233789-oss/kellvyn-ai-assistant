@@ -118,7 +118,6 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
 
     private companion object {
         const val BYTES_PER_KILOBYTE = 1024L
-        const val THERMAL_SAMPLE_INTERVAL_MS = 1_000L
         const val THERMAL_FORECAST_SECONDS = 10
         const val MEMORY_PRESSURE_RESET_FRACTION = 0.20
     }
