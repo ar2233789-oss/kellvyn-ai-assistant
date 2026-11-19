@@ -334,6 +334,7 @@ class BotRuntimeService : Service() {
                 val closed = CompletableDeferred<Unit>()
                 val sequence = AtomicLong(-1L)
                 val heartbeatJob = AtomicReference<Job?>(null)
+                val heartbeatWatchdog = AtomicReference<KellvynHeartbeatWatchdog?>(null)
                 val uri = URI(gateway.trimEnd('/') + "/?v=10&encoding=json")
                 val socketHolder = AtomicReference<WebSocketClient?>(null)
                 val discordClient = object : WebSocketClient(uri) {
@@ -348,7 +349,13 @@ class BotRuntimeService : Service() {
                             if (packet.has("s") && !packet.isNull("s")) sequence.set(packet.optLong("s", -1L))
                             when (packet.optInt("op", -1)) {
                                 10 -> {
-                                    val interval = packet.optJSONObject("d")?.optLong("heartbeat_interval", 41250L) ?: 41250L
+                                    val interval = (packet.optJSONObject("d")?.optLong("heartbeat_interval", 41250L)
+                                        ?: 41250L).coerceIn(
+                                        KellvynHeartbeatWatchdog.MIN_INTERVAL_MILLIS,
+                                        KellvynHeartbeatWatchdog.MAX_INTERVAL_MILLIS
+                                    )
+                                    val watchdog = KellvynHeartbeatWatchdog(interval)
+                                    heartbeatWatchdog.set(watchdog)
                                     val identify = JSONObject().put("op", 2).put(
                                         "d",
                                         JSONObject()
@@ -359,7 +366,12 @@ class BotRuntimeService : Service() {
                                     send(identify.toString())
                                     heartbeatJob.set(serviceScope.launch {
                                         while (isActive && socketHolder.get()?.isOpen == true) {
-                                            delay(interval.coerceAtLeast(10000L))
+                                            delay(interval)
+                                            if (watchdog.isExpired()) {
+                                                writeStatus("discord", "Heartbeat sem ACK; tentando reconectar")
+                                                try { socketHolder.get()?.close() } catch (_: Exception) {}
+                                                break
+                                            }
                                             val seq = sequence.get()
                                             val heartbeat = JSONObject().put("op", 1)
                                             heartbeat.put("d", if (seq >= 0L) seq else JSONObject.NULL)
@@ -368,7 +380,10 @@ class BotRuntimeService : Service() {
                                     })
                                 }
                                 7, 9 -> close()
-                                11 -> recordHeartbeat("discord")
+                                11 -> {
+                                    heartbeatWatchdog.get()?.recordAck()
+                                    recordHeartbeat("discord")
+                                }
                                 0 -> {
                                     val eventName = packet.optString("t", "")
                                     val data = packet.optJSONObject("d")
@@ -413,11 +428,13 @@ class BotRuntimeService : Service() {
 
                     override fun onClose(code: Int, reason: String?, remote: Boolean) {
                         heartbeatJob.getAndSet(null)?.cancel()
+                        heartbeatWatchdog.set(null)
                         closed.complete(Unit)
                     }
 
                     override fun onError(ex: Exception) {
                         heartbeatJob.getAndSet(null)?.cancel()
+                        heartbeatWatchdog.set(null)
                         if (!closed.isCompleted) closed.completeExceptionally(ex)
                     }
                 }
@@ -429,6 +446,8 @@ class BotRuntimeService : Service() {
                 writeStatus("discord", "Conectado; aguardando mensagens")
                 closed.await()
                 heartbeatJob.getAndSet(null)?.cancel()
+                heartbeatWatchdog.set(null)
+                if (currentCoroutineContext().isActive && enabled("discord")) delay(5_000L)
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
