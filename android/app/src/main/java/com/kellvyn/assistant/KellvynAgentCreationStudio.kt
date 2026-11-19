@@ -222,7 +222,7 @@ internal class KellvynAgentCreationStudio(
                     resultText.take(MAX_PROFILE_DIFF_OUTPUT_CHARS)
                 )
             }
-,
+        },
         object : KellvynAgentTool {
             override val spec = TOOL_SPECS[6]
 
@@ -425,7 +425,7 @@ internal class KellvynAgentCreationStudio(
                 estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
             )
-,
+            ),
             KellvynToolSpec(
                 name = PROFILE_REVISION_PREVIEW_TOOL,
                 description = "Prepara uma prévia não persistida de uma nova versão de perfil. Não grava, não ativa e não concede capacidades; exige revisão do proprietário.",
@@ -460,7 +460,8 @@ internal class KellvynAgentCreationStudio(
                 workloadClass = KellvynWorkloadClass.STANDARD,
                 estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
-            )        )
+            )
+        )
 
         val MANIFEST = KellvynStudioModuleManifest(
             moduleId = MODULE_ID,
