@@ -265,9 +265,9 @@ def node_package_status(package: str) -> str:
 
 def parse_java_major_version(output: str) -> int | None:
     """Extract the major version from java -version or javac version output."""
-    match = re.search(r'(?i)(?:openjdk|java)\\s+version\\s+"?(\\d+(?:\\.\\d+)*)', output)
+    match = re.search(r'(?i)(?:openjdk|java)\s+version\s+"?(\d+(?:\.\d+)*)', output)
     if not match:
-        match = re.search(r"(?i)\\bjavac\\s+(\\d+(?:\\.\\d+)*)", output)
+        match = re.search(r"(?i)\bjavac\s+(\d+(?:\.\d+)*)", output)
     if not match:
         return None
     parts = match.group(1).split(".")
@@ -287,10 +287,9 @@ def probe_java_major_version(java_executable: Path) -> int | None:
         )
         if result.returncode != 0:
             return None
-        return parse_java_major_version((result.stdout or "") + "\\n" + (result.stderr or ""))
+        return parse_java_major_version((result.stdout or "") + "\n" + (result.stderr or ""))
     except (OSError, subprocess.SubprocessError):
         return None
-
 
 def detect_package_manager() -> str | None:
     """Choose the package manager from the repository lockfile; never guess from PATH alone."""
@@ -434,7 +433,7 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     else:
         kotlin_lsp_status = "READY_UNVALIDATED"
 
-        sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
+    sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
     sandbox_detected = any(sandbox_tools.values())
     # Presence is not proof of rootless mode, isolation, network policy or resource limits.
     sandbox_status = "DETECTED_UNVALIDATED" if sandbox_detected else "NOT_AVAILABLE"
