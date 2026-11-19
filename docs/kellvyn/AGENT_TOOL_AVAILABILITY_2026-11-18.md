@@ -187,3 +187,25 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - O teste instrumental de disponibilidade confirma que `wikipedia_search` é a única ferramenta NETWORK_READ registrada e que somente o Pesquisador recebe essa capability quando a rede é autorizada. Teste escrito não equivale a execução; CI/Android continuam bloqueados.
 - `agent-creation` também está registrado e é somente leitura para o modelo, incluindo histórico e diff pendente de perfis.
 - Essa correção ajusta apenas a documentação de inventário; nenhum módulo ou permissão foi alterado.
+
+## 5. Atualização — monitoramento operacional de bots (19/11/2026)
+
+Foi registrado o módulo `bot-operations`, com a ferramenta READ_ONLY `bot_runtime_health`.
+
+O diagnóstico mostra:
+- se os adaptadores Telegram e Discord estão implementados, habilitados e com credencial armazenada;
+- o último estado de conexão registrado;
+- a idade da última resposta bem-sucedida do long polling Telegram;
+- a idade do último ACK de heartbeat do Gateway Discord;
+- WhatsApp como NÃO IMPLEMENTADO nesta branch.
+
+Regras:
+- nenhum token bruto é retornado; a verificação usa apenas `BotTokenStore.hasToken`;
+- o agente não envia mensagens, não reinicia serviço, não altera preferências e não lê credenciais;
+- o sinal é classificado como recente até 90 segundos; depois disso fica desatualizado;
+- o sinal prova apenas uma resposta/ACK observado no passado, não disponibilidade contínua nem garantia de execução em segundo plano.
+
+A capability `WORKFLOW_AUTOMATION` é atualmente compartilhada por PLANNING_ANALYST e OPERATIONS_ANALYST; ambos podem receber esta ferramenta READ_ONLY. A permissão continua vindo da matriz central, e não do perfil.
+
+**Validação:** teste unitário e atualização do teste instrumentado de matriz foram escritos. A execução Gradle/Android continua NOT_RUN: o run `44442872173`, job `135287790227`, encerrou sem steps e sem logs disponíveis. Não declarar esta nova ferramenta compilada ou aprovada até executar a suíte.
+
