@@ -338,7 +338,7 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     java_output = found.get("java", "")
     javac_output = found.get("javac", "")
     java17 = bool(re.search(r'\b17(?:[.\s"]|$)', java_output)) and bool(
-        re.search(r'\\b17(?:[.\\s]|$)', javac_output)
+        re.search(r'\b17(?:[.\s]|$)', javac_output)
     )
     if not java17:
         android_missing.append("JDK 17 (java and javac must both report version 17)")
