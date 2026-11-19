@@ -25,6 +25,31 @@ class KellvynDecisionProtocolTest {
     }
 
     @Test
+    fun parsesBoundedSingleLineNaturalFinalTextWithoutHexExpansion() {
+        val text = "A resposta natural preserva acentos, pontuação e símbolos: coração, ação e 42."
+        val output = listOf(
+            "KELLVYN/1",
+            "FINAL",
+            "TEXT_RAW\t$text",
+            "END"
+        ).joinToString("\n")
+
+        val parsed = KellvynDecisionProtocol.parse(output) as
+            KellvynDecisionProtocol.ParseResult.Accepted
+
+        assertEquals(KellvynModelDecision.Final(text), parsed.decision)
+    }
+
+    @Test
+    fun rejectsMultilineOrControlCharactersInRawFinalText() {
+        val multiline = "KELLVYN/1\nFINAL\nTEXT_RAW\tlinha 1\nlinha 2\nEND"
+        val withControl = "KELLVYN/1\nFINAL\nTEXT_RAW\ttexto\u0000malicioso\nEND"
+
+        assertTrue(KellvynDecisionProtocol.parse(multiline) is KellvynDecisionProtocol.ParseResult.Rejected)
+        assertTrue(KellvynDecisionProtocol.parse(withControl) is KellvynDecisionProtocol.ParseResult.Rejected)
+    }
+
+    @Test
     fun parsesToolCallAndKeepsArgumentsAsData() {
         val output = listOf(
             "KELLVYN/1",
