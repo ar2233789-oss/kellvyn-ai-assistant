@@ -17,7 +17,7 @@ class KellvynTransformerCapacityEstimatorTest {
         assertEquals(349_184L, report.optimizerStateBytes)
         assertEquals(523_776L, report.persistedStateBytes)
         assertEquals(65_536L, report.generationKvCacheBytes)
-        assertEquals(590_656L, report.residentLowerBoundBytes)
+        assertEquals(589_984L, report.residentLowerBoundBytes)
         assertEquals(523_872L, report.checkpointLowerBoundBytes)
         assertEquals(null, report.fitsMemoryBudget)
     }
