@@ -169,7 +169,7 @@ SENSITIVE_ENV_NAME = re.compile(
     r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
 )
 SENSITIVE_ASSIGNMENT = re.compile(
-    r"(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\\s*[:=]\\s*)[^\\s,;]+"
+    r"""(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\\s*[:=]\\s*)[^\\s,;]+"""
 )
 BEARER_VALUE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
 TOKEN_VALUE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\b")
