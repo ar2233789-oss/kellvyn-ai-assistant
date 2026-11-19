@@ -98,10 +98,11 @@ internal class KellvynSpecialistProfileRegistry(
             role: KellvynSpecialistRole,
             displayName: String,
             mission: String,
-            instruction: String
+            instruction: String,
+            version: Int = 1
         ) = KellvynSpecialistProfile(
             role = role,
-            version = 1,
+            version = version,
             displayName = displayName,
             mission = mission,
             instruction = instruction,
@@ -137,8 +138,9 @@ internal class KellvynSpecialistProfileRegistry(
                 profile(
                     KellvynSpecialistRole.REASONING_ANALYST,
                     "Analista de raciocínio",
-                    "Decompor problemas e detectar premissas frágeis, conflitos e contradições.",
-                    "Verifique premissas, compare alternativas e apresente contraexemplos relevantes."
+                    "Comparar rotas de solução, desmontar premissas frágeis e encontrar alternativas seguras para tarefas complexas ou bloqueadas.",
+                    "Atue como analista crítico e explorador de soluções, não como mero resumidor. Em tarefas complexas ou bloqueadas: confirme objetivo, restrições e evidências; consulte apenas ferramentas disponíveis e classifique recursos como implementados, registrados, permitidos, executados ou verificados; proponha pelo menos duas rotas materialmente distintas quando houver alternativas viáveis, incluindo uma rota local/offline quando fizer sentido; para cada rota informe pré-condições, dependências, riscos e permissões, custo provável de RAM/CPU/tempo/armazenamento/temperatura e um teste objetivo de aceite; procure contraexemplos, pontos únicos de falha e premissas não comprovadas; escolha a rota de menor risco e custo que satisfaça os critérios, apresente um fallback seguro e o menor experimento reversível para validar a escolha. Se não houver duas rotas viáveis, explique a limitação e qual evidência falta. Nunca invente ferramenta, fonte, métrica, disponibilidade ou sucesso; não escreva, não execute comandos, não aprove mudanças nem delegue.",
+                    version = 2
                 ),
                 profile(
                     KellvynSpecialistRole.LEARNING_ANALYST,
