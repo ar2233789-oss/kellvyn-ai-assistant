@@ -391,20 +391,21 @@ def debug_log(log_path: Path) -> dict[str, Any]:
         for match in list(regex.finditer(raw))[-80:]:
             if kind == "KOTLIN_COMPILER":
                 path, line, col, message = match.groups()
-                findings.append({"kind": kind, "path": path, "line": int(line), "column": int(col), "message": message[:500]})
+                findings.append({"_offset": match.start(), "kind": kind, "path": path, "line": int(line), "column": int(col), "message": message[:500]})
             elif kind == "JAVA_COMPILER":
                 path, line, message = match.groups()
-                findings.append({"kind": kind, "path": path, "line": int(line), "message": message[:500]})
+                findings.append({"_offset": match.start(), "kind": kind, "path": path, "line": int(line), "message": message[:500]})
             elif kind in ("STACK_FRAME", "PYTHON_TRACEBACK"):
-                findings.append({"kind": kind, "path": match.group(1), "line": int(match.group(2)), "message": match.group(0).strip()[:500]})
+                findings.append({"_offset": match.start(), "kind": kind, "path": match.group(1), "line": int(match.group(2)), "message": match.group(0).strip()[:500]})
             elif kind == "EXCEPTION_SUMMARY":
-                findings.append({"kind": kind, "exception": match.group(1), "message": (match.group(2) or "").strip()[:500]})
+                findings.append({"_offset": match.start(), "kind": kind, "exception": match.group(1), "message": (match.group(2) or "").strip()[:500]})
             else:
-                findings.append({"kind": kind, "message": match.group(1).strip()[:1000] if match.groups() else match.group(0).strip()[:1000]})
-    # Preserve chronological appearance while de-duplicating exact findings.
+                findings.append({"_offset": match.start(), "kind": kind, "message": match.group(1).strip()[:1000] if match.groups() else match.group(0).strip()[:1000]})
+    # Preserve source-log order, independent of the order of regex passes.
     unique = []
     seen = set()
-    for item in sorted(findings, key=lambda x: (x.get("path", ""), x.get("line", 0), x["kind"])):
+    for item in sorted(findings, key=lambda x: x["_offset"]):
+        item.pop("_offset", None)
         key = json.dumps(item, sort_keys=True)
         if key not in seen:
             seen.add(key)

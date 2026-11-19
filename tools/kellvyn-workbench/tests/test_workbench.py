@@ -111,6 +111,26 @@ class LedgerTests(unittest.TestCase):
             self.assertFalse(wb.verify_ledger(path)["valid"])
 
 class DiagnosticTests(unittest.TestCase):
+    def test_debug_findings_follow_original_log_order(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            log = root / "logcat.txt"
+            log.write_text(
+                "11-19 02:05:01.123 1234 1234 E AndroidRuntime: FATAL EXCEPTION: main\n"
+                "java.lang.IllegalStateException: sample crash\n"
+                "F libc (1234): Fatal signal 11 (SIGSEGV), code 1\n"
+            )
+            original = wb.ROOT
+            wb.ROOT = root
+            try:
+                report = wb.debug_log(log)
+            finally:
+                wb.ROOT = original
+            kinds = [item["kind"] for item in report["findings"]]
+            self.assertLess(kinds.index("FATAL"), kinds.index("EXCEPTION_SUMMARY"))
+            self.assertLess(kinds.index("EXCEPTION_SUMMARY"), len(kinds) - 1 - kinds[::-1].index("FATAL"))
+            self.assertTrue(all("_offset" not in item for item in report["findings"]))
+
     def test_kotlin_and_stack_trace_locations_are_extracted(self):
         with tempfile.TemporaryDirectory() as td:
             log = Path(td) / "build.log"
