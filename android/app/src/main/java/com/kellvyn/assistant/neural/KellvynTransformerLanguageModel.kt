@@ -597,10 +597,11 @@ internal class KellvynTransformerLanguageModel private constructor(
             val headDim = d / h
             val length = keyCache.size
             val attentionConcat = FloatArray(d)
+            // Scratch storage is reused because heads are processed sequentially.
+            val scores = FloatArray(length)
 
             for (head in 0 until h) {
                 val offset = head * headDim
-                val scores = FloatArray(length)
                 var maximum = Float.NEGATIVE_INFINITY
                 for (position in 0 until length) {
                     var score = 0.0f
@@ -614,15 +615,14 @@ internal class KellvynTransformerLanguageModel private constructor(
                 }
 
                 var denominator = 0.0
-                val probabilities = FloatArray(length)
                 for (position in 0 until length) {
                     val value = exp((scores[position] - maximum).toDouble())
-                    probabilities[position] = value.toFloat()
+                    scores[position] = value.toFloat()
                     denominator += value
                 }
                 require(denominator.isFinite() && denominator > 0.0)
                 for (position in 0 until length) {
-                    val weight = (probabilities[position].toDouble() / denominator).toFloat()
+                    val weight = (scores[position].toDouble() / denominator).toFloat()
                     val values = valueCache[position]
                     for (dimension in 0 until headDim) {
                         val feature = offset + dimension
@@ -1012,10 +1012,11 @@ internal class KellvynTransformerLanguageModel private constructor(
         val dQueryRotated = FloatArray(d)
         val dKeysRotated = Array(length) { FloatArray(d) }
         val dValues = Array(length) { FloatArray(d) }
+        // Each head overwrites every entry before consuming this reusable buffer.
+        val dAttentionProbability = FloatArray(length)
 
         for (head in 0 until h) {
             val headOffset = head * headDim
-            val dAttentionProbability = FloatArray(length)
             for (position in 0 until length) {
                 val attention = pass.attentionWeights[head][position]
                 var derivative = 0.0f
@@ -1173,10 +1174,10 @@ internal class KellvynTransformerLanguageModel private constructor(
 
         val attentionWeights = Array(h) { FloatArray(length) }
         val attentionConcat = FloatArray(d)
+        val scores = FloatArray(length)
         val scale = inverseAttentionScale
         for (head in 0 until h) {
             val offset = head * headDim
-            val scores = FloatArray(length)
             var maximum = Float.NEGATIVE_INFINITY
             for (position in 0 until length) {
                 var score = 0.0f
