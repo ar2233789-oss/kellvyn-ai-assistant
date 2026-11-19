@@ -122,7 +122,8 @@
       "Uses exact package token matching to avoid package-prefix false positives",
       "Checks foreground package before and after recording and reports PARTIAL if it is not foreground at the end",
       "Persists minimal failure manifest only after device preflight created the run directory",
-      "Preserves CAPTURED state through the outer Workbench run ledger"
+      "Preserves CAPTURED state through the outer Workbench run ledger",
+      "Does not persist raw dumpsys activity task lists; records only pre/post foreground booleans"
     ],
     "tests": {
       "method_count": 16,
@@ -134,7 +135,8 @@
       "Frame budget must be supplied for the expected refresh rate; the tool does not assume 60 or 120 Hz",
       "Capture includes the full visible screen and requires private content/notifications to be closed",
       "screenrecord adds measurement overhead; gfxinfo results are diagnostic and should be confirmed with Perfetto/Macrobenchmark.",
-      "screenrecord adds measurement overhead; gfxinfo timings are diagnostic and must be confirmed using Perfetto/Macrobenchmark where needed."
+      "screenrecord adds measurement overhead; gfxinfo timings are diagnostic and must be confirmed using Perfetto/Macrobenchmark where needed.",
+      "The foreground check is before/after rather than continuous; short app switches between samples are not detected."
     ],
     "result_semantics": {
       "capture_status": "CAPTURED",
