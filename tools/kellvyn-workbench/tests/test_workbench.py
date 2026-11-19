@@ -127,6 +127,56 @@ class LedgerTests(unittest.TestCase):
             finally:
                 wb.ROOT, wb.RUNS, wb.LEDGER = old
 
+    def test_run_capture_drops_secret_environment_and_redacts_outputs_and_manifest(self):
+        import sys
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old = (wb.ROOT, wb.RUNS, wb.LEDGER)
+            wb.ROOT = root
+            wb.RUNS = root / "artifacts" / "runs"
+            wb.LEDGER = root / "docs" / "ledger.jsonl"
+            code = "import os; print('API_KEY=sample-secret-value'); print(os.getenv('KELLVYN_WORKBENCH_TEST_TOKEN', 'not-inherited'))"
+            try:
+                with mock.patch.dict(wb.os.environ, {"KELLVYN_WORKBENCH_TEST_TOKEN": "host-secret-value"}):
+                    result = wb.run_capture("secret-redaction-probe", [sys.executable, "-c", code], cwd=root, timeout_s=10)
+                self.assertEqual("PASSED", result["status"])
+                stdout = (root / result["stdout"]).read_text()
+                manifest = (root / result["run_id"] / "run.json")
+                # Run outputs must not contain inherited host credentials or printed key values.
+                self.assertIn("not-inherited", stdout)
+                self.assertIn("[REDACTED]", stdout)
+                self.assertNotIn("host-secret-value", stdout)
+                self.assertNotIn("sample-secret-value", stdout)
+                self.assertNotIn("sample-secret-value", manifest.read_text())
+                self.assertNotIn("host-secret-value", manifest.read_text())
+            finally:
+                wb.ROOT, wb.RUNS, wb.LEDGER = old
+
+    def test_sanitized_child_environment_rejects_explicit_secret_overrides(self):
+        with self.assertRaisesRegex(ValueError, "sensitive environment variable"):
+            wb.sanitized_child_environment({"SERVICE_API_TOKEN": "must-not-pass"})
+
+    @unittest.skipIf(__import__("os").name == "nt", "POSIX process-group termination only")
+    def test_timeout_terminates_descendant_processes(self):
+        import sys
+        import time
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            old = (wb.ROOT, wb.RUNS, wb.LEDGER)
+            wb.ROOT = root
+            wb.RUNS = root / "artifacts" / "runs"
+            wb.LEDGER = root / "docs" / "ledger.jsonl"
+            sentinel = root / "descendant-survived.txt"
+            child_code = "import time,pathlib; time.sleep(1.5); pathlib.Path(" + repr(str(sentinel)) + ").write_text('survived')"
+            parent_code = "import subprocess,sys,time; subprocess.Popen([sys.executable,'-c'," + repr(child_code) + "]); time.sleep(30)"
+            try:
+                result = wb.run_capture("process-tree-timeout", [sys.executable, "-c", parent_code], cwd=root, timeout_s=0.5)
+                self.assertEqual("TIMED_OUT", result["status"])
+                time.sleep(1.8)
+                self.assertFalse(sentinel.exists(), "descendant process survived timeout termination")
+            finally:
+                wb.ROOT, wb.RUNS, wb.LEDGER = old
+
     def test_tampering_is_detected(self):
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "ledger.jsonl"
