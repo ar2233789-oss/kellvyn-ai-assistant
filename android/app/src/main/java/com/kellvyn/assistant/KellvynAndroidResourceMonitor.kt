@@ -30,7 +30,7 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
         sample = { forecastSeconds -> powerManager?.getThermalHeadroom(forecastSeconds) },
         forecastSeconds = THERMAL_FORECAST_SECONDS
     )
-    private val thermalHeadroomThresholds: Pair<Float?, Float?> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    private val thermalHeadroomThresholds: Pair<Float?, Float?> by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         readThermalHeadroomThresholds()
     }
     private val memoryPressure = AtomicReference(KellvynMemoryPressure.NORMAL)
