@@ -52,7 +52,7 @@ class KellvynKNAgentIntegrationContractTest {
         val agent = KellvynAgent(
             inference = engine,
             tools = KellvynToolRegistry(listOf(readTool, deleteTool)),
-            config = KellvynAgentConfig(maxDelegations = 1),
+            config = KellvynAgentConfig(maxDelegations = 1, allowDelegation = true),
             skillRegistry = KellvynSkillRegistry.empty(),
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(recorder)
