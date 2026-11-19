@@ -106,6 +106,36 @@ class PolyglotToolchainTests(unittest.TestCase):
             else:
                 wb.os.environ["KOTLIN_LSP_JAVA_HOME"] = old_home
 
+    def test_kotlin_lsp_is_blocked_when_its_separate_jdk_is_missing(self):
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        with mock.patch.dict(wb.os.environ, {"KOTLIN_LSP_JAVA_HOME": ""}):
+            with mock.patch.object(
+                wb.shutil, "which",
+                side_effect=lambda name: "/opt/kotlin-lsp/bin/kotlin-lsp" if name == "kotlin-lsp" else None
+            ):
+                matrix = wb.toolchain_matrix({}, {})
+        self.assertEqual(
+            "BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED",
+            matrix["kotlin_semantic_analysis"]["status"]
+        )
+        self.assertEqual(25, matrix["kotlin_semantic_analysis"]["required_runtime_jdk_major"])
+
+    def test_kotlin_lsp_is_blocked_when_the_separate_jdk_is_not_25(self):
+        fake_home = self.root / "jdk17"
+        java = fake_home / "bin" / "java"
+        java.parent.mkdir(parents=True)
+        java.write_text('#!/bin/sh\\necho \'openjdk version "17.0.12"\' >&2\\n')
+        java.chmod(0o755)
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        with mock.patch.dict(wb.os.environ, {"KOTLIN_LSP_JAVA_HOME": str(fake_home)}):
+            with mock.patch.object(
+                wb.shutil, "which",
+                side_effect=lambda name: "/opt/kotlin-lsp/bin/kotlin-lsp" if name == "kotlin-lsp" else None
+            ):
+                matrix = wb.toolchain_matrix({}, {})
+        self.assertEqual("BLOCKED_JDK25_REQUIRED", matrix["kotlin_semantic_analysis"]["status"])
+        self.assertEqual(17, matrix["kotlin_semantic_analysis"]["runtime_jdk_major"])
+
     def test_toolchain_matrix_never_calls_detected_container_tool_a_secure_sandbox(self):
         (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
         with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/podman" if name == "podman" else None):
