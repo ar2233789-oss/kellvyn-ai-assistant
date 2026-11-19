@@ -163,7 +163,7 @@ def within_repo(path: Path) -> Path:
 SAFE_CHILD_ENV_KEYS = {
     "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ",
     "JAVA_HOME", "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_USER_HOME",
-    "GRADLE_USER_HOME", "BUN_INSTALL", "KOTLIN_LSP_JAVA_HOME", "CI",
+    "GRADLE_USER_HOME", "BUN_INSTALL", "KOTLIN_LSP_JAVA_HOME", "KOTLIN_LSP_EXECUTABLE", "CI",
 }
 SENSITIVE_ENV_NAME = re.compile(
     r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
@@ -418,14 +418,23 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     else:
         shell_status = "PARTIAL"
 
-    kotlin_lsp_executable = shutil.which("kotlin-lsp") or shutil.which("intellij-server")
+    kotlin_lsp_executable_override = os.environ.get("KOTLIN_LSP_EXECUTABLE", "").strip()
+    if kotlin_lsp_executable_override:
+        lsp_candidate = Path(kotlin_lsp_executable_override).expanduser()
+        kotlin_lsp_executable = str(lsp_candidate.resolve()) if lsp_candidate.is_file() and os.access(lsp_candidate, os.X_OK) else None
+        lsp_override_invalid = kotlin_lsp_executable is None
+    else:
+        kotlin_lsp_executable = shutil.which("kotlin-lsp") or shutil.which("intellij-server")
+        lsp_override_invalid = False
     kotlin_lsp_java_home_text = os.environ.get("KOTLIN_LSP_JAVA_HOME", "").strip()
     kotlin_lsp_java = (
         Path(kotlin_lsp_java_home_text).expanduser() / "bin" / ("java.exe" if os.name == "nt" else "java")
         if kotlin_lsp_java_home_text else None
     )
     kotlin_lsp_java_major = probe_java_major_version(kotlin_lsp_java) if kotlin_lsp_java else None
-    if not kotlin_lsp_executable:
+    if lsp_override_invalid:
+        kotlin_lsp_status = "BLOCKED_LSP_EXECUTABLE_MISSING"
+    elif not kotlin_lsp_executable:
         kotlin_lsp_status = "OPTIONAL_NOT_INSTALLED"
     elif not kotlin_lsp_java:
         kotlin_lsp_status = "BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED"
@@ -498,6 +507,7 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
         },
         "kotlin_semantic_analysis": {
             "language_server": kotlin_lsp_executable,
+            "configured_executable": kotlin_lsp_executable_override or None,
             "status": kotlin_lsp_status,
             "runtime_jdk_home": kotlin_lsp_java_home_text or None,
             "runtime_jdk_major": kotlin_lsp_java_major,
