@@ -45,7 +45,9 @@ internal data class KellvynResourceSnapshot(
     val sampledAtElapsedRealtimeMillis: Long = 0L,
     val availableProcessors: Int = 1,
     val thermalModerateHeadroomThreshold: Float? = null,
-    val thermalSevereHeadroomThreshold: Float? = null
+    val thermalSevereHeadroomThreshold: Float? = null,
+    val availableAppDataBytes: Long? = null,
+    val totalAppDataBytes: Long? = null
 ) {
     init {
         require(totalSystemMemoryBytes > 0L)
@@ -63,6 +65,10 @@ internal data class KellvynResourceSnapshot(
             (thermalModerateHeadroomThreshold.isFinite() && thermalModerateHeadroomThreshold >= 0f))
         require(thermalSevereHeadroomThreshold == null ||
             (thermalSevereHeadroomThreshold.isFinite() && thermalSevereHeadroomThreshold >= 0f))
+        require(availableAppDataBytes == null || availableAppDataBytes >= 0L)
+        require(totalAppDataBytes == null || totalAppDataBytes >= 0L)
+        require(availableAppDataBytes == null || totalAppDataBytes == null ||
+            availableAppDataBytes <= totalAppDataBytes)
     }
 
     val processHeapUtilization: Float
