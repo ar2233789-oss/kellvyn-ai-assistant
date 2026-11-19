@@ -338,7 +338,8 @@ def capture_android_animation(
         raise AuditBlocked(f"package is not installed on the selected device: {package}")
 
     activities = adb_command(adb, serial, "shell", "dumpsys", "activity", "activities", timeout_s=20)
-    if not foreground_package(activities.stdout, package):
+    app_foreground_before = foreground_package(activities.stdout, package)
+    if not app_foreground_before:
         raise AuditBlocked(
             f"{package} is not confirmed as the resumed/top-resumed app; bring it to the foreground before recording"
         )
@@ -387,9 +388,13 @@ def capture_android_animation(
 
     gfx = adb_command(adb, serial, "shell", "dumpsys", "gfxinfo", package, "framestats", timeout_s=25, allow_failure=True)
     save_text("gfxinfo-framestats.txt", gfx.stdout + gfx.stderr)
+    after_activity = adb_command(
+        adb, serial, "shell", "dumpsys", "activity", "activities",
+        timeout_s=20, allow_failure=True
+    )
+    app_foreground_after = foreground_package(after_activity.stdout, package)
     after_snapshots: dict[str, str] = {}
     for key, name, args, timeout in (
-        ("activities", "activities-after.txt", ("shell", "dumpsys", "activity", "activities"), 20),
         ("display", "display-after.txt", ("shell", "dumpsys", "display"), 20),
         ("battery", "battery-after.txt", ("shell", "dumpsys", "battery"), 15),
         ("thermal", "thermal-after.txt", ("shell", "dumpsys", "thermalservice"), 15),
@@ -404,10 +409,7 @@ def capture_android_animation(
     report["frame_metrics"] = frame_metrics
     pss_before = parse_meminfo_pss_kb(before_snapshots.get("memory", ""))
     pss_after = parse_meminfo_pss_kb(after_snapshots.get("memory", ""))
-    app_foreground_after = foreground_package(
-        after_snapshots.get("activities", ""), package
-    )
-    report["app_foreground_before_capture"] = True
+    report["app_foreground_before_capture"] = app_foreground_before
     report["app_foreground_after_capture"] = app_foreground_after
     report["resource_metrics"] = {
         "memory_total_pss_kb_before": pss_before,
