@@ -756,3 +756,24 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 - Próxima sequência: revisar diff/compilabilidade dos testes; abrir PR draft para tentativa de CI sem merge; buscar rota de execução manual isolada sem usar o Poco F6 pessoal como runner; depois retomar lacunas dos outros papéis e Agent Lab.
 
 **Proteções:** não tocar `MainActivity.java`, interface/layout, `.github/interface-lock.sha`, cérebro/Runtime nem dados de produção nesta trilha.
+
+## 11.3. Continuidade — comparador científico do Agent Lab (19/11/2026)
+
+**Branch:** `kellvyn-rnd/reasoning-alternatives-20261119`  
+**PR draft:** [#24 — Reasoning Analyst v2 e comparação segura](https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/24)
+
+### Correção do laboratório
+- O comparador antigo somava aprovações mesmo quando baseline e candidato tinham suites/ferramentas diferentes. Isso permitia apresentar variação sem comparabilidade real.
+- O harness agora grava três fingerprints SHA-256: `CASES_` (definição integral da bateria), `PROFILES_` (perfis e limites) e `TOOLS_` (contratos das ferramentas e modo de rede).
+- Comparar baterias diferentes agora é recusado. Mudança de ferramenta/política, cobertura de casos diferente, suíte bloqueada/review-required ou trace interrompido suprime o delta; ainda é possível mostrar estados brutos.
+- Perfil diferente pode ser a variável do experimento, desde que a bateria e os contratos de ferramentas/política sejam os mesmos e ambas as suítes tenham o resumo terminal `CASES_N`.
+- `FAILED` com `CASES_N` indica que a bateria terminou e encontrou casos reprovados; `BENCHMARK_ERROR` e `CANCELLED` não contam como execução completa.
+- Limite ainda aberto: checkpoint/identidade do modelo neural não está no fingerprint. O relatório avisa que mesmo uma comparação controlada não prova causalidade por mudanças de pesos.
+- Testes ajustados para os três fingerprints, quatro cenários de comparação, execução incompleta e limites da suíte de 28 casos. Todos escritos, ainda sem Gradle/JUnit real.
+
+### Estado CI observado
+- SHA da branch no momento da verificação: `afdc129963fc56b7328e26b887455ebbecb48239` (antes dos dois últimos commits documentais/teste de compatibilidade).
+- O run `44534146166` foi do workflow `Build APK`; job `135595015706` terminou sem steps. Isso não representa execução de `agent-lab-tests.yml` nem prova falha de código.
+- `get_commit_combined_status` não retornou checks. Gradle/JUnit/Android instrumented permanecem NOT_RUN até runner executar as etapas.
+
+**Não mesclar PR #24.** Manter draft até a suíte iniciar e passar com logs associados ao SHA final. Não alterar `MainActivity`, layout, cérebro de produção, `KellvynRuntime` ou permissões de escrita.
