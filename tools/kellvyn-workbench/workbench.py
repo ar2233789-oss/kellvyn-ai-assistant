@@ -187,8 +187,9 @@ def sanitized_child_environment(extra: dict[str, str] | None = None) -> dict[str
 
 
 def redact_sensitive_text(value: str) -> str:
-    value = SENSITIVE_ASSIGNMENT.sub(r"\1\2[REDACTED]", value)
+    # Redact bearer payloads before the generic Authorization assignment rule.
     value = BEARER_VALUE.sub("Bearer [REDACTED]", value)
+    value = SENSITIVE_ASSIGNMENT.sub(r"\1\2[REDACTED]", value)
     value = TOKEN_VALUE.sub("[REDACTED_TOKEN]", value)
     return value
 
