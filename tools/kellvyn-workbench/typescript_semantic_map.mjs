@@ -50,7 +50,8 @@ function declarationKind(node) {
 }
 
 function hasExportModifier(node) {
-  return (node.modifiers ?? []).some(modifier =>
+  const modifiers = node.modifiers ?? node.parent?.modifiers ?? [];
+  return modifiers.some(modifier =>
     modifier.kind === ts.SyntaxKind.ExportKeyword ||
     modifier.kind === ts.SyntaxKind.DefaultKeyword
   );
@@ -142,9 +143,16 @@ export function analyzeProject(projectRoot = DEFAULT_ROOT) {
       if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
           node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) {
         const specifier = node.moduleSpecifier.text;
-        const target = resolveModule(root, sourceFile, specifier, parsed.options);
+        const resolution = resolveModule(root, sourceFile, specifier, parsed.options);
         const start = sourceFile.getLineAndCharacterOfPosition(node.getStart());
-        imports.push({ from: fileName, specifier, to: target, line: start.line + 1, resolved: target !== null });
+        imports.push({
+          from: fileName,
+          specifier,
+          to: resolution.target,
+          line: start.line + 1,
+          resolved: resolution.resolved,
+          project_local: resolution.projectLocal
+        });
       }
 
       if (ts.isCallExpression(node) || ts.isNewExpression(node)) {
@@ -201,7 +209,19 @@ export function analyzeProject(projectRoot = DEFAULT_ROOT) {
     generated_at_utc: new Date().toISOString(),
     root: root,
     typescript_version: ts.version,
-    compiler_options: parsed.options,
+    compiler_options: {
+      noEmit: true,
+      strict: parsed.options.strict ?? false,
+      jsx: parsed.options.jsx === undefined ? null : (ts.JsxEmit[parsed.options.jsx] ?? parsed.options.jsx),
+      target: parsed.options.target === undefined ? null : (ts.ScriptTarget[parsed.options.target] ?? parsed.options.target),
+      module: parsed.options.module === undefined ? null : (ts.ModuleKind[parsed.options.module] ?? parsed.options.module),
+      moduleResolution: parsed.options.moduleResolution === undefined
+        ? null
+        : (ts.ModuleResolutionKind[parsed.options.moduleResolution] ?? parsed.options.moduleResolution),
+      allowJs: parsed.options.allowJs ?? false,
+      resolveJsonModule: parsed.options.resolveJsonModule ?? false,
+      skipLibCheck: parsed.options.skipLibCheck ?? false
+    },
     summary: {
       files: files.length,
       declarations: declarations.length,
