@@ -11,7 +11,8 @@ internal class KellvynAgentLabStudio(
     private val traceStore: KellvynAgentLabTraceStore,
     private val moduleManager: KellvynStudioModuleManager,
     private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
-    private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth
+    private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth,
+    private val networkReadEnabled: () -> Boolean = { false }
 ) : KellvynStudioModule {
 
     override val manifest: KellvynStudioModuleManifest = MANIFEST
@@ -74,6 +75,18 @@ internal class KellvynAgentLabStudio(
                         append(" | trace afetado: ").append(it)
                     }
                     append("\n")
+                    append("Thermal headroom previsto: ")
+                        .append(snapshot.thermalHeadroomForecast?.toString() ?: "indisponível")
+                    append("; limiar OEM moderado: ")
+                        .append(snapshot.thermalModerateHeadroomThreshold?.toString() ?: "indisponível")
+                    append("; limiar OEM severo: ")
+                        .append(snapshot.thermalSevereHeadroomThreshold?.toString() ?: "indisponível")
+                    append("\n")
+                    append("Armazenamento privado do app disponível/total: ")
+                        .append(snapshot.availableAppDataBytes?.div(MEBIBYTE)?.toString() ?: "indisponível")
+                        .append(" / ")
+                        .append(snapshot.totalAppDataBytes?.div(MEBIBYTE)?.toString() ?: "indisponível")
+                        .append(" MiB\n")
                     append("Bateria: ")
                         .append(snapshot.batteryPercent?.let { "$it%" } ?: "indisponível")
                     append("; carregando: ").append(snapshot.charging).append("\n\n")
@@ -271,7 +284,46 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
-        }
+,
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[4]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                if (arguments.isNotEmpty()) {
+                    return KellvynToolResult(false, "A matriz de especialistas não aceita argumentos.")
+                }
+                val allowNetwork = networkReadEnabled()
+                val registeredSpecs = moduleManager.manifests().flatMap { it.toolSpecs }
+                    .sortedBy { it.name }
+                val output = buildString {
+                    append("MATRIZ DE COORDENAÇÃO DOS 14 ESPECIALISTAS\n")
+                    append("Fonte única de permissões: KellvynSpecialistToolPolicy.\n")
+                    append("Pesquisa de rede controlada pelo proprietário: ")
+                        .append(if (allowNetwork) "ATIVADA" else "DESATIVADA")
+                        .append("\n")
+                    KellvynSpecialistRole.values().sortedBy { it.name }.forEach { role ->
+                        val capabilities = KellvynSpecialistToolPolicy.capabilitiesFor(role)
+                            .map { it.name }.sorted()
+                        val permittedNames = KellvynSpecialistToolPolicy.permittedToolNames(
+                            role = role,
+                            specs = registeredSpecs,
+                            allowNetworkRead = allowNetwork
+                        )
+                        val permitted = registeredSpecs.filter { it.name in permittedNames }
+                        append("\n").append(role.name).append("\n")
+                        append("  capacidades: ")
+                            .append(capabilities.joinToString(", ").ifBlank { "nenhuma" }).append("\n")
+                        append("  ferramentas permitidas: ")
+                            .append(permitted.joinToString { "${it.name}[${it.risk.name}]" }
+                                .ifBlank { "nenhuma ferramenta registrada para este papel" })
+                            .append("\n")
+                        append("  delegação aninhada: NÃO; mutação por especialista: NÃO\n")
+                    }
+                    append("\nA matriz mostra permissões calculadas; não afirma que um motor esteja carregado ou que um benchmark tenha sido aprovado.")
+                }
+                return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
+            }
+        }        }
     )
 
     override fun trimTransientResources(level: KellvynCachePressure) = Unit
@@ -284,6 +336,7 @@ internal class KellvynAgentLabStudio(
         const val TRACE_LIST_TOOL = "agent_lab_traces_list"
         const val TRACE_INSPECT_TOOL = "agent_lab_trace_inspect"
         const val TRACE_COMPARE_TOOL = "agent_lab_trace_compare"
+        const val SPECIALIST_MATRIX_TOOL = "agent_lab_specialist_matrix"
 
         private const val KIBIBYTE = 1024L
         private const val MEBIBYTE = 1024L * KIBIBYTE
@@ -357,7 +410,19 @@ internal class KellvynAgentLabStudio(
                 estimatedWorkingSetBytes = 24L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
             )
-        )
+,
+            KellvynToolSpec(
+                name = SPECIALIST_MATRIX_TOOL,
+                description = "Expõe a matriz central de capacidades e ferramentas permitidas para cada um dos 14 especialistas; respeita a chave de pesquisa Web do proprietário.",
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 8_000L,
+                workloadClass = KellvynWorkloadClass.LIGHT,
+                estimatedWorkingSetBytes = 2L * MEBIBYTE,
+                capabilities = setOf(
+                    KellvynStudioCapability.AGENT_EVALUATION,
+                    KellvynStudioCapability.AGENT_DESIGN
+                )
+            )        )
 
         private val MANIFEST = KellvynStudioModuleManifest(
             moduleId = MODULE_ID,
@@ -380,13 +445,15 @@ internal class KellvynAgentLabStudio(
             traceStore: KellvynAgentLabTraceStore,
             moduleManager: KellvynStudioModuleManager,
             resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
-            traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth
+            traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth,
+            networkReadEnabled: () -> Boolean = { false }
         ) = KellvynStudioModuleDefinition(MANIFEST) {
             KellvynAgentLabStudio(
                 traceStore = traceStore,
                 moduleManager = moduleManager,
                 resourceSnapshotProvider = resourceSnapshotProvider,
-                traceRecorderHealthProvider = traceRecorderHealthProvider
+                traceRecorderHealthProvider = traceRecorderHealthProvider,
+                networkReadEnabled = networkReadEnabled
             )
         }
     }
