@@ -326,3 +326,19 @@ Fontes adicionais:
 - Replit Plan mode: https://docs.replit.com/pt/references/agent/plan-mode
 - Replit App Testing: https://docs.replit.com/references/agent/app-testing
 - Replit Agent automation tutorial: https://docs.replit.com/pt/build/build-an-agent
+
+
+### Otimização adicional do laço AdamW
+
+Commit `e9f71106861604d919056a4d13b5679ccc3b6962`:
+- Views/listas que apontam para arrays dos parâmetros e dos dois momentos de AdamW são criadas uma vez na construção do modelo e reutilizadas.
+- O laço de treino agora cria uma única lista de grupos de gradientes por atualização e reutiliza essa referência para norma, clipping e atualização.
+- Antes eram criadas 5 listas por atualização sem clipping, ou 6 quando o clipping ocorria; agora são 1. Isso reduz de 4 a 5 objetos-lista temporários por passo, sem alterar os arrays, parâmetros, gradientes ou a matemática do otimizador.
+- É uma otimização de alocação no caminho quente; não reduz o número de operações matemáticas e ainda precisa de benchmark para medir impacto em tempo/GC.
+
+Testes relevantes já gravados:
+- `epochTrainingIsReproducibleWhenInputExamplesArriveInDifferentOrder` — estabilidade da seed e da ordem.
+- `directEpochPrimitiveMatchesSingleEpochTrainingExactly` — equivalência de parâmetros/fingerprint entre um passo antigo de uma época e a primitive nova.
+- `supervisedCompletionTrainingReducesLossAndUpdatesOnlyResponseSteps` — preserva treinamento supervisionado e contagem de passos.
+
+Estado: fonte e testes confirmados por releitura no GitHub; não executados pelo Gradle nesta sessão.
