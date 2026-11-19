@@ -132,3 +132,35 @@ Classificação: **NOT RUN / runner não alocado**. Python, Gradle, JUnit e Andr
 8. Build APK, instalação AVD Android 15, validação visual sem alterar layout e teste físico no Poco F6.
 
 **Critério de pronto:** bundle treinado e íntegro + benchmark comportamental aprovado + runtime conectado + Gradle/JUnit/Android instrumented passados + teste em aparelho físico. Até lá, o estado correto é experimental/desconectado.
+
+
+---
+
+## 8. Mudança de direção aprovada — 19/11/2026, 20:00 BRT
+
+**Decisão do proprietário:** encerrar a expansão do laboratório de agentes. O foco passa a ser o cérebro central KN e seu laboratório de inteligência. Não criar novos agentes nem arquitetura multiagente. Os arquivos, testes, documentos, PRs e histórico dos agentes existentes devem ser preservados durante a transição; não apagar nem refatorar módulos antigos sem auditoria de dependências e plano de rollback.
+
+**Ordem obrigatória de trabalho:**
+1. estudar primeiro na web as arquiteturas, documentação oficial, ferramentas, modelos, cursos, benchmarks e projetos relevantes;
+2. registrar fontes, descobertas, riscos e aplicabilidade;
+3. só depois desenhar a evolução do KN;
+4. só depois alterar código, com testes e evidência;
+5. não alterar o layout já aprovado nem declarar o cérebro pronto sem validação real.
+
+**Relatório da pesquisa web inicial:** [KN_WEB_RESEARCH_2026-11-19.md](KN_WEB_RESEARCH_2026-11-19.md). O relatório compara execução cognitiva, pesquisa e memória, Android on-device, ferramentas de programação/depuração, bots, imagem, vídeo, áudio/música, automação, jogos/simulação e cursos.
+
+### Descobertas que afetam decisões de arquitetura
+- O KN-003 descrito nesta auditoria tem 43.648 parâmetros na configuração padrão, contexto de 256 tokens e nenhum pacote pré-treinado no repositório. Continua sendo prova de conceito, não um LLM geral. A capacidade do cérebro-base é um bloqueio P0; ferramentas adicionais, sozinhas, não resolvem esse limite.
+- A direção técnica passa a ser KN central + catálogo de ferramentas determinísticas + pesquisa/memória + ciclo de execução/observação/avaliação/recuperação. Ferramentas não são agentes e não recebem autoridade de decisão.
+- A pesquisa de uma tarefa deve ser acionada por lacuna de conhecimento; estudo proativo deve ter gatilhos, orçamento e limites de bateria/rede. Memória de conhecimento não equivale a treinamento de parâmetros.
+- Telegram long polling é candidato a primeira PoC de bot on-device. Discord Gateway exige conexão persistente e permissões/intents específicas. WhatsApp Business oficial depende de webhook HTTPS público para mensagens recebidas, incompatível com a exigência atual de não depender de hospedagem externa.
+- Android restringe execução em segundo plano; serviços dataSync/mediaProcessing têm cotas relevantes em Android 15+. Nenhum bot 24/7 no Poco deve ser prometido sem PoC de serviço, política OEM e teste prolongado.
+- Áudio local com sherpa-onnx/whisper.cpp é candidato mais realista para começar. Geração avançada de vídeo/música é muito acima dos recursos conhecidos do Poco F6 em modelos como LTX-2.5 e MusicGen medium; edição/transcodificação local é uma categoria separada.
+- Não há prova pública de compatibilidade direta dos runtimes LLM examinados com o Snapdragon 8s Gen 3 do Poco F6. Exigir benchmark no hardware real.
+
+### Estado desta etapa
+- Pesquisa web executada e relatório gravado no repositório.
+- Alterado apenas o documento de pesquisa e esta auditoria.
+- **Nenhum código do KN, runtime, bots ou interface foi alterado nesta etapa.**
+- Agentes existentes foram preservados; nenhum agente novo foi criado.
+- Próxima etapa: revisão de arquitetura P0 da inteligência-base e contrato cognitivo do KN, usando o relatório web como referência. Não ligar Runtime antes de resolver a qualidade/base do modelo e os gates já descritos nesta auditoria.
