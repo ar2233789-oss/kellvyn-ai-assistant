@@ -150,7 +150,9 @@ O laboratório precisa de capacidades distintas, e não apenas um comando genér
 
 **E5. Animação e fidelidade visual**
 - para a web de referência: Playwright com viewport, dispositivo, escala, tema e baseline versionados;
-- para Android Views/Java atuais: Espresso/UI Automator, captura de screenshots/frames e system trace; não adicionar Compose apenas para testar animações;
+- para Android Views/Java atuais: o Workbench agora captura um vídeo do cenário em primeiro plano via ADB `screenrecord`, snapshots de `gfxinfo/framestats`, memória, bateria, térmica e display, e quadros amostrados por FFmpeg; a coleta é explícita por serial e não instala/abre/toca no app;
+- próximo nível: integrar Perfetto FrameTimeline/Macrobenchmark e uma sequência determinística de cenários para Chuva, Raios e efeitos simultâneos; ainda NÃO IMPLEMENTADO;
+- manter Espresso/UI Automator para ações de UI e system trace; não adicionar Compose apenas para testar animações;
 - se Jetpack Compose for usado em um módulo futuro, o relógio virtual do Compose permite avançar animações por frame e validar estados intermediários determinísticos;
 - testes precisam verificar também efeitos simultâneos, clipping, layering, transições, orientação, densidade, fontes, estado de bateria e tema;
 - screenshots não provam comportamento, e teste comportamental não prova fidelidade visual: são gates separados.
@@ -249,6 +251,10 @@ Nenhuma etapa posterior pode transformar `NOT_RUN` em `PASSED`. Uma alteração 
 - Não usar dispositivo pessoal como host de CI.
 
 ### Fase 3 — laboratórios especializados
+- **Primeiro incremento E5 implementado, ainda NOT_RUN:** comando `android-animation-audit` captura `screenrecord`, `gfxinfo framestats`, meminfo, thermalservice, bateria/display e quadros FFmpeg; exige app em primeiro plano e serial ADB explícito, não toca na UI.
+- **Pendente E5:** replay de cenários de efeitos e Perfetto FrameTimeline/Macrobenchmark para análise de jank com oráculo de fidelidade visual.
+
+
 - Brain Numerical Lab: referências numéricas, gradcheck, KV-cache, qualidade e profiling.
 - Agent Behavior Lab: trace/evals/benchmarks e teste de conflitos.
 - Android Visual & Performance Lab: testes de frame/estado, macrobenchmark e Perfetto.
