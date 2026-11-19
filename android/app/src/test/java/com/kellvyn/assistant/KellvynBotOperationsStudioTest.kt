@@ -70,4 +70,31 @@ class KellvynBotOperationsStudioTest {
         assertTrue(empty.content.contains("Não garante disponibilidade contínua"))
         assertTrue(empty.content.contains("nenhuma ação foi executada"))
     }
+    @Test
+    fun reportsBrainReadinessIndependentlyFromBotTransport() = runBlocking {
+        val studio = KellvynBotOperationsStudio(
+            probeProvider = {
+                listOf(
+                    KellvynBotRuntimeProbe(
+                        platform = "Telegram",
+                        adapterImplemented = true,
+                        enabled = true,
+                        tokenConfigured = true,
+                        lastStatus = "Conectado",
+                        lastStatusAtMillis = 900_000L,
+                        lastHeartbeatAtMillis = 900_000L
+                    )
+                )
+            },
+            brainReplyReadyProvider = { true },
+            clock = { 1_000_000L }
+        )
+
+        val result = studio.tools.single().execute(emptyMap())
+
+        assertTrue(result.success)
+        assertTrue(result.content.contains("IA de resposta local: PRONTA"))
+        assertTrue(result.content.contains("Telegram: HEARTBEAT RECENTE"))
+    }
+
 }
