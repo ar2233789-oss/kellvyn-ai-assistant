@@ -1,0 +1,82 @@
+{
+  "schema": "kellvyn-rnd-experiment/v1",
+  "id": "polyglot-lab-foundation-probes-001",
+  "title": "Probes locais isolados da base poliglota da Workbench",
+  "created_at_utc": "2026-11-19T15:52:09.376Z",
+  "scope": "integration",
+  "state": "PARTIAL_LOCAL_VALIDATION_CI_NOT_RUN",
+  "candidate_branch": "kellvyn-rnd/polyglot-lab-foundation-20261119",
+  "candidate_head": "d94f8b6d9b6b64fe0aceaf2c55ea762cc8ea1ae5",
+  "source_blobs": {
+    "tools/kellvyn-workbench/workbench.py": "70d1f8515707293cb4883b1acc6d689b9cb9bfc6",
+    "tools/kellvyn-workbench/tests/test_workbench.py": "de5a777b240e4dcb5919d9cd45bb5f4bc32386d7",
+    "tools/kellvyn-workbench/typescript_semantic_map.mjs": "1bbd79afc952f9f7553dcf3c2d4a977574a7de9d",
+    "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs": "2d88b4b9ae89174f623c736ea6e292cfad72033d"
+  },
+  "host_environment": {
+    "os": "Linux container",
+    "node": "v22.16.0",
+    "typescript": "5.8.3",
+    "python": "3.13.5",
+    "jdk": "OpenJDK 21.0.12.1",
+    "kotlin_cli": "1.9.0"
+  },
+  "local_isolated_probes": [
+    {
+      "name": "typescript-semantic-map-syntax-and-fixtures",
+      "status": "PASSED",
+      "result": "2/2 fixture scenarios",
+      "execution": "Node --check + Node test runner against an isolated local copy of the current analyzer and equivalent fixtures",
+      "coverage": [
+        "exported class/interface/const declarations",
+        "project-local import resolution",
+        "external package import resolution",
+        "missing import classification",
+        "cross-file calls and test references",
+        "TypeScript diagnostics for intentionally missing import"
+      ],
+      "limitation": "Not the repository's full CI workflow and not a full scan of the repository TS/TSX tree."
+    },
+    {
+      "name": "workbench-executor-helper-probes",
+      "status": "PASSED",
+      "result": "4/4 isolated helper checks",
+      "coverage": [
+        "common API key, quoted password and Bearer redaction",
+        "rejection of explicitly secret-named child environment variables",
+        "Gradle 8.13 welcome-banner version recognition",
+        "POSIX process-group cancellation prevents a child process from surviving"
+      ],
+      "execution": "Isolated Python harness reproducing the current helper implementations.",
+      "limitation": "Not the complete Workbench unittest suite; not a security sandbox test."
+    }
+  ],
+  "repository_suite_status": {
+    "workbench_python_tests": "NOT_RUN",
+    "rnd_studio_python_tests": "NOT_RUN",
+    "typescript_map_node_tests": "NOT_RUN_IN_GITHUB_CI",
+    "typescript_typecheck": "NOT_RUN_IN_GITHUB_CI",
+    "web_vitest": "NOT_RUN_IN_GITHUB_CI",
+    "web_eslint": "NOT_RUN_IN_GITHUB_CI",
+    "web_vite_build": "NOT_RUN_IN_GITHUB_CI",
+    "android_gradle_junit": "NOT_RUN",
+    "android_instrumented": "NOT_RUN"
+  },
+  "latest_ci_observation": {
+    "workflow": "Kellvyn Workbench — tooling validation",
+    "status": "failure before first workflow step",
+    "jobs_have_steps": false,
+    "logs_available": false,
+    "classification": "RUNNER_ALLOCATION_BLOCKED / NOT_RUN; this is not evidence of a code compilation failure."
+  },
+  "acceptance_criteria": [
+    "GitHub Workbench workflow receives a runner and starts steps.",
+    "All 23 Python Workbench test methods pass on the exact HEAD.",
+    "Both committed Node semantic-map tests pass on the exact HEAD.",
+    "TS typecheck, Vitest, ESLint and Vite build pass with bun.lock frozen.",
+    "Map is generated for the actual repository with zero TypeScript error diagnostics, or unresolved diagnostics are reviewed.",
+    "Security and process-control behavior is covered by the complete repository unit tests.",
+    "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
+  ],
+  "note": "This file records only local isolated checks. It does not upgrade any repository suite from NOT_RUN to PASSED."
+}
