@@ -59,8 +59,16 @@ function hasExportModifier(node) {
 
 function resolveModule(root, sourceFile, specifier, options) {
   const result = ts.resolveModuleName(specifier, sourceFile.fileName, options, ts.sys).resolvedModule;
-  if (!result) return null;
-  return relativePath(root, path.resolve(result.resolvedFileName));
+  if (!result) return { target: null, resolved: false, projectLocal: false };
+
+  const absolutePath = path.resolve(result.resolvedFileName);
+  const relative = relativePath(root, absolutePath);
+  const projectLocal = Boolean(relative && !relative.startsWith("node_modules/"));
+  return {
+    target: relative,
+    resolved: true,
+    projectLocal
+  };
 }
 
 export function analyzeProject(projectRoot = DEFAULT_ROOT) {
