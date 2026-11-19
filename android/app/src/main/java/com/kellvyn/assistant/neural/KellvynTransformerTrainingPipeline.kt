@@ -350,13 +350,20 @@ internal object KellvynTransformerTrainingPipeline {
             maxMerges = config.maxMerges,
             cancellationCheck = cancellationCheck
         )
+        val endOfSequenceTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
+            "O tokenizer de pré-treinamento KN-003 precisa reservar um token EOS."
+        }
 
         fun encode(partition: List<KellvynTrainingDocument>): List<Pair<String, IntArray>> =
             partition.map { document ->
                 cancellationCheck()
-                val tokens = tokenizer.encode(document.text)
+                val textTokens = tokenizer.encode(document.text)
+                require(textTokens.isNotEmpty()) {
+                    "O documento Transformer ${document.id} não produziu tokens."
+                }
+                val tokens = textTokens + intArrayOf(endOfSequenceTokenId)
                 require(tokens.size in 2..MAX_TOKENIZED_EXAMPLE) {
-                    "O documento Transformer ${document.id} precisa produzir entre 2 e 100000 tokens."
+                    "O documento Transformer ${document.id} precisa produzir entre 2 e 100000 tokens incluindo EOS."
                 }
                 document.id to tokens
             }
