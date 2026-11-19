@@ -118,7 +118,7 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
 
 O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
 
-**Inventário atual:** 31 métodos Python na suíte principal da Workbench, 11 testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+**Inventário atual:** 31 métodos Python na suíte principal da Workbench, 14 testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
 
 
 ## Analisador semântico Kotlin (pré-requisitos)
