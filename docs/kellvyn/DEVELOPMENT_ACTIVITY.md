@@ -225,3 +225,11 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Commits: `10e5d1a` (código), `15813b5` (testes), `cd6350e` (registro do experimento). Três arquivos no diff; cérebro, Runtime e UI intocados.
 - Runs `44424776449` e `44424784548`: três jobs por run, todos falharam antes de iniciar; `runner_id=0`, `steps=[]`. Python CLI, Gradle/JUnit e Android instrumented: NOT RUN. Não declarar teste aprovado ou falha de fonte.
 - Próximo: proprietário inspecionar budget/compute do GitHub Actions e política de runners; após liberar runner, executar workflow completo e revisar relatórios. Sem gasto pago ou mudança de billing automática.
+
+
+## 00:05 UTC — pesquisa de runner móvel e melhoria da bancada
+- Estudado DroidRunner v1.0.0 como opção ARM64 Android sem root/Termux, com telemetria de CPU/RAM/bateria/temperatura e admissão por bateria/temperatura/espaço. Decisão: PoC somente em aparelho dedicado; NO-GO no Poco F6 pessoal porque PRoot não é sandbox forte e executa código de workflow remoto.
+- Criado `docs/kellvyn/RESEARCH_LAB_CAPACITY_2026-11-19.md` com alternativas de execução, limitações, critérios científicos e sequência de testes.
+- `agent-lab-tests.yml`: três jobs paralelos consolidados num job sequencial; coletor de ambiente/recursos e artefatos adicionados. Uma alocação por rodada; mesma cobertura Python + Gradle + Android instrumented.
+- Run `44426067190` / job `135231121117`: runner_id=0, steps=[]; NOT RUN. Portanto, a alteração não foi exercitada; não alegar build/teste aprovado.
+- O cérebro, Runtime, pesos, interface e MainActivity não foram alterados nesta rodada.
