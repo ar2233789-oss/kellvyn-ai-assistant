@@ -210,11 +210,12 @@ class KellvynTransformerTrainingPipelineTest {
         val expectedSteps = documents
             .filter { it.split == KellvynTrainingSplit.TRAIN }
             .sumOf {
-                (trained.tokenizer.encode(it.text).size - 1L) * config.epochsPerExample
+                trained.tokenizer.encode(it.text).size.toLong() * config.epochsPerExample
             }
 
         assertEquals(trainOnlyTokenizer.vocabularySize, trained.tokenizer.vocabularySize)
         assertEquals(trainOnlyTokenizer.mergeCount, trained.tokenizer.mergeCount)
+        assertTrue(trained.tokenizer.endOfSequenceTokenId != null)
         assertEquals(expectedSteps, trained.model.trainingSteps)
         assertEquals(expectedSteps, trained.manifest.totalTrainingSteps)
         assertEquals(documents.size, trained.manifest.entries.size)
