@@ -114,6 +114,18 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test
+    fun trainingConfigAllowsLargerContextWithoutChangingDefaultBudget() {
+        assertEquals(256, KellvynTransformerTrainingConfig().contextLength)
+        val expanded = KellvynTransformerTrainingConfig(contextLength = 1_024)
+        assertEquals(1_024, expanded.contextLength)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun trainingConfigRejectsContextAboveDeviceSafeMaximum() {
+        KellvynTransformerTrainingConfig(contextLength = 2_049)
+    }
+
+    @Test
     fun tokenizerAndManifestAreBoundToKn003Configuration() {
         val trained = KellvynTransformerTrainingPipeline.train(
             sampleExamples(),
