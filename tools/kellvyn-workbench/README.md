@@ -118,22 +118,24 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
 
 O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
 
-**Inventário atual:** 27 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+**Inventário atual:** 29 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
 
 
 ## Analisador semântico Kotlin (pré-requisitos)
 
 A Workbench reconhece o Kotlin Language Server opcionalmente, mas não instala nem inicia o servidor sozinha. O release standalone revisado exige JDK 25; o build Android da Kellvyn permanece em JDK 17. Não altere `JAVA_HOME` global para satisfazer o LSP.
 
-Configure somente quando o servidor e o JDK 25 estiverem instalados separadamente:
+Configure o caminho do JDK 25 e, opcionalmente, o caminho explícito do launcher quando ele não estiver no `PATH`:
 
 ```bash
 export KOTLIN_LSP_JAVA_HOME=/opt/jdk-25
+# Opcional: quando bin/intellij-server não estiver no PATH
+export KOTLIN_LSP_EXECUTABLE=/opt/kotlin-lsp/bin/intellij-server
 python3 tools/kellvyn-workbench/workbench.py doctor
 ```
 
 Estados:
-- `OPTIONAL_NOT_INSTALLED`: servidor não detectado;
+- `OPTIONAL_NOT_INSTALLED`: servidor não detectado e sem override de caminho;\n- `BLOCKED_LSP_EXECUTABLE_MISSING`: caminho explícito configurado, mas arquivo não executável;
 - `BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED`: servidor detectado, variável do JDK separado ausente;
 - `BLOCKED_JDK25_REQUIRED`: JDK configurado não é 25;
 - `READY_UNVALIDATED`: binário + JDK 25 detectados, mas importação Android e queries semânticas ainda não validadas.
