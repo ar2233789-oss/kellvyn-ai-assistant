@@ -228,6 +228,9 @@ def web_suite_command(suite: str) -> tuple[list[str] | None, str | None]:
     script = script_map[suite]
     if script not in scripts:
         return None, f"package.json does not define the required {script!r} script"
+    required_bin = {"web-unit": "vitest", "web-lint": "eslint", "web-build": "vite"}[suite]
+    if not (modules / ".bin" / required_bin).exists():
+        return None, f"local {required_bin} executable is missing from node_modules/.bin"
     return [executable, "run", script], None
 
 
