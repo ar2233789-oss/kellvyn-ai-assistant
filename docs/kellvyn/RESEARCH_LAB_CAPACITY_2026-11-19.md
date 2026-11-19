@@ -237,3 +237,24 @@ Referências oficiais:
 ### Evidência local delimitada
 - Sampler térmico puro Kotlin: 4 cenários determinísticos passaram localmente com kotlinc/JRE.
 - Política de limiares térmicos/OEM: harness puro local da lógica de decisão passou 5 cenários; após acrescentar invariantes de armazenamento ao snapshot, a cópia isolada da regra passou 6/6. Esses harnesses não são o Gradle da aplicação nem compilação do monitor Android.
+
+
+## 2. Limites mensuráveis do cérebro atual
+
+A configuração padrão em `KellvynTransformerLanguageModel.Config` é:
+- Vocabulário: 512 tokens (valor padrão, não o tamanho garantido de qualquer checkpoint treinado).
+- Contexto: 256 tokens.
+- Embedding: 32 dimensões.
+- Cabeças: 4.
+- Feed-forward: 64.
+- Profundidade: um único bloco Transformer.
+- Estimativa de parâmetros nessa configuração: 43.648 parâmetros, calculada a partir das matrizes de embedding, projeções de atenção, LayerNorm, SwiGLU e saída.
+
+Limites da pipeline:
+- No máximo 1.000 exemplos por treino.
+- No máximo 500.000 bytes no corpus total.
+- No máximo 100.000 passos planejados por chamada.
+- Contexto permitido atualmente: até 256 tokens.
+- O bundle é gerado no aparelho depois de treino autorizado; não há pacote de pesos pré-treinado embutido no APK/repositório.
+
+Isso é uma prova de conceito de modelo pequeno, não um LLM geral. Um checkpoint que reduza a loss ou passe o quality gate fica apenas **elegível para benchmark de protocolo**; não prova conversa natural, raciocínio, código, planejamento ou competência geral.

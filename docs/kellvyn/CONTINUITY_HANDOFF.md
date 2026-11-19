@@ -868,3 +868,15 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Run 44430446144 / job 135246159400: runner_id=0, steps=[]; Python/Gradle/Android continuam NOT RUN.
 - Harness local puro da política térmica/OEM: 5/5; depois da inclusão de campos de armazenamento e sua validação: 6/6 em cópia isolada da lógica. Sampler térmico puro: 4/4. Isso não prova Gradle/JUnit da aplicação, integração Android ou comportamento térmico/armazenamento no Poco F6.
 - Próximo: obter runner local/hosted que execute testes; fazer CoGo PoC em cópia isolada após medir RAM livre/temperatura; sem alterar toolchain ou instalar runner no aparelho pessoal sem decisão explícita.
+
+
+## 39. Portes Brain/Integration e auditoria de prontidão — 19/11/2026
+- Portado seletivamente do branch brain-gradient-coverage-001 o KN-003 + testes; agora o checker cobre os 14 grupos de parâmetros e coordenadas zero/não-zero. Testes exigem erro abs <0,004 e relativo <0,06 nos head counts 1/2/4 com seeds determinísticas.
+- Portado seletivamente de brain-agent-contract-001 o teste KellvynBrainAgentIntegrationContractTest: delegação KELLVYN/1 roteirizada, ferramentas least privilege, resultado UNTRUSTED e rejeição de wire inválido. É contrato com fake/script engine, não prova qualidade do modelo.
+- Studio Python continua com 20 métodos de teste; a verificação da suíte Integration agora exige a classe de contrato.
+- Branch está 31 commits à frente e 0 atrás da base no momento da comparação; 22 arquivos no diff em 19/11. Nenhum Runtime/MainActivity/layout foi alterado.
+- Run 44432449442/job 135252947870: runner_id=0, steps=[]; NOT RUN.
+- Sampler térmico puro Kotlin executado 4/4 localmente; selector do gradient checker simulado em Python em 36.848 combinações. Não equivale a Gradle/JUnit Android.
+- Auditoria detalhada em docs/kellvyn/IA_READINESS_AUDIT_2026-11-19.md. O Runtime segue isReady=false, reply stub; não há bundle de pesos versionado nem corpus treinado.
+- KN-003 default: vocabulário 512, contexto256, embedding32, 4 heads, FF64, um bloco, 43.648 parâmetros estimados. Treinador limita corpus a 500KB, até 1.000 exemplos, 100.000 passos e contexto 256. Ainda é protótipo pequeno, não LLM geral.
+- Não ligar o Runtime até bundle/proveniência/Quality Gate/benchmark comportamental/Gradle/Android/AVD/Poco F6 passarem.

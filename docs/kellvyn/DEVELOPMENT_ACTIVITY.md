@@ -259,3 +259,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Teste de snapshot verifica storage, CPU e processadores. Gradle/Android ainda NOT RUN devido ao runner.
 - Run 44430446144/job 135246159400 confirmou runner_id=0 e steps=[]. Nenhuma etapa iniciou.
 - Harness local puro: policy térmica/OEM/storage 6/6; thermal sampler 4/4. Não equivale à build Android.
+
+
+## 00:55 UTC — KN-003 gradient audit + contrato Brain/Agents
+- Portados seletivamente de branches experimentais antigos: KN-003 gradient checker com 14 grupos de parâmetros e zero/non-zero sampling; teste de gradientes endurecido para abs<0,004 e rel<0,06 em head counts1/2/4; teste KELLVYN/1 → Agent → Orchestrator → READ_ONLY tools → UNTRUSTED handoff.
+- R&D Studio valida que a suite Integration inclui KellvynBrainAgentIntegrationContractTest.
+- Branch 31 commits ahead/0 behind da base, 22 arquivos comparados, nenhum merge; Runtime/MainActivity/layout/pesos não modificados.
+- CI run 44432449442: job runner_id=0, steps=[]; NOT RUN.
+- Kotlin sampler isolado 4/4; simulação Python de coordenadas 36.848 combinações. Testes completos do projeto continuam pendentes.
+- Auditoria de prontidão criada: docs/kellvyn/IA_READINESS_AUDIT_2026-11-19.md. Sem bundle de pesos e sem corpus TRAIN/VALIDATION/TEST; Runtime continua desligado corretamente.
