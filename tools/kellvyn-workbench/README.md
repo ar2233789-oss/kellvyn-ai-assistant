@@ -151,13 +151,13 @@ O comando captura um cenário que **já está aberto** no app e exige um serial 
 ```bash
 # Exemplo AVD 60 Hz: limite de referência ~16,67 ms por frame
 python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
-  --serial emulator-5554 --duration 15 --frame-sample-fps 5 \
+  --serial emulator-5554 --scenario chuva --duration 15 --frame-sample-fps 5 \
   --frame-budget-ms 16.67
 
 # Exemplo painel 120 Hz: limite de referência ~8,33 ms por frame
 python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
-  --serial <serial-autorizado> --duration 15 --frame-sample-fps 5 \
+  --serial <serial-autorizado> --scenario chuva+raios --duration 15 --frame-sample-fps 5 \
   --frame-budget-ms 8.33
 ```
 
-O app precisa permanecer em primeiro plano durante a captura. O vídeo grava a tela inteira; feche notificações e conteúdo privado. O orçamento de frame é explícito porque o laboratório não deve presumir 60 ou 120 Hz. Os estados `CAPTURED`, `PARTIAL` e `BLOCKED` são distintos: `CAPTURED` confirma apenas que os artefatos foram coletados; `quality_assessment` permanece `NOT_EVALUATED`. Ausência do FFmpeg ou de métricas válidas gera parcial, nunca aprovação. O vídeo e os quadros recebem SHA-256 no manifesto. O relatório de `gfxinfo` não substitui Perfetto FrameTimeline nem Macrobenchmark; esta é a primeira etapa de diagnóstico externo, não um teste visual completo dos efeitos simultâneos.
+O app precisa permanecer em primeiro plano durante toda a captura; a ferramenta confere também o estado ao final, e classifica como `PARTIAL` se o app perder o foco. Cada execução recebe um rótulo de cenário validado (`chuva`, `raios`, `chuva+raios`) para comparar ensaios distintos. O vídeo grava a tela inteira; feche notificações e conteúdo privado. O orçamento de frame é explícito porque o laboratório não deve presumir 60 ou 120 Hz. Os estados `CAPTURED`, `PARTIAL` e `BLOCKED` são distintos: `CAPTURED` confirma apenas que os artefatos foram coletados; `quality_assessment` permanece `NOT_EVALUATED`. Ausência do FFmpeg ou de métricas válidas gera parcial, nunca aprovação. O vídeo e os quadros recebem SHA-256 no manifesto. O próprio `screenrecord` acrescenta overhead à medição; portanto, use os tempos de `gfxinfo` como diagnóstico e confirme jank suspeito com Perfetto FrameTimeline/Macrobenchmark em coleta dedicada. O relatório não é um teste visual completo dos efeitos simultâneos. Se uma captura falhar depois do preflight, um manifesto de falha mínimo permanece no diretório, sem registrar a mensagem bruta do erro.
