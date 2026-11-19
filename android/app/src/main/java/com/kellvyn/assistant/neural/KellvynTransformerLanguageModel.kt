@@ -44,7 +44,7 @@ internal class KellvynTransformerLanguageModel private constructor(
     ) {
         init {
             require(vocabularySize in 256..8192)
-            require(contextLength in 1..256)
+            require(contextLength in 1..2048)
             require(embeddingSize in 8..128)
             require(headCount in 1..8)
             require(embeddingSize % headCount == 0)
