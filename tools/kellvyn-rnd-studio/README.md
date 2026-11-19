@@ -33,4 +33,4 @@ Os candidatos Brain, Agents e Integration estão isolados nas branches kellvyn-r
 - teste do wrapper Gradle simulado e do gate de evidência;
 - teste de saída não-zero registrada como FAILED, nunca PASSED.
 
-O snapshot anterior da CLI teve py_compile e 13/13 testes aprovados localmente. A versão experimental atual soma 16 testes, mas três novos testes e o algoritmo atualizado de repository map ainda não foram executados. O CI segue bloqueado antes de qualquer step por runner_id=0. Ver o diagnóstico em docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md.
+O snapshot anterior da CLI teve py_compile e 13/13 testes aprovados localmente. A inspeção do arquivo atual encontrou 20 métodos `test_*`. O antigo número 16 e a lista anterior de três testes pendentes ficaram desatualizados. A contagem de 20 é inventário de código, não execução: os 20 precisam ser executados no snapshot atual. O último resultado confirmado (13/13) pertence a um snapshot anterior. O CI segue bloqueado antes de qualquer step por runner_id=0. Ver o diagnóstico em docs/kellvyn/rnd-studio/GITHUB_ACTIONS_RUNNER_DIAGNOSTIC_2026-11-18.md.
