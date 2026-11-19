@@ -360,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         result["output_directory"] = run_dir.relative_to(ROOT).as_posix()
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result["status"] == "PASSED" else 4
+        return 0 if result["status"] == "PASSED" else (4 if result["status"] == "PARTIAL" else 2)
     except AuditBlocked as exc:
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
