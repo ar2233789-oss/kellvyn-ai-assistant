@@ -115,16 +115,16 @@ def parse_gfxinfo_summary(text: str) -> dict[str, Any]:
 
 
 def parse_meminfo_pss_kb(text: str) -> int | None:
-    match = re.search(r"(?im)^\\s*TOTAL PSS:\\s*([\\d,]+)", text)
+    match = re.search(r"(?im)^\s*TOTAL PSS:\s*([\d,]+)", text)
     if not match:
         return None
     return int(match.group(1).replace(",", ""))
 
 
 def parse_battery_info(text: str) -> dict[str, Any]:
-    level = re.search(r"(?im)^\\s*level:\\s*(\\d+)", text)
-    scale = re.search(r"(?im)^\\s*scale:\\s*(\\d+)", text)
-    temperature = re.search(r"(?im)^\\s*temperature:\\s*(-?\\d+)", text)
+    level = re.search(r"(?im)^\s*level:\s*(\d+)", text)
+    scale = re.search(r"(?im)^\s*scale:\s*(\d+)", text)
+    temperature = re.search(r"(?im)^\s*temperature:\s*(-?\d+)", text)
     return {
         "level_percent": (
             round(int(level.group(1)) * 100 / int(scale.group(1)), 2)
@@ -138,7 +138,7 @@ def parse_battery_info(text: str) -> dict[str, Any]:
 def parse_display_refresh_rates(text: str) -> list[float]:
     values = {
         round(float(value), 3)
-        for value in re.findall(r"(?i)(?:refreshRate|refreshRateOverride|fps)\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)", text)
+        for value in re.findall(r"(?i)(?:refreshRate|refreshRateOverride|fps)\s*[:=]\s*([0-9]+(?:\.[0-9]+)?)", text)
         if 1.0 <= float(value) <= 360.0
     }
     return sorted(values)
@@ -146,16 +146,15 @@ def parse_display_refresh_rates(text: str) -> list[float]:
 
 def parse_thermal_status(text: str) -> int | None:
     patterns = (
-        r"(?im)^\\s*Thermal Status:\\s*(\\d+)",
-        r"(?im)^\\s*Current thermal status:\\s*(\\d+)",
-        r"(?i)mStatus=(\\d+)"
+        r"(?im)^\s*Thermal Status:\s*(\d+)",
+        r"(?im)^\s*Current thermal status:\s*(\d+)",
+        r"(?i)mStatus=(\d+)"
     )
     for pattern in patterns:
         match = re.search(pattern, text)
         if match:
             return int(match.group(1))
     return None
-
 
 def foreground_package(activity_dump: str, package: str) -> bool:
     """Require the selected package to appear on Android's resumed/top-resumed activity line."""
