@@ -204,6 +204,14 @@ Janky frames: 12 (5.00%)
                 duration_s=10,
                 frame_budget_ms=1
             )
+        with self.assertRaisesRegex(ValueError, "scenario"):
+            audit.capture_android_animation(
+                serial="emulator-5554",
+                package="com.kellvyn.assistant",
+                output=Path(audit.ROOT) / "unused",
+                scenario="../private-path",
+                duration_s=10
+            )
 
 
 if __name__ == "__main__":
