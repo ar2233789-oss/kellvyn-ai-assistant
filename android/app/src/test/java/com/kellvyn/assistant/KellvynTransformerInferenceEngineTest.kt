@@ -9,6 +9,19 @@ import org.junit.Test
 
 class KellvynTransformerInferenceEngineTest {
     @Test
+    fun safeGenerationBudgetScalesWithExpandedContextAndStaysBounded() {
+        assertEquals(64, KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(128))
+        assertEquals(64, KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(256))
+        assertEquals(128, KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(1_024))
+        assertEquals(256, KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(2_048))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun safeGenerationBudgetRejectsContextOutsideApprovedRange() {
+        KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(2_049)
+    }
+
+    @Test
     fun boundedPromptPreservesRulesAndLatestUserWhileDroppingOldHistory() {
         val repeatedTemplate = (
             "KELLVYN AGENT KN-003\n" +
