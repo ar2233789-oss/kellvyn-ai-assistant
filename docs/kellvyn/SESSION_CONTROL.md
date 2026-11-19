@@ -6,7 +6,7 @@ Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHu
 **Última revisão:** 19/11/2026 — laboratório poliglota v2 em construção
 **Branch experimental ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`
 **PR laboratório:** #25 (DRAFT, IMPLEMENTED_NOT_RUN) — `https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/25`
-**HEAD verificado antes deste checkpoint:** `bcb5c6988032ad1e214ce16d22f4a38f4318c296` (reconfirmar HEAD no GitHub antes de qualquer alteração)  
+**HEAD verificado antes da atualização final do checkpoint:** `64f4321746836f242fe39ef7f694b27cac0b70ce` (reconfirmar HEAD no GitHub antes de qualquer alteração)  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
@@ -762,7 +762,8 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 **Branch ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`  
 **PR:** #25 — DRAFT, IMPLEMENTED_NOT_RUN  
 **HEAD-base desta atualização:** `b4096c30ec0b02c4ccbb5762758c74028ab757e8`  
-**Arquitetura:** `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`
+**Arquitetura:** `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`  
+**Ledger de evidências atualizado nesta retomada:** `050f0247f93562e319f1c93c08cc1d37542398cf`
 
 ### O que entrou na bancada
 - Doctor/Toolchain matrix por domínio: Kotlin/Java/Android SDK, TS/TSX, Python, shell/workflows, ADB/dispositivo, visual/mídia e candidatos de sandbox.
@@ -780,7 +781,7 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 - Mapa TS: 2 casos Node.
 - Total inventariado: 67 métodos Python + 2 casos Node. Todos são testes escritos, não resultados de execução.
 - Probes isolados antigos: mapa TS 2/2 e helpers de executor 4/4 em harness separado. Não equivalem às suites do checkout e não validam Android.
-- Último CI para o HEAD-base desta atualização: run `44576134219`, job `135744014615`. O job terminou em failure com `steps=[]`, sem logs. Classificação correta: **RUNNER_ALLOCATION_BLOCKED / NOT_RUN**, não falha comprovada de compilação.
+- Último CI observado: run `44576134219`, job `135744014615`, no HEAD `bcb5c6988032ad1e214ce16d22f4a38f4318c296`. O job terminou em failure com `steps=[]`, sem logs. Classificação correta: **RUNNER_ALLOCATION_BLOCKED / NOT_RUN**, não falha comprovada de compilação.
 - A captura Android também permanece NOT_RUN: nenhum ADB/AVD autorizado foi usado nesta sessão.
 
 ### Limites que permanecem
