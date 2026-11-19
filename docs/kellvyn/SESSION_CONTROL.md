@@ -716,3 +716,23 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 **Regra de sessão:** iniciar com `doctor`, `verify-ledger` e confirmação do HEAD; registrar pesquisa/decisões/execuções; criar worktree antes de mudanças experimentais; preservar stdout/stderr, hashes e manifests; nunca transformar NOT_RUN/BLOCKED em PASS; gerar checkpoint antes de encerrar. Não recriar a lógica do R&D Studio — a Workbench o chama.
 
 **Próximo passo:** confirmar no GitHub o commit desta integração; executar a workflow quando Actions alocar runner; corrigir apenas falhas reproduzidas. Não alterar `MainActivity.java`, `.github/interface-lock.sha`, layout, cérebro, agentes do APK ou modelos como parte desta bancada.
+
+
+## 11.1. Checkpoint operacional da Workbench — 19/11/2026
+
+**HEAD confirmado:** `da26e3ed1d692fa775ef03181a63ee71820f49b2` na branch `kellvyn-rnd/agent-trace-duration-port-20261118`.
+
+### Commits incorporados
+- `fb7928c34e7335e376f5df694adf24d5f5ce7583` — bancada externa com auditoria, workspaces, execução com timeout/logs, debugger, diff visual, web/Android e pipeline criativo.
+- `2e3c332301937640f3ae4ab3f845c97474f0a228` — detecção Playwright Node corrigida.
+- `da26e3ed1d692fa775ef03181a63ee71820f49b2` — teste de regressão da dependência Node Playwright.
+
+### Evidência
+- 14/14 testes Python locais aprovados.
+- `py_compile` aprovado para `workbench.py`, `visual_diff.py` e `creative/blender_pipeline.py`.
+- Workbench e seus testes existem no branch.
+- Gradle, ADB e Blender não existem neste host. Build Android, teste AVD e render Blender real permanecem NÃO EXECUTADOS/BLOQUEADOS.
+- O Playwright Python e o Playwright Node são detectados separadamente; o auditor web usa o pacote Node.
+
+### Próximo passo
+Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
