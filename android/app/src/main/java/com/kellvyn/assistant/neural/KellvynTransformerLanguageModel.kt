@@ -683,10 +683,11 @@ internal class KellvynTransformerLanguageModel private constructor(
                 parameters.normAttentionGamma,
                 parameters.normAttentionBeta
             )
+            val rotaryFactors = createRotaryFactors(nextAbsolutePosition)
             val query = linear(normalized.values, parameters.queryWeights, d, d)
-            rotateInPlace(query, nextAbsolutePosition)
+            rotateInPlace(query, rotaryFactors)
             val key = linear(normalized.values, parameters.keyWeights, d, d)
-            rotateInPlace(key, nextAbsolutePosition)
+            rotateInPlace(key, rotaryFactors)
             val value = linear(normalized.values, parameters.valueWeights, d, d)
 
             outputTokens += tokenId
@@ -1151,13 +1152,16 @@ internal class KellvynTransformerLanguageModel private constructor(
             normalizedInputInverseStd[position] = normalized.inverseStandardDeviation
         }
 
+        val finalRotaryFactors = createRotaryFactors(last)
         val queryRotated = linear(
             normalizedInputs[last], parameters.queryWeights, d, d
         )
-        rotateInPlace(queryRotated, last)
+        rotateInPlace(queryRotated, finalRotaryFactors)
         val keysRotated = Array(length) { position ->
+            val factors = if (position == last) finalRotaryFactors
+                else createRotaryFactors(position)
             linear(normalizedInputs[position], parameters.keyWeights, d, d)
-                .also { rotateInPlace(it, position) }
+                .also { rotateInPlace(it, factors) }
         }
         val values = Array(length) { position ->
             linear(normalizedInputs[position], parameters.valueWeights, d, d)
@@ -1306,16 +1310,36 @@ internal class KellvynTransformerLanguageModel private constructor(
         }
     }
 
-    private fun rotateInPlace(values: FloatArray, position: Int, inverse: Boolean = false) {
+    private data class RotaryFactors(
+        val cosine: FloatArray,
+        val sine: FloatArray
+    )
+
+    private fun createRotaryFactors(position: Int): RotaryFactors {
+        val pairs = rotaryHeadDimension / 2
+        val cosine = FloatArray(pairs)
+        val sine = FloatArray(pairs)
+        for (pair in 0 until pairs) {
+            val angle = position.toDouble() * rotaryFrequencies[pair]
+            cosine[pair] = kotlin.math.cos(angle).toFloat()
+            sine[pair] = kotlin.math.sin(angle).toFloat()
+        }
+        return RotaryFactors(cosine, sine)
+    }
+
+    private fun rotateInPlace(
+        values: FloatArray,
+        factors: RotaryFactors,
+        inverse: Boolean = false
+    ) {
         val headDim = config.embeddingSize / config.headCount
         for (head in 0 until config.headCount) {
             val headOffset = head * headDim
             for (pair in 0 until headDim / 2) {
                 val firstIndex = headOffset + pair * 2
                 val secondIndex = firstIndex + 1
-                val angle = position.toDouble() * rotaryFrequencies[pair]
-                val cosine = kotlin.math.cos(angle).toFloat()
-                val sine = kotlin.math.sin(angle).toFloat()
+                val cosine = factors.cosine[pair]
+                val sine = factors.sine[pair]
                 val first = values[firstIndex]
                 val second = values[secondIndex]
                 if (inverse) {
