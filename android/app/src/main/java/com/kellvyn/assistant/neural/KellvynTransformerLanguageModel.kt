@@ -163,6 +163,17 @@ internal class KellvynTransformerLanguageModel private constructor(
     private val firstMomentArrayViews = firstMoment.arrays()
     private val secondMomentArrayViews = secondMoment.arrays()
 
+    // RoPE frequencies and attention scaling depend only on the immutable model
+    // configuration. Precompute them once instead of repeating pow()/sqrt() in
+    // every token/position during training and generation.
+    private val rotaryHeadDimension = config.embeddingSize / config.headCount
+    private val attentionScoreDivisor = sqrt(rotaryHeadDimension.toDouble()).toFloat()
+    private val inverseAttentionScale = (1.0 / rotaryHeadDimension.toDouble().let(::sqrt)).toFloat()
+    private val rotaryFrequencies = DoubleArray(rotaryHeadDimension / 2) { pair ->
+        val exponent = (pair * 2).toDouble() / rotaryHeadDimension.toDouble()
+        1.0 / Math.pow(ROPE_BASE, exponent)
+    }
+
     companion object {
         private const val CHECKPOINT_MAGIC = 0x4B564E54 // "KVNT"
         private const val CHECKPOINT_VERSION = 1
@@ -597,7 +608,7 @@ internal class KellvynTransformerLanguageModel private constructor(
                         val feature = offset + dimension
                         score += query[feature] * key[feature]
                     }
-                    scores[position] = score / sqrt(headDim.toDouble()).toFloat()
+                    scores[position] = score / attentionScoreDivisor
                     if (scores[position] > maximum) maximum = scores[position]
                 }
 
@@ -910,7 +921,7 @@ internal class KellvynTransformerLanguageModel private constructor(
         val headDim = d / h
         val length = contextTokenIds.size
         val last = length - 1
-        val inverseAttentionScale = (1.0 / sqrt(headDim.toDouble())).toFloat()
+        val inverseAttentionScale = this.inverseAttentionScale
 
         val dTokenEmbeddings = FloatArray(parameters.tokenEmbeddings.size)
         val dQueryWeights = FloatArray(parameters.queryWeights.size)
@@ -1154,7 +1165,7 @@ internal class KellvynTransformerLanguageModel private constructor(
 
         val attentionWeights = Array(h) { FloatArray(length) }
         val attentionConcat = FloatArray(d)
-        val scale = (1.0 / sqrt(headDim.toDouble())).toFloat()
+        val scale = inverseAttentionScale
         for (head in 0 until h) {
             val offset = head * headDim
             val scores = FloatArray(length)
@@ -1302,9 +1313,7 @@ internal class KellvynTransformerLanguageModel private constructor(
             for (pair in 0 until headDim / 2) {
                 val firstIndex = headOffset + pair * 2
                 val secondIndex = firstIndex + 1
-                val exponent = (pair * 2).toDouble() / headDim.toDouble()
-                val frequency = 1.0 / Math.pow(ROPE_BASE, exponent)
-                val angle = position.toDouble() * frequency
+                val angle = position.toDouble() * rotaryFrequencies[pair]
                 val cosine = kotlin.math.cos(angle).toFloat()
                 val sine = kotlin.math.sin(angle).toFloat()
                 val first = values[firstIndex]
