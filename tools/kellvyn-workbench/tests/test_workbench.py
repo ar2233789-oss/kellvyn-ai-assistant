@@ -141,7 +141,7 @@ class LedgerTests(unittest.TestCase):
                     result = wb.run_capture("secret-redaction-probe", [sys.executable, "-c", code], cwd=root, timeout_s=10)
                 self.assertEqual("PASSED", result["status"])
                 stdout = (root / result["stdout"]).read_text()
-                manifest = (root / result["run_id"] / "run.json")
+                manifest = root / Path(result["stdout"]).parent / "run.json"
                 # Run outputs must not contain inherited host credentials or printed key values.
                 self.assertIn("not-inherited", stdout)
                 self.assertIn("[REDACTED]", stdout)
