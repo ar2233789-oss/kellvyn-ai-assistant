@@ -303,7 +303,7 @@ internal class KellvynAgentCreationStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_PROFILE_DIFF_OUTPUT_CHARS))
             }
-        }        }
+        }
     )
 
     private fun safeMessage(error: Exception): String =
