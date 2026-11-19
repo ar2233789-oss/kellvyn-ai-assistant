@@ -574,15 +574,22 @@ internal class KellvynTransformerLanguageModel private constructor(
         }
 
         fun predictNext(): Int {
-            val probabilities = nextTokenProbabilities()
+            // Softmax is strictly monotonic for finite logits: greedy decoding can
+            // select the largest logit directly and skip vocabulary-wide exp/division.
+            val logits = nextTokenLogits()
+            require(logits.all(Float::isFinite)) {
+                "A saída neural contém logit não finito."
+            }
             var best = 0
-            for (index in 1 until probabilities.size) {
-                if (probabilities[index] > probabilities[best]) best = index
+            for (index in 1 until logits.size) {
+                if (logits[index] > logits[best]) best = index
             }
             return best
         }
 
-        internal fun nextTokenProbabilities(): FloatArray {
+        internal fun nextTokenProbabilities(): FloatArray = softmax(nextTokenLogits())
+
+        private fun nextTokenLogits(): FloatArray {
             val query = requireNotNull(latestQueryRotated) {
                 "A sessão de geração ainda não possui contexto."
             }
@@ -662,7 +669,7 @@ internal class KellvynTransformerLanguageModel private constructor(
 
             val logits = linear(hidden, parameters.outputWeights, d, config.vocabularySize)
             for (token in logits.indices) logits[token] += parameters.outputBias[token]
-            return softmax(logits)
+            return logits
         }
 
         fun outputTokenIds(): IntArray = outputTokens.toIntArray()
