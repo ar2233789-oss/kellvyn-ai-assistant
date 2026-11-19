@@ -157,6 +157,13 @@ def parse_thermal_status(text: str) -> int | None:
             return int(match.group(1))
     return None
 
+def classify_capture_status(video_extraction: str, valid_frames: int) -> str:
+    """Classify artifact completeness only; deliberately does not grade animation quality."""
+    if video_extraction == "FAILED" or valid_frames <= 0 or video_extraction != "PASSED":
+        return "PARTIAL"
+    return "CAPTURED"
+
+
 def foreground_package(activity_dump: str, package: str) -> bool:
     """Require the selected package to appear on Android's resumed/top-resumed activity line."""
     for line in activity_dump.splitlines():
@@ -393,15 +400,10 @@ def capture_android_animation(
         report["frame_count"] = 0
 
     report["finished_at_utc"] = datetime.now(timezone.utc).isoformat()
-    if report["video_extraction"] == "FAILED":
-        report["status"] = "PARTIAL"
-    elif frame_metrics.get("valid_frames", 0) == 0:
-        report["status"] = "PARTIAL"
-    elif not ffmpeg_path:
-        report["status"] = "PARTIAL"
-    else:
-        # Capture success is not a performance or visual-quality approval.
-        report["status"] = "CAPTURED"
+    report["status"] = classify_capture_status(
+        report["video_extraction"], frame_metrics.get("valid_frames", 0)
+    )
+    # CAPTURED means the artifacts are complete; it is not an animation-quality pass.
     report["quality_assessment"] = "NOT_EVALUATED"
     report["limitations"] = [
         "gfxinfo framestats is an app-level frame timing source and does not replace Perfetto FrameTimeline.",
