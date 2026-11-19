@@ -114,6 +114,42 @@ class KellvynTransformerTrainingPipelineTest {
     }
 
     @Test
+    fun epochTrainingIsReproducibleWhenInputExamplesArriveInDifferentOrder() {
+        val examples = sampleExamples() + instruction(
+            "train-2",
+            "Pergunta: conte até dois. Resposta:",
+            "Um, dois.",
+            KellvynTrainingSplit.TRAIN
+        )
+        val config = KellvynTransformerTrainingConfig(
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 16,
+            seed = 7_321L,
+            maxMerges = 12,
+            epochsPerExample = 3,
+            weightDecay = 0.0f
+        )
+
+        val first = KellvynTransformerTrainingPipeline.train(
+            examples = examples,
+            config = config,
+            createdAtMillis = 1_800_000_520_010L
+        )
+        val reordered = KellvynTransformerTrainingPipeline.train(
+            examples = examples.reversed(),
+            config = config,
+            createdAtMillis = 1_800_000_520_010L
+        )
+
+        assertEquals(first.tokenizer.vocabularySize, reordered.tokenizer.vocabularySize)
+        assertEquals(first.tokenizer.mergeCount, reordered.tokenizer.mergeCount)
+        assertEquals(first.model.trainingSteps, reordered.model.trainingSteps)
+        assertEquals(first.model.parameterFingerprint(), reordered.model.parameterFingerprint())
+    }
+
+    @Test
     fun trainingConfigAllowsLargerContextWithoutChangingDefaultBudget() {
         assertEquals(256, KellvynTransformerTrainingConfig().contextLength)
         val expanded = KellvynTransformerTrainingConfig(contextLength = 1_024)
