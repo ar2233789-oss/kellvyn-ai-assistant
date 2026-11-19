@@ -191,3 +191,45 @@ Uso na Kellvyn: organizar uma trilha de competência para Arquiteto, Analista de
 3. Conectar os perfis ao ponto único de criação dos especialistas dentro de KellvynAgent.
 4. Ampliar testes de contrato e benchmark de competência quando a inferência conversacional estiver ligada.
 5. Completar Android Build & Test antes de abrir os motores visuais e 3D.
+
+## 12. GitHub Copilot e Microsoft Copilot SDK 2.0 — agentes especializados, sessões e coordenação
+
+**Fontes oficiais consultadas em 19/11/2026:**
+- GitHub Copilot — custom agents e sub-agent orchestration: https://docs.github.com/en/copilot/how-tos/copilot-sdk/features/custom-agents
+- Configuração de custom agents e ferramentas/MCP: https://docs.github.com/en/copilot/reference/custom-agents-configuration
+- Custom instructions, AGENTS.md, path-specific instructions e skills: https://docs.github.com/en/copilot/concepts/agent-capabilities/agent-powered-workflows-and-operations/code-review
+- Agent Mode no IDE: https://docs.github.com/en/copilot/how-tos/copilot-in-the-ide/use-copilot-agents/use-agent-mode
+- Microsoft Copilot SDK 2.0, anunciado em 17/11/2026: https://commandline.microsoft.com/microsoft-copilot-sdk-2-0-github/
+
+### Capacidades observadas
+
+- Custom agents definem missão, instruções, ferramentas permitidas e contexto de trabalho; o runtime pode delegar uma subtarefa a um agente especializado e devolver eventos/resultado ao agente pai.
+- A lista de ferramentas é explícita e pode incluir apenas ferramentas MCP necessárias. Ausência de ferramenta na lista significa ausência de capacidade; não se presume acesso universal.
+- Instruções globais, instruções por caminho, AGENTS.md e skills têm escopos diferentes. Conhecimento permanente não precisa ser carregado inteiro em toda subtarefa.
+- Agent Mode identifica arquivos, propõe alterações e comandos, solicita autorização quando necessário, executa e itera diante dos resultados.
+- O Copilot SDK 2.0 apresenta sessões isoladas, cada uma com estado, credenciais, ferramentas, arquivos e histórico próprios; ferramentas são registradas pelo host e uma allowlist limita o que cada sessão pode chamar.
+- O SDK descreve journal de sessão com mensagens, decisões, chamadas/retornos de ferramentas, planos e checkpoints, possibilitando retomada após desconexão ou reinício.
+- As arquiteturas documentadas separam onde o modelo pensa e onde as ações são executadas: sessão compartilhada, ambiente isolado, ferramentas do host, coordenador com trabalhadores ou arquitetura mista.
+
+### Adaptação própria para a Kellvyn
+
+1. **Matriz de ferramentas por agente:** manter a KellvynSpecialistToolPolicy como autoridade única; cada perfil solicita apenas ferramentas declaradas e concretamente registradas. Skills e instruções nunca ampliam permissões.
+2. **Sessões por tarefa:** cada execução terá taskId/runId, perfil e versão/hash, orçamento, contexto selecionado, ferramentas efetivas, checkpoints e evidências. Uma subtarefa não lê histórico privado fora do escopo autorizado.
+3. **Coordenador e workers:** preservar KellvynOrchestrator como componente independente do cérebro e evoluir delegações para workspaces isolados quando houver mutação. O coordenador reconcilia resultados; não delega tudo indiscriminadamente.
+4. **Separar pensamento e execução:** o loop de inferência decide; o broker/policy do host autoriza; o executor aplica; o verificador independente comprova. Nenhum agente pode se autoelevar ou declarar sua própria tarefa aprovada.
+5. **Retomada e journal:** ampliar checkpoints existentes com sequência de eventos redigidos, hashes de artefatos/diffs, versão do perfil e estados de aprovação; recuperar apenas após validar cadeia e proprietário.
+6. **Execução sob demanda:** sessões leves compartilham o runtime local; compilação, execução de código e tarefas visuais pesadas usam workspaces/módulos isolados com orçamento e limpeza determinísticos. No Poco F6, manter execução sequencial por padrão.
+7. **Instruções por domínio:** usar AGENTS.md como contrato global, instruções por diretório para Android, neural, bots e visuais, e skills seletivas para procedimentos como criar app, revisar APK, depurar bot e comparar screenshots.
+
+### O que NÃO será importado
+
+- Não adicionar Microsoft/GitHub Copilot SDK como dependência obrigatória da aplicação Android.
+- Não exigir GitHub AI Credits, assinatura, token remoto, hospedagem, cloud runtime ou inferência externa.
+- Não copiar prompts privados, código, pesos, interfaces ou marcas de terceiros.
+- Não usar paralelismo/isolamento de container por padrão no telefone; só habilitar um executor quando existir boundary real e medições de recursos.
+- Não tratar as métricas de velocidade publicadas pelo fornecedor como metas ou resultados da Kellvyn; qualquer ganho precisa ser medido no mesmo dispositivo e na mesma tarefa.
+
+### Decisão
+
+O Copilot acrescenta um conjunto de padrões úteis que não substitui os estudos anteriores. A arquitetura de destino combina: perfis e delegação do Copilot/Claude Code; planejamento, skills e checkpoints de Replit/Lovable; execução Android verificável do Android Studio; tracing e avaliações dos padrões de agentes; e critérios de qualidade visual do Nano Banana. A implementação permanece autoral, local-first e independente de provedores externos.
+
