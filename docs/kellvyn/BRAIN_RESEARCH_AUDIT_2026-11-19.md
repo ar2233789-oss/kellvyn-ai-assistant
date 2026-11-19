@@ -266,3 +266,63 @@ Commits:
 - `6353f0a9edf47fe6e4bd0cadb0979ec224ca435d` — teste de equivalência da primitive.
 
 **Validação:** os arquivos foram relidos no GitHub e os trechos/nomes dos testes confirmados. O status de checks do commit ainda não mostra execução e não há workflow run associado ao commit consultado. Portanto os novos testes estão escritos, mas continuam **NÃO EXECUTADOS** nesta sessão. Não há aprovação Gradle/JUnit ou APK resultante.
+
+
+## 14. Método de aceleração sem reduzir qualidade — pesquisa e implementação
+
+### Princípios verificados nas referências
+
+- **Android Studio Agent Mode:** tarefas complexas são divididas em plano e ações, mudanças são revisadas, builds são executados e erros corrigidos iterativamente. A documentação também descreve threads independentes para tarefas paralelas e, no fluxo de dispositivo, inspeção visual e Logcat. A Kellvyn deve aproveitar isso como protocolo de engenharia, nunca editar arquivos de interface bloqueados.
+- **Replit Agent:** Plan separa ideação/decomposição de Build; App Testing permite teste funcional autônomo com intervenção humana quando há login; checkpoints tornam possível retornar a estados anteriores. Seu tutorial de automação destaca Skills como instruções carregadas sob demanda e MCP como ferramentas/acessos — distinção útil para manter o contexto enxuto. O tutorial de automação agendada usa SDK/integrações e chave de serviço externo, logo não será dependência offline da Kellvyn.
+- **Replit Agent modes:** a própria documentação diferencia alterações rápidas de tarefas difíceis e recursos extras de teste/otimização. O princípio aproveitável é selecionar profundidade de verificação conforme o risco, não saltar testes para obter velocidade.
+- **LiteRT Android:** a documentação atual descreve CompiledModel como API moderna para aceleração em CPU/GPU/NPU, enquanto Interpreter fica como compatibilidade. É uma possibilidade de benchmark para operadores compatíveis, não uma obrigação e nem motivo para importar pesos de terceiros.
+- **GPU:** a documentação do LiteRT avisa que operações não suportadas podem dividir o grafo entre GPU e CPU; sincronizações CPU/GPU podem deixar a execução mais lenta que CPU apenas. Portanto, não assumir aceleração por ligar GPU: medir o grafo inteiro e verificar fallbacks.
+- **Escala de treino:** o estudo Chinchilla mostra que qualidade depende do balanço entre parâmetros, tokens e computação, e não apenas aumentar o modelo. Para Kellvyn, isso reforça a decisão de medir dados, passos e custo antes de aumentar dimensão/profundidade.
+
+### Protocolo operacional da Kellvyn R&D
+
+1. Fixar branch, HEAD, escopo, arquivos protegidos e critério de aceite antes de iniciar.
+2. Fazer três trilhas de leitura independentes em paralelo: matemática/treino, runtime Android/desempenho e referências de engenharia/capacidades.
+3. Só uma trilha pode gravar em determinado arquivo de cada vez. Evitar conflitos e alterações concorrentes no mesmo código.
+4. Toda hipótese de código precisa de: causa observada, mudança mínima, teste que falha antes/passaria depois e rollback claro.
+5. Rodar primeiro o teste unitário do componente modificado; depois testes da pipeline neural; por último Gradle/build Android completo.
+6. Após cada commit, reler o diff/arquivo no GitHub e registrar SHA, checks e estado real. Não confundir teste escrito com teste executado.
+7. Manter checkpoints curtos de continuidade: o que foi alterado, o que foi confirmado, o que está bloqueado e a próxima ação verificável.
+8. Usar otimizações adaptativas apenas quando equivalência/correção estiver coberta por teste; qualquer aceleração de runtime exige benchmark no Poco F6 com latência, PSS/RAM, temperatura e bateria.
+
+### Ganho concreto já aplicado no KN-003
+
+Antes, a pipeline chamava `trainCompletion(..., epochs = 1)` para cada exemplo e época. Esse método media loss inicial e final do próprio exemplo a cada chamada. Assim, o treino repetia passagens de avaliação sobre os dados de treino para cada amostra, além de avaliar validação global.
+
+Agora:
+- a pipeline mede loss inicial/final no conjunto de validação;
+- cada exemplo recebe uma única passada de gradiente por época;
+- a ordem dos exemplos é embaralhada de forma determinística por época;
+- os parâmetros são atualizados na mesma rotina matemática de uma época original;
+- foi adicionado teste de equivalência do método novo com uma época do método antigo e teste de reprodutibilidade quando a lista de entrada é invertida.
+
+Isso remove avaliações redundantes por amostra e reduz o viés de ordem sem alterar a regra de atualização por token. O ganho real em tempo ainda precisa ser medido em execução do Gradle/benchmark; não atribuir um percentual sem medição.
+
+### Próxima otimização a estudar, ainda não implementada
+
+O custo mais relevante que permanece é a atualização AdamW e a retropropagação por token, que percorrem/instanciam arrays grandes repetidamente. Opções a investigar, com testes de equivalência:
+- acumulação de gradientes em micro-lotes antes de atualizar AdamW;
+- minibatches determinísticos e agendamento de learning rate;
+- pré-alocação/reuso de buffers temporários sem compartilhar estado entre tarefas;
+- operadores matriciais nativos ou acelerados apenas se o grafo inteiro suportar sem fallback caro;
+- perfil de CPU/GPU/PSS por comprimento de sequência antes de aumentar contexto ou profundidade.
+
+Não implementar essas opções por suposição. Primeiro criar benchmarks reproduzíveis e verificar os efeitos numéricos.
+
+### Estado do CI nesta rodada
+
+A execução associada ao commit `c27f4e96557bdde52a9c76e5ee91a0b915ee8de6` terminou como `failure`, mas o job retornou `steps=[]` e `logs_url=null`; o download de logs também não encontrou blob. O retry do job voltou a encerrar sem steps. Não há evidência de que Gradle tenha começado. Classificação correta: **CI sem execução/logs disponíveis — infraestrutura/runner bloqueando a verificação**, não falha de compilação comprovada. Os novos testes permanecem escritos e não executados.
+
+Fontes adicionais:
+- LiteRT Android API e CompiledModel: https://developers.google.com/edge/litert/android
+- LiteRT GPU delegates e limitações de fallback: https://developers.google.com/edge/litert/performance/gpu
+- Chinchilla, compute-optimal training: https://arxiv.org/abs/2203.15556
+- Android Studio Agent Mode: https://developer.android.com/studio/gemini/agent-mode
+- Replit Plan mode: https://docs.replit.com/pt/references/agent/plan-mode
+- Replit App Testing: https://docs.replit.com/references/agent/app-testing
+- Replit Agent automation tutorial: https://docs.replit.com/pt/build/build-an-agent
