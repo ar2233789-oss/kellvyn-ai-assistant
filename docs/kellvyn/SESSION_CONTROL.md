@@ -761,7 +761,7 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 
 **Branch ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`  
 **PR:** #25 — DRAFT, IMPLEMENTED_NOT_RUN  
-**HEAD-base desta atualização:** `b4096c30ec0b02c4ccbb5762758c74028ab757e8`  
+**HEAD verificado antes do último checkpoint:** `64f4321746836f242fe39ef7f694b27cac0b70ce`  
 **Arquitetura:** `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`  
 **Ledger de evidências atualizado nesta retomada:** `050f0247f93562e319f1c93c08cc1d37542398cf`
 
