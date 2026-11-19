@@ -334,6 +334,42 @@ class KellvynTransformerLanguageModelTest {
         )
     }
 
+    @Test
+    fun expandedContextCheckpointRoundTripsWithoutChangingExistingDefaults() {
+        assertEquals(256, KellvynTransformerLanguageModel.Config().contextLength)
+
+        val tokenizer = KellvynBpeTokenizer.train(listOf("Contexto ampliado Kellvyn."), maxMerges = 0)
+        val model = KellvynTransformerLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 1_024,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 16,
+            seed = 9_102L
+        )
+        val bytes = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val restored = KellvynTransformerLanguageModel.readCheckpoint(ByteArrayInputStream(bytes))
+
+        assertEquals(1_024, restored.config.contextLength)
+        assertEquals(model.config.vocabularySize, restored.config.vocabularySize)
+        assertEquals(model.parameterFingerprint(), restored.parameterFingerprint())
+        assertEquals(
+            model.newGenerationSession(tokenizer.encode("Teste")).contextTokenIds().toList(),
+            restored.newGenerationSession(tokenizer.encode("Teste")).contextTokenIds().toList()
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsContextAboveTheDeviceSafeMaximum() {
+        KellvynTransformerLanguageModel.Config(
+            vocabularySize = 256,
+            contextLength = 2_049,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 16
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsHeadDimensionThatCannotBeRotatedInPairs() {
         KellvynTransformerLanguageModel.Config(
