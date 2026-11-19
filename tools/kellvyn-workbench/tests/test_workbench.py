@@ -387,6 +387,10 @@ class CliTests(unittest.TestCase):
         self.assertEqual("manual-unspecified", args.scenario)
         self.assertEqual(10, args.duration)
         self.assertIsNone(args.frame_budget_ms)
+        labelled = wb.build_parser().parse_args([
+            "android-animation-audit", "--serial", "emulator-5554", "--scenario", "chuva+raios"
+        ])
+        self.assertEqual("chuva+raios", labelled.scenario)
 
     def test_dashboard_is_a_static_report_with_timeline_and_run_status(self):
         with tempfile.TemporaryDirectory() as td:
