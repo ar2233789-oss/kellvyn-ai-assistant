@@ -324,7 +324,84 @@ internal class KellvynAgentLabStudio(
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
         }        }
-    )
+,
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[5]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                if (arguments.isNotEmpty()) {
+                    return KellvynToolResult(false, "A análise de delegações não aceita argumentos.")
+                }
+                val recentTraces = withContext(Dispatchers.IO) {
+                    traceStore.summaries().take(MAX_METRIC_TRACES)
+                }
+                val events = withContext(Dispatchers.IO) {
+                    recentTraces.flatMap { summary ->
+                        traceStore.historyTail(summary.traceId, MAX_COMPARE_EVENTS).map { it.event }
+                    }
+                }
+                val starts = events.filter { it.kind == KellvynAgentLabEventKind.DELEGATION_STARTED }
+                val finishes = events.filter { it.kind == KellvynAgentLabEventKind.DELEGATION_FINISHED }
+                val durations = finishes.mapNotNull { it.durationMillis }.sorted()
+                val average = if (durations.isEmpty()) null else durations.sumOf { it } / durations.size
+                val p95 = if (durations.isEmpty()) null else {
+                    val index = ((durations.size * 95 + 99) / 100 - 1).coerceIn(durations.indices)
+                    durations[index]
+                }
+                val output = buildString {
+                    append("MÉTRICAS DE COORDENAÇÃO — traces íntegros mais recentes\n")
+                    append("Traces analisados: ").append(recentTraces.size)
+                        .append("; eventos analisados: ").append(events.size).append("\n")
+                    append("Delegações iniciadas: ").append(starts.size)
+                        .append("; encerradas: ").append(finishes.size)
+                        .append("; abertas no recorte: ")
+                        .append((starts.size - finishes.size).coerceAtLeast(0)).append("\n")
+                    append("Duração: média=")
+                        .append(average?.let { "$it ms" } ?: "sem amostra")
+                        .append("; p95=").append(p95?.let { "$it ms" } ?: "sem amostra")
+                        .append("; máximo=").append(durations.maxOrNull()?.let { "$it ms" } ?: "sem amostra")
+                        .append("\n")
+                    append("Resultados: sucesso=")
+                        .append(finishes.count { it.outcome == KellvynAgentLabOutcome.SUCCEEDED })
+                        .append("; bloqueio=")
+                        .append(finishes.count { it.outcome == KellvynAgentLabOutcome.BLOCKED })
+                        .append("; falha=")
+                        .append(finishes.count { it.outcome == KellvynAgentLabOutcome.FAILED })
+                        .append("; limite=")
+                        .append(finishes.count { it.outcome == KellvynAgentLabOutcome.LIMITED })
+                        .append("; revisão=")
+                        .append(finishes.count { it.outcome == KellvynAgentLabOutcome.REVIEW_REQUIRED })
+                        .append("\n")
+                    KellvynSpecialistRole.values().sortedBy { it.name }.forEach { role ->
+                        val roleFinishes = finishes.filter { it.specialistRole == role }
+                        if (roleFinishes.isNotEmpty()) {
+                            val roleDurations = roleFinishes.mapNotNull { it.durationMillis }
+                            val roleAverage = if (roleDurations.isEmpty()) null
+                                else roleDurations.sumOf { it } / roleDurations.size
+                            append("- ").append(role.name)
+                                .append(": delegações=").append(roleFinishes.size)
+                                .append("; sucesso=").append(roleFinishes.count {
+                                    it.outcome == KellvynAgentLabOutcome.SUCCEEDED
+                                })
+                                .append("; bloqueadas=").append(roleFinishes.count {
+                                    it.outcome == KellvynAgentLabOutcome.BLOCKED
+                                })
+                                .append("; falhas=").append(roleFinishes.count {
+                                    it.outcome == KellvynAgentLabOutcome.FAILED
+                                })
+                                .append("; média=")
+                                .append(roleAverage?.let { "$it ms" } ?: "indisponível")
+                                .append("\n")
+                        }
+                    }
+                    if (finishes.isEmpty()) {
+                        append("Nenhuma delegação encerrada foi registrada nesse recorte.\n")
+                    }
+                    append("\nEstas são métricas operacionais. Não medem raciocínio, correção da resposta ou competência cognitiva.")
+                }
+                return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
+            }
+        }    )
 
     override fun trimTransientResources(level: KellvynCachePressure) = Unit
 
@@ -337,19 +414,21 @@ internal class KellvynAgentLabStudio(
         const val TRACE_INSPECT_TOOL = "agent_lab_trace_inspect"
         const val TRACE_COMPARE_TOOL = "agent_lab_trace_compare"
         const val SPECIALIST_MATRIX_TOOL = "agent_lab_specialist_matrix"
+        const val DELEGATION_METRICS_TOOL = "agent_lab_delegation_metrics"
 
         private const val KIBIBYTE = 1024L
         private const val MEBIBYTE = 1024L * KIBIBYTE
         private const val MAX_TRACE_LIST = 12
         private const val MAX_TRACE_EVENTS = 48
         private const val MAX_COMPARE_EVENTS = 1_536
+        private const val MAX_METRIC_TRACES = 8
         private const val MAX_OUTPUT_CHARS = 7_500
         private val TRACE_ID = Regex("[0-9a-fA-F-]{36}")
 
         private val TOOL_SPECS = listOf(
             KellvynToolSpec(
                 name = ENVIRONMENT_STATUS_TOOL,
-                description = "Mostra o inventário dos módulos, ferramentas registradas e o snapshot atual de RAM, heap, temperatura e bateria do Agent Lab.",
+                description = "Mostra inventário de módulos, ferramentas e diagnóstico de recursos do aparelho.",
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 8_000L,
                 workloadClass = KellvynWorkloadClass.STANDARD,
@@ -361,7 +440,7 @@ internal class KellvynAgentLabStudio(
             ),
             KellvynToolSpec(
                 name = TRACE_LIST_TOOL,
-                description = "Lista as últimas execuções do agente com horários, quantidade de eventos e estado terminal; não exibe conteúdo privado.",
+                description = "Lista traces recentes com horários, eventos e estado terminal; não exibe conteúdo privado.",
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 8_000L,
                 workloadClass = KellvynWorkloadClass.STANDARD,
@@ -370,7 +449,7 @@ internal class KellvynAgentLabStudio(
             ),
             KellvynToolSpec(
                 name = TRACE_INSPECT_TOOL,
-                description = "Inspeciona uma linha do tempo de execução por trace_id, incluindo coordenador, especialistas, ferramentas, duração, resultado e integridade.",
+                description = "Inspeciona uma linha do tempo por trace_id, incluindo coordenador, especialistas, ferramentas, duração e resultado.",
                 requiredArguments = setOf("trace_id"),
                 argumentSchemas = listOf(
                     KellvynToolArgumentSchema(
@@ -409,11 +488,10 @@ internal class KellvynAgentLabStudio(
                 workloadClass = KellvynWorkloadClass.STANDARD,
                 estimatedWorkingSetBytes = 24L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
-            )
             ),
             KellvynToolSpec(
                 name = SPECIALIST_MATRIX_TOOL,
-                description = "Expõe a matriz central de capacidades e ferramentas permitidas para cada um dos 14 especialistas; respeita a chave de pesquisa Web do proprietário.",
+                description = "Expõe a matriz central de capacidades e ferramentas permitidas para cada um dos 14 especialistas; respeita a chave Web do proprietário.",
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 8_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT,
@@ -422,7 +500,17 @@ internal class KellvynAgentLabStudio(
                     KellvynStudioCapability.AGENT_EVALUATION,
                     KellvynStudioCapability.AGENT_DESIGN
                 )
-            )        )
+            ),
+            KellvynToolSpec(
+                name = DELEGATION_METRICS_TOOL,
+                description = "Agrega duração, sucesso, bloqueios, falhas e limites das delegações registradas em traces íntegros; não mede qualidade cognitiva.",
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 12_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 16L * MEBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
+            )
+        )
 
         private val MANIFEST = KellvynStudioModuleManifest(
             moduleId = MODULE_ID,
