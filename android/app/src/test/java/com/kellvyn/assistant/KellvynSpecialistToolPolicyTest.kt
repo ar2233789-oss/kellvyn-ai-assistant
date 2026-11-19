@@ -302,6 +302,15 @@ class KellvynSpecialistToolPolicyTest {
                 allowNetworkRead = false
             )
         )
+        assertEquals(
+            setOf("wikipedia_search"),
+            KellvynSpecialistToolPolicy.deniedRequestedNames(
+                KellvynSpecialistRole.REASONING_ANALYST,
+                setOf("wikipedia_search"),
+                allSpecs,
+                allowNetworkRead = false
+            )
+        )
     }
 
     @Test
