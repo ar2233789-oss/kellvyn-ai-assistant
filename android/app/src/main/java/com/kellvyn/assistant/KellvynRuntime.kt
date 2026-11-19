@@ -229,6 +229,33 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
+     * Pretrains KN-003 on authorized local documents using next-token prediction.
+     * The document pipeline keeps validation/test held out and persists the same
+     * tokenizer/Transformer bundle format used by supervised instruction training.
+     */
+    suspend fun pretrainOwnTransformerFromDocuments(
+        documents: List<KellvynTrainingDocument>,
+        config: KellvynTransformerTrainingConfig = KellvynTransformerTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTransformerTrainingManifest {
+        val trained = runHeavyTask("pretraining-transformer-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTransformerTrainingPipeline.pretrainDocuments(
+                    documents = documents,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveTransformer(trained)
+        }
+        return trained.manifest
+    }
+
+    /**
      * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
