@@ -26,6 +26,10 @@ class KellvynResourceSnapshotTaskHandlerTest {
         assertTrue(summary.contains("thermal.band=NONE"))
         assertTrue(summary.contains("thermal.headroom_moderate_threshold=0.65"))
         assertTrue(summary.contains("thermal.headroom_severe_threshold=0.9"))
+        assertTrue(summary.contains("storage.app_data.available_mib=16384"))
+        assertTrue(summary.contains("storage.app_data.total_mib=524288"))
+        assertTrue(summary.contains("process.cpu_time_ms=1200"))
+        assertTrue(summary.contains("process.available_processors=8"))
         assertTrue(summary.contains("battery.percent=80"))
     }
 
@@ -57,6 +61,10 @@ class KellvynResourceSnapshotTaskHandlerTest {
         thermalHeadroomForecast = 0.2f,
         thermalModerateHeadroomThreshold = 0.65f,
         thermalSevereHeadroomThreshold = 0.9f,
+        availableAppDataBytes = 16L * 1024L * MEBIBYTE,
+        totalAppDataBytes = 512L * 1024L * MEBIBYTE,
+        processCpuTimeMillis = 1_200L,
+        availableProcessors = 8,
         powerSaveMode = false,
         batteryPercent = 80,
         charging = false
