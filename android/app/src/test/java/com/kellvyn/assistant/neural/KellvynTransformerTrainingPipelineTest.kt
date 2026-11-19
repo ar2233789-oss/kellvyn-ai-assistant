@@ -299,6 +299,10 @@ class KellvynTransformerTrainingPipelineTest {
         assertEquals(baseSteps, base.model.trainingSteps)
         assertEquals(base.tokenizer.vocabularySize, fineTuned.tokenizer.vocabularySize)
         assertEquals(base.tokenizer.mergeCount, fineTuned.tokenizer.mergeCount)
+        assertEquals(
+            base.tokenizer.endOfSequenceTokenId,
+            fineTuned.tokenizer.endOfSequenceTokenId
+        )
         assertEquals(baseSteps + expectedNewSteps, fineTuned.model.trainingSteps)
         assertTrue(baseFingerprint != fineTuned.model.parameterFingerprint())
         assertEquals(
