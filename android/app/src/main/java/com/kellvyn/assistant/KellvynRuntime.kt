@@ -88,6 +88,9 @@ internal class KellvynRuntime(context: Context) {
                 specialistProfilesProvider = { activeSpecialistProfiles() }
             )
         )
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynBotOperationsStudio.definition(appContext)
+        )
     }
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
