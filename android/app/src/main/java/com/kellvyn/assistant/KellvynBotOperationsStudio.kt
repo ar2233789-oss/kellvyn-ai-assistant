@@ -1,5 +1,8 @@
 package com.kellvyn.assistant
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 /**
  * Read-only operational view of configured bot adapters.
  *
@@ -71,7 +74,7 @@ internal class KellvynBotOperationsStudio(
                 if (arguments.isNotEmpty()) {
                     return KellvynToolResult(false, "O diagnóstico de bots não aceita argumentos.")
                 }
-                val probes = probeProvider()
+                val probes = withContext(Dispatchers.IO) { probeProvider() }
                 val output = buildString {
                     append("DIAGNÓSTICO DE BOTS KELLVYN — SOMENTE LEITURA\n")
                     append("IA de resposta local: ")
