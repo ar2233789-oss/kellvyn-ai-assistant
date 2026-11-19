@@ -9,6 +9,7 @@ import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
 import com.kellvyn.assistant.neural.KellvynTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
+import com.kellvyn.assistant.neural.KellvynTransformerFineTuneConfig
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingConfig
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingPipeline
