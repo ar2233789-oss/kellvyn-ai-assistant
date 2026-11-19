@@ -248,3 +248,21 @@ Uma capacidade só pode ser marcada como pronta quando houver: teste funcional r
 ## 12. Estado desta auditoria
 
 Pesquisa documental inicial e arquitetura-alvo registradas. Ainda falta leitura aprofundada de cada referência, benchmark prático comparativo e execução de testes reais do projeto. Nesta sessão, não foi executado treinamento neural, Gradle, JUnit, instalação Android nem teste físico no Poco F6. Não declarar essas etapas como concluídas.
+
+
+## 13. Implementação incremental posterior à auditoria inicial — 19/11/2026
+
+Foram aplicadas alterações pequenas e isoladas na pipeline KN-003:
+
+1. **Treino por épocas intercaladas:** antes, cada exemplo de treino recebia todas as suas épocas antes do próximo exemplo. Agora os exemplos são ordenados canonicamente por ID e embaralhados com seed derivada da seed global por época. Isso reduz dependência da ordem de entrada e evita concentrar todas as atualizações de um exemplo antes de aprender os restantes.
+2. **Primitive de treino de uma época:** adicionado `trainCompletionEpoch`, que aplica uma época sem calcular perdas inicial/final redundantes. A pipeline passa a medir validação nos limites apropriados, evitando avaliações repetidas para cada exemplo em cada época.
+3. **Testes adicionados:** reprodutibilidade quando a ordem dos exemplos de entrada muda e equivalência entre o método tradicional de uma época e a nova primitive, incluindo fingerprint dos parâmetros e contagem de passos.
+
+Commits:
+- `7e9de61750948029ade47d0b92e1b2118bf9ec41` — treino intercalado por época com shuffle determinístico.
+- `9923010bd6b43d11636ca1f66eec016e74023eeb` — teste de invariância à ordem de entrada.
+- `a5962bb5bcb9b58440de426392550d6a5d0d3f91` — primitive de treino sem avaliações de loss redundantes.
+- `7347f44c9f736ad9e459dcab8c38669aad27d288` — pipeline usa a primitive eficiente.
+- `6353f0a9edf47fe6e4bd0cadb0979ec224ca435d` — teste de equivalência da primitive.
+
+**Validação:** os arquivos foram relidos no GitHub e os trechos/nomes dos testes confirmados. O status de checks do commit ainda não mostra execução e não há workflow run associado ao commit consultado. Portanto os novos testes estão escritos, mas continuam **NÃO EXECUTADOS** nesta sessão. Não há aprovação Gradle/JUnit ou APK resultante.
