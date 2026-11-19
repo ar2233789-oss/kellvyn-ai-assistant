@@ -173,13 +173,46 @@ def classify_capture_status(video_extraction: str, valid_frames: int) -> str:
 
 
 def foreground_package(activity_dump: str, package: str) -> bool:
-    """Require the selected package to appear on Android's resumed/top-resumed activity line."""
+    """Require an exact package token on Android's resumed/top-resumed activity line."""
+    package_token = re.compile(
+        r"(?<![A-Za-z0-9_.])" + re.escape(package.casefold()) + r"(?=$|[/\\s}:])"
+    )
     for line in activity_dump.splitlines():
-        lower = line.lower()
-        if ("mresumedactivity" in lower or "topresumedactivity" in lower or "resumedactivity" in lower):
-            if package.casefold() in lower:
+        lower = line.casefold()
+        if any(marker in lower for marker in ("mresumedactivity", "topresumedactivity", "resumedactivity")):
+            if package_token.search(lower):
                 return True
     return False
+
+
+def write_failure_manifest(
+    output: Path,
+    *,
+    status: str,
+    serial: str,
+    package: str,
+    error: Exception
+) -> Path | None:
+    """Persist a minimal failure checkpoint only when device preflight created the run folder."""
+    if not output.is_dir():
+        return None
+    path = output / "animation-audit.json"
+    report = {
+        "schema": "kellvyn-android-animation-audit/v1",
+        "status": status,
+        "quality_assessment": "NOT_EVALUATED",
+        "serial": serial,
+        "package": package,
+        "finished_at_utc": datetime.now(timezone.utc).isoformat(),
+        "error_type": type(error).__name__,
+        "error": str(error)[:800],
+        "limitations": [
+            "Capture did not complete; this manifest is a failure checkpoint, not quality evidence.",
+            "Any partial video/log artifacts must be inspected independently."
+        ]
+    }
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    return path
 
 
 def safe_output_path(value: str) -> Path:
@@ -431,6 +464,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--bit-rate", type=int, default=6_000_000)
     parser.add_argument("--output", default="artifacts/workbench/android-animation/latest")
     args = parser.parse_args(argv)
+    run_dir: Path | None = None
     try:
         output = safe_output_path(args.output)
         run_dir = output / (datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8])
@@ -447,10 +481,18 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0 if result["status"] == "CAPTURED" else (4 if result["status"] == "PARTIAL" else 2)
     except AuditBlocked as exc:
+        if run_dir is not None:
+            write_failure_manifest(
+                run_dir, status="BLOCKED", serial=args.serial, package=args.package, error=exc
+            )
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
         return 3
     except (OSError, ValueError, RuntimeError) as exc:
+        if run_dir is not None:
+            write_failure_manifest(
+                run_dir, status="FAILED", serial=args.serial, package=args.package, error=exc
+            )
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "FAILED", "reason": f"{type(exc).__name__}: {exc}"}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
         return 2
