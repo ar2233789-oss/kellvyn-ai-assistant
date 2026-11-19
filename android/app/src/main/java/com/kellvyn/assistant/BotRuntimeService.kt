@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -592,6 +593,31 @@ class BotRuntimeService : Service() {
         val message = error.message.orEmpty()
         if (message.contains("modelo local ainda não está preparado", true)) return message
         return "A Kellvyn não conseguiu concluir esta resposta agora. Verifique a conexão do bot e tente novamente."
+    }
+
+    /**
+     * Android 15 calls this after the app's dataSync foreground-service budget is exhausted
+     * when the app targets API 35+. Pause both adapters cleanly instead of risking a timeout crash.
+     * The current APK targets API 34, so this is forward-compatibility for a future targetSdk bump.
+     */
+    override fun onTimeout(startId: Int, fgsType: Int) {
+        if ((fgsType and ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC) == 0) {
+            super.onTimeout(startId, fgsType)
+            return
+        }
+
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit()
+            .putBoolean("bot_enabled_telegram", false)
+            .putBoolean("bot_enabled_discord", false)
+            .apply()
+        stopRuntimeJobs()
+        writeStatus("telegram", "Pausado pelo limite de tempo do Android; abra o app para retomar")
+        writeStatus("discord", "Pausado pelo limite de tempo do Android; abra o app para retomar")
+        if (foregroundStarted) {
+            stopForeground(true)
+            foregroundStarted = false
+        }
+        stopSelf(startId)
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
