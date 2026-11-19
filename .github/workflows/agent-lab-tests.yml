@@ -29,43 +29,43 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  runner-allocation-probe:
-    name: Minimal runner allocation probe (ubuntu-slim)
-    runs-on: ubuntu-slim
-    timeout-minutes: 2
+  agent-lab-quality-gate:
+    name: Python CLI, Gradle unit tests and Android instrumented tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
-      - name: Confirm hosted runner allocation
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Capture runner preflight and baseline resources
         shell: bash
         run: |
           set -euo pipefail
-          echo "RUNNER_PROBE_STARTED=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          echo "RUNNER_OS=${RUNNER_OS:-unknown}"
-          echo "RUNNER_ARCH=${RUNNER_ARCH:-unknown}"
-          echo "RUNNER_NAME=${RUNNER_NAME:-unknown}"
-          uname -a
-          echo RUNNER_PROBE_OK
+          REPORT="$GITHUB_WORKSPACE/runner-preflight.txt"
+          {
+            echo "captured_at_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "github_sha=$GITHUB_SHA"
+            echo "github_ref=$GITHUB_REF"
+            echo "runner_os=${RUNNER_OS:-unknown}"
+            echo "runner_arch=${RUNNER_ARCH:-unknown}"
+            echo "runner_name=${RUNNER_NAME:-unknown}"
+            echo "--- uname ---"
+            uname -a
+            echo "--- cpu ---"
+            nproc
+            echo "--- memory ---"
+            if command -v free >/dev/null 2>&1; then free -h; else cat /proc/meminfo; fi
+            echo "--- workspace disk ---"
+            df -h "$GITHUB_WORKSPACE"
+            echo "--- python ---"
+            python3 --version
+          } | tee "$REPORT"
 
-  rnd-studio-python:
-    name: R&D Studio Python CLI tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Compile the R&D Studio sources
+      - name: Compile the R&D Studio Python CLI
         run: python3 -m py_compile tools/kellvyn-rnd-studio/studio.py tools/kellvyn-rnd-studio/test_studio.py
 
-      - name: Test isolated workspace and evidence gates
+      - name: Test isolated workspaces, wrapper integrity and evidence gates
         run: python3 tools/kellvyn-rnd-studio/test_studio.py
-
-  android-agent-lab:
-    name: Unit and Android instrumented tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 50
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
@@ -95,6 +95,18 @@ jobs:
         with:
           gradle-version: '8.13'
 
+      - name: Record Android toolchain versions
+        shell: bash
+        run: |
+          {
+            echo "--- java ---"
+            java -version 2>&1
+            echo "--- gradle ---"
+            gradle --version
+            echo "--- adb ---"
+            adb version
+          } | tee -a runner-preflight.txt
+
       - name: Run JVM unit tests
         working-directory: android
         run: gradle testDebugUnitTest --no-daemon --stacktrace
@@ -117,14 +129,29 @@ jobs:
           working-directory: android
           script: gradle connectedDebugAndroidTest --no-daemon --stacktrace
 
-      - name: Preserve Android test reports
+      - name: Capture final runner resources
+        if: always()
+        shell: bash
+        run: |
+          {
+            echo "--- final_snapshot_at_utc ---"
+            date -u +%Y-%m-%dT%H:%M:%SZ
+            echo "--- final_memory ---"
+            if command -v free >/dev/null 2>&1; then free -h; else cat /proc/meminfo; fi
+            echo "--- final_disk ---"
+            df -h "$GITHUB_WORKSPACE"
+          } | tee -a runner-preflight.txt
+
+      - name: Preserve preflight, APK and Android test reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: kellvyn-agent-lab-test-reports
+          name: kellvyn-agent-lab-evidence
           path: |
+            runner-preflight.txt
             android/app/build/reports/tests/**
             android/app/build/outputs/androidTest-results/**
             android/app/build/outputs/connected_android_test_additional_output/**
+            android/app/build/outputs/apk/debug/**
           if-no-files-found: ignore
           retention-days: 14
