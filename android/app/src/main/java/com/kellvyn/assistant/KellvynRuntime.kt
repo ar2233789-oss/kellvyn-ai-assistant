@@ -84,7 +84,8 @@ internal class KellvynRuntime(context: Context) {
                 moduleManager = resourceRuntime.studioModules,
                 resourceSnapshotProvider = resourceRuntime::snapshot,
                 traceRecorderHealthProvider = agentLabTraceRecorder::health,
-                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+                specialistProfilesProvider = { activeSpecialistProfiles() }
             )
         )
     }
