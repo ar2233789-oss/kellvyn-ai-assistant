@@ -17,6 +17,11 @@ on:
       - "tools/kellvyn-workbench/**"
       - ".github/workflows/kellvyn-workbench.yml"
       - "docs/kellvyn/workbench-ledger.jsonl"
+      - "package.json"
+      - "bun.lock"
+      - "tsconfig.json"
+      - "src/**/*.ts"
+      - "src/**/*.tsx"
   workflow_dispatch:
     inputs:
       run_creative:
