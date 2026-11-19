@@ -54,20 +54,34 @@ test("semantic map resolves exported symbols, local imports, calls and test refe
   assert.ok(report.test_references.some(item => item.symbol === "AgentEngine" && item.to === "src/agent.ts"));
 });
 
-test("semantic map distinguishes a resolved external import from a missing import", () => {
+test("semantic map distinguishes resolved local and external imports from missing imports", () => {
   const root = fixture();
+  const packageRoot = path.join(root, "node_modules", "fixture-lib");
+  fs.mkdirSync(packageRoot, { recursive: true });
+  fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({
+    name: "fixture-lib",
+    types: "index.d.ts"
+  }));
+  fs.writeFileSync(path.join(packageRoot, "index.d.ts"), "export declare class ExternalThing { ping(): string }\\n");
   fs.writeFileSync(path.join(root, "src", "agent.test.ts"), `
 import { AgentEngine } from "./agent";
+import { ExternalThing } from "fixture-lib";
 import type { MissingType } from "./not-present";
 new AgentEngine();
+new ExternalThing().ping();
 let item: MissingType;
 void item;
 `);
   const report = analyzeProject(root);
   const local = report.imports.find(item => item.specifier === "./agent");
+  const external = report.imports.find(item => item.specifier === "fixture-lib");
   const missing = report.imports.find(item => item.specifier === "./not-present");
   assert.equal(local?.resolved, true);
   assert.equal(local?.project_local, true);
+  assert.equal(local?.to, "src/agent.ts");
+  assert.equal(external?.resolved, true);
+  assert.equal(external?.project_local, false);
+  assert.equal(external?.to, "node_modules/fixture-lib/index.d.ts");
   assert.equal(missing?.resolved, false);
   assert.equal(missing?.to, null);
   assert.ok(report.summary.error_diagnostics > 0);
