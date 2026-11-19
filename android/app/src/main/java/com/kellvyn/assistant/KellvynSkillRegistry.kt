@@ -202,6 +202,97 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
                         4. Não considere uma tela renderizada como prova de que seus controles funcionam.
                         5. Preserve a interface aprovada quando o pedido for sobre lógica ou inteligência.
                     """.trimIndent()
+                ),
+                KellvynSkillDefinition(
+                    id = "app-builder-workflow",
+                    description = "Planejamento, construção e entrega verificável de projetos e aplicativos.",
+                    triggerTerms = setOf(
+                        "criar", "crie", "construir", "construa", "aplicativo", "app", "android",
+                        "software", "projeto", "gerar", "produto", "funcionalidade", "telas",
+                        "builder", "lovable", "replit", "copilot", "claude"
+                    ),
+                    instructions = """
+                        SKILL: FÁBRICA DE APLICATIVOS — PLAN → BUILD → TEST
+                        1. Converta o pedido em requisitos, telas, estados, dados, permissões, modo offline,
+                           integrações e critérios de aceite observáveis. Pergunte somente quando faltar um
+                           dado realmente bloqueante.
+                        2. Explore a estrutura e a stack existentes antes de propor mudanças. Preserve o layout,
+                           os fluxos e os arquivos que o proprietário marcou como protegidos.
+                        3. Produza um plano revisável, com dependências, arquivos afetados, riscos, estimativa
+                           de recursos e teste para cada requisito. Não comece a mutação durante a análise.
+                        4. Construa em workspace isolado e gere diffs pequenos. Reutilize componentes coerentes;
+                           não invente APIs, SDKs, bibliotecas ou arquivos que não existem.
+                        5. Use somente builders, toolchains e comandos efetivamente registrados. O compilador
+                           Java local da primeira versão não suporta Kotlin/Compose, bibliotecas externas ou
+                           recursos Android arbitrários; não prometa projetos que esse motor não consegue gerar.
+                        6. Escrita, exclusão, instalação e controle de dispositivo exigem ferramentas e aprovações
+                           específicas do host. Uma skill não concede permissões nem transforma uma leitura em
+                           autorização de mutação.
+                        7. Teste em camadas: validação estrutural, compilação, assinatura, instalação, abertura,
+                           interação real, persistência, erros, offline/rede, acessibilidade e regressão visual.
+                           Só mencione as camadas para as quais há ferramentas concretas.
+                        8. Entregue projeto/diff e artefatos com hashes, logs, testes e limitações. Build passou
+                           não significa app instalado; tela abriu não significa todos os fluxos funcionando.
+                        9. Nunca use hospedagem, tokens, APIs pagas ou modelos externos como dependência
+                           obrigatória quando o pedido exigir execução local/offline.
+                    """.trimIndent()
+                ),
+                KellvynSkillDefinition(
+                    id = "agent-lab-evaluation",
+                    description = "Avaliação independente de agentes, perfis, traces, benchmarks e regressões.",
+                    triggerTerms = setOf(
+                        "agente", "agentes", "agent", "benchmark", "benchmarks", "perfil", "perfis",
+                        "trace", "traces", "baseline", "candidato", "avaliar", "avaliacao",
+                        "competencia", "verificador", "evidencia", "orquestrador"
+                    ),
+                    instructions = """
+                        SKILL: EXPERIMENTAÇÃO E AVALIAÇÃO DE AGENTES
+                        1. Separe validade estrutural do perfil, contrato de segurança, execução de ferramenta,
+                           competência cognitiva, integração e operação real. Uma prova não substitui outra.
+                        2. Fixe commit, hash do perfil, configuração/modelo, suíte, ferramentas e orçamento para
+                           que baseline e candidato sejam comparáveis.
+                        3. Execute uma tarefa por vez no perfil de recursos apropriado; mantenha contexto e
+                           workspace isolados. Não paralelize no telefone sem headroom medido.
+                        4. Registre decisão, ferramenta solicitada, ferramenta permitida/negada, execução,
+                           observação, evidência, checkpoint, duração e snapshot. Redija segredos.
+                        5. O próprio agente nunca dá nota à própria resposta. Exija verificador independente
+                           para cada critério; sem oráculo confiável, marque REVIEW_REQUIRED ou BLOCKED.
+                        6. Diferencie PASSED, FAILED, REVIEW_REQUIRED, BLOCKED, SKIPPED e NOT_RUN. Perfil
+                           compilado, catálogo válido ou trace íntegro não prova inteligência.
+                        7. Compare candidato com baseline usando os mesmos casos e ambientes; mostre falhas
+                           críticas separadamente e não esconda regressões numa média.
+                        8. Preserve os traces e a evidência original; replay não deve reexecutar mutações sem
+                           nova autorização do proprietário.
+                    """.trimIndent()
+                ),
+                KellvynSkillDefinition(
+                    id = "bot-operations",
+                    description = "Diagnóstico e recuperação controlada de serviços e bots de mensagens.",
+                    triggerTerms = setOf(
+                        "bot", "bots", "telegram", "discord", "whatsapp", "heartbeat", "gateway",
+                        "reconectar", "reconexao", "conexao", "ativo", "status", "uptime",
+                        "webhook", "token", "servico", "mensagens"
+                    ),
+                    instructions = """
+                        SKILL: OPERAÇÃO E SAÚDE DE BOTS
+                        1. Comece pelo diagnóstico READ_ONLY registrado. Separe adaptador implementado,
+                           toggle habilitado, credencial presente, transporte conectado, heartbeat recente
+                           e cérebro local pronto para responder.
+                        2. Nunca solicite que o proprietário cole o token no relatório; não leia, exponha,
+                           copie ou grave credenciais em prompt, trace, log ou documentação.
+                        3. Telegram: interprete resposta bem-sucedida do long polling como sinal de transporte.
+                           Discord: interprete ACK de heartbeat do Gateway como sinal de conexão. Sinal com
+                           mais de 90 segundos é desatualizado no monitor atual.
+                        4. Transporte conectado não comprova que o bot respondeu com a IA. Confira também
+                           a prontidão do cérebro e o resultado real de uma resposta autorizada.
+                        5. Não reinicie serviço, altere preferência, envie mensagem ou revogue credencial sem
+                           ferramenta mutável específica e aprovação do proprietário.
+                        6. Sugira reconexão com backoff e teste read-only antes de qualquer ação. Não crie
+                           polling agressivo, wake lock permanente nem prometa 24/7 em Android/HyperOS.
+                        7. WhatsApp permanece indisponível enquanto não houver adaptador oficial e endpoint
+                           público HTTPS de webhook permitido. Não recorra a automação não oficial do WhatsApp Web.
+                        8. Relate plataforma, último sinal, idade, estado do cérebro e limitação do dispositivo.
+                    """.trimIndent()
                 )
             )
         )
