@@ -305,3 +305,17 @@ As referências abaixo fundamentam a arquitetura; não significam que as bibliot
 - Toolchain detectada não equivale a build aprovado.
 - Worktree não equivale a sandbox seguro.
 - Runner efêmero reduz riscos de persistência, mas ainda exige permissões mínimas, ambiente limpo e política de artefatos.
+
+
+## 8. Estado da Fase 0 nesta branch — 19/11/2026
+
+**Implementado no código (ainda não validado por execução):**
+- `doctor` com matriz por domínio, toolchain e pré-requisitos do stack real;
+- suites `web-typecheck`, `web-unit`, `web-lint`, `web-build`;
+- seleção do gerenciador JS pelo lockfile e preflight para dependências locais;
+- CI Workbench com Bun 1.4.5, `bun install --frozen-lockfile` e os quatro gates TS/TSX;
+- ambiente mínimo para processos filhos, redação de valores sensíveis e encerramento do grupo de processos;
+- testes unitários novos para matriz, suite web, segredos e timeout de descendentes;
+- manifesto R&D Studio reconciliado para 20 métodos de teste. Os 20 continuam sem execução comprovada no snapshot atual.
+
+**Não implementado ainda:** sandbox descartável com limites reais, parsers/Analysis API semânticos, grafo de impacto, tracing OTel completo, benchmark/animation lab Android, benchmark cognitivo com checkpoint treinado e DAG durável integrado. Não declarar a Fase 0 concluída antes dos testes reais e da auditoria independente do patch.
