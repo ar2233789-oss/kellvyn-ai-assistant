@@ -77,3 +77,23 @@ python3 tools/kellvyn-workbench/workbench.py report
 ```
 
 O painel é `artifacts/workbench/dashboard/index.html`. Ele agrega evidências já geradas; não é um serviço hospedado.
+
+
+## Matriz poliglota e testes do projeto
+
+O comando `doctor` agora apresenta disponibilidade por domínio: Kotlin/Java/Android SDK, TypeScript/TSX, Python, shell/workflows, ADB/dispositivo, visual/mídia e ferramentas candidatas de sandbox. Os estados descrevem detecção e pré-requisitos; não certificam compilação, execução segura ou aprovação.
+
+O gerenciador JS é escolhido pelo lockfile do checkout. Neste repositório, `bun.lock` seleciona Bun; o laboratório não deve substituir silenciosamente esse lockfile por npm/yarn.
+
+Suites para a aplicação Web/TSX de referência:
+
+```bash
+python3 tools/kellvyn-workbench/workbench.py test --suite web-typecheck
+python3 tools/kellvyn-workbench/workbench.py test --suite web-unit
+python3 tools/kellvyn-workbench/workbench.py test --suite web-lint
+python3 tools/kellvyn-workbench/workbench.py test --suite web-build
+```
+
+Pré-condições ausentes são classificadas como `BLOCKED`, não como falha do código. A Web continua sendo referência de interface; estas suites não autorizam portar WebView para o APK nativo.
+
+**Limite de segurança:** Git worktree não é isolamento de sistema operacional. A detecção de Docker/Podman é apenas inventário; não significa que um sandbox seguro esteja configurado. Não executar código não confiável em host persistente.
