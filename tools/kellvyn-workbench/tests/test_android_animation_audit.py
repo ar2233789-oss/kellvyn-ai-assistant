@@ -1,7 +1,9 @@
 from __future__ import annotations
 import importlib.util
+import subprocess
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 MODULE = Path(__file__).resolve().parents[1] / "android_animation_audit.py"
@@ -89,6 +91,54 @@ Janky frames: 12 (5.00%)
             "Historians: com.kellvyn.assistant/.MainActivity",
             "com.kellvyn.assistant"
         ))
+
+    def test_video_and_frame_sha256_helper(self):
+        with tempfile.TemporaryDirectory() as td:
+            sample = Path(td) / "sample.bin"
+            sample.write_bytes(b"abc")
+            self.assertEqual(
+                "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+                audit.sha256_file(sample)
+            )
+
+    def test_foreground_preflight_blocks_before_creating_output_directory(self):
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "repo"
+            root.mkdir()
+            output = root / "artifacts" / "animation-run"
+            old_root = audit.ROOT
+            audit.ROOT = root
+
+            def fake_run(argv, **kwargs):
+                return subprocess.CompletedProcess(
+                    argv, 0, stdout="List of devices attached\\nemulator-5554 device product:test\\n", stderr=""
+                )
+
+            def fake_adb(adb, serial, *args, **kwargs):
+                if args == ("shell", "getprop", "sys.boot_completed"):
+                    stdout = "1\\n"
+                elif args[:3] == ("shell", "pm", "path"):
+                    stdout = "package:/data/app/base.apk\\n"
+                elif args[:4] == ("shell", "dumpsys", "activity", "activities"):
+                    stdout = "Historians: com.other.app/.MainActivity\\n"
+                else:
+                    stdout = ""
+                return subprocess.CompletedProcess([adb, *args], 0, stdout=stdout, stderr="")
+
+            try:
+                with mock.patch.object(audit.shutil, "which", side_effect=lambda name: "/usr/bin/adb" if name == "adb" else None):
+                    with mock.patch.object(audit, "run_command", side_effect=fake_run):
+                        with mock.patch.object(audit, "adb_command", side_effect=fake_adb):
+                            with self.assertRaises(audit.AuditBlocked):
+                                audit.capture_android_animation(
+                                    serial="emulator-5554",
+                                    package="com.kellvyn.assistant",
+                                    output=output,
+                                    duration_s=10
+                                )
+                self.assertFalse(output.exists(), "blocked foreground preflight must not leave an empty run folder")
+            finally:
+                audit.ROOT = old_root
 
     def test_rejects_output_outside_repository(self):
         with tempfile.TemporaryDirectory() as td:
