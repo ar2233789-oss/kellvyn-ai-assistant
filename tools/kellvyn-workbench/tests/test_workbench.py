@@ -66,7 +66,7 @@ class PolyglotToolchainTests(unittest.TestCase):
         self.assertIn("node_modules", blocked)
 
     def test_gradle_banner_detects_version_after_welcome_prefix(self):
-        self.assertTrue(wb.is_gradle_813_banner("Welcome to Gradle 8.13!\\n"))
+        self.assertTrue(wb.is_gradle_813_banner("Welcome to Gradle 8.13!\n"))
         self.assertTrue(wb.is_gradle_813_banner("Gradle 8.13"))
         self.assertFalse(wb.is_gradle_813_banner("Welcome to Gradle 8.12!"))
 
