@@ -398,3 +398,39 @@ Commit `187fdf3635f1486a9ebba6c415fd8651756571cb`:
 Revisão estática confirmou um único construtor de `ForwardPass`, todas as chamadas de rotação usando `RotaryFactors` e o array de fatores propagado até a retropropagação. Um snippet Kotlin isolado também compilou a sintaxe de `Array(length, ::createRotaryFactors)` e acesso à constante do companion object; isso é apenas uma verificação de sintaxe auxiliar, **não** uma compilação do projeto Android.
 
 CI do commit mais recente deste bloco ainda encerra sem steps/logs. Os testes de gradiente e de equivalência do KV cache permanecem não executados.
+
+
+### Otimizações adicionais no caminho de atenção e geração
+
+Commits:
+- `de9173ef8f17bfaa20dcfa81f722e1e9aa3d7ab2` — buffers de score e derivada reutilizados entre cabeças.
+- `e78022eed6650c46887081b0473f99cd76350bca` — geração gulosa seleciona pelo maior logit sem calcular softmax do vocabulário.
+- `4192d9c5277c2418b05edcb5b4a36f600c47412b` — teste de equivalência entre argmax dos logits e argmax das probabilidades softmax.
+
+Detalhes:
+- No forward, o array de scores por posição é alocado uma vez e reutilizado entre cabeças; as probabilidades ficam no array `attentionWeights` que precisa ser preservado para o backward.
+- No backward, o buffer `dAttentionProbability` é alocado uma vez e sobrescrito para cada cabeça.
+- Na geração, o mesmo array de score é reutilizado para guardar exponenciais e pesos normalizados; remove uma alocação de buffer por cabeça.
+- Na decodificação greedy, `predictNext()` agora compara logits diretamente. Como softmax preserva a ordem de logits finitos, o token vencedor é o mesmo; a implementação exige logits finitos. O método que devolve probabilidades segue disponível e segue usando softmax quando necessário.
+- Um teste adicional verifica que o token escolhido diretamente pelos logits coincide com o argmax das probabilidades em 12 passos de geração e mantém comparação com a geração por prefixo completo.
+
+Impacto esperado: menor churn de objetos/arrays e menos exponenciais/divisões no vocabulário em geração greedy. O ganho em tempo, GC e bateria ainda **não foi medido**.
+
+### Snapshot atual de implementação e validação
+
+Arquivos relidos após as alterações:
+- `KellvynTransformerLanguageModel.kt`
+- `KellvynTransformerTrainingPipeline.kt`
+- `KellvynTransformerLanguageModelTest.kt`
+- `KellvynTransformerTrainingPipelineTest.kt`
+
+Testes existentes que cobrem as mudanças:
+- `directEpochPrimitiveMatchesSingleEpochTrainingExactly`
+- `epochTrainingIsReproducibleWhenInputExamplesArriveInDifferentOrder`
+- `multiHeadTransformerGradientsMatchFiniteDifferences`
+- `gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds`
+- `incrementalKvCacheMatchesFullPrefixAcrossContextEviction`
+- `incrementalGenerationAndFullPrefixGreedyGenerationProduceSameTokens`
+- `restoredCheckpointRetainsIncrementalKvCacheEquivalenceAfterWindowSlides`
+
+CI mais recente associado ao commit `4192d9c5277c2418b05edcb5b4a36f600c47412b`: run `44628706417`, job `135929303787`, conclusão `failure`, porém sem steps, sem log URL e sem blob de logs. Não há evidência de que a etapa Gradle tenha iniciado. Classificação: **runner/infraestrutura não disponibilizou execução observável**. Os testes continuam escritos e não executados.
