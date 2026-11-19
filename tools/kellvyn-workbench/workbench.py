@@ -171,6 +171,20 @@ def command_version(binary: str, args: list[str]) -> str:
         return f"FOUND_BUT_VERSION_FAILED: {type(exc).__name__}"
 
 
+def node_package_status(package: str) -> str:
+    node = shutil.which("node")
+    if not node:
+        return "BLOCKED_NODE_MISSING"
+    try:
+        result = subprocess.run(
+            [node, "-e", f"require.resolve({json.dumps(package)})"],
+            text=True, capture_output=True, timeout=8, check=False
+        )
+        return "AVAILABLE" if result.returncode == 0 else "NOT_INSTALLED"
+    except Exception as exc:
+        return f"CHECK_FAILED:{type(exc).__name__}"
+
+
 def doctor() -> dict[str, Any]:
     tools = {
         "git": ("git", ["--version"]),
@@ -191,6 +205,7 @@ def doctor() -> dict[str, Any]:
             optional[module] = "AVAILABLE"
         except Exception:
             optional[module] = "NOT_INSTALLED"
+    optional["node_playwright"] = node_package_status("playwright")
     return {
         "generated_at_utc": timestamp()[0],
         "platform": platform.platform(),
@@ -576,8 +591,17 @@ def cmd_android_smoke(args: argparse.Namespace) -> int:
 
 def cmd_web_audit(args: argparse.Namespace) -> int:
     script = Path(__file__).resolve().parent / "web_audit.mjs"
-    if not shutil.which("node"):
-        print("BLOCKED: Node.js is not installed.", file=sys.stderr); return 3
+    package_status = node_package_status("playwright")
+    if package_status != "AVAILABLE":
+        print(
+            "BLOCKED: Node Playwright is unavailable (" + package_status + "). "
+            "Install it with 'npm install --no-save playwright' and then "
+            "'npx playwright install chromium'. The Python Playwright module is separate.",
+            file=sys.stderr
+        )
+        append_event("WEB_AUDIT", "BLOCKED", "Node Playwright or Chromium dependency is unavailable.",
+                     metadata={"node_playwright": package_status})
+        return 3
     out = Path(args.output); out = out if out.is_absolute() else ROOT / out
     out = within_repo(out); out.mkdir(parents=True, exist_ok=True)
     env = {"KELLVYN_LAB_URL": args.url, "LAB_OUTPUT_DIR": str(out)}
