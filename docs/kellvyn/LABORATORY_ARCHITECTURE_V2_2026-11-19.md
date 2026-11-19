@@ -352,7 +352,7 @@ Status: DRAFT / IMPLEMENTED_NOT_RUN.
 
 ### Testes escritos / estado
 - 31 métodos Python em `tools/kellvyn-workbench/tests/test_workbench.py`.
-- 14 métodos de parser/contratos Android no `test_android_animation_audit.py`.
+- 16 métodos de parser/contratos Android no `test_android_animation_audit.py`.
 - Dois casos Node em `tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs`.
 - 20 métodos em `tools/kellvyn-rnd-studio/test_studio.py`.
 - **Nenhuma das suítes foi executada no runner para este HEAD.** Os testes permanecem NOT_RUN; a captura Android permanece NOT_RUN porque nenhum ADB/AVD autorizado foi disponibilizado.
@@ -386,4 +386,4 @@ A documentação oficial indica que o Kotlin Language Server é mantido pela Jet
 - `dumpsys gfxinfo <package> framestats`: temporização detalhada dos frames recentes: https://developer.android.com/tools/dumpsys
 - FrameTimeline/Perfetto continua sendo o próximo nível para investigar slow/frozen frames e trilhas do pipeline gráfico: https://developer.android.com/topic/performance/issues/render
 
-**Limite:** o coletor externo implementado nesta branch usa screenrecord + gfxinfo; não chama Macrobenchmark, não exporta Perfetto e não conduz os estados de UI. Cada cenário (chuva, raios e combinação) precisa ser preparado e identificado antes da captura. O resultado de vídeo é evidência, não aprovação de fidelidade visual.
+**Limite:** o coletor externo implementado nesta branch usa screenrecord + gfxinfo; o próprio screenrecord acrescenta overhead, portanto gfxinfo é diagnóstico, não benchmark definitivo. Não chama Macrobenchmark, não exporta Perfetto nem conduz os estados da UI. Cada cenário (chuva, raios e combinação) precisa ser preparado e identificado antes da captura. O resultado de vídeo é evidência, não aprovação de fidelidade visual.
