@@ -24,6 +24,8 @@ class KellvynResourceSnapshotTaskHandlerTest {
         assertTrue(summary.contains("system_memory.available_mib=3072"))
         assertTrue(summary.contains("process_heap.used_percent=25"))
         assertTrue(summary.contains("thermal.band=NONE"))
+        assertTrue(summary.contains("thermal.headroom_moderate_threshold=0.65"))
+        assertTrue(summary.contains("thermal.headroom_severe_threshold=0.9"))
         assertTrue(summary.contains("battery.percent=80"))
     }
 
@@ -53,6 +55,8 @@ class KellvynResourceSnapshotTaskHandlerTest {
         lowMemory = false,
         thermalBand = KellvynThermalBand.NONE,
         thermalHeadroomForecast = 0.2f,
+        thermalModerateHeadroomThreshold = 0.65f,
+        thermalSevereHeadroomThreshold = 0.9f,
         powerSaveMode = false,
         batteryPercent = 80,
         charging = false
