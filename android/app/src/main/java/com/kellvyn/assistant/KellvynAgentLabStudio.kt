@@ -287,7 +287,7 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
-,
+        },
         object : KellvynAgentTool {
             override val spec = TOOL_SPECS[4]
 
@@ -326,8 +326,7 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
-        }        }
-,
+        },
         object : KellvynAgentTool {
             override val spec = TOOL_SPECS[5]
 
