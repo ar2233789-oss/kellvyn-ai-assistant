@@ -262,8 +262,11 @@ internal class KellvynAgentLabStudio(
                 val candidateTerminal = candidateEvents.lastOrNull {
                     it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED
                 }?.outcome
-                val bothSuitesCompleted = baselineTerminal == KellvynAgentLabOutcome.SUCCEEDED &&
-                    candidateTerminal == KellvynAgentLabOutcome.SUCCEEDED
+                // FAILED means the full suite ran and found failing cases; BLOCKED or
+                // REVIEW_REQUIRED means the result cannot support a clean quality comparison.
+                val bothSuitesCompleted =
+                    baselineTerminal in setOf(KellvynAgentLabOutcome.SUCCEEDED, KellvynAgentLabOutcome.FAILED) &&
+                        candidateTerminal in setOf(KellvynAgentLabOutcome.SUCCEEDED, KellvynAgentLabOutcome.FAILED)
                 val comparisonControlled = toolPolicyMatches && caseCoverageMatches && bothSuitesCompleted
                 val caseIds = (baselineCases.keys + candidateCases.keys).toSortedSet()
                 val baselinePassed = baselineCases.values.count {
