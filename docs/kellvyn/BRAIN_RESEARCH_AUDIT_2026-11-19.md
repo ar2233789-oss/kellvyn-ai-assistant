@@ -524,3 +524,37 @@ Commits:
 **Limite:** o modelo continua sendo KN-003 de um bloco e a pipeline continua sujeita aos limites experimentais de corpus/passo já documentados. Adicionar pré-treinamento de documentos melhora a etapa de aprendizagem de linguagem, mas não cria conhecimento sem dados adequados nem demonstra conversa geral. O treino real ainda depende de documentos autorizados fornecidos pelo proprietário e de testes executados.
 
 Validação nesta sessão: os seis arquivos do modelo, pipeline, runtime e testes foram relidos no GitHub e os pontos de integração foram confirmados. O CI continua sem executar Gradle/JUnit (jobs falham sem steps/logs); esses novos testes permanecem **NÃO EXECUTADOS**.
+
+
+## 17. Encadeamento do pré-treinamento com ajuste fino supervisionado
+
+**Bloqueio identificado:** adicionar pré-treinamento por documentos não bastava. O método antigo `KellvynTransformerTrainingPipeline.train(examples)` inicializa um novo Transformer aleatório. Se fosse chamado após pré-treinamento, ele não continuaria os pesos anteriores; faria outro treinamento do zero e poderia substituir o bundle pré-treinado.
+
+**Correção implementada:**
+- Novo `KellvynTransformerFineTuneConfig` com épocas, learning rate mais conservador, weight decay e limite de passos.
+- Novo `KellvynTransformerTrainingPipeline.fineTuneInstructions(base, examples, ...)`.
+- O ajuste fino exige um modelo previamente treinado, valida consistência entre dimensões do modelo/tokenizer/manifesto e exige TRAIN/VALIDATION/TEST no manifesto base.
+- O checkpoint base é serializado e restaurado para uma cópia antes de qualquer mutação. Se validação falhar, treinamento for cancelado ou execução lançar erro, o bundle base em disco permanece intacto.
+- O tokenizer e EOS do pré-treinamento são preservados; o vocabulário não é treinado novamente com os exemplos de ajuste fino.
+- O treino continua dos pesos e momentos AdamW anteriores, adiciona novos passos, combina proveniência no manifesto e mede loss inicial/final de validação e loss held-out do novo conjunto.
+- Novo `KellvynRuntime.fineTuneOwnTransformerModel` carrega o bundle, executa a operação sob `runHeavyTask` e só substitui o bundle armazenado depois de receber o resultado completo.
+
+Testes adicionados:
+- `supervisedFineTuningContinuesFromPretrainedBundleWithoutMutatingIt`: confirma que o bundle original não muda, os pesos ajustados mudam, tokenizer/EOS são preservados, os passos são incrementais e o manifesto contém ambos os conjuntos.
+- `fineTuningFromSameBaseAndSeedIsReproducible`: confirma fingerprint idêntico para a mesma base, dados, seed e ordem canônica.
+- `rawTokenEpochPrimitiveMatchesSingleEpochTrainingExactly`: equivalência da primitive usada no pré-treinamento com a atualização existente de uma época.
+
+Commits:
+- `99bf084221bc1f2e73a6d476ad2b33cae0ace4fc` — pipeline de ajuste fino a partir de bundle KN-003 treinado.
+- `6b10cd05001745f6320a46b02933885578d898a2` — operação exposta no runtime.
+- `e863dc10444ffff0fe1c70c1b26644e9de01e536` — testes de continuidade e não mutação da base.
+- `6301329d061eeb5dc2ab9a17cbbcccbd1465ea4d` — import de configuração no runtime.
+- `fc5b2b9ea4e075fe048d4c72c943985d467cd017` — validação consistente do bundle base.
+- `9fc2b0f45e087365b08fedb5a407b6253be55fb5` — teste explícito de preservação do EOS.
+
+Fluxo agora disponível no código:
+1. `pretrainOwnTransformerFromDocuments(...)` — aprende linguagem de texto contínuo a partir de documentos TRAIN.
+2. `fineTuneOwnTransformerModel(...)` — continua dos mesmos pesos para aprender instruções/respostas.
+3. `createOwnTransformerInferenceEngine()` — restaura o bundle combinado e só cria o adaptador após checksum, contexto e Quality Gate.
+
+Esse fluxo está implementado em código, mas ainda **não executado pelo Gradle** nesta sessão. Não há bundle treinado real nem teste de competência conversacional aprovado.
