@@ -3,7 +3,7 @@
   "id": "kotlin-semantic-index-001",
   "title": "Escolha reproduzível do analisador semântico Kotlin para o laboratório",
   "scope": "agents",
-  "created_at_utc": "2026-11-19T15:54:48.373Z",
+  "created_at_utc": "2026-11-19T16:03:34.601Z",
   "state": "PLANNED",
   "candidate_branch": "kellvyn-rnd/polyglot-lab-foundation-20261119",
   "hypothesis": "Uma ferramenta baseada no K2/Analysis API ou no Kotlin Language Server pode produzir um índice de símbolos, tipos, referências e chamadas para o projeto Android real sem modificar fontes, interface ou runtime do APK.",
@@ -59,7 +59,9 @@
     "no_paid_service": true,
     "no_personal_poco_runner": true,
     "kotlin_lsp_runtime_jdk": 25,
-    "project_build_jdk": 17
+    "project_build_jdk": 17,
+    "kotlin_lsp_executable_env": "KOTLIN_LSP_EXECUTABLE",
+    "kotlin_lsp_runtime_jdk_env": "KOTLIN_LSP_JAVA_HOME"
   },
   "fixed_probe_set": [
     "KellvynRuntime",
@@ -97,7 +99,9 @@
     "Nenhuma fonte, APK ou runtime é modificado.",
     "Kotlin LSP runs under an isolated JDK 25 selection while Gradle project import/build remains on the project's JDK 17 toolchain.",
     "Workbench doctor distinguishes LSP absent, JDK25 absent, wrong JDK major and binary+JDK present but unvalidated.",
-    "The JDK25 probe invokes only the configured java executable and never mutates JAVA_HOME/JDK used by Gradle."
+    "The JDK25 probe invokes only the configured java executable and never mutates JAVA_HOME/JDK used by Gradle.",
+    "The doctor can detect a Kotlin LSP installed outside PATH via KOTLIN_LSP_EXECUTABLE and reject missing/non-executable paths.",
+    "The Kotlin LSP binary and JDK25 runtime are selected by explicit paths; the project JDK17 remains untouched."
   ],
   "decision_rule": "Escolher a variante que importe o projeto real e tenha maior precisão de relações semânticas com custo de memória/tempo aceitável. Se ambas falharem no Android Gradle Plugin atual, manter Kotlin indexing como BLOCKED e usar PSI/Tree-sitter apenas para sintaxe, sem rotular como semântico.",
   "execution": {
@@ -142,7 +146,7 @@
     }
   },
   "current_probe_status": {
-    "workbench_detection": "IMPLEMENTED_NOT_RUN",
+    "workbench_detection": "IMPLEMENTED_NOT_RUN_WITH_EXPLICIT_BINARY_AND_JDK25_PATHS",
     "kotlin_lsp_binary_detected_in_host": "NOT_INSTALLED",
     "separate_jdk_25": "NOT_CONFIGURED",
     "project_build_jdk": "17",
