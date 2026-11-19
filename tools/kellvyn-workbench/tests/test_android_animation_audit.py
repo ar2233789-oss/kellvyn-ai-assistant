@@ -111,16 +111,16 @@ Janky frames: 12 (5.00%)
 
             def fake_run(argv, **kwargs):
                 return subprocess.CompletedProcess(
-                    argv, 0, stdout="List of devices attached\\nemulator-5554 device product:test\\n", stderr=""
+                    argv, 0, stdout="List of devices attached\nemulator-5554 device product:test\n", stderr=""
                 )
 
             def fake_adb(adb, serial, *args, **kwargs):
                 if args == ("shell", "getprop", "sys.boot_completed"):
-                    stdout = "1\\n"
+                    stdout = "1\n"
                 elif args[:3] == ("shell", "pm", "path"):
-                    stdout = "package:/data/app/base.apk\\n"
+                    stdout = "package:/data/app/base.apk\n"
                 elif args[:4] == ("shell", "dumpsys", "activity", "activities"):
-                    stdout = "Historians: com.other.app/.MainActivity\\n"
+                    stdout = "Historians: com.other.app/.MainActivity\n"
                 else:
                     stdout = ""
                 return subprocess.CompletedProcess([adb, *args], 0, stdout=stdout, stderr="")
