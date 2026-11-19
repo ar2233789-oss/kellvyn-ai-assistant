@@ -27,6 +27,53 @@ class ToolchainTests(unittest.TestCase):
             self.assertEqual("BLOCKED_NODE_MISSING", wb.node_package_status("playwright"))
 
 
+class PolyglotToolchainTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        self.old_root = wb.ROOT
+        wb.ROOT = self.root
+
+    def tearDown(self):
+        wb.ROOT = self.old_root
+        self.temp.cleanup()
+
+    def test_package_manager_is_selected_from_repository_lockfile(self):
+        (self.root / "package.json").write_text('{"scripts":{"test":"vitest run"}}')
+        (self.root / "bun.lock").write_text("{}")
+        self.assertEqual("bun", wb.detect_package_manager())
+        (self.root / "bun.lock").unlink()
+        (self.root / "pnpm-lock.yaml").write_text("lockfileVersion: '9.0'\\n")
+        self.assertEqual("pnpm", wb.detect_package_manager())
+
+    def test_web_unit_suite_uses_bun_and_local_dependencies(self):
+        (self.root / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}))
+        (self.root / "bun.lock").write_text("{}")
+        modules = self.root / "node_modules"
+        (modules / ".bin").mkdir(parents=True)
+        (modules / ".bin" / "vitest").write_text("#!/bin/sh\\n")
+        with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/bun" if name == "bun" else None):
+            command, blocked = wb.web_suite_command("web-unit")
+        self.assertIsNone(blocked)
+        self.assertEqual(["/usr/bin/bun", "run", "test"], command)
+
+    def test_web_suite_blocks_instead_of_mislabeling_missing_dependencies_as_test_failure(self):
+        (self.root / "package.json").write_text(json.dumps({"scripts": {"test": "vitest run"}}))
+        (self.root / "bun.lock").write_text("{}")
+        with mock.patch.object(wb.shutil, "which", return_value="/usr/bin/bun"):
+            command, blocked = wb.web_suite_command("web-unit")
+        self.assertIsNone(command)
+        self.assertIn("node_modules", blocked)
+
+    def test_toolchain_matrix_never_calls_detected_container_tool_a_secure_sandbox(self):
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/podman" if name == "podman" else None):
+            matrix = wb.toolchain_matrix({}, {})
+        self.assertEqual("DETECTED_UNVALIDATED", matrix["sandbox"]["status"])
+        self.assertEqual("NOT_AVAILABLE", wb.toolchain_matrix({}, {})["sandbox"]["status"])
+        self.assertEqual("BLOCKED", matrix["android_kotlin_java"]["status"])
+
+
 class LedgerTests(unittest.TestCase):
     def test_empty_ledger_is_valid(self):
         with tempfile.TemporaryDirectory() as td:
