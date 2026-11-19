@@ -689,3 +689,13 @@ Commit: \`1ec3144d840b39a49148a6ce9c5b19df1331db31\`.
 
 ### Por que não foi iniciada agora a expansão para vários blocos
 O arquivo KN-003 declara explicitamente ser um Transformer de bloco único e reserva multi-block depth, backpropagation por camada e caches por camada para um marco arquitetural posterior. Fazer essa migração sem um build/teste executável arriscaria quebrar checkpoints, gradientes e inferência sem detectar o defeito. A expansão de camadas continua necessária; foi deliberadamente colocada depois da recuperação do ciclo de validação.
+
+
+### Verificações locais isoladas desta alteração
+- Um harness Kotlin isolado foi compilado com Kotlin/JVM 1.9.0 e executado: aceitou texto UTF-8 com acentos e rejeitou quebra de linha, NUL e 8.001 bytes. Resultado: \`RAW_FINAL_ISOLATED_CHECK=PASS\`.
+- A estrutura YAML equivalente do workflow foi analisada pelo parser YAML local. Resultado: \`WORKFLOW_YAML_PARSE=PASS\`.
+- O arquivo de teste foi compactado para gerar a string excedente com \`"x".repeat(8_001)\`, evitando manter milhares de caracteres literais no teste.
+- Isso valida a sintaxe/semântica isolada do trecho e a estrutura YAML; **não valida a compilação do projeto Android, nem executa JUnit/Gradle**.
+- A consulta de status aos commits do workflow/auditoria ainda não mostrou check runs. Logo, o novo workflow permanece **criado, mas sem execução aprovada confirmada**.
+
+Commit adicional do teste compacto: \`4dac31379f31e5a6b885079b33947cb0c78efc96\`.
