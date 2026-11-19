@@ -67,6 +67,8 @@ class KellvynAutomationDrainWorkerInstrumentedTest {
         ).get(10, TimeUnit.SECONDS)
 
         assertTrue(infos.isNotEmpty())
+        assertTrue(infos.any { it.constraints.requiresBatteryNotLow })
+        assertTrue(infos.any { it.constraints.requiresStorageNotLow })
         assertTrue(infos.any { it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.BLOCKED })
 
         manager.cancelUniqueWork(KellvynResourceRuntime.QUEUE_DRAIN_WORK_NAME)
