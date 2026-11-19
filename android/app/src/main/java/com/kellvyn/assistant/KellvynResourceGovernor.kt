@@ -127,6 +127,7 @@ internal class KellvynResourceGovernor(
         val lightDefaultEstimateBytes: Long = 16L * MEBIBYTE,
         val standardDefaultEstimateBytes: Long = 128L * MEBIBYTE,
         val heavyDefaultEstimateBytes: Long = 512L * MEBIBYTE,
+        val heavyMinimumAppDataReserveBytes: Long = 256L * MEBIBYTE,
         val lowMemoryRetryMillis: Long = 30_000L,
         val thermalRetryMillis: Long = 60_000L,
         val batteryRetryMillis: Long = 120_000L
@@ -141,6 +142,7 @@ internal class KellvynResourceGovernor(
             require(lightDefaultEstimateBytes >= 0L)
             require(standardDefaultEstimateBytes >= lightDefaultEstimateBytes)
             require(heavyDefaultEstimateBytes >= standardDefaultEstimateBytes)
+            require(heavyMinimumAppDataReserveBytes >= 0L)
             require(lowMemoryRetryMillis > 0L && thermalRetryMillis > 0L && batteryRetryMillis > 0L)
         }
     }
@@ -186,6 +188,18 @@ internal class KellvynResourceGovernor(
             return deferred(
                 "INSUFFICIENT_MEMORY_BUDGET",
                 "A memória disponível não cobre a estimativa da tarefa e a reserva de segurança.",
+                config.lowMemoryRetryMillis
+            )
+        }
+
+        val availableAppData = snapshot.availableAppDataBytes
+        if (request.workload == KellvynWorkloadClass.HEAVY &&
+            availableAppData != null &&
+            availableAppData < config.heavyMinimumAppDataReserveBytes
+        ) {
+            return deferred(
+                "APP_STORAGE_LOW",
+                "O espaço livre no armazenamento privado do aplicativo está abaixo da reserva para trabalho pesado e recuperação de checkpoints.",
                 config.lowMemoryRetryMillis
             )
         }
