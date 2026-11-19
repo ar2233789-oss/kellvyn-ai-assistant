@@ -3,10 +3,10 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 18/11/2026, 20:35 UTC  
+**Última revisão:** 19/11/2026 — checkpoint da bancada externa  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
-**Branch de laboratório:** lab/kellvyn-intelligence-core-20261116  
-**HEAD confirmado antes deste checkpoint:** 430d25a0db8e5c9ac8ad236eb826dd0677d05a6b  
+**Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
+**HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
 **Implementação da R&D Studio:** 4598cab4e831dd3e1f9d96c0c2158de8e77ff566  
 **Últimos estudos:** auditoria KN-003 de gradientes e método de diferenças finitas, em `docs/kellvyn/rnd-studio/`.  
 **CI observado:** run 44392690462 — `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
@@ -695,3 +695,24 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Limites
 `KellvynRuntime.isReady()` continua `false`; cérebro neural não está ligado ao chat de produção. Não há APK, validação em emulador ou teste no Poco F6 desta rodada. Interface, `MainActivity`, pesos e checkpoints seguem intocados.
+
+
+---
+
+## 11. Workbench externa do assistente — 19/11/2026
+
+**Esta seção atualiza a prioridade operacional anterior.** O foco imediato é equipar e usar a bancada externa que permite ao assistente pesquisar, inspecionar, experimentar, depurar, testar e produzir evidências para o trabalho dos agentes. Não confundir essa bancada com o Agent Lab dentro do APK, nem iniciar agora alterações no cérebro, nos perfis dos agentes ou na interface.
+
+- Entrada única: `tools/kellvyn-workbench/workbench.py`.
+- Blueprint: `docs/kellvyn/WORKBENCH_BLUEPRINT_2026-11-19.md`.
+- Diário append-only com cadeia SHA-256: `docs/kellvyn/workbench-ledger.jsonl`.
+- Checkpoint humano/JSON gerado pelo comando `checkpoint`: `docs/kellvyn/WORKBENCH_STATE.md` e `WORKBENCH_STATE.json`.
+- Saídas ignoradas pelo Git: `artifacts/workbench/` (logs, runs, renders, snapshots e dashboard).
+- Ferramentas integradas: auditoria de repositório e toolchain, sessões, checkpoints, execução com timeout e logs, triagem de debugger, worktrees do R&D Studio existente, visual diff, Playwright web audit, ADB/Android smoke e pipeline Blender com luzes/sombras/material/câmera/render/export/progresso.
+- A workflow `.github/workflows/kellvyn-workbench.yml` valida Python, testes, scripts Android/Web e integridade do ledger; o render Blender é acionado manualmente.
+
+**Evidência local antes da integração:** 13/13 testes Python da Workbench aprovados; `py_compile` aprovado para workbench, visual diff e pipeline Blender. O container tinha Git, Python 3.13.5, Java 21, Node 22, FFmpeg, Pillow e Playwright; não tinha Gradle, ADB ou Blender. Portanto Android smoke, build Gradle e render real permanecem NÃO EXECUTADOS/BLOCKED até que um host/runner com essas ferramentas esteja disponível.
+
+**Regra de sessão:** iniciar com `doctor`, `verify-ledger` e confirmação do HEAD; registrar pesquisa/decisões/execuções; criar worktree antes de mudanças experimentais; preservar stdout/stderr, hashes e manifests; nunca transformar NOT_RUN/BLOCKED em PASS; gerar checkpoint antes de encerrar. Não recriar a lógica do R&D Studio — a Workbench o chama.
+
+**Próximo passo:** confirmar no GitHub o commit desta integração; executar a workflow quando Actions alocar runner; corrigir apenas falhas reproduzidas. Não alterar `MainActivity.java`, `.github/interface-lock.sha`, layout, cérebro, agentes do APK ou modelos como parte desta bancada.

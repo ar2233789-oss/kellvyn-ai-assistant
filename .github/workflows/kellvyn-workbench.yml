@@ -1,0 +1,97 @@
+name: Kellvyn Workbench — tooling validation
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "tools/kellvyn-workbench/**"
+      - ".github/workflows/kellvyn-workbench.yml"
+      - "docs/kellvyn/workbench-ledger.jsonl"
+  pull_request:
+    paths:
+      - "tools/kellvyn-workbench/**"
+      - ".github/workflows/kellvyn-workbench.yml"
+      - "docs/kellvyn/workbench-ledger.jsonl"
+  workflow_dispatch:
+    inputs:
+      run_creative:
+        description: Install Blender and render a 3D verification scene
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kellvyn-workbench-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  python-and-tooling:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install optional visual-diff dependency
+        run: python -m pip install -r tools/kellvyn-workbench/requirements-visual.txt
+      - name: Compile and test the workbench
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/workbench/ci
+          python -m py_compile \
+            tools/kellvyn-workbench/workbench.py \
+            tools/kellvyn-workbench/visual_diff.py \
+            tools/kellvyn-workbench/creative/blender_pipeline.py
+          bash -n tools/kellvyn-workbench/android_smoke.sh
+          node --check tools/kellvyn-workbench/web_audit.mjs
+          python -m unittest discover -s tools/kellvyn-workbench/tests -v 2>&1 | tee artifacts/workbench/ci/unit-tests.log
+          python tools/kellvyn-workbench/workbench.py verify-ledger | tee artifacts/workbench/ci/ledger-integrity.json
+          python tools/kellvyn-workbench/workbench.py doctor > artifacts/workbench/ci/toolchain.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kellvyn-workbench-validation
+          path: artifacts/workbench/ci/**
+          if-no-files-found: warn
+          retention-days: 14
+
+  creative-render:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.run_creative }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Blender
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y blender libegl1 libgl1 libxrender1 libxi6 libxfixes3 libxxf86vm1 libxkbcommon0
+          blender --version | head -n 2
+      - name: Render an editable 3D scene and inspect output manifest
+        run: |
+          set -euo pipefail
+          python tools/kellvyn-workbench/workbench.py creative \
+            --mode 3d --lighting dramatic --key-light-type SPOT \
+            --engine eevee --shadow-quality high --resolution 100 \
+            --output artifacts/workbench/creative/ci-3d
+          test -s artifacts/workbench/creative/ci-3d/scene.blend
+          test -s artifacts/workbench/creative/ci-3d/preview.png
+          test -s artifacts/workbench/creative/ci-3d/scene.glb
+          test -s artifacts/workbench/creative/ci-3d/manifest.json
+          test -s artifacts/workbench/creative/ci-3d/progress.jsonl
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: kellvyn-workbench-creative
+          path: artifacts/workbench/creative/ci-3d/**
+          if-no-files-found: warn
+          retention-days: 14

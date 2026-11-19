@@ -30,3 +30,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Generated Workbench logs, reports, renders and Python bytecode
+/artifacts/workbench/
+/tools/kellvyn-workbench/**/__pycache__/
