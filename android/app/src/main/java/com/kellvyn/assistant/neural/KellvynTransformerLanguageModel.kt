@@ -157,6 +157,12 @@ internal class KellvynTransformerLanguageModel private constructor(
         require(trainingSteps >= 0L && optimizerSteps == trainingSteps)
     }
 
+    // Parameter arrays are immutable as references after construction; cache their
+    // views so the per-token optimizer loop does not allocate fresh Lists every step.
+    private val parameterArrayViews = parameters.arrays()
+    private val firstMomentArrayViews = firstMoment.arrays()
+    private val secondMomentArrayViews = secondMoment.arrays()
+
     companion object {
         private const val CHECKPOINT_MAGIC = 0x4B564E54 // "KVNT"
         private const val CHECKPOINT_VERSION = 1
@@ -856,14 +862,15 @@ internal class KellvynTransformerLanguageModel private constructor(
         weightDecay: Float
     ) {
         val gradients = computeGradients(contextTokenIds, targetTokenId).parameters
+        val gradientArrays = gradients.arrays()
         var squaredNorm = 0.0
-        for (array in gradients.arrays()) {
+        for (array in gradientArrays) {
             for (value in array) squaredNorm += value.toDouble() * value.toDouble()
         }
         val norm = sqrt(squaredNorm)
         if (norm > GRADIENT_CLIP_NORM) {
             val scale = GRADIENT_CLIP_NORM / norm
-            for (array in gradients.arrays()) {
+            for (array in gradientArrays) {
                 for (index in array.indices) array[index] = (array[index] * scale).toFloat()
             }
         }
@@ -872,10 +879,9 @@ internal class KellvynTransformerLanguageModel private constructor(
         trainingSteps++
         val beta1Correction = 1.0 - BETA1.power(optimizerSteps)
         val beta2Correction = 1.0 - BETA2.power(optimizerSteps)
-        val parameterArrays = parameters.arrays()
-        val gradientArrays = gradients.arrays()
-        val firstArrays = firstMoment.arrays()
-        val secondArrays = secondMoment.arrays()
+        val parameterArrays = parameterArrayViews
+        val firstArrays = firstMomentArrayViews
+        val secondArrays = secondMomentArrayViews
 
         for (group in parameterArrays.indices) {
             val values = parameterArrays[group]
