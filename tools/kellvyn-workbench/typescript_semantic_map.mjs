@@ -50,7 +50,15 @@ function declarationKind(node) {
 }
 
 function hasExportModifier(node) {
-  const modifiers = node.modifiers ?? node.parent?.modifiers ?? [];
+  // A variable's export modifier belongs to its containing VariableStatement, not
+  // the VariableDeclaration or VariableDeclarationList node.
+  let owner = node;
+  if (ts.isVariableDeclaration(owner)) {
+    while (owner && !ts.isVariableStatement(owner)) owner = owner.parent;
+  }
+  const modifiers = owner
+    ? (ts.canHaveModifiers(owner) ? (ts.getModifiers(owner) ?? []) : (owner.modifiers ?? []))
+    : [];
   return modifiers.some(modifier =>
     modifier.kind === ts.SyntaxKind.ExportKeyword ||
     modifier.kind === ts.SyntaxKind.DefaultKeyword
@@ -174,7 +182,8 @@ export function analyzeProject(projectRoot = DEFAULT_ROOT) {
             to: targetFile,
             symbol: symbol?.getName() ?? node.expression.getText(sourceFile),
             line: start.line + 1,
-            kind: ts.isNewExpression(node) ? "construct" : "call"
+            kind: ts.isNewExpression(node) ? "construct" : "call",
+            project_local: !targetFile.startsWith("node_modules/")
           });
         }
       }
@@ -189,7 +198,8 @@ export function analyzeProject(projectRoot = DEFAULT_ROOT) {
             from: fileName,
             to: targetFile,
             symbol: symbol?.getName() ?? node.text,
-            line: start.line + 1
+            line: start.line + 1,
+            project_local: !targetFile.startsWith("node_modules/")
           });
         }
       }
