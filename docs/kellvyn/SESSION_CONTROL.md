@@ -3,9 +3,10 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 19/11/2026 — checkpoint da bancada externa  
+**Última revisão:** 19/11/2026 — continuidade de agentes e laboratório  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
-**Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
+**Branch-base de engenharia:** kellvyn-rnd/agent-trace-duration-port-20261118  
+**Branch experimental ativa:** kellvyn-rnd/reasoning-alternatives-20261119  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
 **Implementação da R&D Studio:** 4598cab4e831dd3e1f9d96c0c2158de8e77ff566  
 **Últimos estudos:** auditoria KN-003 de gradientes e método de diferenças finitas, em `docs/kellvyn/rnd-studio/`.  
@@ -736,3 +737,22 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Próximo passo
 Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
+
+
+## 11.2. Continuidade — laboratório de agentes e Analista de Raciocínio v2 (19/11/2026)
+
+**Branch experimental:** `kellvyn-rnd/reasoning-alternatives-20261119` (derivada da branch `kellvyn-rnd/agent-trace-duration-port-20261118`). Não mesclar automaticamente.
+
+### Correção implementada nesta trilha
+- `REASONING_ANALYST` foi atualizado para perfil v2: comparação de rotas materialmente diferentes, contraexemplos, pré-condições, riscos, recursos, critérios de aceite, fallback e menor experimento reversível.
+- A matriz concede `AGENT_EVALUATION`, `CODE_NAVIGATION`, `WEB_RESEARCH`, `DATA_MODELING` e `DEVICE_DIAGNOSTICS` ao papel. A política continua fail-closed: leitura apenas; `NETWORK_READ` depende do switch do proprietário; nenhuma escrita/shell/instalação/controle do dispositivo.
+- O caso genérico `reasoning-contradictory-premises` foi substituído por `reasoning-alternative-delivery-routes`, mantendo 28 casos e dois por papel.
+- Testes escritos: matriz de capabilities, switch de rede, contexto/roteamento do Orchestrator e presença do benchmark alternativo.
+
+### Estado de validação
+- Alterações foram gravadas em commits pequenos na branch isolada.
+- Gradle/JUnit/Android instrumented ainda NÃO EXECUTADOS. O bloqueio histórico do CI é anterior ao primeiro step, `runner_id=0`, `steps=[]`; isso não permite diagnosticar compilação nem declarar aprovação.
+- O perfil e o benchmark são contratos estruturais. Não demonstram competência do modelo, pois não há checkpoint neural treinado aprovado.
+- Próxima sequência: revisar diff/compilabilidade dos testes; abrir PR draft para tentativa de CI sem merge; buscar rota de execução manual isolada sem usar o Poco F6 pessoal como runner; depois retomar lacunas dos outros papéis e Agent Lab.
+
+**Proteções:** não tocar `MainActivity.java`, interface/layout, `.github/interface-lock.sha`, cérebro/Runtime nem dados de produção nesta trilha.
