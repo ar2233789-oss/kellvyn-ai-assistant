@@ -25,9 +25,11 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
     private val batteryManager =
         appContext.getSystemService(Context.BATTERY_SERVICE) as? BatteryManager
 
-    private val thermalLock = Any()
-    private var cachedHeadroomSampleAt = 0L
-    private var cachedHeadroom: Float? = null
+    private val thermalHeadroomSampler = KellvynThermalHeadroomSampler(
+        clockMillis = { SystemClock.elapsedRealtime() },
+        sample = { forecastSeconds -> powerManager?.getThermalHeadroom(forecastSeconds) },
+        forecastSeconds = THERMAL_FORECAST_SECONDS
+    )
     private val memoryPressure = AtomicReference(KellvynMemoryPressure.NORMAL)
 
     /** Called by the application-scoped ComponentCallbacks2 listener, never polled. */
@@ -108,22 +110,10 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
         }
     }
 
-    /** Android recommends not querying thermal headroom more frequently than once per second. */
+    /** Valid samples refresh each second; unsupported/NaN readings back off for ten seconds. */
     private fun readThermalHeadroomCached(): Float? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
-        synchronized(thermalLock) {
-            val now = SystemClock.elapsedRealtime()
-            if (cachedHeadroomSampleAt > 0L &&
-                now - cachedHeadroomSampleAt < THERMAL_SAMPLE_INTERVAL_MS
-            ) {
-                return cachedHeadroom
-            }
-            cachedHeadroomSampleAt = now
-            cachedHeadroom = runCatching {
-                powerManager?.getThermalHeadroom(THERMAL_FORECAST_SECONDS)
-            }.getOrNull()?.takeIf { it.isFinite() && it >= 0f }
-            return cachedHeadroom
-        }
+        return thermalHeadroomSampler.read()
     }
 
     private companion object {
