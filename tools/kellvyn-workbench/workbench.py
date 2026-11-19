@@ -169,10 +169,10 @@ SENSITIVE_ENV_NAME = re.compile(
     r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
 )
 SENSITIVE_ASSIGNMENT = re.compile(
-    r"(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\\s*[:=]\\s*)([\"']?)([^\\s,\"';]+)"
+    r"(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\s*[:=]\s*)(["']?)([^\s,"';]+)"
 )
-BEARER_VALUE = re.compile(r"(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}")
-TOKEN_VALUE = re.compile(r"\\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\\b")
+BEARER_VALUE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
+TOKEN_VALUE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\b")
 SECRET_FLAG = re.compile(r"(?i)^--?(?:token|api[-_]?key|password|passwd|secret|authorization|client[-_]?secret)$")
 
 
@@ -187,7 +187,7 @@ def sanitized_child_environment(extra: dict[str, str] | None = None) -> dict[str
 
 
 def redact_sensitive_text(value: str) -> str:
-    value = SENSITIVE_ASSIGNMENT.sub(r"\\1\\2[REDACTED]", value)
+    value = SENSITIVE_ASSIGNMENT.sub(r"\1\2[REDACTED]", value)
     value = BEARER_VALUE.sub("Bearer [REDACTED]", value)
     value = TOKEN_VALUE.sub("[REDACTED_TOKEN]", value)
     return value
