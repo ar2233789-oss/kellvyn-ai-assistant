@@ -65,6 +65,17 @@ class PolyglotToolchainTests(unittest.TestCase):
         self.assertIsNone(command)
         self.assertIn("node_modules", blocked)
 
+    def test_gradle_banner_detects_version_after_welcome_prefix(self):
+        self.assertTrue(wb.is_gradle_813_banner("Welcome to Gradle 8.13!\\n"))
+        self.assertTrue(wb.is_gradle_813_banner("Gradle 8.13"))
+        self.assertFalse(wb.is_gradle_813_banner("Welcome to Gradle 8.12!"))
+
+    def test_redaction_covers_quoted_secrets_with_spaces(self):
+        value = 'PASSWORD="quoted secret value"'
+        redacted = wb.redact_sensitive_text(value)
+        self.assertNotIn("quoted secret value", redacted)
+        self.assertIn("[REDACTED]", redacted)
+
     def test_toolchain_matrix_never_calls_detected_container_tool_a_secure_sandbox(self):
         (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
         with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/podman" if name == "podman" else None):
@@ -137,7 +148,7 @@ class LedgerTests(unittest.TestCase):
             wb.ROOT = root
             wb.RUNS = root / "artifacts" / "runs"
             wb.LEDGER = root / "docs" / "ledger.jsonl"
-            code = "import os; print('API_KEY=sample-secret-value'); print('Authorization: Bearer abcdefghijklmnop'); print(os.getenv('KELLVYN_WORKBENCH_TEST_TOKEN', 'not-inherited'))"
+            code = "import os; print('API_KEY=sample-secret-value'); print('PASSWORD="quoted secret value"'); print('Authorization: Bearer abcdefghijklmnop'); print(os.getenv('KELLVYN_WORKBENCH_TEST_TOKEN', 'not-inherited'))"
             try:
                 with mock.patch.dict(wb.os.environ, {"KELLVYN_WORKBENCH_TEST_TOKEN": "host-secret-value"}):
                     result = wb.run_capture("secret-redaction-probe", [sys.executable, "-c", code], cwd=root, timeout_s=10)
@@ -149,8 +160,10 @@ class LedgerTests(unittest.TestCase):
                 self.assertIn("[REDACTED]", stdout)
                 self.assertNotIn("host-secret-value", stdout)
                 self.assertNotIn("sample-secret-value", stdout)
+                self.assertNotIn("quoted secret value", stdout)
                 self.assertNotIn("abcdefghijklmnop", stdout)
                 self.assertNotIn("sample-secret-value", manifest.read_text())
+                self.assertNotIn("quoted secret value", manifest.read_text())
                 self.assertNotIn("abcdefghijklmnop", manifest.read_text())
                 self.assertNotIn("host-secret-value", manifest.read_text())
             finally:
