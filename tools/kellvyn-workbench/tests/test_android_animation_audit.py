@@ -58,6 +58,24 @@ Janky frames: 12 (5.00%)
         self.assertEqual(5.0, report["summary_janky_percent"])
         self.assertEqual(24.0, report["summary_p95_ms"])
 
+    def test_parses_total_pss_memory(self):
+        self.assertEqual(123456, audit.parse_meminfo_pss_kb("TOTAL PSS: 123,456 kB"))
+        self.assertIsNone(audit.parse_meminfo_pss_kb("No memory summary"))
+
+    def test_parses_battery_level_and_temperature(self):
+        report = audit.parse_battery_info("  level: 73\\n  scale: 100\\n  temperature: 354\\n")
+        self.assertEqual(73.0, report["level_percent"])
+        self.assertEqual(35.4, report["temperature_c"])
+
+    def test_parses_display_refresh_rates_without_assuming_one(self):
+        rates = audit.parse_display_refresh_rates("refreshRate=120.0\\nmode fps: 60.0\\nrefreshRate=120.0")
+        self.assertEqual([60.0, 120.0], rates)
+        self.assertEqual([], audit.parse_display_refresh_rates("no refresh field"))
+
+    def test_parses_thermal_status_when_available(self):
+        self.assertEqual(3, audit.parse_thermal_status("Thermal Status: 3"))
+        self.assertIsNone(audit.parse_thermal_status("thermal data unavailable"))
+
     def test_foreground_check_requires_resumed_activity_line(self):
         self.assertTrue(audit.foreground_package(
             "mResumedActivity: ActivityRecord{abc com.kellvyn.assistant/.MainActivity}",
