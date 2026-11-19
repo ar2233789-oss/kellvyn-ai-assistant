@@ -180,10 +180,11 @@ Janky frames: 12 (5.00%)
                 audit.ROOT = old_root
 
     def test_capture_status_is_not_an_animation_quality_verdict(self):
-        self.assertEqual("CAPTURED", audit.classify_capture_status("PASSED", 42))
-        self.assertEqual("PARTIAL", audit.classify_capture_status("BLOCKED_FFMPEG_NOT_INSTALLED", 42))
-        self.assertEqual("PARTIAL", audit.classify_capture_status("PASSED", 0))
-        self.assertEqual("PARTIAL", audit.classify_capture_status("FAILED", 42))
+        self.assertEqual("CAPTURED", audit.classify_capture_status("PASSED", 42, True))
+        self.assertEqual("PARTIAL", audit.classify_capture_status("BLOCKED_FFMPEG_NOT_INSTALLED", 42, True))
+        self.assertEqual("PARTIAL", audit.classify_capture_status("PASSED", 0, True))
+        self.assertEqual("PARTIAL", audit.classify_capture_status("FAILED", 42, True))
+        self.assertEqual("PARTIAL", audit.classify_capture_status("PASSED", 42, False))
 
     def test_validates_frame_budget_and_recording_duration(self):
         with self.assertRaisesRegex(ValueError, "duration"):
