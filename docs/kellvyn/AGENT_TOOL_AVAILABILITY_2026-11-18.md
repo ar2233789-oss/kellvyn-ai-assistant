@@ -209,7 +209,7 @@ O diagnóstico mostra:
 
 Regras:
 - nenhum token bruto é retornado; a verificação usa apenas `BotTokenStore.hasToken`;
-- o agente não envia mensagens, não reinicia serviço, não altera preferências e não lê credenciais;
+- o agente não envia mensagens, não reinicia serviço, não altera preferências e não lê credenciais;\n- o diagnóstico informa separadamente a prontidão do cérebro local para responder; conectado não significa que o bot já possa responder com IA;
 - o sinal é classificado como recente até 90 segundos; depois disso fica desatualizado;
 - o sinal prova apenas uma resposta/ACK observado no passado, não disponibilidade contínua nem garantia de execução em segundo plano.
 
