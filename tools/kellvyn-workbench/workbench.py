@@ -1030,7 +1030,7 @@ def cmd_android_animation_audit(args: argparse.Namespace) -> int:
     if stderr:
         print(stderr[-6000:], file=sys.stderr)
     print(f"ANDROID_ANIMATION_AUDIT={result['status']} RUN={result['run_id']}")
-    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
+    return 0 if result["status"] == "CAPTURED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_web_audit(args: argparse.Namespace) -> int:
