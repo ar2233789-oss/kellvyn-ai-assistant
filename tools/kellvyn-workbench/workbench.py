@@ -185,21 +185,211 @@ def node_package_status(package: str) -> str:
         return f"CHECK_FAILED:{type(exc).__name__}"
 
 
+def detect_package_manager() -> str | None:
+    """Choose the package manager from the repository lockfile; never guess from PATH alone."""
+    candidates = (
+        ("bun.lock", "bun"), ("bun.lockb", "bun"),
+        ("pnpm-lock.yaml", "pnpm"), ("yarn.lock", "yarn"),
+        ("package-lock.json", "npm"),
+    )
+    return next((manager for lockfile, manager in candidates if (ROOT / lockfile).is_file()), None)
+
+
+def web_suite_command(suite: str) -> tuple[list[str] | None, str | None]:
+    """Resolve a web suite only when its lockfile, manager and local dependencies exist."""
+    if suite not in {"web-unit", "web-typecheck", "web-lint", "web-build"}:
+        raise ValueError("unknown web suite: " + suite)
+    package_file = ROOT / "package.json"
+    if not package_file.is_file():
+        return None, "package.json is missing"
+    try:
+        package = json.loads(package_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, "package.json cannot be read: " + type(exc).__name__
+    manager = detect_package_manager()
+    if not manager:
+        return None, "no supported package-manager lockfile was found"
+    executable = shutil.which(manager)
+    if not executable:
+        return None, f"lockfile selects {manager}, but its executable is not installed"
+    modules = ROOT / "node_modules"
+    if not modules.is_dir():
+        return None, "node_modules is missing; dependencies have not been installed"
+    scripts = package.get("scripts", {})
+    script_map = {"web-unit": "test", "web-lint": "lint", "web-build": "build"}
+    if suite == "web-typecheck":
+        tsc = modules / "typescript" / "bin" / "tsc"
+        if not tsc.is_file():
+            return None, "local TypeScript compiler is missing from node_modules"
+        node = shutil.which("node")
+        if not node:
+            return None, "Node.js executable is not installed"
+        return [node, str(tsc), "--noEmit"], None
+    script = script_map[suite]
+    if script not in scripts:
+        return None, f"package.json does not define the required {script!r} script"
+    return [executable, "run", script], None
+
+
+def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[str, Any]:
+    """Report per-domain prerequisites without implying that detection is validation."""
+    def present(name: str) -> bool:
+        return shutil.which(name) is not None
+
+    sdk_candidates = []
+    for key in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            sdk_candidates.append(Path(value).expanduser())
+    sdk_candidates.append(Path.home() / "Android" / "Sdk")
+    sdk_root = next((path.resolve() for path in sdk_candidates if path.is_dir()), None)
+    platform_ok = bool(sdk_root and (sdk_root / "platforms" / "android-35" / "android.jar").is_file())
+    build_tools = sdk_root / "build-tools" / "35.0.0" if sdk_root else None
+    build_tools_ok = bool(build_tools and (build_tools / "aapt2").is_file() and (build_tools / "apksigner").is_file())
+    wrapper = ROOT / "android" / "gradlew"
+    wrapper_ok = wrapper.is_file() and all(
+        (ROOT / relative).is_file() for relative in (
+            "android/gradle/wrapper/gradle-wrapper.jar",
+            "android/gradle/wrapper/gradle-wrapper.properties",
+        )
+    )
+    android_missing = []
+    if not present("java") or not present("javac"):
+        android_missing.append("JDK (java + javac; project targets Java 17)")
+    if not (present("gradle") or wrapper_ok):
+        android_missing.append("Gradle 8.13 or complete repository wrapper")
+    if not platform_ok:
+        android_missing.append("Android SDK platform android-35")
+    if not build_tools_ok:
+        android_missing.append("Android Build Tools 35.0.0 (aapt2 + apksigner)")
+    android_ready = not android_missing
+
+    manager = detect_package_manager()
+    web_bins = ROOT / "node_modules" / ".bin"
+    web_missing = []
+    if not present("node"):
+        web_missing.append("Node.js")
+    if not manager or not present(manager):
+        web_missing.append("package manager selected by lockfile")
+    if not (ROOT / "node_modules").is_dir():
+        web_missing.append("installed node_modules")
+    for binary in ("tsc", "vitest", "eslint", "vite"):
+        if not (web_bins / binary).exists():
+            web_missing.append("local " + binary)
+    web_ready = not web_missing
+
+    shell_missing = []
+    if not present("bash"):
+        shell_missing.append("bash")
+    shell_optional = {name: ("AVAILABLE" if present(name) else "OPTIONAL_NOT_INSTALLED")
+                      for name in ("shellcheck", "actionlint")}
+    if not present("bash"):
+        shell_status = "BLOCKED"
+    elif shell_optional["shellcheck"] == "AVAILABLE" and shell_optional["actionlint"] == "AVAILABLE":
+        shell_status = "READY"
+    else:
+        shell_status = "PARTIAL"
+
+    sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
+    sandbox_detected = any(sandbox_tools.values())
+    # Presence is not proof of rootless mode, isolation, network policy or resource limits.
+    sandbox_status = "DETECTED_UNVALIDATED" if sandbox_detected else "NOT_AVAILABLE"
+
+    adb_path = shutil.which("adb")
+    adb_devices = []
+    adb_probe = "ADB_NOT_INSTALLED"
+    if adb_path:
+        try:
+            probe = subprocess.run([adb_path, "devices"], text=True, capture_output=True, timeout=8, check=False)
+            adb_devices = [
+                row.split()[0] for row in probe.stdout.splitlines()[1:]
+                if len(row.split()) >= 2 and row.split()[1] == "device"
+            ]
+            adb_probe = "AUTHORIZED_DEVICE_FOUND" if adb_devices else "NO_AUTHORIZED_DEVICE"
+        except (OSError, subprocess.SubprocessError):
+            adb_probe = "ADB_PROBE_FAILED"
+
+    def status(missing: list[str]) -> str:
+        return "READY" if not missing else ("PARTIAL" if len(missing) < 4 else "BLOCKED")
+
+    return {
+        "android_kotlin_java": {
+            "status": "READY" if android_ready else status(android_missing),
+            "missing": android_missing,
+            "sdk_root": str(sdk_root) if sdk_root else None,
+            "android_35_platform": platform_ok,
+            "build_tools_35_0_0": build_tools_ok,
+            "gradle_wrapper_present": wrapper_ok,
+            "note": "Detection only. Compile/test evidence is required to mark a build validated.",
+        },
+        "typescript_tsx": {
+            "status": "READY" if web_ready else status(web_missing),
+            "package_manager_from_lockfile": manager,
+            "missing": web_missing,
+            "scripts": (json.loads((ROOT / "package.json").read_text(encoding="utf-8")).get("scripts", {})
+                       if (ROOT / "package.json").is_file() else {}),
+            "note": "Typecheck, Vitest, ESLint and Vite must run against the checked-out lockfile.",
+        },
+        "python_lab": {
+            "status": "READY",
+            "interpreter": sys.executable,
+            "optional_modules": {name: optional.get(name, "NOT_INSTALLED") for name in ("pytest", "PIL")},
+            "note": "Python coordinates lab tasks; it is not the Kotlin neural brain.",
+        },
+        "shell_and_workflows": {
+            "status": shell_status,
+            "missing_required": shell_missing,
+            "optional": shell_optional,
+        },
+        "android_device": {
+            "status": "READY" if adb_probe == "AUTHORIZED_DEVICE_FOUND" else "BLOCKED",
+            "probe": adb_probe,
+            "authorized_devices": adb_devices,
+        },
+        "visual_and_media": {
+            "node_playwright": optional.get("node_playwright", "NOT_INSTALLED"),
+            "blender": "AVAILABLE" if present("blender") else "OPTIONAL_NOT_INSTALLED",
+            "ffmpeg": "AVAILABLE" if present("ffmpeg") else "OPTIONAL_NOT_INSTALLED",
+            "python_pillow": optional.get("PIL", "NOT_INSTALLED"),
+        },
+        "sandbox": {
+            "status": sandbox_status,
+            "detected_tools": sandbox_tools,
+            "note": "Tool detection is not a security test. Worktree is not an OS sandbox.",
+        },
+    }
+
+
 def doctor() -> dict[str, Any]:
     tools = {
         "git": ("git", ["--version"]),
         "python": (sys.executable, ["--version"]),
         "java": ("java", ["-version"]),
+        "javac": ("javac", ["-version"]),
+        "kotlinc": ("kotlinc", ["-version"]),
         "gradle": ("gradle", ["--version"]),
         "adb": ("adb", ["version"]),
-        "blender": ("blender", ["--version"]),
+        "sdkmanager": ("sdkmanager", ["--version"]),
+        "avdmanager": ("avdmanager", ["--version"]),
+        "emulator": ("emulator", ["-version"]),
         "node": ("node", ["--version"]),
         "npm": ("npm", ["--version"]),
+        "npx": ("npx", ["--version"]),
+        "bun": ("bun", ["--version"]),
+        "blender": ("blender", ["--version"]),
         "ffmpeg": ("ffmpeg", ["-version"]),
+        "shellcheck": ("shellcheck", ["--version"]),
+        "actionlint": ("actionlint", ["--version"]),
+        "tree-sitter": ("tree-sitter", ["--version"]),
+        "podman": ("podman", ["--version"]),
+        "docker": ("docker", ["--version"]),
+        "rustc": ("rustc", ["--version"]),
+        "cargo": ("cargo", ["--version"]),
+        "clang": ("clang", ["--version"]),
     }
     found = {name: command_version(binary, args) for name, (binary, args) in tools.items()}
     optional = {}
-    for module in ("PIL", "playwright", "pytest"):
+    for module in ("PIL", "playwright", "pytest", "numpy", "torch"):
         try:
             __import__(module)
             optional[module] = "AVAILABLE"
@@ -213,11 +403,15 @@ def doctor() -> dict[str, Any]:
         "python": platform.python_version(),
         "tools": found,
         "optional_modules": optional,
+        "toolchain_matrix": toolchain_matrix(found, optional),
         "repository": repo_identity(),
         "notes": [
-            "FOUND means the executable exists; it does not prove that a project build succeeds.",
-            "ADB device access is checked separately by android-smoke or debug --adb.",
-            "Blender is a host-side creative tool, not a dependency to embed in the Android APK.",
+            "Executable detection is not evidence of compilation, tests, security isolation or runtime success.",
+            "Kotlin uses the Gradle/Kotlin plugin pipeline; a standalone kotlinc CLI is not required for project builds.",
+            "Python coordinates lab workflows; the product brain remains Kotlin/JVM/Android.",
+            "Android device access is reported separately and is not inferred from SDK installation.",
+            "A detected Docker/Podman binary is not proof that a secure ephemeral sandbox has been configured.",
+            "Blender, Playwright, FFmpeg and analysis tools are host-side lab tools, not APK dependencies.",
         ],
     }
 
@@ -520,7 +714,14 @@ def cmd_test(args: argparse.Namespace) -> int:
         "android-syntax": ["bash", "-n", "tools/kellvyn-workbench/android_smoke.sh"],
         "web-syntax": ["node", "--check", "tools/kellvyn-workbench/web_audit.mjs"],
     }
-    command = commands[args.suite]
+    if args.suite.startswith("web-"):
+        command, blocked_reason = web_suite_command(args.suite)
+        if blocked_reason:
+            append_event("TEST", "BLOCKED", f"{args.suite}: {blocked_reason}", session_id=args.session)
+            print(f"BLOCKED: {blocked_reason}", file=sys.stderr)
+            return 3
+    else:
+        command = commands[args.suite]
     result = run_capture(f"test:{args.suite}", command, timeout_s=args.timeout, session_id=args.session)
     stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
     stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
@@ -709,7 +910,7 @@ def build_parser() -> argparse.ArgumentParser:
     a = q.add_parser("end"); a.add_argument("--id", required=True); a.add_argument("--summary", required=True); a.add_argument("--status", choices=["completed", "interrupted", "blocked"], default="completed"); a.set_defaults(func=cmd_session)
     p = sub.add_parser("run"); p.add_argument("--name", required=True); p.add_argument("--cwd", default="."); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER, help="explicit executable and arguments; no shell is used"); p.set_defaults(func=cmd_run)
     p = sub.add_parser("debug"); p.add_argument("--log", default=""); p.add_argument("--adb", action="store_true"); p.add_argument("--serial", default=""); p.add_argument("--output", default=""); p.set_defaults(func=cmd_debug)
-    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
+    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax", "web-unit", "web-typecheck", "web-lint", "web-build"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
     p = sub.add_parser("rnd"); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER); p.set_defaults(func=cmd_rnd)
     p = sub.add_parser("task"); q = p.add_subparsers(dest="action", required=True)
     z = q.add_parser("test"); z.add_argument("--id", required=True); z.add_argument("--suite", required=True, choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"]); z.add_argument("--timeout", type=int, default=1800); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
