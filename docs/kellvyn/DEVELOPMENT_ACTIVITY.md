@@ -233,3 +233,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - `agent-lab-tests.yml`: três jobs paralelos consolidados num job sequencial; coletor de ambiente/recursos e artefatos adicionados. Uma alocação por rodada; mesma cobertura Python + Gradle + Android instrumented.
 - Run `44426067190` / job `135231121117`: runner_id=0, steps=[]; NOT RUN. Portanto, a alteração não foi exercitada; não alegar build/teste aprovado.
 - O cérebro, Runtime, pesos, interface e MainActivity não foram alterados nesta rodada.
+
+
+## 00:20 UTC — compatibilidade CoGo e R&D Studio Gradle fallback
+- Pesquisado CoGo 26.47 R2 (17/11): IDE local ARM64 offline-capable, JDK21, Kotlin2.3.21, suporte AGP7.3–9.3.1, ~3,5 GB de espaço e 4 GB de RAM livre recomendada. Classificado como PoC manual local, não runner automático.
+- Cruzada a matriz oficial do Kotlin 2.3.20/2.3.21 com AGP 8.13.x e Gradle8.13. Versões do projeto CI coerentes com faixas documentadas; ambiente CoGo ainda precisa ser identificado/testado.
+- R&D Studio: corrigida divergência entre ausência real de wrapper e dependência anterior de gradlew. Fallback de sistema fixa Gradle 8.13 por SHA-256 e versão; mantém modo wrapper protegido. Três novos testes adicionados, total escrito: 20.
+- Arquivos studio.py e test_studio.py atualizados na branch experimental; nenhuma alteração no cérebro, Runtime, pesos, interface ou MainActivity.
+- Último run observado 44427563917 falhou antes de steps (runner_id=0, steps=[]). 20 testes Python, Gradle/JUnit e Android instrumented continuam NOT RUN.
+- Relatório de capacidade e handoff detalhados atualizados; não instalar CoGo nem DroidRunner nesta etapa; não mexer no Poco F6 de uso diário automaticamente.

@@ -836,3 +836,15 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - O novo relatório documenta como medir baseline, LIGHT, STANDARD, HEAVY, temperatura, bateria, PSS, CPU, integridade de traces e estados de segurança; mantém especialistas sequenciais e bloqueio de promoção sem verificador.
 - HEAD confirmado após esta rodada: será atualizado na próxima verificação de Git ref. Não mesclar, não ativar Runtime e não instalar runner no telefone pessoal.
 - Próximo passo: verificar billing/compute/política Actions na conta proprietária; se correto, escalar ao GitHub Support com os runs `44424776449`, `44424784548`, `44426067190`. Depois executar o workflow numa infraestrutura que realmente aloque runner.
+
+
+## 36. CoGo local PoC e correção da execução Gradle do R&D Studio — 19/11/2026
+- CoGo 26.47 R2 (17/11/2026) agora é o candidato local mais forte para uma compilação manual de referência no Android: IDE Kotlin/Java offline-capable, ARM64, AGP até 9.3.1, JDK21 e Kotlin2.3.21. Requisito estimado: 3,5 GB de armazenamento e 4 GB de RAM livre recomendada. Não é runner de workflow headless.
+- Kellvyn atual usa AGP8.13.2, KGP2.3.20, Java/Kotlin target17, compileSdk35; CI usa Gradle8.13. As matrizes oficiais mostram essa combinação CI coerente. A versão de Gradle efetivamente usada pelo CoGo e a importação do projeto Groovy atual ainda precisam de PoC; não alterar a toolchain estável antes de build comparativo.
+- Wiki CoGo contém um procedimento de migração para Gradle9.6.1/AGP9.3.1/Kotlin2.3.21; não aplicar automaticamente. Criar branch/cópia separada, preservar source version 17 e testar sync, unit tests, assemble, hashes e logs.
+- Achado do R&D Studio: Android tree não contém Gradle Wrapper, embora o CI instale Gradle8.13. O código antigo exigia wrapper e não podia criar tasks na branch atual.
+- Corrigido experimentalmente tools/kellvyn-rnd-studio/studio.py: prefere wrapper completo fixado; na ausência, aceita Gradle externo de host confiável, fora do repo, com versão (8.13 por default) e SHA-256 registrados; recusa hash/versão alterados antes/depois. Mantém compatibilidade dos manifests antigos.
+- test_studio.py passou a 20 testes escritos, dos quais 3 cobrem system Gradle mode. Ainda NOT RUN (runner indisponível).
+- Run 44427563917, job 135236233647: runner_id=0, steps=[]; Python/Gradle/Android não iniciaram. Não classificar como falha de código.
+- Branch atual para o trabalho: kellvyn-rnd/agent-trace-duration-port-20261118; HEAD a confirmar após esta entrada. Não mesclar nem ativar runtime.
+- Próximo passo técnico: obter um executor real (Actions após resolver a conta, ou CoGo manual em cópia isolada) e executar primeiro os 20 testes Python e as suítes Gradle. Para CoGo, medir RAM livre e temperatura antes; parar diante de pressão térmica/memória.

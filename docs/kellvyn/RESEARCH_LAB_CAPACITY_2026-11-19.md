@@ -126,3 +126,57 @@ Não abrir 14 inferências paralelas no Poco F6. A avaliação dos 14 perfis dev
 - DroidRunner README, limitações, segurança, release e licença: https://github.com/m96-chan/DroidRunner
 - Review de avaliação de agentes, publicada em 24/04/2026: https://link.springer.com/article/10.1007/s10462-026-11571-0
 
+
+## 6. Alternativa local mais promissora: Code on the Go (CoGo)
+
+Consulta atualizada em 19/11/2026:
+
+- CoGo Release 26.47 R2 foi atualizado em 17/11/2026; o projeto declara IDE offline-capable para desenvolvimento e build de aplicativos Android completos Kotlin/Java diretamente em ARM64, sem PC.
+- A página oficial declara suporte ARM64, AGP 7.3.0–9.3.1, JDK 21 e Kotlin 2.3.21 recomendado. A necessidade declarada é aproximadamente 3,5 GB de armazenamento; memória livre mínima estimada 1,5 GB, com 4 GB recomendados.
+- Artefatos de build (APK/AAB) ficam no armazenamento privado do CoGo e podem ser exportados pela interface. Portanto, não é um backend headless do app Kellvyn nem substitui automaticamente GitHub Actions, mas pode realizar uma compilação manual de referência no próprio celular.
+- O wiki do CoGo contém instruções de migração para uma combinação Gradle 9.6.1 / AGP 9.3.1 / Kotlin 2.3.21. A página de compatibilidade atual afirma o conjunto de versões, mas as notas de 26.47 não descrevem explicitamente a troca de Gradle. Não assumir o Gradle efetivamente instalado sem consultar a versão dentro do app.
+
+### Cruzamento com o projeto Kellvyn
+
+Estado dos arquivos da branch de inteligência:
+- AGP: 8.13.2 (android/build.gradle).
+- Kotlin Gradle Plugin: 2.3.20 (android/build.gradle).
+- Java source/target e Kotlin JVM target: 17 (android/app/build.gradle).
+- compileSdk: 35.
+- O CI atual instala Gradle 8.13.
+- O repo não contém android/gradlew, gradlew.bat, gradle-wrapper.jar nem gradle-wrapper.properties.
+
+A matriz Kotlin atual declara KGP 2.3.20–2.3.21 como totalmente compatível com Gradle 7.6.3–9.3.0 e AGP 8.2.2–9.0.0. A documentação Android declara que AGP 8.13 requer no mínimo Gradle 8.13; a tabela de R8/Kotlin 2.3 cita AGP 8.2.2–8.13 e R8 8.13.19 como mínimo. A configuração CI atual (Gradle 8.13 + AGP 8.13.x + KGP 2.3.20) é coerente com essas faixas publicadas. A combinação com o Gradle interno atual do CoGo ainda precisa ser medida; o CoGo pode usar uma versão diferente daquela usada no CI.
+
+**Decisão:** CoGo é o candidato mais forte para uma PoC de build manual local, mas ainda não é um runner automático para os workflows. Não mudar AGP/Kotlin/Gradle do projeto estável para acomodar CoGo. Primeiro fazer uma prova separada, sem alterar a branch principal, e capturar versão, saída do build, APK, hash, logs e dependências resolvidas.
+
+### Protocolo seguro da PoC no Poco F6
+
+1. Conferir memória realmente livre, armazenamento e temperatura antes de importar o projeto. O requisito de 4 GB é RAM livre, não RAM total; o dispositivo nominal de 8 GB não garante essa folga.
+2. Importar uma cópia de trabalho isolada; não editar a pasta/branch de produção.
+3. Começar com sync e tarefa tasks, depois testDebugUnitTest, então assembleDebug. Não iniciar AVD ou testes instrumentados até confirmar o que o CoGo realmente suporta.
+4. Comparar os resultados com o Gradle 8.13 do CI; guardar log integral, versão das ferramentas, commit exato e SHA-256 do APK.
+5. Interromper o teste se ocorrer pressão térmica, queda acentuada de bateria, encerramento do app ou pressão de memória.
+6. Só considerar CoGo um caminho repetível após duas compilações limpas do mesmo commit e uma compilação com alteração controlada.
+
+Fontes oficiais:
+- CoGo 26.47 R2, recursos, offline e exportação: https://appdevforall.org/code-on-the-go/
+- CoGo compatibilidade, RAM/armazenamento/JDK/Kotlin: https://appdevforall.org/code-on-the-go/
+- CoGo migração de toolchain: https://github.com/appdevforall/CodeOnTheGo/wiki/IMPORTANT:-Fix-project-breaking-changes-after-the-Gradle-AGP-Kotlin-toolchain-upgrade
+- Kotlin Gradle Plugin compatibility: https://kotlinlang.org/docs/gradle-configure-project.html
+- AGP → Gradle compatibility: https://developer.android.com/build/releases/about-agp
+- Kotlin 2.3 / D8 / R8 requirements: https://developer.android.com/build/kotlin-support
+
+## 7. Correção identificada no R&D Studio: Gradle sem Wrapper
+
+A inspeção da árvore da branch de inteligência confirmou que o projeto não contém Gradle Wrapper. O workflow, porém, instala Gradle 8.13 diretamente. A implementação anterior do R&D Studio exigia gradlew e o JAR/properties do wrapper para criar uma tarefa, divergindo do ambiente real e impedindo o início de experimentos nessa branch.
+
+Correção experimental aplicada na branch kellvyn-rnd/agent-trace-duration-port-20261118:
+- O Studio prefere um wrapper completo e íntegro quando ele existe.
+- Sem wrapper, aceita um Gradle externo de confiança, fora do repositório/worktree, com versão fixada (por padrão 8.13) e SHA-256 registrados no manifesto da tarefa.
+- Verifica o executável antes e depois da execução; versão/hash ausente ou alterada bloqueia a tarefa.
+- Os manifests novos registram o modo wrapper ou system; manifests antigos com hash do wrapper continuam sendo lidos.
+- Três testes adicionais cobrem Gradle externo 8.13, recusa de binário substituído e bloqueio quando não há nenhuma rota de execução confiável.
+- O conjunto Python passou a ter **20 testes escritos**. Estado atual: NOT RUN na versão de trabalho; o runner do GitHub continua indisponível, portanto não existe evidência de aprovação desses 20 testes.
+
+A solução exige que o host configure KELLVYN_GRADLE_EXECUTABLE e KELLVYN_GRADLE_VERSION quando gradle não estiver no PATH. A localização e a integridade do Gradle são estabelecidas pelo host confiável; não aceitar caminho de executável fornecido por conteúdo de tarefa/agente.
