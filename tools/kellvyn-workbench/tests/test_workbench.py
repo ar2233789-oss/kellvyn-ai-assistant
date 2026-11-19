@@ -379,6 +379,7 @@ class CliTests(unittest.TestCase):
         ])
         self.assertEqual("emulator-5554", args.serial)
         self.assertEqual("com.kellvyn.assistant", args.package)
+        self.assertEqual("manual-unspecified", args.scenario)
         self.assertEqual(10, args.duration)
         self.assertIsNone(args.frame_budget_ms)
 
