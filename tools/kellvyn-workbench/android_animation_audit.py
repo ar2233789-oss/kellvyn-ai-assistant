@@ -114,6 +114,49 @@ def parse_gfxinfo_summary(text: str) -> dict[str, Any]:
     return metrics
 
 
+def parse_meminfo_pss_kb(text: str) -> int | None:
+    match = re.search(r"(?im)^\\s*TOTAL PSS:\\s*([\\d,]+)", text)
+    if not match:
+        return None
+    return int(match.group(1).replace(",", ""))
+
+
+def parse_battery_info(text: str) -> dict[str, Any]:
+    level = re.search(r"(?im)^\\s*level:\\s*(\\d+)", text)
+    scale = re.search(r"(?im)^\\s*scale:\\s*(\\d+)", text)
+    temperature = re.search(r"(?im)^\\s*temperature:\\s*(-?\\d+)", text)
+    return {
+        "level_percent": (
+            round(int(level.group(1)) * 100 / int(scale.group(1)), 2)
+            if level and scale and int(scale.group(1)) > 0
+            else int(level.group(1)) if level else None
+        ),
+        "temperature_c": round(int(temperature.group(1)) / 10.0, 1) if temperature else None
+    }
+
+
+def parse_display_refresh_rates(text: str) -> list[float]:
+    values = {
+        round(float(value), 3)
+        for value in re.findall(r"(?i)(?:refreshRate|refreshRateOverride|fps)\\s*[:=]\\s*([0-9]+(?:\\.[0-9]+)?)", text)
+        if 1.0 <= float(value) <= 360.0
+    }
+    return sorted(values)
+
+
+def parse_thermal_status(text: str) -> int | None:
+    patterns = (
+        r"(?im)^\\s*Thermal Status:\\s*(\\d+)",
+        r"(?im)^\\s*Current thermal status:\\s*(\\d+)",
+        r"(?i)mStatus=(\\d+)"
+    )
+    for pattern in patterns:
+        match = re.search(pattern, text)
+        if match:
+            return int(match.group(1))
+    return None
+
+
 def foreground_package(activity_dump: str, package: str) -> bool:
     """Require the selected package to appear on Android's resumed/top-resumed activity line."""
     for line in activity_dump.splitlines():
@@ -250,14 +293,16 @@ def capture_android_animation(
         value = adb_command(adb, serial, "shell", "getprop", prop, timeout_s=10, allow_failure=True)
         device_properties.append(f"{prop}={value.stdout.strip()}")
     save_text("device-info.txt", "\n".join(device_properties))
-    for name, args, timeout in (
-        ("display-before.txt", ("shell", "dumpsys", "display"), 20),
-        ("battery-before.txt", ("shell", "dumpsys", "battery"), 15),
-        ("thermal-before.txt", ("shell", "dumpsys", "thermalservice"), 15),
-        ("memory-before.txt", ("shell", "dumpsys", "meminfo", package), 20),
+    before_snapshots: dict[str, str] = {}
+    for key, name, args, timeout in (
+        ("display", "display-before.txt", ("shell", "dumpsys", "display"), 20),
+        ("battery", "battery-before.txt", ("shell", "dumpsys", "battery"), 15),
+        ("thermal", "thermal-before.txt", ("shell", "dumpsys", "thermalservice"), 15),
+        ("memory", "memory-before.txt", ("shell", "dumpsys", "meminfo", package), 20),
     ):
         result = adb_command(adb, serial, *args, timeout_s=timeout, allow_failure=True)
-        save_text(name, result.stdout + result.stderr)
+        before_snapshots[key] = result.stdout + result.stderr
+        save_text(name, before_snapshots[key])
 
     # Reset only the Android gfxinfo counters for this package. No app settings or data are changed.
     gfx_reset = adb_command(adb, serial, "shell", "dumpsys", "gfxinfo", package, "reset", timeout_s=15, allow_failure=True)
@@ -281,19 +326,34 @@ def capture_android_animation(
 
     gfx = adb_command(adb, serial, "shell", "dumpsys", "gfxinfo", package, "framestats", timeout_s=25, allow_failure=True)
     save_text("gfxinfo-framestats.txt", gfx.stdout + gfx.stderr)
-    for name, args, timeout in (
-        ("activities-after.txt", ("shell", "dumpsys", "activity", "activities"), 20),
-        ("display-after.txt", ("shell", "dumpsys", "display"), 20),
-        ("battery-after.txt", ("shell", "dumpsys", "battery"), 15),
-        ("thermal-after.txt", ("shell", "dumpsys", "thermalservice"), 15),
-        ("memory-after.txt", ("shell", "dumpsys", "meminfo", package), 20),
+    after_snapshots: dict[str, str] = {}
+    for key, name, args, timeout in (
+        ("activities", "activities-after.txt", ("shell", "dumpsys", "activity", "activities"), 20),
+        ("display", "display-after.txt", ("shell", "dumpsys", "display"), 20),
+        ("battery", "battery-after.txt", ("shell", "dumpsys", "battery"), 15),
+        ("thermal", "thermal-after.txt", ("shell", "dumpsys", "thermalservice"), 15),
+        ("memory", "memory-after.txt", ("shell", "dumpsys", "meminfo", package), 20),
     ):
         result = adb_command(adb, serial, *args, timeout_s=timeout, allow_failure=True)
-        save_text(name, result.stdout + result.stderr)
+        after_snapshots[key] = result.stdout + result.stderr
+        save_text(name, after_snapshots[key])
 
     frame_metrics = parse_frame_stats(gfx.stdout + "\n" + gfx.stderr, frame_budget_ms)
     frame_metrics.update(parse_gfxinfo_summary(gfx.stdout + "\n" + gfx.stderr))
     report["frame_metrics"] = frame_metrics
+    pss_before = parse_meminfo_pss_kb(before_snapshots.get("memory", ""))
+    pss_after = parse_meminfo_pss_kb(after_snapshots.get("memory", ""))
+    report["resource_metrics"] = {
+        "memory_total_pss_kb_before": pss_before,
+        "memory_total_pss_kb_after": pss_after,
+        "memory_total_pss_delta_kb": pss_after - pss_before if pss_before is not None and pss_after is not None else None,
+        "battery_before": parse_battery_info(before_snapshots.get("battery", "")),
+        "battery_after": parse_battery_info(after_snapshots.get("battery", "")),
+        "thermal_status_before": parse_thermal_status(before_snapshots.get("thermal", "")),
+        "thermal_status_after": parse_thermal_status(after_snapshots.get("thermal", "")),
+        "display_refresh_rates_before": parse_display_refresh_rates(before_snapshots.get("display", "")),
+        "display_refresh_rates_after": parse_display_refresh_rates(after_snapshots.get("display", ""))
+    }
     report["artifacts"] = {
         "video": video.relative_to(ROOT).as_posix(),
         "gfxinfo": "gfxinfo-framestats.txt",
