@@ -256,17 +256,28 @@ internal class KellvynAgentLabStudio(
                 val toolPolicyMatches = baselineToolFingerprint != null &&
                     baselineToolFingerprint == candidateToolFingerprint
                 val caseCoverageMatches = baselineCases.keys == candidateCases.keys
-                val baselineTerminal = baselineEvents.lastOrNull {
+                val baselineTerminalEvent = baselineEvents.lastOrNull {
                     it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED
-                }?.outcome
-                val candidateTerminal = candidateEvents.lastOrNull {
+                }
+                val candidateTerminalEvent = candidateEvents.lastOrNull {
                     it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED
-                }?.outcome
-                // FAILED means the full suite ran and found failing cases; BLOCKED or
-                // REVIEW_REQUIRED means the result cannot support a clean quality comparison.
+                }
+                val baselineTerminal = baselineTerminalEvent?.outcome
+                val candidateTerminal = candidateTerminalEvent?.outcome
+                // A failed case suite is complete only when the harness wrote its CASES_N
+                // summary. BENCHMARK_ERROR/CANCELLED must never be treated as a full run.
+                fun hasCompleteCaseSummary(
+                    terminalEvent: KellvynAgentLabEvent?,
+                    caseCount: Int
+                ): Boolean =
+                    terminalEvent?.detailCode == "CASES_$caseCount" &&
+                        terminalEvent.outcome in setOf(
+                            KellvynAgentLabOutcome.SUCCEEDED,
+                            KellvynAgentLabOutcome.FAILED
+                        )
                 val bothSuitesCompleted =
-                    baselineTerminal in setOf(KellvynAgentLabOutcome.SUCCEEDED, KellvynAgentLabOutcome.FAILED) &&
-                        candidateTerminal in setOf(KellvynAgentLabOutcome.SUCCEEDED, KellvynAgentLabOutcome.FAILED)
+                    hasCompleteCaseSummary(baselineTerminalEvent, baselineCases.size) &&
+                        hasCompleteCaseSummary(candidateTerminalEvent, candidateCases.size)
                 val comparisonControlled = toolPolicyMatches && caseCoverageMatches && bothSuitesCompleted
                 val caseIds = (baselineCases.keys + candidateCases.keys).toSortedSet()
                 val baselinePassed = baselineCases.values.count {
