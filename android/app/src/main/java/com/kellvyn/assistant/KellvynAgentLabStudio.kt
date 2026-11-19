@@ -270,7 +270,8 @@ internal class KellvynAgentLabStudio(
                     terminalEvent: KellvynAgentLabEvent?,
                     caseCount: Int
                 ): Boolean =
-                    terminalEvent?.detailCode == "CASES_$caseCount" &&
+                    terminalEvent != null &&
+                        terminalEvent.detailCode == "CASES_$caseCount" &&
                         terminalEvent.outcome in setOf(
                             KellvynAgentLabOutcome.SUCCEEDED,
                             KellvynAgentLabOutcome.FAILED
