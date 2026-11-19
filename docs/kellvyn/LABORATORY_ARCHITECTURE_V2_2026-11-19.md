@@ -24,7 +24,7 @@ O objetivo é equipar o processo de criação: estudar, projetar, mapear depend�
 | Agent Creation Studio | Definir, versionar, revisar e aprovar perfis | Executor de experimentos |
 | Agent Lab Android | Capturar traces, avaliar execuções e recursos dentro do app | Oficina de engenharia externa |
 | Engineering Workbench | Auditoria, execução instrumentada, depuração, evidência e relatórios | Ambiente isolado de segurança por si só |
-| R&D Studio | Workspaces, hipóteses e suítes de pesquisa Brain/Agents/Integration | Uma simples suíte Python |
+| R&D Studio | Workspaces, hipóteses e suítes de pesquisa KN/Agents/Integration | Uma simples suíte Python |
 | Laboratório-alvo v2 | Coordenar os adaptadores e gates de todo o ciclo de engenharia | Um novo cérebro ou uma nova UI |
 
 O chat de produção permanece desconectado enquanto não houver checkpoint treinado, avaliação comportamental independente e os gates de integração descritos na auditoria de prontidão.
@@ -224,7 +224,7 @@ Nenhuma etapa posterior pode transformar `NOT_RUN` em `PASSED`. Uma alteração 
 7. O executor ainda roda no host e o Git worktree não é isolamento de sistema operacional. Até existir runner efêmero/VM/contêiner com rede e filesystem limitados, executar somente código confiável e classificar código não confiável como `BLOCKED`.
 8. A contagem da R&D Studio foi reconciliada: o snapshot atual contém 20 métodos `test_*`; README e manifesto já não devem reportar 16 nem manter a antiga lista de três testes pendentes. Os 20 métodos continuam NOT_RUN no snapshot atual.
 9. O Workbench tem 23 métodos de teste Python e dois testes Node para o mapa semântico TS. Inventário de testes não é evidência de aprovação: nenhum deles deve ser reportado como PASS até um runner executar o SHA atual.
-10. Workflows Workbench, Agent Lab, APK e núcleo neural ainda são pipelines separados. O Workbench passou a incluir o gate web/TypeScript, mas não há um DAG único relacionando pesquisa, Brain, Agents, integração, Android e evidências no mesmo HEAD.
+10. Workflows Workbench, Agent Lab, APK e núcleo neural ainda são pipelines separados. O Workbench passou a incluir o gate web/TypeScript, mas não há um DAG único relacionando pesquisa, KN, Agents, integração, Android e evidências no mesmo HEAD.
 11. O app Android atual não declara Jetpack Compose. Testes Compose não devem ser aplicados à interface existente; validar Views/Java por Espresso/UI Automator, screenshots e Macrobenchmark quando a infraestrutura estiver disponível.
 
 
@@ -257,7 +257,7 @@ Nenhuma etapa posterior pode transformar `NOT_RUN` em `PASSED`. Uma alteração 
 - **Pendente E5:** replay de cenários de efeitos e Perfetto FrameTimeline/Macrobenchmark para análise de jank com oráculo de fidelidade visual.
 
 
-- Brain Numerical Lab: referências numéricas, gradcheck, KV-cache, qualidade e profiling.
+- KN Numerical Lab: referências numéricas, gradcheck, KV-cache, qualidade e profiling.
 - Agent Behavior Lab: trace/evals/benchmarks e teste de conflitos.
 - Android Visual & Performance Lab: testes de frame/estado, macrobenchmark e Perfetto.
 - Software Factory Lab: build, APK, instalação, smoke, patch review e rollback.
