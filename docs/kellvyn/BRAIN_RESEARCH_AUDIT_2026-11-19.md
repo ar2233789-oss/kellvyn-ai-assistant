@@ -365,3 +365,23 @@ Fontes:
 - Android Studio Profiler: https://developer.android.com/studio/profile
 - System tracing / Perfetto: https://developer.android.com/topic/performance/tracing
 - Android memory metrics: https://developer.android.com/topic/performance/memory
+
+
+### Otimização RoPE — frequências, escala e reuse query/key
+
+Commits:
+- `7814658d1bb87651fde54f5f2a265f3e5359bb2e` — pré-cálculo das frequências RoPE e fatores de escala da atenção.
+- `73c42aa8e1c1b3e7dbcda72988d0a34167461891` — expressão de escala explícita.
+- `cc1d656483306d5b09b7fdd1ff097557f7778436` — reutilização de seno/cosseno entre query e key na mesma posição.
+- `e134daa73662a7debacf6377d20a64254c333556` — ajuste do caminho de retropropagação para reutilizar fatores também na rotação inversa.
+
+Mudanças:
+- Frequências de RoPE e escalas da atenção são calculadas uma vez por configuração do modelo, em vez de repetir `pow()` e `sqrt()` durante todos os tokens.
+- O cálculo de seno/cosseno para uma posição é compartilhado entre query e key nessa mesma posição.
+- A retropropagação reaproveita os mesmos fatores na rotação inversa de query e key.
+
+A fórmula matemática, a inicialização e os pesos não mudam. O ganho esperado é menos chamadas matemáticas transcendentais e menos trabalho repetido no caminho quente. Não há percentual de aceleração medido.
+
+Verificação estática: todas as chamadas de `rotateInPlace` foram relidas após a mudança; forward, geração e gradientes agora usam `RotaryFactors`. Testes existentes que cobrem esses caminhos: `multiHeadTransformerGradientsMatchFiniteDifferences`, `gradientCheckerCoversEveryParameterGroupAcrossHeadCountsAndSeeds`, `incrementalKvCacheMatchesFullPrefixAcrossContextEviction`, `incrementalGenerationAndFullPrefixGreedyGenerationProduceSameTokens` e `restoredCheckpointRetainsIncrementalKvCacheEquivalenceAfterWindowSlides`.
+
+CI do commit `e134daa73662a7debacf6377d20a64254c333556`: workflow run `44627801410` terminou como failure; o job ainda não apresenta steps nem logs. Portanto os testes acima continuam **NÃO EXECUTADOS** nesta sessão.
