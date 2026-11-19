@@ -420,16 +420,13 @@ internal class KellvynTransformerLanguageModel private constructor(
         val initialLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
 
         repeat(epochs) {
-            for (targetIndex in promptTokenIds.size until combined.size) {
-                if ((targetIndex - promptTokenIds.size) and 31 == 0) cancellationCheck?.invoke()
-                val start = max(0, targetIndex - config.contextLength)
-                trainOne(
-                    combined.copyOfRange(start, targetIndex),
-                    combined[targetIndex],
-                    learningRate,
-                    weightDecay
-                )
-            }
+            trainCompletionEpoch(
+                promptTokenIds = promptTokenIds,
+                completionTokenIds = completionTokenIds,
+                learningRate = learningRate,
+                weightDecay = weightDecay,
+                cancellationCheck = cancellationCheck
+            )
         }
         cancellationCheck?.invoke()
         val finalLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
@@ -440,6 +437,39 @@ internal class KellvynTransformerLanguageModel private constructor(
             epochs,
             trainingSteps
         )
+    }
+
+    /**
+     * Applies exactly one epoch to a prompt/completion pair without performing extra
+     * before/after loss evaluations. The pipeline uses this primitive to interleave
+     * examples efficiently and measure validation loss only at epoch boundaries.
+     */
+    internal fun trainCompletionEpoch(
+        promptTokenIds: IntArray,
+        completionTokenIds: IntArray,
+        learningRate: Float = 0.003f,
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
+    ) {
+        require(promptTokenIds.isNotEmpty() && completionTokenIds.isNotEmpty())
+        require(promptTokenIds.size.toLong() + completionTokenIds.size.toLong() <= MAX_TRAINING_TOKENS)
+        val combined = promptTokenIds + completionTokenIds
+        require(combined.all { it in 0 until config.vocabularySize })
+        require(completionTokenIds.size.toLong() <= MAX_TRAINING_STEPS_PER_CALL)
+        validateOptimizerArguments(learningRate, weightDecay)
+        cancellationCheck?.invoke()
+
+        for (targetIndex in promptTokenIds.size until combined.size) {
+            if ((targetIndex - promptTokenIds.size) and 31 == 0) cancellationCheck?.invoke()
+            val start = max(0, targetIndex - config.contextLength)
+            trainOne(
+                combined.copyOfRange(start, targetIndex),
+                combined[targetIndex],
+                learningRate,
+                weightDecay
+            )
+        }
+        cancellationCheck?.invoke()
     }
 
     fun evaluateLoss(tokenIds: IntArray): Double {
