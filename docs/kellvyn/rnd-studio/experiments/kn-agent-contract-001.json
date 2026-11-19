@@ -1,0 +1,79 @@
+{
+  "schema": "kellvyn-rnd-experiment/v1",
+  "id": "kn-agent-contract-001",
+  "scope": "integration",
+  "title": "Contrato entre decisão neural, loop de agentes e verificador",
+  "created_at_utc": "2026-11-18T20:48:00Z",
+  "baseline_commit": "7fc53345e659267cedbafdc54d231e8b5e5c0381",
+  "state": "IMPLEMENTED_NOT_RUN",
+  "hypothesis": "O contrato KELLVYN/1 -> parser -> agent loop -> tool/delegation -> verifier pode ser testado sem declarar o Runtime de produção integrado.",
+  "candidate_design": [
+    "Casos determinísticos para FINAL, CALL_TOOL, PLAN e DELEGATE.",
+    "Rejeitar protocolo malformado e término ausente.",
+    "Call tool só executa após schema e política.",
+    "Delegação usa contexto mínimo e ferramentas READ_ONLY.",
+    "Observação do especialista permanece UNTRUSTED.",
+    "Verificador exige evidência independente.",
+    "Manter futuro gate separado para checkpoint real e KellvynRuntime."
+  ],
+  "metrics": [
+    "valid_decision_rate",
+    "tool_schema_rejection_rate",
+    "verified_tool_success_rate",
+    "verified_delegation_success_rate",
+    "untrusted_observation_propagation",
+    "runtime_connection_status"
+  ],
+  "acceptance_criteria": [
+    "Os quatro tipos de decisão têm casos positivos e negativos.",
+    "Nenhuma ferramenta destrutiva executa sem aprovação confiável.",
+    "Resultado de especialista continua UNTRUSTED.",
+    "Critério desconhecido ou sem referência não pode ser aprovado.",
+    "Relatório distingue engine fake de inferência real.",
+    "Runtime permanece não conectado até gate neural real."
+  ],
+  "status_note": "The current tools/kellvyn-rnd-studio/test_studio.py snapshot contains 20 test methods. The earlier 16-count manifest and three-test pending list were stale. The 13/13 result belongs to an older snapshot; all 20 current methods remain unverified on the current snapshot. Latest CI evidence remains NOT_RUN due to runner_id=0 / steps=[]. Kotlin contract tests are also NOT_RUN.",
+  "candidate_branch": "kellvyn-rnd/kn-agent-contract-001",
+  "candidate_head": "8630162bd7d6586663bcb386ad18ebef63e38e46",
+  "candidate_run_id": 44412382401,
+  "implementation": {
+    "test_class": "KellvynKNAgentIntegrationContractTest",
+    "cases": [
+      "protocolDelegationRunsSpecialistWithLeastPrivilegeAndUntrustedHandoff",
+      "malformedWireDecisionFailsBeforeAnyToolExecution"
+    ],
+    "engine": "ProtocolScriptedEngine (deterministic KELLVYN/1 messages; not trained neural inference)",
+    "workflow_scope": "kellvyn-rnd/**",
+    "scope_limit": "Cross-layer test covers parser, agent, orchestrator, READ_ONLY tool and UNTRUSTED handoff. It does not invoke KellvynIndependentVerifier; verifier end-to-end wiring remains outstanding."
+  },
+  "latest_status": "runner_id=0, runner_name empty, steps=[]; Studio Python and Gradle/JUnit NOT_RUN on latest CI",
+  "studio_validation": {
+    "last_verified_snapshot": "2026-11-18T22:11:00Z",
+    "previous_version": "py_compile plus 13/13 Python tests passed locally in 0.626 seconds",
+    "current_test_count": 20,
+    "current_execution": "NOT_RUN_ON_CURRENT_SNAPSHOT",
+    "latest_ci_run": 44412382401,
+    "unverified_on_current_snapshot": [
+      "test_worktree_is_separate",
+      "test_protected_change_blocks",
+      "test_untracked_whitespace_blocks",
+      "test_missing_test_blocks",
+      "test_stale_test_evidence_blocks_after_source_change",
+      "test_only_three_gradle_suites_are_exposed",
+      "test_kn_suite_filters_only_neural_and_protocol_classes",
+      "test_agents_suite_filters_orchestrator_and_specialist_contracts",
+      "test_integration_suite_contains_kn_and_agent_boundaries_once",
+      "test_track_maps_create_complete_manifests_for_all_scopes",
+      "test_track_map_blocks_when_required_source_or_test_is_missing",
+      "test_task_test_executes_selected_suite_and_records_verifiable_evidence",
+      "test_task_test_nonzero_exit_is_recorded_as_failed_not_passed",
+      "test_task_test_refuses_modified_gradle_wrapper_before_execution",
+      "test_task_create_and_test_use_pinned_system_gradle_when_wrapper_is_absent",
+      "test_task_test_refuses_a_replaced_system_gradle_before_executing_it",
+      "test_task_create_blocks_when_wrapper_and_trusted_system_gradle_are_absent",
+      "test_repo_map_matches_test_files_by_referenced_symbols",
+      "test_task_records_scope_and_scope_specific_gate",
+      "test_track_registry_has_three_separate_lanes"
+    ]
+  }
+}
