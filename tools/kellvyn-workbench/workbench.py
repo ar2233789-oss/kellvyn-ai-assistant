@@ -163,7 +163,7 @@ def within_repo(path: Path) -> Path:
 SAFE_CHILD_ENV_KEYS = {
     "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ",
     "JAVA_HOME", "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_USER_HOME",
-    "GRADLE_USER_HOME", "BUN_INSTALL", "CI",
+    "GRADLE_USER_HOME", "BUN_INSTALL", "KOTLIN_LSP_JAVA_HOME", "CI",
 }
 SENSITIVE_ENV_NAME = re.compile(
     r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
@@ -261,6 +261,35 @@ def node_package_status(package: str) -> str:
         return "AVAILABLE" if result.returncode == 0 else "NOT_INSTALLED"
     except Exception as exc:
         return f"CHECK_FAILED:{type(exc).__name__}"
+
+
+def parse_java_major_version(output: str) -> int | None:
+    """Extract the major version from java -version or javac version output."""
+    match = re.search(r'(?i)(?:openjdk|java)\\s+version\\s+"?(\\d+(?:\\.\\d+)*)', output)
+    if not match:
+        match = re.search(r"(?i)\\bjavac\\s+(\\d+(?:\\.\\d+)*)", output)
+    if not match:
+        return None
+    parts = match.group(1).split(".")
+    if parts[0] == "1" and len(parts) > 1:
+        return int(parts[1])
+    return int(parts[0])
+
+
+def probe_java_major_version(java_executable: Path) -> int | None:
+    """Probe a specific JDK without changing the JDK selected for Android Gradle builds."""
+    if not java_executable.is_file() or not os.access(java_executable, os.X_OK):
+        return None
+    try:
+        result = subprocess.run(
+            [str(java_executable), "-version"],
+            text=True, capture_output=True, timeout=10, check=False
+        )
+        if result.returncode != 0:
+            return None
+        return parse_java_major_version((result.stdout or "") + "\\n" + (result.stderr or ""))
+    except (OSError, subprocess.SubprocessError):
+        return None
 
 
 def detect_package_manager() -> str | None:
@@ -389,7 +418,23 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     else:
         shell_status = "PARTIAL"
 
-    sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
+    kotlin_lsp_executable = shutil.which("kotlin-lsp") or shutil.which("intellij-server")
+    kotlin_lsp_java_home_text = os.environ.get("KOTLIN_LSP_JAVA_HOME", "").strip()
+    kotlin_lsp_java = (
+        Path(kotlin_lsp_java_home_text).expanduser() / "bin" / ("java.exe" if os.name == "nt" else "java")
+        if kotlin_lsp_java_home_text else None
+    )
+    kotlin_lsp_java_major = probe_java_major_version(kotlin_lsp_java) if kotlin_lsp_java else None
+    if not kotlin_lsp_executable:
+        kotlin_lsp_status = "OPTIONAL_NOT_INSTALLED"
+    elif not kotlin_lsp_java:
+        kotlin_lsp_status = "BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED"
+    elif kotlin_lsp_java_major != 25:
+        kotlin_lsp_status = "BLOCKED_JDK25_REQUIRED"
+    else:
+        kotlin_lsp_status = "READY_UNVALIDATED"
+
+        sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
     sandbox_detected = any(sandbox_tools.values())
     # Presence is not proof of rootless mode, isolation, network policy or resource limits.
     sandbox_status = "DETECTED_UNVALIDATED" if sandbox_detected else "NOT_AVAILABLE"
@@ -450,6 +495,15 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
             "blender": "AVAILABLE" if present("blender") else "OPTIONAL_NOT_INSTALLED",
             "ffmpeg": "AVAILABLE" if present("ffmpeg") else "OPTIONAL_NOT_INSTALLED",
             "python_pillow": optional.get("PIL", "NOT_INSTALLED"),
+        },
+        "kotlin_semantic_analysis": {
+            "language_server": kotlin_lsp_executable,
+            "status": kotlin_lsp_status,
+            "runtime_jdk_home": kotlin_lsp_java_home_text or None,
+            "runtime_jdk_major": kotlin_lsp_java_major,
+            "required_runtime_jdk_major": 25,
+            "project_build_jdk_major": 17,
+            "note": "The Kotlin LSP runtime JDK is separate from the Android Gradle build JDK. READY_UNVALIDATED is detection only; the server still must import the actual Android project and pass semantic probes."
         },
         "sandbox": {
             "status": sandbox_status,
