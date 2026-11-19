@@ -28,26 +28,26 @@ class StudioTests(unittest.TestCase):
    else: os.environ[key]=value
   self.tmp.cleanup()
  def create(self):
-  studio.task_create(SimpleNamespace(id="brain-core",title="Brain test",objective="Isolate work",scope="brain",base="HEAD",require_test=[]))
-  return studio.TASKS/"brain-core/checkout"
+  studio.task_create(SimpleNamespace(id="kn-core",title="KN test",objective="Isolate work",scope="kn",base="HEAD",require_test=[]))
+  return studio.TASKS/"kn-core/checkout"
  def test_worktree_is_separate(self):
-  p=self.create(); self.assertTrue(p.is_dir()); self.assertNotEqual(p,self.root); self.assertEqual("kellvyn-rnd/brain-core",git("branch","--show-current",cwd=p))
+  p=self.create(); self.assertTrue(p.is_dir()); self.assertNotEqual(p,self.root); self.assertEqual("kellvyn-rnd/kn-core",git("branch","--show-current",cwd=p))
  def test_protected_change_blocks(self):
   p=self.create(); (p/"src/Protected.kt").write_text("class Changed\n")
-  r=studio.check_report(SimpleNamespace(id="brain-core",require_test=[])); self.assertEqual("FAIL",r["protected"]); self.assertEqual("BLOCKED",r["gate"])
+  r=studio.check_report(SimpleNamespace(id="kn-core",require_test=[])); self.assertEqual("FAIL",r["protected"]); self.assertEqual("BLOCKED",r["gate"])
  def test_untracked_whitespace_blocks(self):
   p=self.create(); (p/"src/New.kt").write_text("class New  \n")
-  r=studio.check_report(SimpleNamespace(id="brain-core",require_test=[])); self.assertEqual("FAIL",r["diff_check"])
+  r=studio.check_report(SimpleNamespace(id="kn-core",require_test=[])); self.assertEqual("FAIL",r["diff_check"])
  def test_missing_test_blocks(self):
-  self.create(); r=studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"])); self.assertEqual(["unit"],r["missing_or_stale_tests"])
+  self.create(); r=studio.check_report(SimpleNamespace(id="kn-core",require_test=["unit"])); self.assertEqual(["unit"],r["missing_or_stale_tests"])
  def test_stale_test_evidence_blocks_after_source_change(self):
-  p=self.create(); m=json.loads((studio.TASKS/"brain-core/task.json").read_text()); log=studio.TASKS/"brain-core/evidence/unit.log"; log.parent.mkdir(exist_ok=True); log.write_text("actual test output\n")
+  p=self.create(); m=json.loads((studio.TASKS/"kn-core/task.json").read_text()); log=studio.TASKS/"kn-core/evidence/unit.log"; log.parent.mkdir(exist_ok=True); log.write_text("actual test output\n")
   m["evidence"].append({"suite":"unit","exit_code":0,"head":studio.head(p),"fingerprint":studio.fingerprint(p,m["base"]),"log":str(log),"log_sha256":studio.digest(log)})
-  (studio.TASKS/"brain-core/task.json").write_text(json.dumps(m)); self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
-  (p/"src/New.kt").write_text("class New\n"); self.assertEqual("BLOCKED",studio.check_report(SimpleNamespace(id="brain-core",require_test=["unit"]))["gate"])
+  (studio.TASKS/"kn-core/task.json").write_text(json.dumps(m)); self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="kn-core",require_test=["unit"]))["gate"])
+  (p/"src/New.kt").write_text("class New\n"); self.assertEqual("BLOCKED",studio.check_report(SimpleNamespace(id="kn-core",require_test=["unit"]))["gate"])
  def test_only_three_gradle_suites_are_exposed(self): self.assertEqual({"unit","assemble","instrumented"},set(studio.TESTS))
- def test_brain_suite_filters_only_neural_and_protocol_classes(self):
-  cmd=studio.suite_command("brain")
+ def test_kn_suite_filters_only_neural_and_protocol_classes(self):
+  cmd=studio.suite_command("kn")
   selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
   self.assertTrue(any(".neural.KellvynTransformerLanguageModelTest" in x for x in selected))
   self.assertIn("com.kellvyn.assistant.KellvynDecisionProtocolTest",selected)
@@ -59,13 +59,13 @@ class StudioTests(unittest.TestCase):
   self.assertIn("com.kellvyn.assistant.KellvynAgentDelegationTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynSpecialistToolPolicyTest",selected)
   self.assertFalse(any(".neural." in x for x in selected))
- def test_integration_suite_contains_brain_and_agent_boundaries_once(self):
+ def test_integration_suite_contains_kn_and_agent_boundaries_once(self):
   cmd=studio.suite_command("integration")
   selected=[cmd[i+1] for i,x in enumerate(cmd[:-1]) if x=="--tests"]
   self.assertIn("com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
-  self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
-  self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynKNAgentIntegrationContractTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynKNAgentIntegrationContractTest",selected)
   self.assertEqual(len(selected),len(set(selected)))
  def test_track_maps_create_complete_manifests_for_all_scopes(self):
   for scope,definition in studio.TRACKS.items():
@@ -81,13 +81,13 @@ class StudioTests(unittest.TestCase):
    self.assertTrue(all(item["exists"] for item in manifest["sources"]))
    self.assertTrue(all(item["exists"] for item in manifest["tests"]))
  def test_track_map_blocks_when_required_source_or_test_is_missing(self):
-  result=studio.track_map(SimpleNamespace(scope="brain"))
+  result=studio.track_map(SimpleNamespace(scope="kn"))
   self.assertEqual(2,result)
  def test_task_test_executes_selected_suite_and_records_verifiable_evidence(self):
   work=self.create()
-  result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  result=studio.task_test(SimpleNamespace(id="kn-core",suite="kn",timeout=30))
   self.assertEqual(0,result)
-  task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  task=json.loads((studio.TASKS/"kn-core/task.json").read_text())
   evidence=task["evidence"][-1]
   self.assertEqual("PASSED",evidence["status"])
   self.assertEqual("PASS",evidence["gradle_wrapper_integrity"])
@@ -95,16 +95,16 @@ class StudioTests(unittest.TestCase):
   self.assertIn("KellvynTransformerLanguageModelTest",log)
   self.assertIn("KellvynDecisionProtocolTest",log)
   self.assertNotIn("KellvynOrchestratorTest",log)
-  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  report=studio.check_report(SimpleNamespace(id="kn-core",require_test=[]))
   self.assertEqual("PASS",report["gate"])
  def test_task_test_nonzero_exit_is_recorded_as_failed_not_passed(self):
   work=self.create()
   (work/"force-gradle-failure").write_text("fail\n")
-  result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  result=studio.task_test(SimpleNamespace(id="kn-core",suite="kn",timeout=30))
   self.assertEqual(2,result)
-  task=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  task=json.loads((studio.TASKS/"kn-core/task.json").read_text())
   self.assertEqual("FAILED",task["evidence"][-1]["status"])
-  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  report=studio.check_report(SimpleNamespace(id="kn-core",require_test=[]))
   self.assertEqual("BLOCKED",report["gate"])
  def test_task_test_refuses_modified_gradle_wrapper_before_execution(self):
   work=self.create()
@@ -112,9 +112,9 @@ class StudioTests(unittest.TestCase):
   wrapper.write_text("#!/bin/sh\ntouch ../tampered-wrapper-executed\n")
   wrapper.chmod(0o755)
   with self.assertRaisesRegex(RuntimeError,"Gradle wrapper integrity"):
-   studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+   studio.task_test(SimpleNamespace(id="kn-core",suite="kn",timeout=30))
   self.assertFalse((work/"tampered-wrapper-executed").exists())
-  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  report=studio.check_report(SimpleNamespace(id="kn-core",require_test=[]))
   self.assertEqual("FAIL",report["gradle_wrapper"])
   self.assertEqual("BLOCKED",report["gate"])
  def remove_wrapper_and_commit(self):
@@ -132,16 +132,16 @@ class StudioTests(unittest.TestCase):
   self.remove_wrapper_and_commit()
   executable=self.fake_system_gradle()
   work=self.create()
-  manifest=json.loads((studio.TASKS/"brain-core/task.json").read_text())
+  manifest=json.loads((studio.TASKS/"kn-core/task.json").read_text())
   self.assertEqual("system",manifest["gradle_execution"]["mode"])
   self.assertEqual(studio.digest(executable),manifest["gradle_execution"]["sha256"])
-  result=studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+  result=studio.task_test(SimpleNamespace(id="kn-core",suite="kn",timeout=30))
   self.assertEqual(0,result)
-  evidence=json.loads((studio.TASKS/"brain-core/task.json").read_text())["evidence"][-1]
+  evidence=json.loads((studio.TASKS/"kn-core/task.json").read_text())["evidence"][-1]
   self.assertEqual("PASSED",evidence["status"])
   self.assertEqual("system",evidence["gradle_execution_mode"])
   self.assertEqual("PASS",evidence["gradle_wrapper_integrity"])
-  self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))["gate"])
+  self.assertEqual("PASS",studio.check_report(SimpleNamespace(id="kn-core",require_test=[]))["gate"])
  def test_task_test_refuses_a_replaced_system_gradle_before_executing_it(self):
   self.remove_wrapper_and_commit()
   executable=self.fake_system_gradle()
@@ -150,9 +150,9 @@ class StudioTests(unittest.TestCase):
   executable.write_text(f"#!/bin/sh\ntouch '{marker}'\necho 'Gradle 8.13'\n")
   executable.chmod(0o755)
   with self.assertRaisesRegex(RuntimeError,"Gradle wrapper integrity"):
-   studio.task_test(SimpleNamespace(id="brain-core",suite="brain",timeout=30))
+   studio.task_test(SimpleNamespace(id="kn-core",suite="kn",timeout=30))
   self.assertFalse(marker.exists())
-  report=studio.check_report(SimpleNamespace(id="brain-core",require_test=[]))
+  report=studio.check_report(SimpleNamespace(id="kn-core",require_test=[]))
   self.assertEqual("FAIL",report["gradle_wrapper"])
   self.assertEqual("BLOCKED",report["gate"])
  def test_task_create_blocks_when_wrapper_and_trusted_system_gradle_are_absent(self):
@@ -173,10 +173,10 @@ class StudioTests(unittest.TestCase):
   self.assertIn("android/app/src/test/java/sample/ArchitectureContractTest.kt",row["test_candidates"])
  def test_task_records_scope_and_scope_specific_gate(self):
   self.create()
-  m=json.loads((studio.TASKS/"brain-core/task.json").read_text())
-  self.assertEqual("brain",m["scope"])
-  self.assertEqual(["brain"],m["required_tests"])
+  m=json.loads((studio.TASKS/"kn-core/task.json").read_text())
+  self.assertEqual("kn",m["scope"])
+  self.assertEqual(["kn"],m["required_tests"])
  def test_track_registry_has_three_separate_lanes(self):
-  self.assertEqual({"brain","agents","integration"},set(studio.TRACKS))
-  self.assertTrue(set(studio.TRACKS["brain"]["tests"]).isdisjoint(set(studio.TRACKS["agents"]["tests"])))
+  self.assertEqual({"kn","agents","integration"},set(studio.TRACKS))
+  self.assertTrue(set(studio.TRACKS["kn"]["tests"]).isdisjoint(set(studio.TRACKS["agents"]["tests"])))
 if __name__=="__main__": unittest.main(verbosity=2)
