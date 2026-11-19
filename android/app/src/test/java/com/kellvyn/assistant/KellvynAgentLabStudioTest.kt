@@ -94,7 +94,7 @@ class KellvynAgentLabStudioTest {
             assertTrue(result.content.contains("falha=1"))
             assertTrue(result.content.contains("RESEARCHER: delegações=3"))
             assertTrue(result.content.contains("CODE_EXPLORER: delegações=1"))
-            assertTrue(result.content.contains("não medem"))
+            assertTrue(result.content.contains("Não medem"))
         } finally {
             root.deleteRecursively()
         }
