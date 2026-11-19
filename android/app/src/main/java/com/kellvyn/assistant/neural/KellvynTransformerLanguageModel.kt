@@ -168,7 +168,7 @@ internal class KellvynTransformerLanguageModel private constructor(
     // every token/position during training and generation.
     private val rotaryHeadDimension = config.embeddingSize / config.headCount
     private val attentionScoreDivisor = sqrt(rotaryHeadDimension.toDouble()).toFloat()
-    private val inverseAttentionScale = (1.0 / rotaryHeadDimension.toDouble().let(::sqrt)).toFloat()
+    private val inverseAttentionScale = (1.0 / sqrt(rotaryHeadDimension.toDouble())).toFloat()
     private val rotaryFrequencies = DoubleArray(rotaryHeadDimension / 2) { pair ->
         val exponent = (pair * 2).toDouble() / rotaryHeadDimension.toDouble()
         1.0 / Math.pow(ROPE_BASE, exponent)
