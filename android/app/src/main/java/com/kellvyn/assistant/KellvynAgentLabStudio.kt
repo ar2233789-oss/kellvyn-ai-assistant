@@ -12,7 +12,10 @@ internal class KellvynAgentLabStudio(
     private val moduleManager: KellvynStudioModuleManager,
     private val resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
     private val traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth,
-    private val networkReadEnabled: () -> Boolean = { false }
+    private val networkReadEnabled: () -> Boolean = { false },
+    private val specialistProfilesProvider: suspend () -> List<KellvynSpecialistProfile> = {
+        KellvynSpecialistProfileRegistry.default().profiles()
+    }
 ) : KellvynStudioModule {
 
     override val manifest: KellvynStudioModuleManifest = MANIFEST
@@ -401,6 +404,78 @@ internal class KellvynAgentLabStudio(
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }
+        },
+        object : KellvynAgentTool {
+            override val spec = TOOL_SPECS[6]
+
+            override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
+                if (arguments.isNotEmpty()) {
+                    return KellvynToolResult(false, "O relatório de prontidão não aceita argumentos.")
+                }
+                val activeProfiles = specialistProfilesProvider()
+                val profileReport = KellvynSpecialistProfileCompiler().compileAll(activeProfiles)
+                val benchmarkRegistry = KellvynSpecialistBenchmarkRegistry.default()
+                val benchmarkErrors = benchmarkRegistry.validationErrors()
+                val manifests = moduleManager.manifests()
+                val registeredSpecs = manifests.flatMap { it.toolSpecs }.sortedBy { it.name }
+                val networkAllowed = networkReadEnabled()
+                val profilesByRole = activeProfiles.associateBy { it.role }
+                val compiledByRole = profileReport.profiles.associateBy { it.role }
+                val profileCount = profileReport.profiles.size
+                val benchmarkCount = benchmarkRegistry.cases().size
+                val completeRoles = KellvynSpecialistRole.values().count { role ->
+                    benchmarkRegistry.forRole(role).size >= 2 &&
+                        compiledByRole.containsKey(role) &&
+                        profilesByRole.containsKey(role)
+                }
+                val output = buildString {
+                    append("AGENT LAB — PRONTIDÃO E COBERTURA\n")
+                    append("PERFIS ATIVOS: ").append(activeProfiles.size).append("/14\n")
+                    append("PROFILE COMPILER: ")
+                        .append(if (profileReport.success) "APROVADO" else "REPROVADO")
+                        .append(" — ").append(profileCount).append("/14 compilados\n")
+                    profileReport.errors.take(12).forEach { append("  ERRO: ").append(it).append("\n") }
+                    append("BENCHMARK REGISTRY: ")
+                        .append(if (benchmarkErrors.isEmpty()) "VÁLIDO" else "REPROVADO")
+                        .append(" — ").append(benchmarkCount).append("/28 casos\n")
+                    append("PAPÉIS COM PERFIL E PELO MENOS 2 CASOS: ")
+                        .append(completeRoles).append("/14\n")
+                    benchmarkErrors.take(12).forEach { append("  ERRO: ").append(it).append("\n") }
+                    append("MÓDULOS REGISTRADOS: ").append(manifests.size)
+                        .append("; FERRAMENTAS REGISTRADAS: ").append(registeredSpecs.size).append("\n")
+                    append("LEITURA WEB DO PROPRIETÁRIO: ")
+                        .append(if (networkAllowed) "ATIVADA" else "DESATIVADA")
+                        .append("\n\n")
+                    KellvynSpecialistRole.values().sortedBy { it.name }.forEach { role ->
+                        val profile = profilesByRole[role]
+                        val compiled = compiledByRole[role]
+                        val cases = benchmarkRegistry.forRole(role)
+                        val permitted = KellvynSpecialistToolPolicy.permittedToolNames(
+                            role = role,
+                            specs = registeredSpecs,
+                            allowNetworkRead = networkAllowed
+                        )
+                        append("- ").append(role.name)
+                            .append(" | perfil v").append(profile?.version ?: "AUSENTE")
+                            .append(" | hash=").append(compiled?.profileSha256?.take(12) ?: "NÃO COMPILADO")
+                            .append(" | casos=").append(cases.size)
+                            .append(" | ferramentas permitidas=").append(permitted.size)
+                            .append("\n")
+                    }
+                    append("\nEXECUÇÃO COGNITIVA: NÃO EXECUTADA POR ESTE RELATÓRIO.\n")
+                    append("O executor de especialista existe no Runtime, mas uma execução exige um motor KN-003 carregado e um verificador independente fornecido pelo código confiável. ")
+                    append("A presença de perfis e casos não prova competência.\n")
+                    append("ESTADO ESTRUTURAL: ")
+                    append(
+                        if (profileReport.success && benchmarkErrors.isEmpty() &&
+                            activeProfiles.size == KellvynSpecialistRole.values().size &&
+                            completeRoles == KellvynSpecialistRole.values().size
+                        ) "PRONTO PARA BENCHMARK COM MOTOR E VERIFICADOR"
+                        else "BLOQUEADO POR LACUNAS ESTRUTURAIS"
+                    )
+                }
+                return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
+            }
         }    )
 
     override fun trimTransientResources(level: KellvynCachePressure) = Unit
@@ -415,6 +490,7 @@ internal class KellvynAgentLabStudio(
         const val TRACE_COMPARE_TOOL = "agent_lab_trace_compare"
         const val SPECIALIST_MATRIX_TOOL = "agent_lab_specialist_matrix"
         const val DELEGATION_METRICS_TOOL = "agent_lab_delegation_metrics"
+        const val BENCHMARK_READINESS_TOOL = "agent_lab_benchmark_readiness"
 
         private const val KIBIBYTE = 1024L
         private const val MEBIBYTE = 1024L * KIBIBYTE
@@ -510,6 +586,15 @@ internal class KellvynAgentLabStudio(
                 estimatedWorkingSetBytes = 16L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
             )
+            KellvynToolSpec(
+                name = BENCHMARK_READINESS_TOOL,
+                description = "Audita os 14 perfis ativos, o Profile Compiler, os 28 casos e a cobertura por papel. Não executa benchmark nem declara competência cognitiva.",
+                risk = KellvynToolRisk.READ_ONLY,
+                timeoutMs = 12_000L,
+                workloadClass = KellvynWorkloadClass.STANDARD,
+                estimatedWorkingSetBytes = 8L * MEBIBYTE,
+                capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
+            ),
         )
 
         private val MANIFEST = KellvynStudioModuleManifest(
@@ -535,14 +620,18 @@ internal class KellvynAgentLabStudio(
             moduleManager: KellvynStudioModuleManager,
             resourceSnapshotProvider: suspend () -> KellvynResourceSnapshot,
             traceRecorderHealthProvider: () -> KellvynAgentLabTraceRecorderHealth,
-            networkReadEnabled: () -> Boolean = { false }
+            networkReadEnabled: () -> Boolean = { false },
+            specialistProfilesProvider: suspend () -> List<KellvynSpecialistProfile> = {
+                KellvynSpecialistProfileRegistry.default().profiles()
+            }
         ) = KellvynStudioModuleDefinition(MANIFEST) {
             KellvynAgentLabStudio(
                 traceStore = traceStore,
                 moduleManager = moduleManager,
                 resourceSnapshotProvider = resourceSnapshotProvider,
                 traceRecorderHealthProvider = traceRecorderHealthProvider,
-                networkReadEnabled = networkReadEnabled
+                networkReadEnabled = networkReadEnabled,
+                specialistProfilesProvider = specialistProfilesProvider
             )
         }
     }
