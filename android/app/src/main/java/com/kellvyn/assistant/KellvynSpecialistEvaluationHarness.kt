@@ -447,6 +447,18 @@ internal class KellvynSpecialistEvaluationHarness(
             add(spec.estimatedWorkingSetBytes.toString())
             add(spec.capabilities.map { it.name }.sorted().joinToString(","))
         }
+        // Tool manifests alone are insufficient: a role-to-capability policy change can
+        // alter which tools a specialist receives even when every ToolSpec stays identical.
+        KellvynSpecialistRole.values().sortedBy { it.name }.forEach { role ->
+            add(role.name)
+            add(KellvynSpecialistToolPolicy.capabilitiesFor(role)
+                .map { it.name }.sorted().joinToString(","))
+            add(KellvynSpecialistToolPolicy.permittedToolNames(
+                role = role,
+                specs = availableTools,
+                allowNetworkRead = allowNetworkRead
+            ).sorted().joinToString(","))
+        }
     })
 
     private fun digestFields(fields: List<String>): String {
