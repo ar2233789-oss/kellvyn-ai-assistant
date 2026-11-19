@@ -74,8 +74,8 @@ class KellvynTransformerLanguageModelTest {
             )
             assertEquals(14, report.checkedParametersByGroup.size)
             assertTrue(report.checkedParametersByGroup.values.all { it in 1..3 })
-            assertTrue(report.maxAbsoluteError.isFinite())
-            assertTrue(report.maxRelativeError.isFinite())
+            assertTrue("absolute gradient error was ${report.maxAbsoluteError}", report.maxAbsoluteError < 0.004)
+            assertTrue("relative gradient error was ${report.maxRelativeError}", report.maxRelativeError < 0.06)
         }
     }
 

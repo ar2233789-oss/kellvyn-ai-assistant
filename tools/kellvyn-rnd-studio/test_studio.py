@@ -65,6 +65,7 @@ class StudioTests(unittest.TestCase):
   self.assertIn("com.kellvyn.assistant.KellvynTransformerInferenceEngineTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynOrchestratorTest",selected)
   self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
+  self.assertIn("com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest",selected)
   self.assertEqual(len(selected),len(set(selected)))
  def test_track_maps_create_complete_manifests_for_all_scopes(self):
   for scope,definition in studio.TRACKS.items():
