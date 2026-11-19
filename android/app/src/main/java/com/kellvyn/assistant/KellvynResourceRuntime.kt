@@ -118,6 +118,7 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
             .setConstraints(
                 Constraints.Builder()
                     .setRequiresBatteryNotLow(true)
+                    .setRequiresStorageNotLow(true)
                     .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
                     .build()
             )
