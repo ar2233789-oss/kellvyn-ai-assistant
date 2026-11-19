@@ -118,7 +118,7 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
 
 O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
 
-**Inventário atual:** 29 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+**Inventário atual:** 31 métodos Python na suíte principal da Workbench, sete testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
 
 
 ## Analisador semântico Kotlin (pré-requisitos)
@@ -141,3 +141,22 @@ Estados:
 - `READY_UNVALIDATED`: binário + JDK 25 detectados, mas importação Android e queries semânticas ainda não validadas.
 
 A presença do executável e JDK só libera o próximo experimento; não significa que o LSP consiga importar AGP 8.13.2 ou resolver os símbolos do projeto. O experimento `kotlin-semantic-index-001` permanece PLANNED. O LSP tem importação Android experimental e continua em alpha; mantenha a decisão dependente de medições de precisão, cold start e RSS.
+
+
+## Laboratório de animação e frame timing Android
+
+O comando captura um cenário que **já está aberto** no app e exige um serial ADB exato. Não instala APK, não inicia o aplicativo, não toca na tela e não altera configurações. Ele grava vídeo temporário, coleta `dumpsys gfxinfo ... framestats`, memória, bateria, temperatura e display, puxa o vídeo para um diretório local e extrai quadros com FFmpeg quando disponível.
+
+```bash
+# Exemplo AVD 60 Hz: limite de referência ~16,67 ms por frame
+python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
+  --serial emulator-5554 --duration 15 --frame-sample-fps 5 \
+  --frame-budget-ms 16.67
+
+# Exemplo painel 120 Hz: limite de referência ~8,33 ms por frame
+python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
+  --serial <serial-autorizado> --duration 15 --frame-sample-fps 5 \
+  --frame-budget-ms 8.33
+```
+
+O app precisa permanecer em primeiro plano durante a captura. O vídeo grava a tela inteira; feche notificações e conteúdo privado. O orçamento de frame é explícito porque o laboratório não deve presumir 60 ou 120 Hz. Os resultados `PASSED`, `PARTIAL` e `BLOCKED` são distintos: ausência do FFmpeg ou ausência de métricas válidas gera parcial, nunca aprovação. O relatório de `gfxinfo` não substitui Perfetto FrameTimeline nem Macrobenchmark; esta é a primeira etapa de diagnóstico externo, não um teste visual completo dos efeitos simultâneos.
