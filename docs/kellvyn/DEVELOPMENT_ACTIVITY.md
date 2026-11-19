@@ -315,5 +315,5 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 ## 19/11/2026 — checkpoint CI após endurecimento do Agent Lab
 
 - HEAD observado: `1fc210c6ade761cc5b4965b3bd99ee077cd0c1b1`; PR #24 segue draft e não mesclada.
-- Runs `44535437579` / job `135599463253` e `44536111891` / job `135601840231`: Build APK em failure sem steps, logs ou artefatos; combined status sem checks.
+- Runs `44535437579` / job `135599463253`, `44536111891` / job `135601840231` e `44536357173` / job `135602708033`: Build APK em failure sem steps, logs ou artefatos; combined status sem checks.
 - Classificação: execução de Build APK não iniciada/sem evidência de steps. Não chamar de falha de código, nem confundir com a suíte `agent-lab-tests.yml`. Gradle/JUnit/Android instrumented seguem NOT RUN.
