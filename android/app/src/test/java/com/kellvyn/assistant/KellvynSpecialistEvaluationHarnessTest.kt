@@ -292,7 +292,13 @@ class KellvynSpecialistEvaluationHarnessTest {
             it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED &&
                 it.outcome == KellvynAgentLabOutcome.BLOCKED
         })
-        assertEquals(2, recorder.events.size)
+        assertEquals(4, recorder.events.size)
+        assertEquals(
+            setOf("CASES", "PROFILES", "TOOLS"),
+            recorder.events.filter {
+                it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
+            }.mapNotNull { it.detailCode?.substringBefore('_') }.toSet()
+        )
     }
 
     @Test
@@ -330,15 +336,18 @@ class KellvynSpecialistEvaluationHarnessTest {
         assertEquals(0, report.failed)
         assertEquals(0, report.blocked)
         assertEquals(order.sorted(), order)
-        assertEquals(1, recorder.events.count {
+        val experimentFingerprints = recorder.events.filter {
             it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
+        }.mapNotNull { it.detailCode }
+        assertEquals(3, experimentFingerprints.size)
+        assertEquals(
+            setOf("CASES", "PROFILES", "TOOLS"),
+            experimentFingerprints.map { it.substringBefore('_') }.toSet()
+        )
+        assertTrue(experimentFingerprints.all { fingerprint ->
+            fingerprint.substringAfter('_').matches(Regex("[a-f0-9]{64}")) &&
+                fingerprint.length in 70..73
         })
-        val suiteFingerprint = recorder.events.single {
-            it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED
-        }.detailCode.orEmpty()
-        assertTrue(suiteFingerprint.startsWith("SUITE_"))
-        assertEquals(70, suiteFingerprint.length)
-        assertTrue(suiteFingerprint.removePrefix("SUITE_").matches(Regex("[a-f0-9]{64}")))
         assertEquals(28, recorder.events.count {
             it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_STARTED
         })
