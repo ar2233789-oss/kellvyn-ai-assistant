@@ -6,7 +6,7 @@ Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHu
 **Última revisão:** 19/11/2026 — laboratório poliglota v2 em construção
 **Branch experimental ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`
 **PR laboratório:** #25 (DRAFT, IMPLEMENTED_NOT_RUN) — `https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/25`
-**HEAD mais recente confirmado:** `cdb69b7617c4cb439cbca99fe98689be1e4e3e51`  
+**HEAD-base desta atualização:** `7addb0d693c7624c40ddf2a52113e915fed9bb76` (reconfirmar HEAD no GitHub antes de qualquer alteração)  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
@@ -761,33 +761,42 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 
 **Branch ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`  
 **PR:** #25 — DRAFT, IMPLEMENTED_NOT_RUN  
-**HEAD confirmado nesta atualização:** `cdb69b7617c4cb439cbca99fe98689be1e4e3e51`  
+**HEAD-base desta atualização:** `7addb0d693c7624c40ddf2a52113e915fed9bb76`  
 **Arquitetura:** `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`
 
-### O que entrou no código
-- Doctor da Workbench com toolchain matrix por domínio (Kotlin/Java/Android SDK, TS/TSX, Python, shell, dispositivo, visual/mídia e candidatos de sandbox).
-- Suites TS/TSX: typecheck, Vitest, ESLint e Vite build, selecionando Bun pelo `bun.lock`; CI fixa Bun 1.4.5 e usa frozen lockfile.
-- Mapa semântico TS/TSX baseado no TypeScript Compiler API: exports/declarations, imports locais/externos/não resolvidos, chamadas, referências e arquivos de teste.
-- Corrigidos defeitos encontrados na revisão do mapa: retorno de módulo estruturado, reconhecimento de `export const` no VariableStatement e classificação de chamadas/referências externas.
-- Executor com allowlist de ambiente filho, rejeição de variáveis explicitamente sensíveis, redaction de padrões comuns e encerramento de grupos de processos POSIX em timeout.
-- Plano do experimento `kotlin-semantic-index-001` para comparar Analysis API Standalone com Kotlin Language Server oficial. Ainda PLANNED; não instalar uma variante antes de fechar a matriz de compatibilidade e recursos.
+### O que entrou na bancada
+- Doctor/Toolchain matrix por domínio: Kotlin/Java/Android SDK, TS/TSX, Python, shell/workflows, ADB/dispositivo, visual/mídia e candidatos de sandbox.
+- Suites de projeto TS/TSX (typecheck, Vitest, ESLint, Vite build) selecionando Bun pelo `bun.lock`; CI fixa Bun 1.4.5 e usa instalação frozen.
+- Mapa semântico TS/TSX pela TypeScript Compiler API: exports/declarations, imports locais/externos/não resolvidos, chamadas, referências e arquivos de teste.
+- Executor com allowlist de ambiente filho, rejeição de nomes de variáveis sensíveis, redaction de padrões comuns e encerramento de grupos de processos POSIX em timeout.
+- Kotlin LSP preflight: launcher via PATH ou `KOTLIN_LSP_EXECUTABLE`; runtime JDK25 via `KOTLIN_LSP_JAVA_HOME`; não altera JDK17 do Gradle. Detecção não equivale a importação Android ou análise semântica aprovada.
+- Laboratório Android `android-animation-audit`: captura screenrecord do app já em primeiro plano por serial ADB explícito; recolhe gfxinfo/framestats, PSS, bateria, estado térmico e display; extrai quadros com FFmpeg; gera SHA-256 do vídeo e de cada frame. Não instala APK, não abre o app, não toca na UI nem muda configurações.
+- O relatório usa `CAPTURED` apenas para coleta completa; `quality_assessment=NOT_EVALUATED`. Isso não declara fluidez ou fidelidade visual. `PARTIAL` e `BLOCKED` continuam distintos.
 
 ### Contagem de testes e evidência
-- R&D Studio Python: 20 métodos `test_*` no snapshot atual.
-- Workbench Python: 23 métodos `test_*`.
-- Mapa semântico Node: 2 cenários.
-- Probes locais isolados executados nesta retomada: mapa TS 2/2 em harness com Node 22.16 + TypeScript 5.8.3; helpers de executor 4/4 (redaction, rejeição de env sensível, banner Gradle 8.13, cancelamento de descendentes).
-- Evidência: `docs/kellvyn/rnd-studio/experiments/polyglot-lab-foundation-probes-001.json`.
-- Esses probes não são a suíte completa do repositório, não provam execução do Gradle nem validam Android.
-- GitHub Actions: runs recentes de Workbench (incluindo `44559485066`, job `135684520710`) terminaram com zero steps, zero logs. Classificação: RUNNER_ALLOCATION_BLOCKED / NOT_RUN, sem evidência de falha de compilação do código.
-- Host de análise tinha Java 21 e kotlinc 1.9.0, mas não Gradle, Android SDK/ADB/AVD nem Kotlin 2.3.20. Não usar esse host para declarar validação Android/Kotlin do projeto.
+- Workbench principal: 31 métodos Python.
+- Parser/contratos do coletor Android: 14 métodos Python.
+- R&D Studio: 20 métodos Python.
+- Mapa TS: 2 casos Node.
+- Total inventariado: 65 métodos Python + 2 casos Node. Todos são testes escritos, não resultados de execução.
+- Probes isolados antigos: mapa TS 2/2 e helpers de executor 4/4 em harness separado. Não equivalem às suites do checkout e não validam Android.
+- Último CI para o HEAD-base desta atualização: run `44566228844`, job `135708586394`. O job terminou em failure com `steps=[]`, sem logs. Classificação correta: **RUNNER_ALLOCATION_BLOCKED / NOT_RUN**, não falha comprovada de compilação.
+- A captura Android também permanece NOT_RUN: nenhum ADB/AVD autorizado foi usado nesta sessão.
+
+### Limites que permanecem
+- Sem sandbox descartável com isolamento real de filesystem/rede e limites de CPU/RAM/PIDs. Git worktree e detecção de Docker/Podman não equivalem a sandbox.
+- Análise semântica Kotlin ainda não implementada; só preflight do Kotlin LSP. Experimento `kotlin-semantic-index-001` permanece PLANNED, exigindo JDK25 separado para LSP e JDK17 no build do app.
+- Sem DAG durável integrado entre Workbench e R&D Studio, tracing OpenTelemetry completo ou grafo semântico multi-linguagem unificado.
+- O coletor de animação ainda não automatiza cenário de chuva/raios/combinações; não integra Perfetto FrameTimeline nem Macrobenchmark; não substitui revisão visual com baseline.
+- O cérebro neural continua experimental/desconectado do chat de produção; não existe checkpoint conversacional aprovado nem avaliação cognitiva independente concluída.
 
 ### Próximas tarefas, em ordem
-1. Revisar a PR #25 e manter em draft até CI realmente iniciar os steps e as suites Python/Node/TS passarem.
-2. Fechar o catálogo/contrato comum de adaptadores e vincular Workbench ↔ R&D Studio por taskId, commit/diff hash, runId e evidência.
-3. Executar o experimento Kotlin semântico com JDK 17, Kotlin plugin 2.3.20 e AGP 8.13.2; comparar Analysis API Standalone e Kotlin LSP em projeto Android real.
-4. Preparar sandbox descartável com isolamento de filesystem/rede, limites de CPU/RAM/PIDs e remoção de segredos. Git worktree não é sandbox.
-5. Depois de infraestrutura, ampliar os laboratórios de Brain, Agents, Integration, Android build/visual/performance e animation; não ligar Runtime até checkpoint e gates cognitivos independentes.
-6. Preservar `MainActivity.java`, `.github/interface-lock.sha`, layouts e efeitos visuais. Nenhuma mudança de interface nesta frente.
+1. Manter PR #25 em draft; executar suites Python/Node/TS no SHA exato assim que o runner iniciar steps e preservar logs/artefatos.
+2. Revisar a implementação do coletor Android; validar parsers em testes locais confiáveis e realizar captura em AVD autorizado, depois separar medição física do Poco F6.
+3. Implementar o contrato comum de adaptadores e vincular Workbench ↔ R&D Studio por taskId, commit/diff hash, runId e evidência.
+4. Executar experimento Kotlin semântico comparando Analysis API Standalone e Kotlin LSP, com JDK25 do LSP separado do JDK17 do Gradle; medir precisão, cold start, warm latency e RSS.
+5. Desenvolver sandbox descartável e só então executar código experimental não confiável.
+6. Avançar para Perfetto/Macrobenchmark, replay de cenários de animação, tracing OTel e DAG de engenharia durável.
+7. Preservar `MainActivity.java`, `.github/interface-lock.sha`, layout e efeitos visuais. Nenhuma alteração de interface nesta frente.
 
-**Regra de continuidade:** antes de qualquer nova alteração, confirmar o HEAD atual no GitHub e ler commits posteriores. Não reiniciar a auditoria nem voltar ao PR #24 como foco; a frente ativa de engenharia agora é a PR #25.
+**Regra de continuidade:** antes de qualquer alteração, confirmar o HEAD atual no GitHub e ler commits posteriores. Não reiniciar a auditoria nem voltar ao PR #24 como foco; a frente ativa permanece PR #25.
