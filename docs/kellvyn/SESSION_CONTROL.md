@@ -782,6 +782,6 @@ Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloq
 
 - HEAD observado: `1fc210c6ade761cc5b4965b3bd99ee077cd0c1b1` na branch `kellvyn-rnd/reasoning-alternatives-20261119`.
 - PR #24 permanece aberta, draft, mergeable e NÃO mesclada; 14 arquivos no diff contra a branch-base.
-- Run `44535437579` / job `135599463253`: workflow **Build APK**, terminou em failure sem steps, logs ou artefatos. Combined status do SHA sem checks.
+- Runs `44535437579` / job `135599463253` e `44536111891` / job `135601840231`: workflow **Build APK**, ambos terminaram em failure sem steps, logs ou artefatos. Combined status do SHA sem checks.
 - Esse run não é evidência de falha Kotlin/Gradle e não comprova execução de `agent-lab-tests.yml`. Os testes novos e o build Android continuam NÃO EXECUTADOS.
 - Não promover a PR nem declarar o laboratório validado até uma execução real das suites Python/Gradle/JUnit e Android instrumented, com logs vinculados ao SHA.
