@@ -169,7 +169,7 @@ SENSITIVE_ENV_NAME = re.compile(
     r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
 )
 SENSITIVE_ASSIGNMENT = re.compile(
-    r"""(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\\s*[:=]\\s*)[^\\s,;]+"""
+    r"""(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
 )
 BEARER_VALUE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
 TOKEN_VALUE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\b")
@@ -346,7 +346,7 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     wrapper_813 = False
     if wrapper_properties.is_file():
         wrapper_813 = bool(re.search(r"gradle-8\.13-(?:bin|all)\.zip", wrapper_properties.read_text(encoding="utf-8", errors="replace")))
-    system_gradle_813 = bool(re.search(r"(?m)^Gradle\s+8\.13(?:\D|$)", found.get("gradle", "")))
+    system_gradle_813 = bool(re.search(r"\bGradle\s+8\.13(?:\D|$)", found.get("gradle", "")))
     if not (system_gradle_813 or (wrapper_ok and wrapper_813)):
         android_missing.append("Gradle 8.13 (system executable or pinned complete wrapper)")
     build_config = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8", errors="replace") if (ROOT / "android" / "build.gradle").is_file() else ""
