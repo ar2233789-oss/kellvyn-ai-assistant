@@ -1,5 +1,7 @@
 package com.kellvyn.assistant.neural
 
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 import java.security.MessageDigest
 import kotlin.random.Random
 
@@ -23,6 +25,20 @@ internal data class KellvynTransformerTrainingConfig(
         require((embeddingSize / headCount) % 2 == 0)
         require(feedForwardSize in 4..512)
         require(maxMerges in 0..4096)
+        require(epochsPerExample in 1..10_000)
+        require(learningRate.isFinite() && learningRate in 0.000001f..0.05f)
+        require(weightDecay.isFinite() && weightDecay in 0.0f..0.1f)
+        require(maxTotalTrainingSteps in 1..1_000_000L)
+    }
+}
+
+internal data class KellvynTransformerFineTuneConfig(
+    val epochsPerExample: Int = 1,
+    val learningRate: Float = 0.0005f,
+    val weightDecay: Float = 0.01f,
+    val maxTotalTrainingSteps: Long = 100_000L
+) {
+    init {
         require(epochsPerExample in 1..10_000)
         require(learningRate.isFinite() && learningRate in 0.000001f..0.05f)
         require(weightDecay.isFinite() && weightDecay in 0.0f..0.1f)
@@ -431,6 +447,186 @@ internal object KellvynTransformerTrainingPipeline {
             vocabularySize = model.config.vocabularySize
         )
         return KellvynTransformerTrainingResult(tokenizer, model, manifest)
+    }
+
+    /**
+     * Supervised fine-tuning that continues from an existing trained KN-003 bundle.
+     *
+     * The base model is cloned through its own checkpoint format before mutation. If
+     * validation fails or training is cancelled, the caller's stored pretraining bundle
+     * remains untouched. The pretraining tokenizer and vocabulary are reused unchanged.
+     */
+    fun fineTuneInstructions(
+        base: KellvynRestoredTransformerBundle,
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTransformerFineTuneConfig = KellvynTransformerFineTuneConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        cancellationCheck: () -> Unit = {}
+    ): KellvynTransformerTrainingResult {
+        cancellationCheck()
+        require(createdAtMillis > 0L)
+        require(base.model.trainingSteps > 0L) {
+            "O ajuste fino exige um checkpoint KN-003 previamente treinado."
+        }
+        val endOfSequenceTokenId = requireNotNull(base.tokenizer.endOfSequenceTokenId) {
+            "O tokenizer base não possui token EOS; não é possível ajustar respostas supervisionadas."
+        }
+        require(examples.size in 3..MAX_EXAMPLES) {
+            "Forneça exemplos supervisionados de treino, validação e teste."
+        }
+        require(examples.map { it.id }.distinct().size == examples.size) {
+            "Há IDs de exemplos de ajuste fino duplicados."
+        }
+        val baseIds = base.manifest.entries.map { it.id }.toSet()
+        require(examples.none { it.id in baseIds }) {
+            "Um ID de exemplo de ajuste fino já existe no manifesto do pré-treinamento."
+        }
+
+        val orderedExamples = examples.sortedBy { it.id }
+        var totalBytes = 0L
+        val contentHashes = mutableSetOf<String>()
+        val promptPartitions = mutableMapOf<String, KellvynTrainingSplit>()
+        for (example in orderedExamples) {
+            cancellationCheck()
+            val sampleBytes =
+                example.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                    example.completion.toByteArray(Charsets.UTF_8).size.toLong()
+            require(sampleBytes in 2..MAX_EXAMPLE_BYTES.toLong()) {
+                "O exemplo de ajuste fino ${example.id} excede o limite individual."
+            }
+            require(
+                !containsSecretMaterial(example.prompt) &&
+                    !containsSecretMaterial(example.completion)
+            ) {
+                "O exemplo de ajuste fino ${example.id} parece conter credenciais ou chave privada."
+            }
+            totalBytes += sampleBytes
+            require(totalBytes <= MAX_TOTAL_BYTES) {
+                "O corpus de ajuste fino excede o limite experimental de bytes."
+            }
+            val promptHash = sha256(example.prompt)
+            val previousSplit = promptPartitions.putIfAbsent(promptHash, example.split)
+            require(previousSplit == null || previousSplit == example.split) {
+                "O mesmo prompt de ajuste fino apareceu em partições diferentes: ${example.id}."
+            }
+            require(contentHashes.add(sha256(example.prompt + "\u0000" + example.completion))) {
+                "Exemplo de ajuste fino duplicado: ${example.id}."
+            }
+        }
+
+        val train = orderedExamples.filter { it.split == KellvynTrainingSplit.TRAIN }
+        val validation = orderedExamples.filter { it.split == KellvynTrainingSplit.VALIDATION }
+        val test = orderedExamples.filter { it.split == KellvynTrainingSplit.TEST }
+        require(train.isNotEmpty() && validation.isNotEmpty() && test.isNotEmpty()) {
+            "As três partições são obrigatórias: TRAIN, VALIDATION e TEST."
+        }
+
+        data class EncodedExample(val prompt: IntArray, val completion: IntArray)
+
+        fun encode(partition: List<KellvynInstructionTrainingExample>): List<EncodedExample> =
+            partition.map { example ->
+                cancellationCheck()
+                val prompt = base.tokenizer.encode(example.prompt)
+                val response = base.tokenizer.encode(example.completion)
+                require(prompt.isNotEmpty() && response.isNotEmpty()) {
+                    "O exemplo de ajuste fino ${example.id} precisa de prompt e resposta tokenizáveis."
+                }
+                val completion = response + intArrayOf(endOfSequenceTokenId)
+                require(prompt.size.toLong() + completion.size.toLong() <= MAX_TOKENIZED_EXAMPLE) {
+                    "O exemplo de ajuste fino ${example.id} excede o limite tokenizado."
+                }
+                EncodedExample(prompt, completion)
+            }
+
+        val trainEncoded = encode(train)
+        val validationEncoded = encode(validation)
+        val testEncoded = encode(test)
+        val plannedSteps = trainEncoded.sumOf {
+            it.completion.size.toLong() * config.epochsPerExample.toLong()
+        }
+        require(plannedSteps in 1..config.maxTotalTrainingSteps) {
+            "O ajuste fino excederia o orçamento total de passos."
+        }
+        require(trainEncoded.all {
+            it.completion.size.toLong() * config.epochsPerExample.toLong() <= MAX_STEPS_PER_EXAMPLE
+        }) {
+            "Uma resposta de ajuste fino excederia o limite de passos por exemplo."
+        }
+
+        val checkpoint = ByteArrayOutputStream().also(base.model::writeCheckpoint).toByteArray()
+        val model = KellvynTransformerLanguageModel.readCheckpoint(
+            ByteArrayInputStream(checkpoint)
+        )
+
+        fun meanCompletionLoss(partition: List<EncodedExample>): Double {
+            var weightedLoss = 0.0
+            var tokenCount = 0L
+            for (example in partition) {
+                cancellationCheck()
+                weightedLoss += model.evaluateCompletionLoss(
+                    example.prompt,
+                    example.completion
+                ) * example.completion.size.toDouble()
+                tokenCount += example.completion.size.toLong()
+            }
+            require(tokenCount > 0L)
+            return weightedLoss / tokenCount.toDouble()
+        }
+
+        val initialValidationLoss = meanCompletionLoss(validationEncoded)
+        repeat(config.epochsPerExample) { epoch ->
+            cancellationCheck()
+            val epochExamples = trainEncoded.shuffled(Random(model.config.seed + epoch.toLong()))
+            for (example in epochExamples) {
+                cancellationCheck()
+                model.trainCompletionEpoch(
+                    promptTokenIds = example.prompt,
+                    completionTokenIds = example.completion,
+                    learningRate = config.learningRate,
+                    weightDecay = config.weightDecay,
+                    cancellationCheck = cancellationCheck
+                )
+            }
+        }
+        cancellationCheck()
+        val finalValidationLoss = meanCompletionLoss(validationEncoded)
+        val heldOutTestLoss = meanCompletionLoss(testEncoded)
+        cancellationCheck()
+
+        val newEntries = orderedExamples.map { example ->
+            KellvynTrainingManifestEntry(
+                id = example.id,
+                split = example.split,
+                permission = example.provenance.permission,
+                licenseId = example.provenance.licenseId,
+                sourceReference = example.provenance.sourceReference,
+                rightsEvidence = example.provenance.rightsEvidence,
+                contentSha256 = sha256(example.prompt + "\u0000" + example.completion)
+            )
+        }
+        val combinedEntries = base.manifest.entries + newEntries
+        require(combinedEntries.map { it.id }.distinct().size == combinedEntries.size) {
+            "O manifesto combinado do ajuste fino contém IDs duplicados."
+        }
+        val manifest = KellvynTransformerTrainingManifest(
+            createdAtMillis = createdAtMillis,
+            entries = combinedEntries,
+            maxMerges = base.tokenizer.mergeCount,
+            contextLength = model.config.contextLength,
+            embeddingSize = model.config.embeddingSize,
+            headCount = model.config.headCount,
+            feedForwardSize = model.config.feedForwardSize,
+            seed = model.config.seed,
+            epochsPerExample = config.epochsPerExample,
+            learningRate = config.learningRate,
+            weightDecay = config.weightDecay,
+            initialValidationLoss = initialValidationLoss,
+            finalValidationLoss = finalValidationLoss,
+            heldOutTestLoss = heldOutTestLoss,
+            totalTrainingSteps = model.trainingSteps,
+            vocabularySize = model.config.vocabularySize
+        )
+        return KellvynTransformerTrainingResult(base.tokenizer, model, manifest)
     }
 
     private fun containsSecretMaterial(text: String): Boolean =
