@@ -424,7 +424,6 @@ internal class KellvynAgentCreationStudio(
                 workloadClass = KellvynWorkloadClass.STANDARD,
                 estimatedWorkingSetBytes = PROFILE_HISTORY_WORKING_SET_BYTES,
                 capabilities = setOf(KellvynStudioCapability.AGENT_DESIGN)
-            )
             ),
             KellvynToolSpec(
                 name = PROFILE_REVISION_PREVIEW_TOOL,
