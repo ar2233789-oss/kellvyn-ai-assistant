@@ -68,14 +68,14 @@ class KellvynAgentLabStudioTest {
         val root = Files.createTempDirectory("agent-lab-delegations").toFile()
         try {
             val traceId = "00000000-0000-0000-0000-000000000087"
-            val traceStore = KellvynAgentLabTraceStore(root, PassThroughCipher())
-            appendDelegation(traceStore, traceId, 1_000L, KellvynSpecialistRole.RESEARCHER, 100L, KellvynAgentLabOutcome.SUCCEEDED)
-            appendDelegation(traceStore, traceId, 1_100L, KellvynSpecialistRole.RESEARCHER, 200L, KellvynAgentLabOutcome.BLOCKED)
-            appendDelegation(traceStore, traceId, 1_200L, KellvynSpecialistRole.RESEARCHER, 300L, KellvynAgentLabOutcome.FAILED)
-            appendDelegation(traceStore, traceId, 1_300L, KellvynSpecialistRole.CODE_EXPLORER, 50L, KellvynAgentLabOutcome.SUCCEEDED)
+            val store = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendDelegation(store, traceId, 1_000L, KellvynSpecialistRole.RESEARCHER, 100L, KellvynAgentLabOutcome.SUCCEEDED)
+            appendDelegation(store, traceId, 1_100L, KellvynSpecialistRole.RESEARCHER, 200L, KellvynAgentLabOutcome.BLOCKED)
+            appendDelegation(store, traceId, 1_200L, KellvynSpecialistRole.RESEARCHER, 300L, KellvynAgentLabOutcome.FAILED)
+            appendDelegation(store, traceId, 1_300L, KellvynSpecialistRole.CODE_EXPLORER, 50L, KellvynAgentLabOutcome.SUCCEEDED)
 
             val studio = KellvynAgentLabStudio(
-                traceStore = traceStore,
+                traceStore = store,
                 moduleManager = emptyManager(),
                 resourceSnapshotProvider = { resourceSnapshot() },
                 traceRecorderHealthProvider = { healthyTraceRecorder() }
@@ -94,7 +94,7 @@ class KellvynAgentLabStudioTest {
             assertTrue(result.content.contains("falha=1"))
             assertTrue(result.content.contains("RESEARCHER: delegações=3"))
             assertTrue(result.content.contains("CODE_EXPLORER: delegações=1"))
-            assertTrue(result.content.contains("Não medem raciocínio") || result.content.contains("Não medem"))
+            assertTrue(result.content.contains("não medem"))
         } finally {
             root.deleteRecursively()
         }
