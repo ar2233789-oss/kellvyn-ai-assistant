@@ -256,6 +256,36 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
+     * Fine-tunes an existing pretrained KN-003 bundle with supervised examples.
+     * The pipeline clones the current checkpoint and the stored bundle is replaced only
+     * after training and held-out evaluation complete successfully.
+     */
+    suspend fun fineTuneOwnTransformerModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTransformerFineTuneConfig = KellvynTransformerFineTuneConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTransformerTrainingManifest {
+        val base = loadOwnTransformerModel()
+            ?: throw IllegalStateException("Não há um bundle KN-003 pré-treinado para ajuste fino.")
+        val trained = runHeavyTask("fine-tuning-transformer-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTransformerTrainingPipeline.fineTuneInstructions(
+                    base = base,
+                    examples = examples,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveTransformer(trained)
+        }
+        return trained.manifest
+    }
+
+    /**
      * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
