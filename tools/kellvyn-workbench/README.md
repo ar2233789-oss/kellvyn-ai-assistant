@@ -97,3 +97,11 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-build
 Pré-condições ausentes são classificadas como `BLOCKED`, não como falha do código. A Web continua sendo referência de interface; estas suites não autorizam portar WebView para o APK nativo.
 
 **Limite de segurança:** Git worktree não é isolamento de sistema operacional. A detecção de Docker/Podman é apenas inventário; não significa que um sandbox seguro esteja configurado. Não executar código não confiável em host persistente.
+
+
+### Segurança do executor (alteração em revisão)
+
+- Os processos filhos recebem apenas variáveis ambientais essenciais; variáveis com nomes de credenciais não são repassadas por padrão.
+- Valores comuns de tokens/senhas/chaves são redigidos antes de persistir logs e manifests.
+- Timeout em POSIX encerra o grupo de processos para evitar subprocessos de Gradle/testes sobrevivendo.
+- Isto reduz exposição acidental; não fornece isolamento de filesystem/rede nem substitui sandbox. Código não confiável continua bloqueado até existir executor descartável apropriado.
