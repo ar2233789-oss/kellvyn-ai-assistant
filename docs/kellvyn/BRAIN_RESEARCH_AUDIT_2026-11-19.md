@@ -633,3 +633,14 @@ Fontes oficiais consultadas:
 - Android Java/Kotlin allocations: https://developer.android.com/studio/profile/record-java-kotlin-allocations
 
 **Decisão de engenharia:** não integrar LiteRT ainda. Primeiro concluir correção e validação do KN-003; depois avaliar exportabilidade do grafo e comparar CPU pura versus CompiledModel no hardware-alvo.
+
+
+## 20. Escopo final do cérebro e portões de entrega
+
+Foi criada a especificação persistente `docs/kellvyn/BRAIN_FINAL_CAPABILITIES_AND_GATES_2026-11-19.md`. Ela registra as capacidades finais pretendidas, a divisão entre núcleo Kellvyn e ferramentas subordinadas, as garantias de privacidade/segurança, a ordem de conclusão e os critérios que impedem declarar uma função pronta sem integração, testes e validação no hardware.
+
+O escopo final cobre: conversa e raciocínio; memória global e por projeto; pesquisa online opcional com fontes; arquivos e documentos; desenvolvimento Android/software; ferramentas e automações; orquestração/verificação interna quando o laboratório for reativado; expansão multimodal própria; análise/interação assistida com jogos; e gestão de RAM/CPU/bateria/temperatura. Tudo deve permanecer sob uma única identidade Kellvyn, sem pesos de terceiros nem provedores externos como substituto do cérebro.
+
+A especificação também registra os bloqueios atuais, incluindo o chat ainda desconectado, o KN-003 experimental de aproximadamente 43,6 mil parâmetros, ausência de corpus treinado e ausência de execução Gradle/JUnit confirmada. O plano foi dividido em portões: CI/build; escalabilidade arquitetural; dados e treinamento; ligação da inferência ao chat; memória/ferramentas; laboratório; multimodal; validação final no Poco F6.
+
+A criação deste documento é uma entrega de arquitetura e auditoria, não uma implementação das capacidades listadas. Nenhum novo teste de aplicativo foi executado por esta alteração documental.
