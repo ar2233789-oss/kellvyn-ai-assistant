@@ -222,7 +222,7 @@ def capture_android_animation(
         "privacy_note": "The video captures the visible device display. Keep the target app foreground and close private notifications or content before starting."
     }
 
-    devices = adb_command(adb, serial, "devices", "-l", timeout_s=10)
+    devices = run_command([adb, "devices", "-l"], timeout_s=10)
     matching = [
         line for line in devices.stdout.splitlines()[1:]
         if line.split() and line.split()[0] == serial and len(line.split()) > 1 and line.split()[1] == "device"
@@ -249,7 +249,7 @@ def capture_android_animation(
     for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk", "ro.build.fingerprint"):
         value = adb_command(adb, serial, "shell", "getprop", prop, timeout_s=10, allow_failure=True)
         device_properties.append(f"{prop}={value.stdout.strip()}")
-    save_text("device-info.txt", "\\n".join(device_properties))
+    save_text("device-info.txt", "\n".join(device_properties))
     for name, args, timeout in (
         ("display-before.txt", ("shell", "dumpsys", "display"), 20),
         ("battery-before.txt", ("shell", "dumpsys", "battery"), 15),
