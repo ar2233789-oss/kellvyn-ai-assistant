@@ -251,6 +251,109 @@ class KellvynTransformerTrainingPipelineTest {
         assertEquals(first.model.parameterFingerprint(), reordered.model.parameterFingerprint())
     }
 
+    @Test
+    fun supervisedFineTuningContinuesFromPretrainedBundleWithoutMutatingIt() {
+        val pretraining = KellvynTransformerTrainingPipeline.pretrainDocuments(
+            documents = sampleDocuments(),
+            config = KellvynTransformerTrainingConfig(
+                contextLength = 32,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 16,
+                seed = 6_403L,
+                maxMerges = 8,
+                epochsPerExample = 1,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_520_030L
+        )
+        val base = KellvynRestoredTransformerBundle(
+            tokenizer = pretraining.tokenizer,
+            model = pretraining.model,
+            manifest = pretraining.manifest
+        )
+        val baseFingerprint = base.model.parameterFingerprint()
+        val baseSteps = base.model.trainingSteps
+        val examples = sampleExamples()
+        val config = KellvynTransformerFineTuneConfig(
+            epochsPerExample = 2,
+            learningRate = 0.0005f,
+            weightDecay = 0.0f,
+            maxTotalTrainingSteps = 10_000L
+        )
+
+        val fineTuned = KellvynTransformerTrainingPipeline.fineTuneInstructions(
+            base = base,
+            examples = examples,
+            config = config,
+            createdAtMillis = 1_800_000_520_031L
+        )
+        val expectedNewSteps = examples
+            .filter { it.split == KellvynTrainingSplit.TRAIN }
+            .sumOf {
+                (fineTuned.tokenizer.encode(it.completion).size.toLong() + 1L) *
+                    config.epochsPerExample
+            }
+
+        assertEquals(baseFingerprint, base.model.parameterFingerprint())
+        assertEquals(baseSteps, base.model.trainingSteps)
+        assertEquals(base.tokenizer.vocabularySize, fineTuned.tokenizer.vocabularySize)
+        assertEquals(base.tokenizer.mergeCount, fineTuned.tokenizer.mergeCount)
+        assertEquals(baseSteps + expectedNewSteps, fineTuned.model.trainingSteps)
+        assertTrue(baseFingerprint != fineTuned.model.parameterFingerprint())
+        assertEquals(
+            base.manifest.entries.size + examples.size,
+            fineTuned.manifest.entries.size
+        )
+        assertTrue(fineTuned.manifest.initialValidationLoss.isFinite())
+        assertTrue(fineTuned.manifest.finalValidationLoss.isFinite())
+        assertTrue(fineTuned.manifest.heldOutTestLoss.isFinite())
+        assertTrue(fineTuned.manifest.entries.any { it.id == "train-1" })
+        assertTrue(fineTuned.manifest.entries.any { it.id == "train-document-1" })
+    }
+
+    @Test
+    fun fineTuningFromSameBaseAndSeedIsReproducible() {
+        val pretraining = KellvynTransformerTrainingPipeline.pretrainDocuments(
+            sampleDocuments(),
+            KellvynTransformerTrainingConfig(
+                contextLength = 32,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                seed = 6_404L,
+                maxMerges = 8,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_520_032L
+        )
+        val base = KellvynRestoredTransformerBundle(
+            pretraining.tokenizer,
+            pretraining.model,
+            pretraining.manifest
+        )
+        val config = KellvynTransformerFineTuneConfig(
+            epochsPerExample = 2,
+            learningRate = 0.0005f,
+            weightDecay = 0.0f
+        )
+        val first = KellvynTransformerTrainingPipeline.fineTuneInstructions(
+            base,
+            sampleExamples(),
+            config,
+            createdAtMillis = 1_800_000_520_033L
+        )
+        val second = KellvynTransformerTrainingPipeline.fineTuneInstructions(
+            base,
+            sampleExamples().reversed(),
+            config,
+            createdAtMillis = 1_800_000_520_033L
+        )
+
+        assertEquals(first.model.parameterFingerprint(), second.model.parameterFingerprint())
+        assertEquals(first.manifest.totalTrainingSteps, second.manifest.totalTrainingSteps)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun documentPretrainingRejectsDuplicateContentAcrossPartitions() {
         val documents = listOf(
