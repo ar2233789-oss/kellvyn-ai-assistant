@@ -238,7 +238,8 @@ internal class KellvynRuntime(context: Context) {
         val quality = KellvynTransformerTrainingQualityGate.evaluate(bundle.manifest)
         if (!quality.eligibleForProtocolBenchmark) return null
         val safeDefault = KellvynTransformerInferenceEngine.Config(
-            maxGenerationTokens = minOf(64, (contextLength / 4).coerceAtLeast(16))
+            maxGenerationTokens =
+                KellvynTransformerInferenceEngine.safeDefaultGenerationTokens(contextLength)
         )
         return KellvynTransformerInferenceEngine(
             model = bundle.model,
