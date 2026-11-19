@@ -884,7 +884,7 @@ def cmd_test(args: argparse.Namespace) -> int:
     commands = {
         "workbench": [py, "-m", "unittest", "discover", "-s", "tools/kellvyn-workbench/tests", "-v"],
         "rnd-studio": [py, "-m", "unittest", "discover", "-s", "tools/kellvyn-rnd-studio", "-p", "test_studio.py", "-v"],
-        "syntax": [py, "-m", "py_compile", "tools/kellvyn-workbench/workbench.py", "tools/kellvyn-workbench/creative/blender_pipeline.py", "tools/kellvyn-workbench/visual_diff.py"],
+        "syntax": [py, "-m", "py_compile", "tools/kellvyn-workbench/workbench.py", "tools/kellvyn-workbench/android_animation_audit.py", "tools/kellvyn-workbench/creative/blender_pipeline.py", "tools/kellvyn-workbench/visual_diff.py"],
         "android-syntax": ["bash", "-n", "tools/kellvyn-workbench/android_smoke.sh"],
         "web-syntax": ["node", "--check", "tools/kellvyn-workbench/web_audit.mjs"],
         "web-map-tests": ["node", "--test", "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs"],
