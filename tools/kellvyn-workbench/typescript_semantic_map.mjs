@@ -116,7 +116,7 @@ export function analyzeProject(projectRoot = DEFAULT_ROOT) {
   for (const sourceFile of program.getSourceFiles()) {
     if (sourceFile.isDeclarationFile) continue;
     const fileName = relativePath(root, sourceFile.fileName);
-    if (!fileName || !projectFiles.has(fileName)) continue;
+    if (!fileName || fileName.startsWith("node_modules/") || !projectFiles.has(fileName)) continue;
     const sourceText = sourceFile.getFullText();
     files.push({
       file: fileName,
