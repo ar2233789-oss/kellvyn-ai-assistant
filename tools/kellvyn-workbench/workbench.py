@@ -312,6 +312,11 @@ def web_suite_command(suite: str) -> tuple[list[str] | None, str | None]:
     return [executable, "run", script], None
 
 
+def is_gradle_813_banner(output: str) -> bool:
+    """Match Gradle 8.13 even when --version prefixes the version with a welcome banner."""
+    return bool(re.search(r"\\bGradle\\s+8\\.13(?:\\D|$)", output))
+
+
 def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[str, Any]:
     """Report per-domain prerequisites without implying that detection is validation."""
     def present(name: str) -> bool:
