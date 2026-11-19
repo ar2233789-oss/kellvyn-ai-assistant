@@ -277,7 +277,7 @@ class KellvynOrchestratorTest {
             setOf("code_find_symbols", "data_inspect_structure", "wikipedia_search"),
             enabledEngine.toolsSeen.single().map { it.name }.toSet()
         )
-        val enabledPrompt = enabledEngine.histories.single().joinToString("\\n") { it.content }
+        val enabledPrompt = enabledEngine.histories.single().joinToString("\n") { it.content }
         assertTrue(enabledPrompt.contains("Analista de raciocínio"))
         assertTrue(enabledPrompt.contains("fallback seguro"))
         assertTrue(enabledPrompt.contains("CI não iniciou"))
