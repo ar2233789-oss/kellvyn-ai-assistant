@@ -64,6 +64,59 @@ class KellvynAgentLabStudioTest {
     }
 
     @Test
+    fun benchmarkReadinessRequiresAllFourteenCompiledProfilesAndTwentyEightValidCases() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-readiness").toFile()
+        try {
+            val registry = KellvynSpecialistProfileRegistry.default()
+            val studio = createStudio(
+                root = root,
+                manager = emptyManager(),
+                network = false,
+                profiles = registry.profiles()
+            )
+            val result = studio.tools.single {
+                it.spec.name == KellvynAgentLabStudio.BENCHMARK_READINESS_TOOL
+            }.execute(emptyMap())
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("PERFIS ATIVOS: 14/14"))
+            assertTrue(result.content.contains("PROFILE COMPILER: APROVADO — 14/14 compilados"))
+            assertTrue(result.content.contains("BENCHMARK REGISTRY: VÁLIDO — 28/28 casos"))
+            assertTrue(result.content.contains("PAPÉIS COM PERFIL E PELO MENOS 2 CASOS: 14/14"))
+            assertTrue(result.content.contains("EXECUÇÃO COGNITIVA: NÃO EXECUTADA"))
+            assertTrue(result.content.contains("PRONTO PARA BENCHMARK COM MOTOR E VERIFICADOR"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun benchmarkReadinessBlocksWhenAnActiveSpecialistProfileIsMissing() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-readiness-missing").toFile()
+        try {
+            val profiles = KellvynSpecialistProfileRegistry.default().profiles()
+                .filterNot { it.role == KellvynSpecialistRole.CODE_EXPLORER }
+            val studio = createStudio(
+                root = root,
+                manager = emptyManager(),
+                network = false,
+                profiles = profiles
+            )
+            val result = studio.tools.single {
+                it.spec.name == KellvynAgentLabStudio.BENCHMARK_READINESS_TOOL
+            }.execute(emptyMap())
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("PERFIS ATIVOS: 13/14"))
+            assertTrue(result.content.contains("PROFILE COMPILER: REPROVADO"))
+            assertTrue(result.content.contains("BLOQUEADO POR LACUNAS ESTRUTURAIS"))
+            assertFalse(result.content.contains("PRONTO PARA BENCHMARK COM MOTOR E VERIFICADOR"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
     fun delegationMetricsAggregateOnlyRecordedOperationalEvidence() = runBlocking {
         val root = Files.createTempDirectory("agent-lab-delegations").toFile()
         try {
@@ -134,13 +187,15 @@ class KellvynAgentLabStudioTest {
         root: File,
         manager: KellvynStudioModuleManager,
         network: Boolean,
-        sample: suspend () -> KellvynResourceSnapshot = { resourceSnapshot() }
+        sample: suspend () -> KellvynResourceSnapshot = { resourceSnapshot() },
+        profiles: List<KellvynSpecialistProfile> = KellvynSpecialistProfileRegistry.default().profiles()
     ) = KellvynAgentLabStudio(
         traceStore = KellvynAgentLabTraceStore(root, PassThroughCipher()),
         moduleManager = manager,
         resourceSnapshotProvider = sample,
         traceRecorderHealthProvider = { healthyTraceRecorder() },
-        networkReadEnabled = { network }
+        networkReadEnabled = { network },
+        specialistProfilesProvider = { profiles }
     )
 
     private fun policyProbeManager(): KellvynStudioModuleManager {
