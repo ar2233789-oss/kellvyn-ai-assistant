@@ -140,6 +140,34 @@ Janky frames: 12 (5.00%)
             finally:
                 audit.ROOT = old_root
 
+    def test_foreground_check_rejects_package_prefix_collision(self):
+        self.assertFalse(audit.foreground_package(
+            "mResumedActivity: ActivityRecord{abc com.kellvyn.assistant.debug/.MainActivity}",
+            "com.kellvyn.assistant"
+        ))
+        self.assertTrue(audit.foreground_package(
+            "mResumedActivity: ActivityRecord{abc com.kellvyn.assistant/.MainActivity}",
+            "com.kellvyn.assistant"
+        ))
+
+    def test_failure_manifest_records_checkpoint_without_raw_exception_text(self):
+        with tempfile.TemporaryDirectory() as td:
+            output = Path(td) / "run"
+            output.mkdir()
+            manifest = audit.write_failure_manifest(
+                output,
+                status="FAILED",
+                serial="emulator-5554",
+                package="com.kellvyn.assistant",
+                error=RuntimeError("API_KEY=should-not-be-written")
+            )
+            self.assertEqual(output / "animation-audit.json", manifest)
+            import json
+            report = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertEqual("FAILED", report["status"])
+            self.assertEqual("NOT_EVALUATED", report["quality_assessment"])
+            self.assertNotIn("should-not-be-written", manifest.read_text(encoding="utf-8"))
+
     def test_rejects_output_outside_repository(self):
         with tempfile.TemporaryDirectory() as td:
             old_root = audit.ROOT
