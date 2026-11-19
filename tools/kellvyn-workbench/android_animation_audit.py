@@ -238,10 +238,6 @@ def capture_android_animation(
     output = output.resolve()
     if output != ROOT and ROOT not in output.parents:
         raise ValueError("output must stay inside the repository")
-    output.mkdir(parents=True, exist_ok=False)
-    frames_dir = output / "frames"
-    frames_dir.mkdir(parents=True, exist_ok=True)
-
     def save_text(name: str, value: str) -> None:
         (output / name).write_text(value or "(empty)\n", encoding="utf-8", errors="replace")
 
@@ -281,11 +277,16 @@ def capture_android_animation(
         raise AuditBlocked(f"package is not installed on the selected device: {package}")
 
     activities = adb_command(adb, serial, "shell", "dumpsys", "activity", "activities", timeout_s=20)
-    save_text("activities-before.txt", activities.stdout)
     if not foreground_package(activities.stdout, package):
         raise AuditBlocked(
             f"{package} is not confirmed as the resumed/top-resumed app; bring it to the foreground before recording"
         )
+
+    # Create output only after ADB/device/app preflight succeeds.
+    output.mkdir(parents=True, exist_ok=False)
+    frames_dir = output / "frames"
+    frames_dir.mkdir(parents=True, exist_ok=True)
+    save_text("activities-before.txt", activities.stdout)
 
     device_properties = []
     for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk", "ro.build.fingerprint"):
