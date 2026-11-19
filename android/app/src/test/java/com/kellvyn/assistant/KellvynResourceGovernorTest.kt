@@ -78,6 +78,27 @@ class KellvynResourceGovernorTest {
     }
 
     @Test
+    fun deviceThermalThresholdsOverrideGenericFallbackLimits() {
+        val heavyForecast = snapshot().copy(
+            thermalHeadroomForecast = 0.72f,
+            thermalModerateHeadroomThreshold = 0.70f
+        )
+        assertEquals(
+            "THERMAL_HEADROOM_LOW",
+            deferredReason(heavyForecast, KellvynWorkloadClass.HEAVY)
+        )
+
+        val standardForecast = snapshot().copy(
+            thermalHeadroomForecast = 0.92f,
+            thermalSevereHeadroomThreshold = 0.90f
+        )
+        assertEquals(
+            "THERMAL_HEADROOM_CRITICAL",
+            deferredReason(standardForecast, KellvynWorkloadClass.STANDARD)
+        )
+    }
+
+    @Test
     fun heapThermalHeadroomAndBatterySaverAreIndependentGuards() {
         val highHeap = snapshot().copy(processHeapUsedBytes = 480L * MEBIBYTE)
         assertEquals("PROCESS_HEAP_PRESSURE", deferredReason(highHeap, KellvynWorkloadClass.HEAVY))

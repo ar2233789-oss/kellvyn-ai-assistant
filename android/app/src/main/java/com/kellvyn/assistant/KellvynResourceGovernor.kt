@@ -43,7 +43,9 @@ internal data class KellvynResourceSnapshot(
     val memoryPressure: KellvynMemoryPressure = KellvynMemoryPressure.NORMAL,
     val processCpuTimeMillis: Long = 0L,
     val sampledAtElapsedRealtimeMillis: Long = 0L,
-    val availableProcessors: Int = 1
+    val availableProcessors: Int = 1,
+    val thermalModerateHeadroomThreshold: Float? = null,
+    val thermalSevereHeadroomThreshold: Float? = null
 ) {
     init {
         require(totalSystemMemoryBytes > 0L)
@@ -57,6 +59,10 @@ internal data class KellvynResourceSnapshot(
         require(batteryPercent == null || batteryPercent in 0..100)
         require(thermalHeadroomForecast == null ||
             (thermalHeadroomForecast.isFinite() && thermalHeadroomForecast >= 0f))
+        require(thermalModerateHeadroomThreshold == null ||
+            (thermalModerateHeadroomThreshold.isFinite() && thermalModerateHeadroomThreshold >= 0f))
+        require(thermalSevereHeadroomThreshold == null ||
+            (thermalSevereHeadroomThreshold.isFinite() && thermalSevereHeadroomThreshold >= 0f))
     }
 
     val processHeapUtilization: Float
@@ -217,8 +223,12 @@ internal class KellvynResourceGovernor(
 
         val headroom = snapshot.thermalHeadroomForecast
         if (headroom != null) {
+            val heavyHeadroomLimit = snapshot.thermalModerateHeadroomThreshold
+                ?: config.heavyThermalHeadroomLimit
+            val hardHeadroomLimit = snapshot.thermalSevereHeadroomThreshold
+                ?: config.hardThermalHeadroomLimit
             if (request.workload == KellvynWorkloadClass.HEAVY &&
-                headroom >= config.heavyThermalHeadroomLimit
+                headroom >= heavyHeadroomLimit
             ) {
                 return deferred(
                     "THERMAL_HEADROOM_LOW",
@@ -227,7 +237,7 @@ internal class KellvynResourceGovernor(
                 )
             }
             if (request.workload != KellvynWorkloadClass.LIGHT &&
-                headroom >= config.hardThermalHeadroomLimit
+                headroom >= hardHeadroomLimit
             ) {
                 return deferred(
                     "THERMAL_HEADROOM_CRITICAL",

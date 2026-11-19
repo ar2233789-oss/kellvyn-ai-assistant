@@ -35,6 +35,8 @@ internal class KellvynResourceSnapshotTaskHandler(
             "process.pss_mib=${snapshot.processPssBytes / MEBIBYTE}",
             "thermal.band=${snapshot.thermalBand.name}",
             "thermal.headroom_10s=${snapshot.thermalHeadroomForecast?.toString() ?: "unknown"}",
+            "thermal.headroom_moderate_threshold=${snapshot.thermalModerateHeadroomThreshold?.toString() ?: "unknown"}",
+            "thermal.headroom_severe_threshold=${snapshot.thermalSevereHeadroomThreshold?.toString() ?: "unknown"}",
             "battery.percent=${snapshot.batteryPercent?.toString() ?: "unknown"}",
             "battery.charging=${snapshot.charging}",
             "battery.power_save=${snapshot.powerSaveMode}",

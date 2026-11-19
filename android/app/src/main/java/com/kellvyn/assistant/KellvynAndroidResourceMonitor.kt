@@ -30,6 +30,9 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
         sample = { forecastSeconds -> powerManager?.getThermalHeadroom(forecastSeconds) },
         forecastSeconds = THERMAL_FORECAST_SECONDS
     )
+    private val thermalHeadroomThresholds: Pair<Float?, Float?> by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        readThermalHeadroomThresholds()
+    }
     private val memoryPressure = AtomicReference(KellvynMemoryPressure.NORMAL)
 
     /** Called by the application-scoped ComponentCallbacks2 listener, never polled. */
@@ -87,6 +90,8 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
             availableProcessors = runtime.availableProcessors().coerceAtLeast(1),
             thermalBand = readThermalBand(),
             thermalHeadroomForecast = readThermalHeadroomCached(),
+            thermalModerateHeadroomThreshold = thermalHeadroomThresholds.first,
+            thermalSevereHeadroomThreshold = thermalHeadroomThresholds.second,
             powerSaveMode = powerManager?.isPowerSaveMode ?: false,
             batteryPercent = batteryPercent,
             charging = charging,
@@ -108,6 +113,20 @@ internal class KellvynAndroidResourceMonitor(context: Context) {
             PowerManager.THERMAL_STATUS_SHUTDOWN -> KellvynThermalBand.SHUTDOWN
             else -> KellvynThermalBand.UNKNOWN
         }
+    }
+
+    /** OEM thresholds are static device metadata; read once, only on Android 15/API 35+. */
+    private fun readThermalHeadroomThresholds(): Pair<Float?, Float?> {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return null to null
+        val thresholds = runCatching {
+            powerManager?.getThermalHeadroomThresholds()
+        }.getOrNull() ?: return null to null
+
+        fun threshold(status: Int): Float? = thresholds[status]
+            ?.takeIf { it.isFinite() && it >= 0f }
+
+        return threshold(PowerManager.THERMAL_STATUS_MODERATE) to
+            threshold(PowerManager.THERMAL_STATUS_SEVERE)
     }
 
     /** Valid samples refresh each second; unsupported/NaN readings back off for ten seconds. */
