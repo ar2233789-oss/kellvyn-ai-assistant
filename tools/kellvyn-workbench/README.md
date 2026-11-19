@@ -118,4 +118,24 @@ python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
 
 O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
 
-**Inventário atual:** 23 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+**Inventário atual:** 27 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+
+
+## Analisador semântico Kotlin (pré-requisitos)
+
+A Workbench reconhece o Kotlin Language Server opcionalmente, mas não instala nem inicia o servidor sozinha. O release standalone revisado exige JDK 25; o build Android da Kellvyn permanece em JDK 17. Não altere `JAVA_HOME` global para satisfazer o LSP.
+
+Configure somente quando o servidor e o JDK 25 estiverem instalados separadamente:
+
+```bash
+export KOTLIN_LSP_JAVA_HOME=/opt/jdk-25
+python3 tools/kellvyn-workbench/workbench.py doctor
+```
+
+Estados:
+- `OPTIONAL_NOT_INSTALLED`: servidor não detectado;
+- `BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED`: servidor detectado, variável do JDK separado ausente;
+- `BLOCKED_JDK25_REQUIRED`: JDK configurado não é 25;
+- `READY_UNVALIDATED`: binário + JDK 25 detectados, mas importação Android e queries semânticas ainda não validadas.
+
+A presença do executável e JDK só libera o próximo experimento; não significa que o LSP consiga importar AGP 8.13.2 ou resolver os símbolos do projeto. O experimento `kotlin-semantic-index-001` permanece PLANNED. O LSP tem importação Android experimental e continua em alpha; mantenha a decisão dependente de medições de precisão, cold start e RSS.
