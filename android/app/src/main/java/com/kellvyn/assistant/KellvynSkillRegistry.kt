@@ -289,9 +289,13 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
                            ferramenta mutável específica e aprovação do proprietário.
                         6. Sugira reconexão com backoff e teste read-only antes de qualquer ação. Não crie
                            polling agressivo, wake lock permanente nem prometa 24/7 em Android/HyperOS.
-                        7. WhatsApp permanece indisponível enquanto não houver adaptador oficial e endpoint
+                        7. O projeto mira atualmente targetSdk 34. Se evoluir para API 35+, o tipo dataSync
+                           terá limite acumulado de 6 horas por 24h; o serviço deve respeitar onTimeout e
+                           pausar os bots. Não troque para remoteMessaging/specialUse só para contornar
+                           o limite: confirme primeiro que o uso real se enquadra na categoria e na política.
+                        8. WhatsApp permanece indisponível enquanto não houver adaptador oficial e endpoint
                            público HTTPS de webhook permitido. Não recorra a automação não oficial do WhatsApp Web.
-                        8. Relate plataforma, último sinal, idade, estado do cérebro e limitação do dispositivo.
+                        9. Relate plataforma, último sinal, idade, estado do cérebro e limitação do dispositivo.
                     """.trimIndent()
                 )
             )
