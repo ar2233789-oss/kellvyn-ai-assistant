@@ -89,7 +89,7 @@ internal class KellvynRuntime(context: Context) {
             )
         )
         resourceRuntime.studioModules.registerIfAbsent(
-            KellvynBotOperationsStudio.definition(appContext)
+            KellvynBotOperationsStudio.definition(appContext) { isReady() }
         )
     }
     private val neuralModelStore = KellvynNeuralModelStore(
