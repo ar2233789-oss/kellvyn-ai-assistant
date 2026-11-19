@@ -42,6 +42,25 @@ class KellvynContextAssemblerTest {
     }
 
     @Test
+    fun oversizedRecentMessageDoesNotCauseOlderContextToBeReinserted() {
+        val messages = listOf(
+            message(KellvynMessageRole.SYSTEM, "rules"),
+            message(KellvynMessageRole.USER, "old"),
+            message(KellvynMessageRole.TOOL, "large recent tool result".repeat(20)),
+            message(KellvynMessageRole.USER, "latest")
+        )
+
+        val result = KellvynContextAssembler.fit(messages, maxChars = 120)
+
+        assertTrue(result is KellvynContextAssembler.Result.Ready)
+        val ready = result as KellvynContextAssembler.Result.Ready
+        assertTrue(ready.messages.any { it.content == "rules" })
+        assertTrue(ready.messages.any { it.content == "latest" })
+        assertFalse(ready.messages.any { it.content == "old" })
+        assertFalse(ready.messages.any { it.content.startsWith("large recent tool result") })
+    }
+
+    @Test
     fun essentialInstructionsCannotBeSilentlyTruncated() {
         val messages = listOf(
             message(KellvynMessageRole.SYSTEM, "S".repeat(1_000)),
