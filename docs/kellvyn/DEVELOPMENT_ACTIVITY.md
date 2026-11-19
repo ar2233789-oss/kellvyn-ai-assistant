@@ -302,3 +302,12 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Substituído o cenário genérico do papel pelo benchmark `reasoning-alternative-delivery-routes`, sem aumentar a suíte além de 28 casos.
 - Testes adicionados/ajustados para matriz, switch de rede, roteamento do Orchestrator e benchmark. **Ainda não executados via Gradle/JUnit**; manter NOT_RUN até executor real.
 - Arquivos de interface, cérebro, Runtime de produção e `MainActivity.java` não foram alterados.
+
+## 19/11/2026 — endurecimento do comparador do Agent Lab
+
+- Auditoria encontrou que `agent_lab_trace_compare` calculava variação de aprovações mesmo entre traces de baterias ou ferramentas potencialmente diferentes.
+- `KellvynSpecialistEvaluationHarness` passou a registrar fingerprints separados para dados da bateria, perfis e contratos das ferramentas/política de rede.
+- `KellvynAgentLabStudio` agora recusa baterias diferentes/IDs duplicados, exige cobertura idêntica e resumo terminal `CASES_N`, e só calcula delta quando ferramentas/política são iguais. `BLOCKED`, `REVIEW_REQUIRED`, `BENCHMARK_ERROR` e `CANCELLED` não sustentam delta.
+- Perfil pode mudar como variável candidata; o relatório ainda ressalva que identidade/checkpoint do modelo não está fingerprintado.
+- Testes do Agent Lab adicionados para mudança de perfil, ferramentas divergentes, bateria divergente e cobertura incompleta; teste antigo do harness atualizado para três fingerprints.
+- **NOT RUN:** Gradle/JUnit não foram executados. Run Build APK `44534146166`/job `135595015706` terminou sem steps e não é o workflow Agent Lab. Não classificar como falha de Kotlin/Gradle.
