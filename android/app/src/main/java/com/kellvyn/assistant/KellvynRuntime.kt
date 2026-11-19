@@ -72,22 +72,8 @@ internal class KellvynRuntime(context: Context) {
         resourceRuntime.studioModules.registerIfAbsent(
             KellvynWebResearchStudio.definition(appContext)
         )
-        resourceRuntime.studioModules.registerIfAbsent(
-            KellvynAgentCreationStudio.definition(
-                profiles = KellvynSpecialistProfileRegistry.default(),
-                profileStore = specialistProfileStore
-            )
-        )
-        resourceRuntime.studioModules.registerIfAbsent(
-            KellvynAgentLabStudio.definition(
-                traceStore = agentLabTraceStore,
-                moduleManager = resourceRuntime.studioModules,
-                resourceSnapshotProvider = resourceRuntime::snapshot,
-                traceRecorderHealthProvider = agentLabTraceRecorder::health,
-                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
-                specialistProfilesProvider = { activeSpecialistProfiles() }
-            )
-        )
+        // Legacy agent studios are intentionally not registered in the central KN runtime.
+        // Their sources, tests and encrypted history remain available for migration/audit.
         resourceRuntime.studioModules.registerIfAbsent(
             KellvynBotOperationsStudio.definition(appContext) { isReady() }
         )
@@ -305,9 +291,42 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Creates the coordinator with local project tools. Read-only specialists inherit only
-     * the read subset; mutations require an exact short-lived approval issued by the owner.
+     * Creates the single central KN decision loop with the local memory, planner,
+     * workspace tools, resource governor, traces and network-read gate.
+     *
+     * Delegation is disabled inside KellvynCognitiveKernel regardless of the supplied
+     * config. The caller must provide an explicitly approved inference engine.
      */
+    fun createCentralCognition(
+        inference: KellvynInferenceEngine,
+        activeProjectId: String? = null,
+        config: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynCognitiveKernel {
+        val addresses = memoryAddressesFor(activeProjectId)
+        return KellvynCognitiveKernel(
+            inference = inference,
+            tools = createProjectWorkspaceToolRegistry(activeProjectId),
+            authorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate),
+            config = config,
+            memory = localMemory,
+            memoryAddresses = addresses,
+            projectContextRetriever = projectContextRetriever,
+            activeProjectId = activeProjectId,
+            taskCheckpoints = taskCheckpointRepository,
+            taskBroker = taskBroker,
+            networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            },
+            resourceSnapshotProvider = { resourceRuntime.snapshot() }
+        )
+    }
+
+    /**
+     * Legacy compatibility API. The default configuration now disables delegation.
+     * New application code must use createCentralCognition.
+     */
+    @Deprecated("Use createCentralCognition; specialist-agent orchestration is legacy.")
     suspend fun createProjectWorkspaceAgent(
         inference: KellvynInferenceEngine,
         activeProjectId: String? = null,
