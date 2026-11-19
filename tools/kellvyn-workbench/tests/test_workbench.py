@@ -86,7 +86,7 @@ class PolyglotToolchainTests(unittest.TestCase):
         fake_home = self.root / "jdk25"
         java = fake_home / "bin" / "java"
         java.parent.mkdir(parents=True)
-        java.write_text('#!/bin/sh\\necho \'openjdk version "25.0.1"\' >&2\\n')
+        java.write_text('#!/bin/sh\necho \'openjdk version "25.0.1"\' >&2\n')
         java.chmod(0o755)
         (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
         old_home = wb.os.environ.get("KOTLIN_LSP_JAVA_HOME")
