@@ -209,7 +209,7 @@ internal class KellvynSkillRegistry(skills: List<KellvynSkillDefinition>) {
                     triggerTerms = setOf(
                         "criar", "crie", "construir", "construa", "aplicativo", "app", "android",
                         "software", "projeto", "gerar", "produto", "funcionalidade", "telas",
-                        "builder", "lovable", "replit", "copilot", "claude"
+                        "builder"
                     ),
                     instructions = """
                         SKILL: FÁBRICA DE APLICATIVOS — PLAN → BUILD → TEST
