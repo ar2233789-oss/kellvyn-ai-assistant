@@ -397,16 +397,12 @@ internal class KellvynTransformerLanguageModel private constructor(
         val initialLoss = evaluateLoss(tokenIds)
 
         repeat(epochs) {
-            for (targetIndex in 1 until tokenIds.size) {
-                if (targetIndex and 31 == 0) cancellationCheck?.invoke()
-                val start = max(0, targetIndex - config.contextLength)
-                trainOne(
-                    tokenIds.copyOfRange(start, targetIndex),
-                    tokenIds[targetIndex],
-                    learningRate,
-                    weightDecay
-                )
-            }
+            trainTokensEpoch(
+                tokenIds = tokenIds,
+                learningRate = learningRate,
+                weightDecay = weightDecay,
+                cancellationCheck = cancellationCheck
+            )
         }
         cancellationCheck?.invoke()
         val finalLoss = evaluateLoss(tokenIds)
@@ -417,6 +413,36 @@ internal class KellvynTransformerLanguageModel private constructor(
             epochs,
             trainingSteps
         )
+    }
+
+    /**
+     * Applies one next-token epoch to a raw token sequence without measuring loss.
+     * This lets the corpus pipeline interleave documents and measure held-out loss only
+     * at epoch boundaries instead of repeating per-document evaluations.
+     */
+    internal fun trainTokensEpoch(
+        tokenIds: IntArray,
+        learningRate: Float = 0.003f,
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
+    ) {
+        require(tokenIds.size in 2..MAX_TRAINING_TOKENS)
+        require(tokenIds.all { it in 0 until config.vocabularySize })
+        require(tokenIds.size - 1L <= MAX_TRAINING_STEPS_PER_CALL)
+        validateOptimizerArguments(learningRate, weightDecay)
+        cancellationCheck?.invoke()
+
+        for (targetIndex in 1 until tokenIds.size) {
+            if (targetIndex and 31 == 0) cancellationCheck?.invoke()
+            val start = max(0, targetIndex - config.contextLength)
+            trainOne(
+                tokenIds.copyOfRange(start, targetIndex),
+                tokenIds[targetIndex],
+                learningRate,
+                weightDecay
+            )
+        }
+        cancellationCheck?.invoke()
     }
 
     fun trainCompletion(
