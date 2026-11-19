@@ -3,7 +3,10 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 19/11/2026 — checkpoint da bancada externa  
+**Última revisão:** 19/11/2026 — laboratório poliglota v2 em construção
+**Branch experimental ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`
+**PR laboratório:** #25 (DRAFT, IMPLEMENTED_NOT_RUN) — `https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/25`
+**HEAD mais recente conhecido nesta retomada:** `b2b3bd11b426bf3a168ad38f07d376b9a75ad668`  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
@@ -736,3 +739,17 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Próximo passo
 Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
+
+
+## 12. Continuidade — laboratório poliglota v2 (19/11/2026)
+
+**Foco atual:** preparar primeiro o ambiente completo de pesquisa e engenharia. Não desviar para implementar funcionalidades do cérebro, agentes ou interface até que as ferramentas e os gates de desenvolvimento necessários estejam disponíveis.
+
+- Especificação da arquitetura-alvo em `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`.
+- Branch isolada `kellvyn-rnd/polyglot-lab-foundation-20261119`, baseada no commit `ce0d7170c576e50fcb852d27aedfd4cae3d45caa`, PR #25.
+- Implementado na Workbench: matriz de toolchains por domínio; suites TypeScript/TSX para typecheck, Vitest, ESLint e Vite; mapa semântico TS/TSX via TypeScript Compiler API; testes do mapa com fixtures; higiene básica de ambiente de subprocesso, redaction e encerramento de process group em timeout POSIX.
+- Workflow Workbench usa Bun 1.4.5 e instalação congelada por `bun.lock`; testes do mapa e quatro gates TS/TSX entram no CI.
+- Manifesto da R&D Studio corrigido: o arquivo atual tem 20 métodos `test_*`; o resultado anterior 13/13 pertence a snapshot mais antigo. Os 20 do snapshot atual ainda precisam ser executados.
+- Último CI observado nesta branch: run `44554753701`, job `135667679375`, terminou em failure com `steps=[]`; classificar como runner/execução NOT RUN, não como falha de compilação.
+- O mapa semântico TS/TSX é implementado, mas não foi executado; análise semântica Kotlin/Java, Tree-sitter multilinguagem, DAG durável, sandbox descartável, tracing de agentes, animation/performance lab Android e benchmark cognitivo ainda não estão implementados.
+- Não mesclar PR #25. Não instalar runner no Poco F6, não adicionar serviços pagos e não modificar MainActivity/interface.
