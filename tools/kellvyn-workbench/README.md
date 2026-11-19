@@ -105,3 +105,17 @@ Pré-condições ausentes são classificadas como `BLOCKED`, não como falha do 
 - Valores comuns de tokens/senhas/chaves são redigidos antes de persistir logs e manifests.
 - Timeout em POSIX encerra o grupo de processos para evitar subprocessos de Gradle/testes sobrevivendo.
 - Isto reduz exposição acidental; não fornece isolamento de filesystem/rede nem substitui sandbox. Código não confiável continua bloqueado até existir executor descartável apropriado.
+
+
+## Navegação semântica TS/TSX
+
+Com as dependências instaladas pelo `bun.lock`, o mapa usa o TypeScript Compiler API do próprio projeto para relacionar declarações, tipos, imports, chamadas, referências e arquivos de teste. Ele marca relações de projeto e externas separadamente e reporta imports não resolvidos.
+
+```bash
+python3 tools/kellvyn-workbench/workbench.py typescript-map --fail-on-diagnostics
+python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
+```
+
+O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
+
+**Inventário atual:** 23 métodos Python da Workbench e dois casos Node para o mapa TypeScript. Todos são testes escritos; o snapshot do GitHub Actions continua sem steps executados.
