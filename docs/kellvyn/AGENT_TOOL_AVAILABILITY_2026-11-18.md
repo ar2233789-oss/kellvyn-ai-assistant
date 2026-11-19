@@ -74,11 +74,19 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 | Arquiteto de programação | CODE_NAVIGATION, UI_LAYOUT, DATA_MODELING | navegação e `data_inspect_structure` | UI_LAYOUT sem motor concreto; sem ferramenta de edição/build para especialista |
 | Analista de memória | MEMORY_READ | `memory_search` | Consulta somente memórias não sensíveis nos escopos global e projeto ativo desta conversa; limite de 5 resultados e saída truncada; nunca escreve/apaga |
 | Analista de segurança | SECURITY_AUDIT, CODE_NAVIGATION, ANDROID_BUILD | `security_scan_project`, navegação, `android_build_environment_status` | Status do compilador é somente leitura; não executa build |
-| Analista de planejamento | WORKFLOW_AUTOMATION, DEVICE_DIAGNOSTICS, DATA_MODELING | `automation_queue_status`, `device_resource_snapshot`, `data_inspect_structure` | Automação é apenas consulta; não agenda nem altera tarefas |
+| Analista de planejamento | AGENT_DESIGN, AGENT_EVALUATION, WORKFLOW_AUTOMATION, DEVICE_DIAGNOSTICS, DATA_MODELING | `automation_queue_status`, `bot_runtime_health`, `device_resource_snapshot`, `data_inspect_structure`, ferramentas READ_ONLY de Agent Creation/Agent Lab | Pode inspecionar perfis, benchmarks, traces e sinais dos bots; não promove perfis, reinicia bots nem executa automações mutáveis |
 | Depurador | CODE_NAVIGATION, ANDROID_BUILD, ANDROID_DEVICE_TEST, DEVICE_DIAGNOSTICS | navegação, `android_build_environment_status`, `device_resource_snapshot` | Sem leitura estruturada de Logcat, execução de teste ou inspeção de crash nativa |
 | Auditor independente | CODE_NAVIGATION, ANDROID_BUILD, ANDROID_DEVICE_TEST, VISUAL_ANALYSIS, SECURITY_AUDIT, DATA_MODELING | navegação, `android_build_environment_status`, auditoria de segurança e inspeção de dados | Build/teste/visual completos ainda sem motores; o status do compilador não é evidência de build/teste |
-| Analista de operações | DEVICE_DIAGNOSTICS, WORKFLOW_AUTOMATION | `device_resource_snapshot`, `automation_queue_status` | Sem controle operacional; não executa automações mutáveis |
+| Analista de operações | AGENT_EVALUATION, DEVICE_DIAGNOSTICS, WORKFLOW_AUTOMATION | `device_resource_snapshot`, `automation_queue_status`, `bot_runtime_health` e ferramentas READ_ONLY de Agent Lab | Diagnostica traces, recursos e heartbeat dos bots; não inicia, para ou altera serviços |
 | Analista visual | VISUAL_ANALYSIS, UI_LAYOUT, RASTER_IMAGE_EDIT, VECTOR_GRAPHICS, SCENE_3D, CAD_PARAMETRIC | nenhuma ferramenta visual concreta identificada no catálogo | É papel de análise com ferramentas ainda ausentes; sem edição raster/vetor, cena 3D ou CAD |
+
+
+### Ferramentas de Agent Creation e Agent Lab por capability (19/11/2026)
+
+- `AGENT_DESIGN`: Programming Architect, Planning Analyst e Auditor recebem catálogo/inspeção/histórico/diff/preview de perfis; o relatório de matriz de especialistas também exige `AGENT_EVALUATION`.
+- `AGENT_EVALUATION`: Reviewer, Test Analyst, Learning Analyst, Programming Architect, Security Analyst, Planning Analyst, Debugger, Auditor e Operations Analyst recebem ferramentas READ_ONLY de inspeção de traces, comparação, métricas e prontidão; casos que também exigem DEVICE_DIAGNOSTICS ou AGENT_DESIGN continuam sujeitos à capability adicional.
+- `bot_runtime_health` exige `WORKFLOW_AUTOMATION`: Planning Analyst e Operations Analyst podem consultar Telegram/Discord. O módulo informa WhatsApp como não implementado.
+- A atualização de disponibilidade não concede escrita, exclusão, execução de build, instalação, controle de dispositivo, promoção de perfil ou reinício de bot.
 
 ## 4. Módulos concretos registrados no runtime
 
@@ -87,9 +95,9 @@ Capability: `CODE_EDITING`, mas são REVERSIBLE_WRITE/DESTRUCTIVE e exigem aprov
 3. `data-architecture` — inspeção de estrutura JSON/CSV.
 4. `android-build-status` — diagnóstico READ_ONLY do compilador local Java/ECJ/D8 e do último APK encontrado.
 5. `web-research-wikipedia` — consulta READ_ONLY/NETWORK_READ à API oficial da Wikipédia em português, ativada somente pelo controle de Acesso à Web; permite até cinco resultados, trechos limitados e URL/data de revisão. Não faz pesquisa geral em motores de busca, não busca URLs arbitrárias e não edita conteúdo.
-6. `agent-creation` — catálogo, inspeção, validação, benchmarks, histórico e diff de perfis; as ferramentas expostas ao modelo são somente leitura.
+6. `agent-creation` — catálogo, inspeção, validação, benchmarks, histórico, diff e prévia de revisão de perfis; as ferramentas expostas ao modelo são somente leitura.\n7. `agent-lab` — status de módulos/recursos, lista/inspeção/comparação de traces, métricas de delegação, matriz de especialistas e prontidão de benchmark; as ferramentas são READ_ONLY.\n8. `bot-operations` — ferramenta READ_ONLY `bot_runtime_health`, com estado do Telegram/Discord, presença de credencial e idade do último sinal; nunca retorna o token.
 
-Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos, status de automação e `memory_search` (somente leitura, limitada aos escopos autorizados). O módulo Android registra apenas diagnóstico do ambiente; o builder local pré-existente continua sendo um backend restrito a Java simples (ECJ → D8 → APK assinado), não um Android Studio completo. **Seis módulos estão registrados; isso não significa oito estúdios completos.** As capacidades visuais e Android device test continuam lacunas de implementação.
+Além deles, o runtime registra ferramentas compartilhadas de workspace, recursos, status de automação e `memory_search` (somente leitura, limitada aos escopos autorizados). O módulo Android registra apenas diagnóstico do ambiente; o builder local pré-existente continua sendo um backend restrito a Java simples (ECJ → D8 → APK assinado), não um Android Studio completo. **Oito módulos estão registrados; isso não significa oito estúdios completos.** As capacidades visuais e Android device test continuam lacunas de implementação.
 
 ## 5. Ordem correta para completar a cobertura
 
@@ -188,7 +196,7 @@ Não substituir um estado pelo outro. O fato de haver 14 papéis não significa 
 - `agent-creation` também está registrado e é somente leitura para o modelo, incluindo histórico e diff pendente de perfis.
 - Essa correção ajusta apenas a documentação de inventário; nenhum módulo ou permissão foi alterado.
 
-## 5. Atualização — monitoramento operacional de bots (19/11/2026)
+## 10. Atualização — monitoramento operacional de bots (19/11/2026)
 
 Foi registrado o módulo `bot-operations`, com a ferramenta READ_ONLY `bot_runtime_health`.
 
