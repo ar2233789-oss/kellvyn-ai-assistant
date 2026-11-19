@@ -119,7 +119,7 @@ def foreground_package(activity_dump: str, package: str) -> bool:
     for line in activity_dump.splitlines():
         lower = line.lower()
         if ("mresumedactivity" in lower or "topresumedactivity" in lower or "resumedactivity" in lower):
-            if package in line:
+            if package.casefold() in lower:
                 return True
     return False
 
