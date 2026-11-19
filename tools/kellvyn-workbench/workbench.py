@@ -255,7 +255,7 @@ def node_package_status(package: str) -> str:
     try:
         result = subprocess.run(
             [node, "-e", f"require.resolve({json.dumps(package)})"],
-            text=True, capture_output=True, timeout=8, check=False
+            cwd=ROOT, text=True, capture_output=True, timeout=8, check=False
         )
         return "AVAILABLE" if result.returncode == 0 else "NOT_INSTALLED"
     except Exception as exc:
@@ -334,10 +334,23 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
         )
     )
     android_missing = []
-    if not present("java") or not present("javac"):
-        android_missing.append("JDK (java + javac; project targets Java 17)")
-    if not (present("gradle") or wrapper_ok):
-        android_missing.append("Gradle 8.13 or complete repository wrapper")
+    java_output = found.get("java", "")
+    javac_output = found.get("javac", "")
+    java17 = bool(re.search(r'\\b17(?:[.\\s"]|$)', java_output)) and bool(
+        re.search(r'\\b17(?:[.\\s]|$)', javac_output)
+    )
+    if not java17:
+        android_missing.append("JDK 17 (java and javac must both report version 17)")
+    wrapper_properties = ROOT / "android" / "gradle" / "wrapper" / "gradle-wrapper.properties"
+    wrapper_813 = False
+    if wrapper_properties.is_file():
+        wrapper_813 = bool(re.search(r"gradle-8\\.13-(?:bin|all)\\.zip", wrapper_properties.read_text(encoding="utf-8", errors="replace")))
+    system_gradle_813 = bool(re.search(r"(?m)^Gradle\\s+8\\.13(?:\\D|$)", found.get("gradle", "")))
+    if not (system_gradle_813 or (wrapper_ok and wrapper_813)):
+        android_missing.append("Gradle 8.13 (system executable or pinned complete wrapper)")
+    build_config = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8", errors="replace") if (ROOT / "android" / "build.gradle").is_file() else ""
+    if "com.android.application' version '8.13.2'" not in build_config or "org.jetbrains.kotlin.android' version '2.3.20'" not in build_config:
+        android_missing.append("Pinned Android Gradle Plugin 8.13.2 / Kotlin Gradle Plugin 2.3.20")
     if not platform_ok:
         android_missing.append("Android SDK platform android-35")
     if not build_tools_ok:
