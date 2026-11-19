@@ -22,7 +22,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[2]
 RUNS = ROOT / "artifacts" / "workbench" / "sandbox-runs"
-DIGEST_IMAGE = re.compile(r"^.+@sha256:[0-9a-f]{64}$")
+DIGEST_IMAGE = re.compile(r"^[A-Za-z0-9._/:+-]+@sha256:[0-9a-f]{64}$")
 TASK_ID = re.compile(r"^[A-Za-z0-9._-]{1,80}$")
 IGNORE_PATTERNS = (
     ".git", ".gradle", "build", "node_modules", ".idea", ".kotlin",
@@ -111,22 +111,53 @@ def podman_rootless_info(podman: str) -> dict[str, Any]:
     }
 
 
-def source_inventory(source: Path, *, max_files: int = 20000, max_bytes: int = 2 * 1024 * 1024 * 1024) -> list[dict[str, Any]]:
+def source_inventory(
+    source: Path,
+    *,
+    max_files: int = 20000,
+    max_bytes: int = 2 * 1024 * 1024 * 1024,
+    reject_symlinks: bool = True
+) -> list[dict[str, Any]]:
     inventory: list[dict[str, Any]] = []
     total_bytes = 0
     for current, dirs, files in os.walk(source, topdown=True, followlinks=False):
         current_path = Path(current)
-        dirs[:] = sorted(
-            name for name in dirs
-            if name not in IGNORE_PATTERNS and not name.startswith(".env.")
-        )
+        kept_dirs = []
+        for name in sorted(dirs):
+            path = current_path / name
+            if name in IGNORE_PATTERNS or name.startswith(".env."):
+                continue
+            if path.is_symlink():
+                if reject_symlinks:
+                    raise SandboxBlocked(f"workspace contains a symlink; refusing ambiguous host path: {path.relative_to(source)}")
+                target = os.readlink(path)
+                inventory.append({
+                    "path": path.relative_to(source).as_posix(),
+                    "type": "symlink",
+                    "target": target,
+                    "sha256": hashlib.sha256(target.encode("utf-8", errors="surrogateescape")).hexdigest()
+                })
+                continue
+            kept_dirs.append(name)
+        dirs[:] = kept_dirs
         for name in sorted(files):
             path = current_path / name
             relative = path.relative_to(source).as_posix()
-            if name in IGNORE_PATTERNS or name.startswith(".env.") or path.suffix.lower() in {".jks", ".keystore", ".pem", ".p12", ".pfx"}:
+            if name in IGNORE_PATTERNS or name.startswith(".env.") or path.suffix.lower() in {
+                ".jks", ".keystore", ".pem", ".p12", ".pfx", ".key"
+            }:
                 continue
             if path.is_symlink():
-                raise SandboxBlocked(f"workspace contains a symlink; refusing ambiguous host path: {relative}")
+                if reject_symlinks:
+                    raise SandboxBlocked(f"workspace contains a symlink; refusing ambiguous host path: {relative}")
+                target = os.readlink(path)
+                inventory.append({
+                    "path": relative,
+                    "type": "symlink",
+                    "target": target,
+                    "sha256": hashlib.sha256(target.encode("utf-8", errors="surrogateescape")).hexdigest()
+                })
+                continue
             if not path.is_file():
                 continue
             size = path.stat().st_size
@@ -137,11 +168,11 @@ def source_inventory(source: Path, *, max_files: int = 20000, max_bytes: int = 2
                 raise SandboxBlocked(f"workspace exceeds the {max_bytes} byte safety limit")
             inventory.append({
                 "path": relative,
+                "type": "file",
                 "size_bytes": size,
                 "sha256": sha256_file(path)
             })
-    return inventory
-
+    return sorted(inventory, key=lambda item: item["path"])
 
 def copy_workspace(source: Path, target: Path) -> list[dict[str, Any]]:
     target.mkdir(parents=True, exist_ok=False)
@@ -149,10 +180,11 @@ def copy_workspace(source: Path, target: Path) -> list[dict[str, Any]]:
         source,
         target,
         dirs_exist_ok=True,
-        symlinks=False,
+        symlinks=True,
         ignore=shutil.ignore_patterns(*IGNORE_PATTERNS)
     )
-    return source_inventory(target)
+    # Re-scan the actual copy and reject any symlink that appeared during staging.
+    return source_inventory(target, reject_symlinks=True)
 
 
 def workspace_diff(before: list[dict[str, Any]], after: list[dict[str, Any]]) -> dict[str, Any]:
@@ -199,10 +231,13 @@ def execute_rootless(
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:10]
     run_dir = RUNS / run_id
+    if "," in str(run_dir):
+        raise SandboxBlocked("sandbox host path contains a comma, which cannot be represented safely in Podman mount syntax")
     run_dir.mkdir(parents=True, exist_ok=False)
     workspace = run_dir / "workspace"
     output = run_dir / "output"
     output.mkdir()
+    before_source = source_inventory(source)
     before = copy_workspace(source, workspace)
     source_head = run_host(["git", "-C", str(source), "rev-parse", "HEAD"], timeout_s=10, allow_failure=True).stdout.strip() or None
     source_status = run_host(["git", "-C", str(source), "status", "--porcelain"], timeout_s=10, allow_failure=True).stdout
@@ -267,7 +302,7 @@ def execute_rootless(
 
     # Remove any container left behind after a client error/timeout.
     run_host([podman, "rm", "-f", name], timeout_s=20, allow_failure=True)
-    after = source_inventory(workspace)
+    after = source_inventory(workspace, reject_symlinks=False)
     changes = workspace_diff(before, after)
     manifest = {
         "schema": "kellvyn-rootless-sandbox-run/v1",
