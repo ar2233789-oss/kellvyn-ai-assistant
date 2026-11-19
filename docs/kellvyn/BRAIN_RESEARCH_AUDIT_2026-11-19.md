@@ -342,3 +342,26 @@ Testes relevantes já gravados:
 - `supervisedCompletionTrainingReducesLossAndUpdatesOnlyResponseSteps` — preserva treinamento supervisionado e contagem de passos.
 
 Estado: fonte e testes confirmados por releitura no GitHub; não executados pelo Gradle nesta sessão.
+
+
+### Medição e perfilamento Android para acelerar com evidência
+
+A pesquisa oficial do Android confirma um conjunto de ferramentas complementares:
+- **Macrobenchmark:** mede jornadas maiores do app e gera resultados JSON e traces; adequado para início de conversa, carregamento do cérebro e execução de uma tarefa real.
+- **Microbenchmark:** mede trechos pequenos, útil para tokenizer, camada linear, atenção e atualização AdamW isoladamente.
+- **Android Studio Profiler:** identifica hotspots de CPU, alocações, heap e GC; o perfilamento de alocação Java/Kotlin exige build debuggable e tem overhead, portanto não deve ser usado como medição final de desempenho.
+- **Perfetto/system tracing:** correlaciona threads, CPU, memória, escalonamento e atividade do dispositivo.
+
+Plano para o Poco F6:
+1. Baseline em build de perfil/produção, mesma temperatura inicial e mesmo conjunto de prompts.
+2. Medir inferência por token, pré-processamento, treino por passo e tempo total, em execuções frias e aquecidas.
+3. Coletar PSS/heap, alocações e GC; em seguida trace Perfetto para identificar gargalo.
+4. Medir temperatura/thermal headroom e bateria durante tarefas longas.
+5. Repetir após cada otimização, mantendo apenas mudanças que melhorem tempo ou memória sem piorar loss, comportamento, estabilidade ou segurança.
+6. Guardar JSON/trace e versão exata do APK/código ligados ao resultado.
+
+Fontes:
+- Macrobenchmark: https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview
+- Android Studio Profiler: https://developer.android.com/studio/profile
+- System tracing / Perfetto: https://developer.android.com/topic/performance/tracing
+- Android memory metrics: https://developer.android.com/topic/performance/memory
