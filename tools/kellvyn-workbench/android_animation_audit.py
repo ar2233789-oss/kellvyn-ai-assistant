@@ -257,6 +257,7 @@ def capture_android_animation(
             "No UI taps, swipes, setting changes or source edits",
             "Temporary screen recording on the selected device, pulled to this output folder, then removed from /sdcard"
         ],
+        "quality_assessment": "NOT_EVALUATED",
         "privacy_note": "The video captures the visible device display. Keep the target app foreground and close private notifications or content before starting."
     }
 
@@ -289,7 +290,7 @@ def capture_android_animation(
     save_text("activities-before.txt", activities.stdout)
 
     device_properties = []
-    for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk", "ro.build.fingerprint"):
+    for prop in ("ro.product.model", "ro.product.manufacturer", "ro.build.version.release", "ro.build.version.sdk"):
         value = adb_command(adb, serial, "shell", "getprop", prop, timeout_s=10, allow_failure=True)
         device_properties.append(f"{prop}={value.stdout.strip()}")
     save_text("device-info.txt", "\n".join(device_properties))
@@ -388,7 +389,9 @@ def capture_android_animation(
     elif not ffmpeg_path:
         report["status"] = "PARTIAL"
     else:
-        report["status"] = "PASSED"
+        # Capture success is not a performance or visual-quality approval.
+        report["status"] = "CAPTURED"
+    report["quality_assessment"] = "NOT_EVALUATED"
     report["limitations"] = [
         "gfxinfo framestats is an app-level frame timing source and does not replace Perfetto FrameTimeline.",
         "The capture measures only the current visible scenario; run each animation/effect combination separately.",
@@ -425,7 +428,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         result["output_directory"] = run_dir.relative_to(ROOT).as_posix()
         print(json.dumps(result, ensure_ascii=False, indent=2))
-        return 0 if result["status"] == "PASSED" else (4 if result["status"] == "PARTIAL" else 2)
+        return 0 if result["status"] == "CAPTURED" else (4 if result["status"] == "PARTIAL" else 2)
     except AuditBlocked as exc:
         report = {"schema": "kellvyn-android-animation-audit/v1", "status": "BLOCKED", "reason": str(exc)}
         print(json.dumps(report, ensure_ascii=False, indent=2), file=sys.stderr)
