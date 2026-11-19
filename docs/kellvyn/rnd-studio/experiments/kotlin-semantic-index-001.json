@@ -95,7 +95,9 @@
     "Duas execuções com o mesmo HEAD/configuração produzem o mesmo conjunto de relações, desconsiderando timestamps.",
     "Medições incluem cold e warm run, RSS/heap e versão exata de Kotlin/JDK/AGP.",
     "Nenhuma fonte, APK ou runtime é modificado.",
-    "Kotlin LSP runs under an isolated JDK 25 selection while Gradle project import/build remains on the project's JDK 17 toolchain."
+    "Kotlin LSP runs under an isolated JDK 25 selection while Gradle project import/build remains on the project's JDK 17 toolchain.",
+    "Workbench doctor distinguishes LSP absent, JDK25 absent, wrong JDK major and binary+JDK present but unvalidated.",
+    "The JDK25 probe invokes only the configured java executable and never mutates JAVA_HOME/JDK used by Gradle."
   ],
   "decision_rule": "Escolher a variante que importe o projeto real e tenha maior precisão de relações semânticas com custo de memória/tempo aceitável. Se ambas falharem no Android Gradle Plugin atual, manter Kotlin indexing como BLOCKED e usar PSI/Tree-sitter apenas para sintaxe, sem rotular como semântico.",
   "execution": {
@@ -108,7 +110,8 @@
     "https://kotlinlang.org/docs/kotlin-lsp.html",
     "https://tree-sitter.github.io/tree-sitter/",
     "https://github.com/Kotlin/kotlin-lsp/releases",
-    "https://github.com/Kotlin/kotlin-lsp"
+    "https://github.com/Kotlin/kotlin-lsp",
+    "https://github.com/Kotlin/kotlin-lsp/releases"
   ],
   "candidate_release_research": {
     "kotlin_lsp": {
@@ -137,5 +140,12 @@
       "kotlin_gradle_plugin": "2.3.20",
       "requirement": "Keep LSP JDK 25 separate from the JDK 17 used for project build and Gradle tests."
     }
+  },
+  "current_probe_status": {
+    "workbench_detection": "IMPLEMENTED_NOT_RUN",
+    "kotlin_lsp_binary_detected_in_host": "NOT_INSTALLED",
+    "separate_jdk_25": "NOT_CONFIGURED",
+    "project_build_jdk": "17",
+    "next_action": "Use doctor to verify a separately installed Kotlin LSP and JDK 25; then perform project import/call hierarchy experiment in a disposable environment."
   }
 }
