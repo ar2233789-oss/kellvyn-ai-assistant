@@ -273,3 +273,35 @@ O laboratório só pode ser chamado de capaz de desenvolver o ecossistema quando
 - relatórios que nunca confundam escrito, executado, aprovado e validado fisicamente.
 
 **Estado de saída desta especificação:** arquitetura documentada; nenhuma das fases acima pode ser marcada como implementada apenas por existir este arquivo. A primeira entrega executável deve ser a Fase 0, seguida da análise semântica e isolamento, não a adição de mais perfis sem infraestrutura.
+
+
+## 8. Referências técnicas consultadas — 19/11/2026
+
+As referências abaixo fundamentam a arquitetura; não significam que as bibliotecas estejam instaladas ou integradas ao repositório.
+
+- Kotlin Analysis API (símbolos, tipos e relações semânticas; modo standalone ainda sujeito a mudanças): https://analysis-api.kotlinlang.org/
+- Kotlin Symbol Processing e seus limites de inspeção de expressões/corpos: https://kotlinlang.org/docs/ksp-overview.html
+- Tree-sitter, parsing incremental multi-linguagem: https://tree-sitter.github.io/tree-sitter/
+- Temporal, execução durável, histórico de eventos e retomada: https://docs.temporal.io/evaluate/understanding-temporal
+- LangGraph checkpointing e preservação de estado/pending writes: https://langchain-ai.github.io/langgraph/reference/checkpoints/
+- OpenAI agent evals e workflow de traces/datasets/eval runs: https://developers.openai.com/api/docs/guides/agent-evals
+- OpenTelemetry semantic conventions para spans de agentes e ferramentas: https://github.com/open-telemetry/semantic-conventions-genai
+- Android Macrobenchmark para startup, manipulação complexa e animações: https://developer.android.com/topic/performance/benchmarking/macrobenchmark-overview
+- Testes determinísticos de animação Compose com relógio virtual: https://developer.android.com/develop/ui/compose/animation/testing
+- Android system tracing/Perfetto: https://developer.android.com/topic/performance/tracing
+- Android Power Profiler e disponibilidade variável de power rails por dispositivo: https://developer.android.com/studio/profile/power-profiler
+- Playwright visual comparisons e necessidade de ambiente de baseline consistente: https://playwright.dev/docs/test-snapshots
+- NIST IR 8397, verificações mínimas de software: https://csrc.nist.gov/pubs/ir/8397/final
+- GitHub secure use e riscos de runners self-hosted persistentes: https://docs.github.com/en/actions/reference/security/secure-use
+- GitHub ephemeral self-hosted runners: https://docs.github.com/en/actions/reference/runners/self-hosted-runners
+- Bun v1.4.5 release (19/11/2026), documentação de instalação: https://bun.com/ e https://bun.sh/docs/installation
+
+### Limite de interpretação
+
+- Parser sintático não equivale a análise semântica.
+- Métrica de loss não equivale a competência conversacional.
+- Trace não equivale a correção; precisa de grader/oráculo independente.
+- Screenshot não equivale a teste de comportamento.
+- Toolchain detectada não equivale a build aprovado.
+- Worktree não equivale a sandbox seguro.
+- Runner efêmero reduz riscos de persistência, mas ainda exige permissões mínimas, ambiente limpo e política de artefatos.
