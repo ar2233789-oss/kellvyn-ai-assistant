@@ -434,3 +434,34 @@ Testes existentes que cobrem as mudanças:
 - `restoredCheckpointRetainsIncrementalKvCacheEquivalenceAfterWindowSlides`
 
 CI mais recente associado ao commit `4192d9c5277c2418b05edcb5b4a36f600c47412b`: run `44628706417`, job `135929303787`, conclusão `failure`, porém sem steps, sem log URL e sem blob de logs. Não há evidência de que a etapa Gradle tenha iniciado. Classificação: **runner/infraestrutura não disponibilizou execução observável**. Os testes continuam escritos e não executados.
+
+
+### Ajuste adicional do plano de execução acelerada
+
+Nesta rodada, o processo de trabalho foi ajustado para reduzir tempo de investigação que não termina em alteração:
+- pesquisas documentais, auditoria de dependências e revisão de testes podem ocorrer em trilhas independentes;
+- commits de código no mesmo arquivo continuam sequenciais para evitar conflitos e perda de alterações;
+- cada bloco de implementação tem um teste alvo ligado ao contrato;
+- nenhuma otimização permanece só por parecer rápida: é necessário benchmark de tempo, alocações, GC, memória e resultado comportamental;
+- a verificação estática do código não é registrada como compilação Android.
+
+Uma checagem sintática Kotlin isolada com o compilador instalado foi executada para as construções novas de referência de função, array de fatores e validação de logits finitos: **PASS**. Essa checagem usa um snippet mínimo e não compila a classe completa, não valida dependências nem substitui Gradle/JUnit.
+
+Acesso de rede do ambiente local de compilação não está disponível nesta sessão; a tentativa de resolver o host do repositório falhou por DNS. Os jobs do GitHub Actions continuam terminando com failure sem steps e sem logs; não repetir retries cegos. O próximo avanço de validação depende de recuperar um runner real ou de obter um ambiente de build funcional conectado ao projeto.
+
+## 15. Resumo do que mudou desde a auditoria inicial
+
+Código:
+- treinamento intercalado e determinístico por época;
+- treino de uma época sem avaliação de loss redundante por exemplo;
+- arrays de parâmetros/momentos e buffers de atenção reutilizados;
+- frequências e escalas RoPE pré-calculadas;
+- fatores RoPE compartilhados entre query/key e reutilizados no backward;
+- geração gulosa diretamente por logits, sem softmax do vocabulário.
+
+Testes adicionados:
+- invariância do treino à ordem de entrada;
+- equivalência entre primitive de uma época e treino tradicional;
+- equivalência entre argmax direto dos logits e argmax após softmax.
+
+**Resultado validado até agora:** arquivos e commits presentes no GitHub; snippet sintático isolado aprovado. **Resultado ainda não validado:** Gradle, JUnit, qualidade neural, medição de velocidade no Poco F6 e APK. Não há ganho percentual medido.
