@@ -410,7 +410,7 @@ internal class KellvynAgentLabStudio(
                 estimatedWorkingSetBytes = 24L * MEBIBYTE,
                 capabilities = setOf(KellvynStudioCapability.AGENT_EVALUATION)
             )
-,
+            ),
             KellvynToolSpec(
                 name = SPECIALIST_MATRIX_TOOL,
                 description = "Expõe a matriz central de capacidades e ferramentas permitidas para cada um dos 14 especialistas; respeita a chave de pesquisa Web do proprietário.",
@@ -429,6 +429,7 @@ internal class KellvynAgentLabStudio(
             version = 1,
             capabilities = setOf(
                 KellvynStudioCapability.AGENT_EVALUATION,
+                KellvynStudioCapability.AGENT_DESIGN,
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
             ),
             supportedExtensions = emptySet(),
