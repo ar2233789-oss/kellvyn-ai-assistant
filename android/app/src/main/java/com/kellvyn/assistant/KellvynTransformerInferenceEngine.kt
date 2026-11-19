@@ -171,6 +171,17 @@ internal class KellvynTransformerInferenceEngine(
         }
     }
 
+    companion object {
+        /**
+         * Leaves a bounded output budget while allowing larger trained contexts to produce
+         * longer answers. Small existing checkpoints retain the original 64-token budget.
+         */
+        internal fun safeDefaultGenerationTokens(contextLength: Int): Int {
+            require(contextLength in 128..2_048)
+            return minOf(256, maxOf(64, contextLength / 8), contextLength - 1)
+        }
+    }
+
     private fun renderTools(tools: List<KellvynToolSpec>): String {
         if (tools.isEmpty()) return "(nenhuma)\n"
         return tools.sortedBy { it.name }.joinToString("\n") { spec ->
