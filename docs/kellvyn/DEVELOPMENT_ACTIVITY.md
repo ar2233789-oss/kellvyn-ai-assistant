@@ -292,3 +292,13 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | `da26e3ed1d692fa775ef03181a63ee71820f49b2` | Adicionado teste de regressão da detecção de Playwright Node |
 
 **Validação local:** 14/14 testes Python aprovados e `py_compile` aprovado. Gradle, ADB e Blender não estão instalados no host; build Android, smoke em AVD e render Blender real continuam NOT RUN/BLOCKED. Não confundir pipeline escrito com execução validada.
+
+## 19/11/2026 — Analista de raciocínio v2 / rotas alternativas
+
+- Criada branch isolada `kellvyn-rnd/reasoning-alternatives-20261119` a partir de `kellvyn-rnd/agent-trace-duration-port-20261118`.
+- Auditoria cruzada confirmou que o `REASONING_ANALYST` tinha missão genérica, sem ferramentas de navegação/Agent Lab, apesar de a capacidade WEB_RESEARCH e a ferramenta READ_ONLY já existirem para outros usos.
+- Atualizado o perfil para v2 com método de comparação de rotas, contraexemplos, orçamento de recursos, critérios, fallback e experimento reversível.
+- Concedidas capabilities de leitura de código e Agent Lab, além de WEB_RESEARCH condicionada ao switch; escrita e rede irrestrita continuam bloqueadas.
+- Substituído o cenário genérico do papel pelo benchmark `reasoning-alternative-delivery-routes`, sem aumentar a suíte além de 28 casos.
+- Testes adicionados/ajustados para matriz, switch de rede, roteamento do Orchestrator e benchmark. **Ainda não executados via Gradle/JUnit**; manter NOT_RUN até executor real.
+- Arquivos de interface, cérebro, Runtime de produção e `MainActivity.java` não foram alterados.
