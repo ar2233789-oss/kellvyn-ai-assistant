@@ -135,7 +135,7 @@ class LedgerTests(unittest.TestCase):
             wb.ROOT = root
             wb.RUNS = root / "artifacts" / "runs"
             wb.LEDGER = root / "docs" / "ledger.jsonl"
-            code = "import os; print('API_KEY=sample-secret-value'); print(os.getenv('KELLVYN_WORKBENCH_TEST_TOKEN', 'not-inherited'))"
+            code = "import os; print('API_KEY=sample-secret-value'); print('Authorization: Bearer abcdefghijklmnop'); print(os.getenv('KELLVYN_WORKBENCH_TEST_TOKEN', 'not-inherited'))"
             try:
                 with mock.patch.dict(wb.os.environ, {"KELLVYN_WORKBENCH_TEST_TOKEN": "host-secret-value"}):
                     result = wb.run_capture("secret-redaction-probe", [sys.executable, "-c", code], cwd=root, timeout_s=10)
@@ -147,7 +147,9 @@ class LedgerTests(unittest.TestCase):
                 self.assertIn("[REDACTED]", stdout)
                 self.assertNotIn("host-secret-value", stdout)
                 self.assertNotIn("sample-secret-value", stdout)
+                self.assertNotIn("abcdefghijklmnop", stdout)
                 self.assertNotIn("sample-secret-value", manifest.read_text())
+                self.assertNotIn("abcdefghijklmnop", manifest.read_text())
                 self.assertNotIn("host-secret-value", manifest.read_text())
             finally:
                 wb.ROOT, wb.RUNS, wb.LEDGER = old
