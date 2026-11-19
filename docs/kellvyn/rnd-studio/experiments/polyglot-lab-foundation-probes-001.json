@@ -60,7 +60,9 @@
     "web_eslint": "NOT_RUN_IN_GITHUB_CI",
     "web_vite_build": "NOT_RUN_IN_GITHUB_CI",
     "android_gradle_junit": "NOT_RUN",
-    "android_instrumented": "NOT_RUN"
+    "android_instrumented": "NOT_RUN",
+    "android_animation_capture": "NOT_RUN_NO_ADB_DEVICE",
+    "android_animation_unit_tests": "NOT_RUN"
   },
   "latest_ci_observation": {
     "workflow": "Kellvyn Workbench — tooling validation",
@@ -78,5 +80,48 @@
     "Security and process-control behavior is covered by the complete repository unit tests.",
     "Kotlin semantic-analysis experiment remains separate; no Gradle/Android or Poco F6 validation is implied by these local probes."
   ],
-  "note": "This file records only local isolated checks. It does not upgrade any repository suite from NOT_RUN to PASSED."
+  "note": "This record tracks the current branch inventory. The local probes listed above remain isolated harness results and do not convert repository test suites into PASSED.",
+  "workbench_test_inventory": {
+    "tools/kellvyn-workbench/tests/test_workbench.py": {
+      "method_count": 31,
+      "status": "NOT_RUN"
+    },
+    "tools/kellvyn-workbench/tests/test_android_animation_audit.py": {
+      "method_count": 11,
+      "status": "NOT_RUN"
+    },
+    "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs": {
+      "case_count": 2,
+      "status": "NOT_RUN_IN_GITHUB_CI"
+    },
+    "tools/kellvyn-rnd-studio/test_studio.py": {
+      "method_count": 20,
+      "status": "NOT_RUN"
+    }
+  },
+  "animation_lab": {
+    "implementation": "tools/kellvyn-workbench/android_animation_audit.py",
+    "workbench_command": "android-animation-audit",
+    "status": "IMPLEMENTED_NOT_RUN",
+    "features": [
+      "Requires exact authorized ADB serial",
+      "Requires app already foreground; never installs, launches or taps",
+      "Records short MP4 via screenrecord",
+      "Collects gfxinfo framestats",
+      "Collects pre/post PSS, battery, thermal and display snapshots",
+      "Extracts sampled PNG frames via FFmpeg when installed",
+      "Calculates frame duration percentiles and optional explicit frame-budget overruns",
+      "Separates PASSED, PARTIAL and BLOCKED"
+    ],
+    "tests": {
+      "method_count": 11,
+      "status": "NOT_RUN"
+    },
+    "limitations": [
+      "gfxinfo is not Perfetto FrameTimeline",
+      "No automatic UI state control or deterministic effect replay yet",
+      "Frame budget must be supplied for the expected refresh rate; the tool does not assume 60 or 120 Hz",
+      "Capture includes the full visible screen and requires private content/notifications to be closed"
+    ]
+  }
 }
