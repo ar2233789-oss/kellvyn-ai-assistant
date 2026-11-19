@@ -175,7 +175,7 @@ def classify_capture_status(video_extraction: str, valid_frames: int) -> str:
 def foreground_package(activity_dump: str, package: str) -> bool:
     """Require an exact package token on Android's resumed/top-resumed activity line."""
     package_token = re.compile(
-        r"(?<![A-Za-z0-9_.])" + re.escape(package.casefold()) + r"(?=$|[/\\s}:])"
+        r"(?<![A-Za-z0-9_.])" + re.escape(package.casefold()) + r"(?=$|[/\s}:])"
     )
     for line in activity_dump.splitlines():
         lower = line.casefold()
@@ -205,13 +205,13 @@ def write_failure_manifest(
         "package": package,
         "finished_at_utc": datetime.now(timezone.utc).isoformat(),
         "error_type": type(error).__name__,
-        "error": str(error)[:800],
+        "error": "Capture did not complete; inspect the Workbench stderr artifact for the failure details.",
         "limitations": [
             "Capture did not complete; this manifest is a failure checkpoint, not quality evidence.",
             "Any partial video/log artifacts must be inspected independently."
         ]
     }
-    path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return path
 
 
