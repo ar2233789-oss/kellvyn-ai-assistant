@@ -242,3 +242,11 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 - Arquivos studio.py e test_studio.py atualizados na branch experimental; nenhuma alteração no cérebro, Runtime, pesos, interface ou MainActivity.
 - Último run observado 44427563917 falhou antes de steps (runner_id=0, steps=[]). 20 testes Python, Gradle/JUnit e Android instrumented continuam NOT RUN.
 - Relatório de capacidade e handoff detalhados atualizados; não instalar CoGo nem DroidRunner nesta etapa; não mexer no Poco F6 de uso diário automaticamente.
+
+
+## 00:27 UTC — amostragem térmica adaptativa e evidência local
+- Criado KellvynThermalHeadroomSampler: cache on-demand; 1s para amostra válida e backoff 10s para NaN/exceção/valor inválido, com retorno a 1s após recovery.
+- Monitor Android integrado ao sampler e cache duplicado removido.
+- Quatro cenários da classe pura compilados/executados localmente com kotlinc 1.9.0/JRE21; resultado 4/4. Isso não é Gradle/JUnit/Android instrumented nem validação térmica no Poco F6.
+- Testes JUnit adicionados ao branch.
+- Run 44428910941 / job 135240881720: runner_id=0, steps=[]; suíte Python/Gradle/Android NOT RUN.

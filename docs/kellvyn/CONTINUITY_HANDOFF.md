@@ -848,3 +848,13 @@ Próximo passo obrigatório: executar o CI, corrigir eventuais falhas, testar o 
 - Run 44427563917, job 135236233647: runner_id=0, steps=[]; Python/Gradle/Android não iniciaram. Não classificar como falha de código.
 - Branch atual para o trabalho: kellvyn-rnd/agent-trace-duration-port-20261118; HEAD a confirmar após esta entrada. Não mesclar nem ativar runtime.
 - Próximo passo técnico: obter um executor real (Actions após resolver a conta, ou CoGo manual em cópia isolada) e executar primeiro os 20 testes Python e as suítes Gradle. Para CoGo, medir RAM livre e temperatura antes; parar diante de pressão térmica/memória.
+
+
+## 37. Telemetria térmica adaptativa — 19/11/2026
+- Encontrada oportunidade na leitura do getThermalHeadroom: o cache anterior usava 1s para respostas válidas e inválidas. A API Android recomenda não consultar com frequência maior que aproximadamente 1/s; o guia ADPF orienta espaçar em 10s quando recebe NaN.
+- Criado KellvynThermalHeadroomSampler sem timer/background polling: 1s para leituras válidas; 10s após NaN, valor negativo/infinito ou exceção; volta a 1s quando recupera.
+- Integrado no KellvynAndroidResourceMonitor; removido cache/constante duplicada.
+- Quatro cenários puros compilaram e passaram localmente com kotlinc 1.9.0/JRE21: 4/4. Evidência limitada à classe isolada; integração Android e Gradle/JUnit ainda NOT RUN.
+- JUnit tests adicionados em KellvynThermalHeadroomSamplerTest.kt.
+- Run 44428910941 / job 135240881720: runner_id=0, steps=[]; Gradle/JUnit/Android não iniciaram.
+- HEAD confirmado nesta sequência antes do checkpoint: 7270287f2119edce943f92cc6d1e309b8d727a86. Não mesclar ainda; executar suíte completa quando houver runner real.

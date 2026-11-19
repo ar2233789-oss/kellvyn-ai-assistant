@@ -180,3 +180,28 @@ Correção experimental aplicada na branch kellvyn-rnd/agent-trace-duration-port
 - O conjunto Python passou a ter **20 testes escritos**. Estado atual: NOT RUN na versão de trabalho; o runner do GitHub continua indisponível, portanto não existe evidência de aprovação desses 20 testes.
 
 A solução exige que o host configure KELLVYN_GRADLE_EXECUTABLE e KELLVYN_GRADLE_VERSION quando gradle não estiver no PATH. A localização e a integridade do Gradle são estabelecidas pelo host confiável; não aceitar caminho de executável fornecido por conteúdo de tarefa/agente.
+
+## 8. Ajuste adaptativo de telemetria térmica — 19/11/2026
+
+A leitura do código existente revelou que o monitor usava cache de 1 segundo para todas as respostas de getThermalHeadroom. A API Android diz que não há benefício em consultar mais de aproximadamente uma vez por segundo; o guia de Thermal API também orienta espaçar tentativas em 10 segundos quando o sensor devolve NaN. O código anterior repetia a tentativa após 1 segundo mesmo quando a leitura estava indisponível.
+
+Correção isolada:
+- Criado KellvynThermalHeadroomSampler, cache sem timer/polling.
+- Amostras válidas mantêm intervalo de 1 segundo.
+- NaN, valor negativo, infinito ou exceção são classificados como indisponíveis e passam a usar intervalo de repetição de 10 segundos.
+- Quando volta uma amostra válida, o intervalo retorna a 1 segundo.
+- O monitor Android agora delega a leitura ao sampler e remove o cache duplicado/constante antigo.
+
+Validação local executada:
+- Ambiente: kotlinc-jvm 1.9.0, JRE 21.
+- O código isolado do sampler compilou localmente e quatro cenários determinísticos passaram (4/4): cache de leitura válida, recuo/recovery após NaN, recuo/recovery após exceção e rejeição de valores negativos/infinito.
+- Isso valida a classe pura Kotlin reproduzida do fonte do branch. Não equivale ao Gradle/JUnit da aplicação, integração Android/PowerManager, AVD, nem teste físico Poco F6.
+- Testes JUnit correspondentes foram adicionados ao repositório; Gradle/CI ainda NOT RUN.
+
+Referências:
+- Android PowerManager getThermalHeadroom: https://developer.android.com/reference/android/os/PowerManager
+- Android ADPF Thermal API: https://developer.android.com/games/optimize/adpf/thermal
+
+### Estado CI da rodada térmica
+- Run 44428910941 / job 135240881720: runner_id=0, runner_name vazio, steps=[]; execução encerrada antes do primeiro step.
+- Classificação: NOT RUN / runner não alocado. Não houve compilação Gradle nem JUnit/Android.
