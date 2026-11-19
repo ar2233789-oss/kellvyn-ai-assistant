@@ -114,6 +114,40 @@ class KellvynTransformerLanguageModelTest {
     }
 
     @Test
+    fun rawTokenEpochPrimitiveMatchesSingleEpochTrainingExactly() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn aprende linguagem contínua."),
+            maxMerges = 8
+        )
+        val tokens = tokenizer.encode("A previsão do próximo token é a tarefa básica.")
+        val config = KellvynTransformerLanguageModel.Config(
+            vocabularySize = tokenizer.vocabularySize,
+            contextLength = 16,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 8_422L
+        )
+        val measuredModel = KellvynTransformerLanguageModel.create(config)
+        val directModel = KellvynTransformerLanguageModel.create(config)
+
+        measuredModel.trainTokens(
+            tokenIds = tokens,
+            epochs = 1,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+        directModel.trainTokensEpoch(
+            tokenIds = tokens,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+
+        assertEquals(measuredModel.trainingSteps, directModel.trainingSteps)
+        assertEquals(measuredModel.parameterFingerprint(), directModel.parameterFingerprint())
+    }
+
+    @Test
     fun directEpochPrimitiveMatchesSingleEpochTrainingExactly() {
         val promptText = "Pergunta: responda sim. Resposta:"
         val tokenizer = KellvynBpeTokenizer.train(
