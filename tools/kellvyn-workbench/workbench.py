@@ -811,6 +811,7 @@ def cmd_test(args: argparse.Namespace) -> int:
         "syntax": [py, "-m", "py_compile", "tools/kellvyn-workbench/workbench.py", "tools/kellvyn-workbench/creative/blender_pipeline.py", "tools/kellvyn-workbench/visual_diff.py"],
         "android-syntax": ["bash", "-n", "tools/kellvyn-workbench/android_smoke.sh"],
         "web-syntax": ["node", "--check", "tools/kellvyn-workbench/web_audit.mjs"],
+        "web-map-tests": ["node", "--test", "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs"],
     }
     if args.suite.startswith("web-"):
         command, blocked_reason = web_suite_command(args.suite)
@@ -827,6 +828,36 @@ def cmd_test(args: argparse.Namespace) -> int:
     if stderr: print(stderr[-6000:], file=sys.stderr)
     print(f"\nRESULT={result['status']} RUN={result['run_id']} ELAPSED={result['duration_seconds']}s")
     return 0 if result["status"] == "PASSED" else 2
+
+
+def cmd_typescript_map(args: argparse.Namespace) -> int:
+    node = shutil.which("node")
+    script = Path(__file__).resolve().parent / "typescript_semantic_map.mjs"
+    if not node:
+        print("BLOCKED: Node.js is not installed.", file=sys.stderr)
+        return 3
+    if not script.is_file():
+        print("BLOCKED: TypeScript semantic map script is missing.", file=sys.stderr)
+        return 3
+    if not (ROOT / "node_modules" / "typescript" / "lib" / "typescript.js").is_file():
+        print("BLOCKED: local TypeScript compiler is missing; install dependencies from the lockfile first.", file=sys.stderr)
+        return 3
+    output = Path(args.output)
+    output = output if output.is_absolute() else ROOT / output
+    output = within_repo(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    command = [node, str(script), "--root", str(ROOT), "--out", str(output)]
+    if args.fail_on_diagnostics:
+        command.append("--fail-on-diagnostics")
+    result = run_capture("typescript-semantic-map", command, timeout_s=args.timeout, session_id=args.session)
+    stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
+    stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
+    if stdout:
+        print(stdout[-5000:])
+    if stderr:
+        print(stderr[-8000:], file=sys.stderr)
+    print(f"TYPE_SCRIPT_MAP={result['status']} RUN={result['run_id']} OUTPUT={output.relative_to(ROOT)}")
+    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_worktree(args: argparse.Namespace) -> int:
@@ -1008,13 +1039,14 @@ def build_parser() -> argparse.ArgumentParser:
     a = q.add_parser("end"); a.add_argument("--id", required=True); a.add_argument("--summary", required=True); a.add_argument("--status", choices=["completed", "interrupted", "blocked"], default="completed"); a.set_defaults(func=cmd_session)
     p = sub.add_parser("run"); p.add_argument("--name", required=True); p.add_argument("--cwd", default="."); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER, help="explicit executable and arguments; no shell is used"); p.set_defaults(func=cmd_run)
     p = sub.add_parser("debug"); p.add_argument("--log", default=""); p.add_argument("--adb", action="store_true"); p.add_argument("--serial", default=""); p.add_argument("--output", default=""); p.set_defaults(func=cmd_debug)
-    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax", "web-unit", "web-typecheck", "web-lint", "web-build"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
+    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax", "web-unit", "web-typecheck", "web-lint", "web-build", "web-map-tests"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
     p = sub.add_parser("rnd"); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER); p.set_defaults(func=cmd_rnd)
     p = sub.add_parser("task"); q = p.add_subparsers(dest="action", required=True)
     z = q.add_parser("test"); z.add_argument("--id", required=True); z.add_argument("--suite", required=True, choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"]); z.add_argument("--timeout", type=int, default=1800); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     z = q.add_parser("check"); z.add_argument("--id", required=True); z.add_argument("--require-test", action="append", choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"], default=[]); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     p = sub.add_parser("android-smoke"); p.add_argument("--apk", required=True); p.add_argument("--output", default="artifacts/workbench/android/latest"); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_smoke)
     p = sub.add_parser("web-audit"); p.add_argument("--url", default="http://127.0.0.1:4173/"); p.add_argument("--output", default="artifacts/workbench/web/latest"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--session", default=""); p.set_defaults(func=cmd_web_audit)
+    p = sub.add_parser("typescript-map"); p.add_argument("--output", default="artifacts/workbench/maps/typescript-semantic-map.json"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--fail-on-diagnostics", action="store_true"); p.add_argument("--session", default=""); p.set_defaults(func=cmd_typescript_map)
     p = sub.add_parser("report"); p.set_defaults(func=cmd_report)
     p = sub.add_parser("worktree"); p.add_argument("--id", required=True); p.add_argument("--title", required=True); p.add_argument("--objective", required=True); p.add_argument("--scope", choices=["brain", "agents", "integration"], default="agents"); p.add_argument("--base", default="HEAD"); p.add_argument("--require-test", action="append", default=[]); p.add_argument("--session", default=""); p.set_defaults(func=cmd_worktree)
     p = sub.add_parser("visual-diff"); p.add_argument("--before", required=True); p.add_argument("--after", required=True); p.add_argument("--output", required=True); p.add_argument("--threshold", type=int, default=18); p.set_defaults(func=cmd_visual_diff)
