@@ -44,6 +44,50 @@ class KellvynResourceGovernorTest {
     }
 
     @Test
+    fun lowAppStorageDefersHeavyWorkButDoesNotBlockLightOrStandardWork() {
+        val lowStorage = snapshot().copy(
+            availableAppDataBytes = 128L * MEBIBYTE,
+            totalAppDataBytes = 512L * MEBIBYTE
+        )
+        assertEquals(
+            "APP_STORAGE_LOW",
+            deferredReason(lowStorage, KellvynWorkloadClass.HEAVY)
+        )
+        assertTrue(
+            governor.evaluate(lowStorage, request("standard-low-disk", KellvynWorkloadClass.STANDARD))
+                is KellvynResourceDecision.Admitted
+        )
+        assertTrue(
+            governor.evaluate(lowStorage, request("light-low-disk", KellvynWorkloadClass.LIGHT))
+                is KellvynResourceDecision.Admitted
+        )
+    }
+
+    @Test
+    fun unknownAppStorageDoesNotInventALowSpaceFailure() {
+        val unknownStorage = snapshot().copy(
+            availableAppDataBytes = null,
+            totalAppDataBytes = null
+        )
+        assertTrue(
+            governor.evaluate(unknownStorage, request("heavy-storage-unknown", KellvynWorkloadClass.HEAVY))
+                is KellvynResourceDecision.Admitted
+        )
+    }
+
+    @Test
+    fun heavyWorkIsAdmittedAtOrAboveTheConfiguredStorageReserve() {
+        val enoughStorage = snapshot().copy(
+            availableAppDataBytes = 256L * MEBIBYTE,
+            totalAppDataBytes = 512L * MEBIBYTE
+        )
+        assertTrue(
+            governor.evaluate(enoughStorage, request("heavy-storage-ok", KellvynWorkloadClass.HEAVY))
+                is KellvynResourceDecision.Admitted
+        )
+    }
+
+    @Test
     fun AndroidMemoryTrimPressureDefersTheCorrectWorkloadClasses() {
         val moderate = snapshot().copy(memoryPressure = KellvynMemoryPressure.MODERATE)
         assertEquals(
