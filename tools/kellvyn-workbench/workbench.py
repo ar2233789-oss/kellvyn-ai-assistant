@@ -351,7 +351,7 @@ def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[st
     wrapper_813 = False
     if wrapper_properties.is_file():
         wrapper_813 = bool(re.search(r"gradle-8\.13-(?:bin|all)\.zip", wrapper_properties.read_text(encoding="utf-8", errors="replace")))
-    system_gradle_813 = bool(re.search(r"\bGradle\s+8\.13(?:\D|$)", found.get("gradle", "")))
+    system_gradle_813 = is_gradle_813_banner(found.get("gradle", ""))
     if not (system_gradle_813 or (wrapper_ok and wrapper_813)):
         android_missing.append("Gradle 8.13 (system executable or pinned complete wrapper)")
     build_config = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8", errors="replace") if (ROOT / "android" / "build.gradle").is_file() else ""
