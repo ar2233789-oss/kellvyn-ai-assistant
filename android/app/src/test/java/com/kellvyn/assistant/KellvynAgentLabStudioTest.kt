@@ -38,7 +38,7 @@ class KellvynAgentLabStudioTest {
     }
 
     @Test
-    fun environmentToolReportsThermalAndPrivateStorageMetrics() = runBlocking {
+    fun environmentStatusReportsThermalAndPrivateStorageMetrics() = runBlocking {
         val root = Files.createTempDirectory("agent-lab-status").toFile()
         try {
             val manager = emptyManager()
@@ -63,6 +63,73 @@ class KellvynAgentLabStudioTest {
         }
     }
 
+    @Test
+    fun delegationMetricsAggregateOnlyRecordedOperationalEvidence() = runBlocking {
+        val root = Files.createTempDirectory("agent-lab-delegations").toFile()
+        try {
+            val traceId = "00000000-0000-0000-0000-000000000087"
+            val traceStore = KellvynAgentLabTraceStore(root, PassThroughCipher())
+            appendDelegation(traceStore, traceId, 1_000L, KellvynSpecialistRole.RESEARCHER, 100L, KellvynAgentLabOutcome.SUCCEEDED)
+            appendDelegation(traceStore, traceId, 1_100L, KellvynSpecialistRole.RESEARCHER, 200L, KellvynAgentLabOutcome.BLOCKED)
+            appendDelegation(traceStore, traceId, 1_200L, KellvynSpecialistRole.RESEARCHER, 300L, KellvynAgentLabOutcome.FAILED)
+            appendDelegation(traceStore, traceId, 1_300L, KellvynSpecialistRole.CODE_EXPLORER, 50L, KellvynAgentLabOutcome.SUCCEEDED)
+
+            val studio = KellvynAgentLabStudio(
+                traceStore = traceStore,
+                moduleManager = emptyManager(),
+                resourceSnapshotProvider = { resourceSnapshot() },
+                traceRecorderHealthProvider = { healthyTraceRecorder() }
+            )
+            val result = studio.tools.single {
+                it.spec.name == KellvynAgentLabStudio.DELEGATION_METRICS_TOOL
+            }.execute(emptyMap())
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("Delegações iniciadas: 4; encerradas: 4; abertas no recorte: 0"))
+            assertTrue(result.content.contains("média=162 ms"))
+            assertTrue(result.content.contains("p95=300 ms"))
+            assertTrue(result.content.contains("máximo=300 ms"))
+            assertTrue(result.content.contains("sucesso=2"))
+            assertTrue(result.content.contains("bloqueio=1"))
+            assertTrue(result.content.contains("falha=1"))
+            assertTrue(result.content.contains("RESEARCHER: delegações=3"))
+            assertTrue(result.content.contains("CODE_EXPLORER: delegações=1"))
+            assertTrue(result.content.contains("Não medem raciocínio") || result.content.contains("Não medem"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    private fun appendDelegation(
+        store: KellvynAgentLabTraceStore,
+        traceId: String,
+        at: Long,
+        role: KellvynSpecialistRole,
+        duration: Long,
+        outcome: KellvynAgentLabOutcome
+    ) {
+        store.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = at,
+                kind = KellvynAgentLabEventKind.DELEGATION_STARTED,
+                specialistRole = role,
+                outcome = KellvynAgentLabOutcome.STARTED
+            )
+        )
+        store.append(
+            KellvynAgentLabEvent(
+                traceId = traceId,
+                occurredAtMillis = at + 1L,
+                kind = KellvynAgentLabEventKind.DELEGATION_FINISHED,
+                specialistRole = role,
+                durationMillis = duration,
+                outcome = outcome,
+                detailCode = "DELEGATION_RESULT"
+            )
+        )
+    }
+
     private fun createStudio(
         root: File,
         manager: KellvynStudioModuleManager,
@@ -72,16 +139,7 @@ class KellvynAgentLabStudioTest {
         traceStore = KellvynAgentLabTraceStore(root, PassThroughCipher()),
         moduleManager = manager,
         resourceSnapshotProvider = sample,
-        traceRecorderHealthProvider = {
-            KellvynAgentLabTraceRecorderHealth(
-                hasSuccessfulWrite = false,
-                currentlyWritable = true,
-                failureCount = 0,
-                lastFailureCode = null,
-                lastFailureTraceId = null,
-                lastFailureEventKind = null
-            )
-        },
+        traceRecorderHealthProvider = { healthyTraceRecorder() },
         networkReadEnabled = { network }
     )
 
@@ -160,6 +218,15 @@ class KellvynAgentLabStudioTest {
         powerSaveMode = false,
         batteryPercent = 80,
         charging = false
+    )
+
+    private fun healthyTraceRecorder() = KellvynAgentLabTraceRecorderHealth(
+        hasSuccessfulWrite = true,
+        currentlyWritable = true,
+        failureCount = 0,
+        lastFailureCode = null,
+        lastFailureTraceId = null,
+        lastFailureEventKind = null
     )
 
     private class PassThroughCipher : KellvynTaskCheckpointCipher {
