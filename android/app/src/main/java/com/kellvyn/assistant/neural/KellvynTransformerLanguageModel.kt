@@ -1046,10 +1046,15 @@ internal class KellvynTransformerLanguageModel private constructor(
             }
         }
 
+        val finalRotaryFactors = createRotaryFactors(last)
         val dQueryRaw = dQueryRotated.copyOf()
-        rotateInPlace(dQueryRaw, last, inverse = true)
+        rotateInPlace(dQueryRaw, finalRotaryFactors, inverse = true)
         val dKeysRaw = Array(length) { position ->
-            dKeysRotated[position].copyOf().also { rotateInPlace(it, position, inverse = true) }
+            val factors = if (position == last) finalRotaryFactors
+                else createRotaryFactors(position)
+            dKeysRotated[position].copyOf().also {
+                rotateInPlace(it, factors, inverse = true)
+            }
         }
 
         val dNormalizedInputs = Array(length) { FloatArray(d) }
