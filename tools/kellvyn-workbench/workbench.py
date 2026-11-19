@@ -15,6 +15,7 @@ import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -157,6 +158,82 @@ def within_repo(path: Path) -> Path:
     if resolved != ROOT and ROOT not in resolved.parents:
         raise ValueError(f"path must stay inside repository/worktree: {path}")
     return resolved
+
+
+SAFE_CHILD_ENV_KEYS = {
+    "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ",
+    "JAVA_HOME", "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_USER_HOME",
+    "GRADLE_USER_HOME", "BUN_INSTALL", "CI",
+}
+SENSITIVE_ENV_NAME = re.compile(
+    r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
+)
+SENSITIVE_ASSIGNMENT = re.compile(
+    r"(?i)\\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\\s*[:=]\\s*)([\"']?)([^\\s,\"';]+)"
+)
+BEARER_VALUE = re.compile(r"(?i)\\bBearer\\s+[A-Za-z0-9._~+/=-]{8,}")
+TOKEN_VALUE = re.compile(r"\\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\\b")
+SECRET_FLAG = re.compile(r"(?i)^--?(?:token|api[-_]?key|password|passwd|secret|authorization|client[-_]?secret)$")
+
+
+def sanitized_child_environment(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Pass only build-tool environment essentials; never inherit host credentials by default."""
+    child = {key: value for key, value in os.environ.items() if key in SAFE_CHILD_ENV_KEYS}
+    for key, value in (extra or {}).items():
+        if SENSITIVE_ENV_NAME.search(key):
+            raise ValueError(f"refusing to pass sensitive environment variable to child process: {key}")
+        child[key] = value
+    return child
+
+
+def redact_sensitive_text(value: str) -> str:
+    value = SENSITIVE_ASSIGNMENT.sub(r"\\1\\2[REDACTED]", value)
+    value = BEARER_VALUE.sub("Bearer [REDACTED]", value)
+    value = TOKEN_VALUE.sub("[REDACTED_TOKEN]", value)
+    return value
+
+
+def redact_command(command: list[str]) -> list[str]:
+    """Preserve command shape while removing secret-valued arguments from run manifests."""
+    redacted: list[str] = []
+    hide_next = False
+    for raw in command:
+        arg = str(raw)
+        if hide_next:
+            redacted.append("[REDACTED]")
+            hide_next = False
+            continue
+        if SECRET_FLAG.match(arg):
+            redacted.append(arg)
+            hide_next = True
+        elif "=" in arg and SECRET_FLAG.match(arg.split("=", 1)[0]):
+            redacted.append(arg.split("=", 1)[0] + "=[REDACTED]")
+        else:
+            redacted.append(redact_sensitive_text(arg))
+    return redacted
+
+
+def terminate_process_tree(process: subprocess.Popen) -> None:
+    """Terminate the whole process group on POSIX so compiler/test children do not survive timeouts."""
+    if os.name == "nt":
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    if process.poll() is None:
+        process.wait()
 
 
 def command_version(binary: str, args: list[str]) -> str:
@@ -513,16 +590,20 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
     def pump(pipe, destination: Path, echo_progress: bool = False):
         with destination.open("w", encoding="utf-8", errors="replace") as target:
             for line in iter(pipe.readline, ""):
-                target.write(line)
+                safe_line = redact_sensitive_text(line)
+                target.write(safe_line)
                 target.flush()
-                if echo_progress and line.startswith("WORKBENCH_PROGRESS "):
+                if echo_progress and safe_line.startswith("WORKBENCH_PROGRESS "):
                     # Creative tools publish structured stage events; stream them live.
-                    print(line.rstrip(), flush=True)
+                    print(safe_line.rstrip(), flush=True)
         pipe.close()
 
     try:
-        process = subprocess.Popen(command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, env={**os.environ, **(env or {})})
+        process = subprocess.Popen(
+            command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1,
+            env=sanitized_child_environment(env), start_new_session=(os.name != "nt")
+        )
         assert process.stdout is not None and process.stderr is not None
         stdout_thread = Thread(target=pump, args=(process.stdout, stdout_path, True), daemon=True)
         stderr_thread = Thread(target=pump, args=(process.stderr, stderr_path, False), daemon=True)
@@ -530,9 +611,9 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
         try:
             exit_code = process.wait(timeout=timeout_s)
         except subprocess.TimeoutExpired:
-            process.kill()
-            exit_code = process.wait()
-            status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process terminated"
+            terminate_process_tree(process)
+            exit_code = process.returncode
+            status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process tree terminated"
         stdout_thread.join(timeout=10); stderr_thread.join(timeout=10)
         if status != "TIMED_OUT":
             status = "PASSED" if exit_code == 0 else "FAILED"
@@ -545,13 +626,13 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
         stderr_path.write_text(error + "\n", encoding="utf-8")
         stdout_path.touch(exist_ok=True)
         if process and process.poll() is None:
-            process.kill(); process.wait()
+            terminate_process_tree(process)
     elapsed = round(time.monotonic() - started, 3)
     meta = {
         "schema": "kellvyn-workbench-run/v1", "run_id": run_id, "name": name,
         "status": status, "exit_code": exit_code, "error": error,
         "started_at_utc": started_utc, "duration_seconds": elapsed,
-        "command": command, "cwd": str(cwd), "repository": repo_identity(),
+        "command": redact_command(command), "cwd": str(cwd), "repository": repo_identity(),
         "stdout": str(stdout_path.relative_to(ROOT)), "stderr": str(stderr_path.relative_to(ROOT)),
     }
     (out / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
