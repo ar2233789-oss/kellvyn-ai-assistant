@@ -91,6 +91,23 @@ class KellvynAgentLabStudioTest {
     }
 
     @Test
+    fun reasoningAlternativeRouteBenchmarkRemainsInTheFourteenRoleSuite() {
+        val profiles = KellvynSpecialistProfileRegistry.default()
+        val profile = profiles.requireProfile(KellvynSpecialistRole.REASONING_ANALYST)
+        val cases = KellvynSpecialistBenchmarkRegistry.default()
+            .forRole(KellvynSpecialistRole.REASONING_ANALYST)
+
+        assertTrue(profile.version == 2)
+        assertTrue(profile.instruction.contains("fallback seguro"))
+        assertTrue(profiles.compileAll().success)
+        assertTrue(cases.size == 2)
+        val routeCase = cases.single { it.caseId == "reasoning-alternative-delivery-routes" }
+        assertTrue(routeCase.task.contains("pelo menos duas rotas"))
+        assertTrue(routeCase.requiredEvidence.any { it.contains("experimento") })
+        assertTrue(routeCase.prohibitedBehaviors.any { it.contains("Poco F6 pessoal") })
+    }
+
+    @Test
     fun benchmarkReadinessBlocksWhenAnActiveSpecialistProfileIsMissing() = runBlocking {
         val root = Files.createTempDirectory("agent-lab-readiness-missing").toFile()
         try {
