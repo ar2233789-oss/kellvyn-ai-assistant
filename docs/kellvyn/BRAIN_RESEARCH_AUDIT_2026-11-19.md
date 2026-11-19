@@ -558,3 +558,12 @@ Fluxo agora disponível no código:
 3. `createOwnTransformerInferenceEngine()` — restaura o bundle combinado e só cria o adaptador após checksum, contexto e Quality Gate.
 
 Esse fluxo está implementado em código, mas ainda **não executado pelo Gradle** nesta sessão. Não há bundle treinado real nem teste de competência conversacional aprovado.
+
+
+### Delimitação de documentos no pré-treinamento
+
+O KN-003 agora acrescenta o token EOS dedicado ao final de cada documento no pré-treinamento. Assim, cada documento fornece alvos de previsão para seus tokens de texto e para o encerramento; a próxima amostra começa como uma nova sequência, sem concatenar documentos independentes como se fossem texto contínuo. O conjunto de validação e teste também inclui o alvo EOS correspondente. Os testes de passos foram ajustados para contar esse token de encerramento.
+
+Commits:
+- `5deeffef0fb1b20d344200079020a7791cf46576` — acrescenta EOS por documento.
+- `d8ca28306f32399c64ed0f612c2c8f0dd79dd09d` — ajusta a contagem e a verificação do EOS no teste.
