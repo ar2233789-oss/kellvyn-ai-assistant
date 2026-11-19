@@ -1,0 +1,105 @@
+{
+  "schema": "kellvyn-rnd-experiment/v1",
+  "id": "kotlin-semantic-index-001",
+  "title": "Escolha reproduzível do analisador semântico Kotlin para o laboratório",
+  "scope": "agents",
+  "created_at_utc": "2026-11-19T00:00:00Z",
+  "state": "PLANNED",
+  "candidate_branch": "kellvyn-rnd/polyglot-lab-foundation-20261119",
+  "hypothesis": "Uma ferramenta baseada no K2/Analysis API ou no Kotlin Language Server pode produzir um índice de símbolos, tipos, referências e chamadas para o projeto Android real sem modificar fontes, interface ou runtime do APK.",
+  "problem_statement": {
+    "current": "A R&D Studio ainda usa heurísticas/regex para mapear Kotlin; o mapa semântico recém-adicionado cobre apenas TypeScript/TSX.",
+    "why_it_matters": [
+      "A IA precisa descobrir relações entre cérebro, agente principal, orquestrador, especialistas, ferramentas e testes.",
+      "A análise lexical pode associar nomes sem resolução real e perder símbolos renomeados, aliases, sobrecargas e referências qualificadas.",
+      "O mapa de impacto precisa distinguir relação semântica, sintática, import e heurística."
+    ]
+  },
+  "variants": [
+    {
+      "id": "analysis-api-standalone",
+      "approach": "Kotlin Analysis API Standalone sobre K2, com projeto importado a partir do Gradle Android existente.",
+      "expected_strengths": [
+        "Consultas diretas de KaSymbol, KaType e relações semânticas.",
+        "Saída CLI customizável para JSON e testes reprodutíveis.",
+        "Sem precisar criar uma IDE gráfica."
+      ],
+      "risks": [
+        "Standalone está em desenvolvimento ativo e pode sofrer mudanças incompatíveis.",
+        "Precisa alinhar a versão do compilador/API com Kotlin Gradle Plugin do projeto.",
+        "Importar Android Gradle Plugin, source sets e dependências pode exigir integração adicional."
+      ]
+    },
+    {
+      "id": "kotlin-language-server",
+      "approach": "Kotlin Language Server oficial da JetBrains, controlado por cliente LSP local.",
+      "expected_strengths": [
+        "Diagnósticos, document symbols, definição, referências e call hierarchy por protocolo LSP.",
+        "Integração com Gradle/JVM e possibilidade de reuso de capacidades de IDE."
+      ],
+      "risks": [
+        "O servidor está em alpha.",
+        "Suporte a Android Gradle Plugin é experimental.",
+        "Inicialização, indexação e consumo de memória podem ser elevados para um host restrito."
+      ]
+    }
+  ],
+  "controls": {
+    "baseline_commit": "record at experiment start",
+    "kotlin_gradle_plugin": "2.3.20",
+    "android_gradle_plugin": "8.13.2",
+    "jdk_target": 17,
+    "project_root": "android/",
+    "read_only": true,
+    "no_apk_dependency": true,
+    "no_source_mutation": true,
+    "no_paid_service": true,
+    "no_personal_poco_runner": true
+  },
+  "fixed_probe_set": [
+    "KellvynRuntime",
+    "KellvynAgent",
+    "KellvynOrchestrator",
+    "KellvynDecisionProtocol",
+    "KellvynSpecialistProfileRegistry",
+    "KellvynSpecialistToolPolicy",
+    "KellvynTransformerLanguageModel",
+    "KellvynTransformerTrainingPipeline",
+    "KellvynBrainAgentIntegrationContractTest",
+    "KellvynOrchestratorTest"
+  ],
+  "metrics": [
+    "project_import_success",
+    "resolved_symbol_ratio",
+    "resolved_reference_precision",
+    "call_hierarchy_coverage",
+    "unresolved_or_ambiguous_symbols",
+    "cold_start_seconds",
+    "warm_query_median_ms",
+    "warm_query_p95_ms",
+    "peak_rss_mb",
+    "peak_heap_mb",
+    "output_determinism",
+    "toolchain_version_compatibility"
+  ],
+  "acceptance_criteria": [
+    "O projeto Android abre sem alterar Gradle, dependências de produção ou arquivos protegidos.",
+    "Todos os 10 símbolos fixos são encontrados no arquivo/classe esperado ou a ausência é explicada com diagnóstico verificável.",
+    "Amostras de definição, referências e call hierarchy são comparadas manualmente com o código-fonte.",
+    "Símbolos externos, não resolvidos e ambíguos são classificados separadamente.",
+    "Duas execuções com o mesmo HEAD/configuração produzem o mesmo conjunto de relações, desconsiderando timestamps.",
+    "Medições incluem cold e warm run, RSS/heap e versão exata de Kotlin/JDK/AGP.",
+    "Nenhuma fonte, APK ou runtime é modificado."
+  ],
+  "decision_rule": "Escolher a variante que importe o projeto real e tenha maior precisão de relações semânticas com custo de memória/tempo aceitável. Se ambas falharem no Android Gradle Plugin atual, manter Kotlin indexing como BLOCKED e usar PSI/Tree-sitter apenas para sintaxe, sem rotular como semântico.",
+  "execution": {
+    "status": "NOT_RUN",
+    "notes": "Este registro define o experimento; nenhuma variante foi instalada ou executada nesta sessão."
+  },
+  "sources": [
+    "https://analysis-api.kotlinlang.org/",
+    "https://analysis-api.kotlinlang.org/api/",
+    "https://kotlinlang.org/docs/kotlin-lsp.html",
+    "https://tree-sitter.github.io/tree-sitter/"
+  ]
+}
