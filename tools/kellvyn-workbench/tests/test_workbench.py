@@ -76,6 +76,36 @@ class PolyglotToolchainTests(unittest.TestCase):
         self.assertNotIn("quoted secret value", redacted)
         self.assertIn("[REDACTED]", redacted)
 
+    def test_java_major_parser_handles_modern_and_legacy_versions(self):
+        self.assertEqual(25, wb.parse_java_major_version('openjdk version "25.0.1" 2026-09-15'))
+        self.assertEqual(17, wb.parse_java_major_version('openjdk version "17.0.12"'))
+        self.assertEqual(8, wb.parse_java_major_version('java version "1.8.0_402"'))
+        self.assertEqual(21, wb.parse_java_major_version('javac 21.0.6'))
+
+    def test_kotlin_lsp_requires_separate_jdk25_and_stays_optional(self):
+        fake_home = self.root / "jdk25"
+        java = fake_home / "bin" / "java"
+        java.parent.mkdir(parents=True)
+        java.write_text('#!/bin/sh\\necho \'openjdk version "25.0.1"\' >&2\\n')
+        java.chmod(0o755)
+        (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
+        old_home = wb.os.environ.get("KOTLIN_LSP_JAVA_HOME")
+        try:
+            with mock.patch.dict(wb.os.environ, {"KOTLIN_LSP_JAVA_HOME": str(fake_home)}):
+                with mock.patch.object(
+                    wb.shutil, "which",
+                    side_effect=lambda name: "/opt/kotlin-lsp/bin/kotlin-lsp" if name == "kotlin-lsp" else None
+                ):
+                    matrix = wb.toolchain_matrix({}, {})
+            self.assertEqual("READY_UNVALIDATED", matrix["kotlin_semantic_analysis"]["status"])
+            self.assertEqual(25, matrix["kotlin_semantic_analysis"]["runtime_jdk_major"])
+            self.assertEqual(17, matrix["kotlin_semantic_analysis"]["project_build_jdk_major"])
+        finally:
+            if old_home is None:
+                wb.os.environ.pop("KOTLIN_LSP_JAVA_HOME", None)
+            else:
+                wb.os.environ["KOTLIN_LSP_JAVA_HOME"] = old_home
+
     def test_toolchain_matrix_never_calls_detected_container_tool_a_secure_sandbox(self):
         (self.root / "package.json").write_text(json.dumps({"scripts": {}}))
         with mock.patch.object(wb.shutil, "which", side_effect=lambda name: "/usr/bin/podman" if name == "podman" else None):
