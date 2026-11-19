@@ -30,6 +30,14 @@ class AuditBlocked(RuntimeError):
     pass
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def percentile(values: list[float], fraction: float) -> float | None:
     if not values:
         return None
@@ -368,12 +376,8 @@ def capture_android_animation(
         "gfxinfo": "gfxinfo-framestats.txt",
         "frames_directory": frames_dir.relative_to(ROOT).as_posix()
     }
-    video_digest = hashlib.sha256()
-    with video.open("rb") as stream:
-        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
-            video_digest.update(chunk)
     report["video_bytes"] = video.stat().st_size
-    report["video_sha256"] = video_digest.hexdigest()
+    report["video_sha256"] = sha256_file(video)
     report["video_extraction"] = "NOT_RUN"
 
     if ffmpeg_path:
@@ -392,7 +396,7 @@ def capture_android_animation(
         report["frame_count"] = frame_count
         if frame_count:
             report["frame_hashes"] = [
-                {"file": frame.name, "sha256": hashlib.sha256(frame.read_bytes()).hexdigest()}
+                {"file": frame.name, "sha256": sha256_file(frame)}
                 for frame in sorted(frames_dir.glob("frame_*.png"))
             ]
     else:
