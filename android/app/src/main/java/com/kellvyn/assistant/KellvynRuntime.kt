@@ -378,9 +378,12 @@ internal class KellvynRuntime(context: Context) {
         )
         val memoryAddresses = memoryAddressesFor(activeProjectId)
         val memoryTools = KellvynMemoryTools.create(localMemory) { memoryAddresses }
-        return KellvynToolRegistry(
-            workspaceTools + resourceTools + automationTools + studioTools + memoryTools
+        val coreTools = workspaceTools + resourceTools + automationTools + studioTools + memoryTools
+        val catalogTool = KellvynInvisibleStudioCatalogTool.create(
+            moduleManager = resourceRuntime.studioModules,
+            coreToolSpecs = coreTools.map { it.spec }
         )
+        return KellvynToolRegistry(coreTools + catalogTool)
     }
 
     /**
