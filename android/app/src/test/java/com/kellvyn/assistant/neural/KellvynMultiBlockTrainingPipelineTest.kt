@@ -80,6 +80,32 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test
+    fun trainingWorkingSetAboveBudgetIsRejectedBeforeModelAllocation() {
+        val error = try {
+            KellvynMultiBlockTrainingPipeline.train(
+                examples = sampleExamples(),
+                config = KellvynMultiBlockTrainingConfig(
+                    contextLength = 256,
+                    embeddingSize = 128,
+                    headCount = 8,
+                    feedForwardSize = 512,
+                    depth = 8,
+                    maxMerges = 8,
+                    epochsPerExample = 1,
+                    maxTotalTrainingSteps = 10_000L,
+                    maxTrainingWorkingSetBytes = 64L * 1024L * 1024L
+                )
+            )
+            null
+        } catch (expected: IllegalArgumentException) {
+            expected
+        }
+
+        assertNotNull(error)
+        assertTrue(error!!.message!!.contains("recusado antes da alocação"))
+    }
+
+    @Test
     fun configurationIsDepthAware() {
         assertEquals(2, KellvynMultiBlockTrainingConfig().depth)
         assertEquals(4, KellvynMultiBlockTrainingConfig(depth = 4).depth)

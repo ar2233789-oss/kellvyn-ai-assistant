@@ -29,6 +29,16 @@ class KellvynBpeTokenizerTest {
     }
 
     @Test
+    fun utf8CodePointCanSpanMultipleTokensAndMustBeDecodedAsASequence() {
+        val tokenizer = KellvynBpeTokenizer.train(listOf("base"), maxMerges = 0)
+        val encoded = tokenizer.encode("é")
+
+        assertEquals(2, encoded.size)
+        assertTrue(tokenizer.decode(intArrayOf(encoded[0])).endsWith('\uFFFD'))
+        assertEquals("é", tokenizer.decode(encoded))
+    }
+
+    @Test
     fun trainingIsDeterministicForTheSameOrderedCorpus() {
         val corpus = listOf(
             "kellvyn aprende do zero",

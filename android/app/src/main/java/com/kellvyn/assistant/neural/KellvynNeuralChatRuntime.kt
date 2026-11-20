@@ -138,22 +138,28 @@ internal class KellvynNeuralChatRuntime(
         }
 
         val session = active.model.newGenerationSession(prefix)
-        val output = StringBuilder()
+        val generatedTokens = ArrayList<Int>(maxNewTokens)
+        var streamedText = ""
         for (step in 0 until maxNewTokens) {
             cancellationCheck()
             val nextToken = session.predictNext()
             if (nextToken == active.endTokenId) break
 
             session.appendToken(nextToken)
-            val fragment = active.tokenizer.decode(intArrayOf(nextToken))
-            if (fragment.isNotEmpty()) {
-                output.append(fragment)
-                onPartial(output.toString())
+            generatedTokens += nextToken
+
+            // BPE tokens represent UTF-8 byte fragments. Decode the full generated sequence
+            // so a multibyte Portuguese character is never split and corrupted per token.
+            val decoded = active.tokenizer.decode(generatedTokens.toIntArray())
+            if (!decoded.endsWith('\uFFFD')) {
+                streamedText = decoded
+                onPartial(streamedText)
             }
         }
         cancellationCheck()
 
-        val answer = output.toString().trim()
+        val answer = active.tokenizer.decode(generatedTokens.toIntArray()).trim()
+        if (answer != streamedText) onPartial(answer)
         if (answer.isEmpty()) {
             throw IllegalStateException(
                 "O checkpoint KN-004 não gerou texto. Não vou apresentar uma resposta vazia como sucesso."
