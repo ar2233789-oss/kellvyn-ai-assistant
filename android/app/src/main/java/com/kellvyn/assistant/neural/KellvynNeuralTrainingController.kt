@@ -32,6 +32,39 @@ internal class KellvynNeuralTrainingController(
     )
 
     /**
+     * Performs a read-only local corpus audit. This method never allocates a model,
+     * trains weights, changes the installed checkpoint, stores the source or closes input.
+     * The caller may review the report and reopen the same file for an explicit training call.
+     */
+    suspend fun auditJsonl(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        maxRetainedUtf8Bytes: Long = 480_000L,
+        maxSourceUtf8Bytes: Long = 512L * 1024L * 1024L,
+        maxLines: Long = 10_000_000L,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
+    ): KellvynJsonlCorpusReader.Report = withContext(Dispatchers.IO) {
+        val auditContext = currentCoroutineContext()
+        KellvynJsonlCorpusReader.read(
+            input = input,
+            config = config,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            maxRetainedUtf8Bytes = maxRetainedUtf8Bytes,
+            maxSourceUtf8Bytes = maxSourceUtf8Bytes,
+            maxLines = maxLines,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples,
+            cancellationCheck = { auditContext.ensureActive() }
+        ).report
+    }
+
+    /**
      * Audits a caller-owned local JSONL stream, then trains only its bounded safe sample.
      * The input stream is consumed but never closed here. No network access or corpus persistence
      * is performed; a rejected preflight returns without allocating the neural model.
