@@ -81,7 +81,7 @@ internal class KellvynAndroidBuildStatusStudio private constructor(
                 timeoutMs = 5_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT,
                 estimatedWorkingSetBytes = 2L * MEBIBYTE,
-                capabilities = setOf(KellvynStudioCapability.ANDROID_BUILD)
+                capabilities = setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS)
             )
         )
 
