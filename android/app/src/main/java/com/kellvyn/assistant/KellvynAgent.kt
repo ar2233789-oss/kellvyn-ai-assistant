@@ -1185,7 +1185,7 @@ internal enum class KellvynToolRisk {
     ARTIFACT_CREATE,
     /** Enqueues one allowlisted, restartable task descriptor; no model-supplied handler ID. */
     APPEND_ONLY_TASK_CREATE,
-    /** Cancels only a task that is still QUEUED; a running task is never force-stopped. */
+    /** Cancels only not-yet-started queued/resource-waiting tasks; running work is never force-stopped. */
     CANCEL_QUEUED_TASK
 }
 
