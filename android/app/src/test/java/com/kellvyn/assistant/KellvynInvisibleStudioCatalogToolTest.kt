@@ -22,6 +22,7 @@ class KellvynInvisibleStudioCatalogToolTest {
         assertTrue(result.content.contains("CODE_NAVIGATION status=REGISTERED_LAZY"))
         assertTrue(result.content.contains("SCENE_3D status=NOT_REGISTERED"))
         assertTrue(result.content.contains("IMAGE_GENERATION status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("VECTOR_GRAPHICS status=NOT_REGISTERED"))
         assertTrue(result.content.contains("ANIMATION status=NOT_REGISTERED"))
         assertTrue(result.content.contains("VIDEO_GENERATION status=NOT_REGISTERED"))
         assertTrue(result.content.contains("GAME_INTERACTION status=NOT_REGISTERED"))
