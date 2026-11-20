@@ -199,7 +199,7 @@ internal object KellvynJsonlCorpusReader {
             } else {
                 0L
             }
-            val rank = sha256("$samplingSeed\u0000\${record.id}\u0000$contentHash")
+            val rank = sha256("$samplingSeed\u0000${record.id}\u0000$contentHash")
             val candidate = Candidate(
                 rank = rank,
                 promptHash = promptHash,
@@ -309,7 +309,7 @@ internal object KellvynJsonlCorpusReader {
     }
 
     private fun splitFor(prompt: String, seed: Long): KellvynTrainingSplit {
-        val hash = sha256("$seed\u0000\${normalizePrompt(prompt)}")
+        val hash = sha256("$seed\u0000${normalizePrompt(prompt)}")
         val shard = hash.substring(0, 8).toLong(16) % 100L
         return when {
             shard < 80L -> KellvynTrainingSplit.TRAIN
