@@ -63,4 +63,6 @@ Foram adicionados testes para:
 - restauração do bundle KN-004 via armazenamento compacto;
 - diferença entre estimativa residente de treinamento e inferência.
 
+**Runtime de conversa:** foi adicionado `KellvynNeuralChatRuntime`, uma fronteira local única para inicializar o pacote KN-004 em modo somente inferência e gerar continuação token a token com callback parcial e cancelamento entre tokens. Ele usa o formato supervisionado `Pergunta: ... / Resposta:`, aceita contexto montado pelo chat principal e recusa explicitamente operar sem checkpoint treinado válido. Não cria pesos aleatórios, não escolhe outro modelo e não altera interface. A geração ainda não está ligada a `LocalBrain.kt`/chat porque o repositório não contém um checkpoint conversacional aprovado; conectar um modelo não treinado criaria uma falsa impressão de inteligência. Testes cobrem ausência de checkpoint, inicialização válida, liberação e recusa de geração sem carga.
+
 **Limite:** estes testes foram adicionados ao código, mas ainda precisam executar em um runner Android/Gradle real. A validação anterior da branch foi interrompida antes do primeiro step de CI, então não há resultado de compilação ou JUnit a declarar.
