@@ -100,6 +100,7 @@ internal class KellvynNeuralChatRuntime(
         val tokenizer: KellvynBpeTokenizer,
         val model: KellvynMultiBlockTransformer,
         val endTokenId: Int,
+        val fingerprint: String,
         val qualityGate: KellvynMultiBlockTrainingQualityGate.Report,
         val manifest: KellvynMultiBlockTrainingManifest
     )
@@ -145,11 +146,15 @@ internal class KellvynNeuralChatRuntime(
                 "O carregamento de inferência manteve estados de treinamento na memória."
             }
             val qualityGate = KellvynMultiBlockTrainingQualityGate.evaluate(restored.manifest)
+            // Inference weights are immutable after load. Compute their identity once rather
+            // than serializing/hashing every parameter again on each generated response.
+            val fingerprint = restored.model.parameterFingerprint()
             behaviorApprovedFingerprint = null
             loadedModel = LoadedModel(
                 tokenizer = restored.tokenizer,
                 model = restored.model,
                 endTokenId = endTokenId,
+                fingerprint = fingerprint,
                 qualityGate = qualityGate,
                 manifest = restored.manifest
             )
@@ -234,7 +239,7 @@ internal class KellvynNeuralChatRuntime(
         }
         check(
             benchmarkThread.get() ||
-                behaviorApprovedFingerprint == active.model.parameterFingerprint()
+                behaviorApprovedFingerprint == active.fingerprint
         ) {
             "O checkpoint KN-004 ainda precisa passar pelo benchmark comportamental TEST antes de responder."
         }
@@ -349,7 +354,7 @@ internal class KellvynNeuralChatRuntime(
             "O benchmark só pode usar os exemplos TEST originais, com texto e proveniência idênticos ao manifesto do checkpoint."
         }
 
-        val fingerprint = active.model.parameterFingerprint()
+        val fingerprint = active.fingerprint
         benchmarkThread.set(true)
         try {
             val report = KellvynNeuralBehaviorBenchmark.evaluate(
