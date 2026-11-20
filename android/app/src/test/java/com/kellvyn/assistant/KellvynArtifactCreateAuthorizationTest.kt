@@ -25,7 +25,24 @@ class KellvynArtifactCreateAuthorizationTest {
         )
 
         assertTrue(auth.authorize(validSpec, validArguments, "Redimensionar imagem"))
-        assertFalse(auth.authorize(validSpec, mapOf("task_id" to "image-task-1"), "Redimensionar"))
+        val generatedTimelineSpec = KellvynToolSpec(
+            name = "animation_render_spritesheet",
+            description = "Creates a new private animation spritesheet.",
+            requiredArguments = setOf("task_id", "timeline_json"),
+            risk = KellvynToolRisk.ARTIFACT_CREATE,
+            capabilities = setOf(
+                KellvynStudioCapability.ANIMATION,
+                KellvynStudioCapability.ARTIFACT_STORAGE
+            )
+        )
+        assertTrue(
+            auth.authorize(
+                generatedTimelineSpec,
+                mapOf("task_id" to "animation-task-1", "timeline_json" to "{}"),
+                "Renderizar animação"
+            )
+        )
+        assertFalse(auth.authorize(validSpec, mapOf("artifact_id" to "a".repeat(64)), "Redimensionar"))
     }
 
     @Test
