@@ -103,6 +103,47 @@ class KellvynNeuralChatRuntimeTest {
         }
     }
 
+    @Test
+    fun benchmarkRejectsChangedRightsEvidenceEvenWhenTestTextHashMatches() {
+        val trained = trainSample(contextLength = 128)
+        val passingMetrics = trained.copy(
+            manifest = trained.manifest.copy(
+                initialValidationLoss = 5.0,
+                finalValidationLoss = 3.0,
+                heldOutTestLoss = 3.2
+            )
+        )
+        store.saveMultiBlock(passingMetrics)
+        val runtime = KellvynNeuralChatRuntime(store)
+
+        assertTrue(runtime.initialize().qualityApprovedForBenchmark)
+
+        val original = KellvynInstructionTrainingExample(
+            id = "runtime-test",
+            prompt = "Pergunta: termine.",
+            completion = "Até logo.",
+            split = KellvynTrainingSplit.TEST,
+            provenance = KellvynTrainingProvenance(
+                permission = KellvynTrainingPermission.OWNER_CREATED,
+                licenseId = "owner-created",
+                sourceReference = "owner://kn004-runtime-test/runtime-test",
+                rightsEvidence = "Conteúdo sintético criado para teste do runtime neural local."
+            )
+        )
+        val alteredProvenance = original.copy(
+            provenance = original.provenance.copy(
+                rightsEvidence = "Evidência de direitos substituída após o treinamento."
+            )
+        )
+
+        try {
+            runtime.runBehaviorBenchmark(listOf(alteredProvenance))
+            throw AssertionError("O benchmark não pode aceitar proveniência alterada.")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("proveniência"))
+        }
+    }
+
     @Test(expected = IllegalStateException::class)
     fun generationIsRejectedUntilAValidatedCheckpointIsLoaded() {
         KellvynNeuralChatRuntime(store).generateReply("Olá")
