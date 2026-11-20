@@ -100,6 +100,8 @@ internal data class KellvynStudioModuleManifest(
                 KellvynToolRisk.DESTRUCTIVE -> KellvynStudioPermission.PRIVATE_WORKSPACE_WRITE
                 KellvynToolRisk.DEVICE_CONTROL -> KellvynStudioPermission.ACCESSIBILITY_CONTROL
                 KellvynToolRisk.ARTIFACT_CREATE -> KellvynStudioPermission.PRIVATE_ARTIFACT_WRITE
+                KellvynToolRisk.APPEND_ONLY_TASK_CREATE,
+                KellvynToolRisk.CANCEL_QUEUED_TASK -> KellvynStudioPermission.WORKFLOW_CONTROL
             }
             require(requiredPermission == null || requiredPermission in permissions) {
                 "A ferramenta " + name + " não declara a permissão necessária para seu risco."
