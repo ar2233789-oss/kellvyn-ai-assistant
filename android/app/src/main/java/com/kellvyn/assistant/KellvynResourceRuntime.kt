@@ -25,6 +25,11 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     private val governor = KellvynResourceGovernor()
     private val cacheRegistry = KellvynResourceCacheRegistry()
 
+    /** Shared private store for binaries produced by internal studio engines. */
+    val artifacts = KellvynArtifactStore(
+        java.io.File(appContext.filesDir, "kellvyn_artifacts")
+    )
+
     val taskBroker = KellvynTaskBroker(governor) {
         withContext(Dispatchers.IO) { monitor.snapshot() }
     }
