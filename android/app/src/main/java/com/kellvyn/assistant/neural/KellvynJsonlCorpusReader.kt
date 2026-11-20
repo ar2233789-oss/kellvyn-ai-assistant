@@ -62,6 +62,7 @@ internal object KellvynJsonlCorpusReader {
         val estimatedTrainingWorkingSetBytes: Long,
         val trainingWorkingSetBudgetBytes: Long,
         val trainingTargetTokenUpperBound: Long,
+        val needsManualReview: Boolean,
         val readyForTraining: Boolean,
         val reasons: List<String>
     )
@@ -378,8 +379,10 @@ internal object KellvynJsonlCorpusReader {
             reasons += "$duplicateSelectedRecords registros duplicados foram removidos da amostra."
         }
 
+        val needsManualReview = sensitiveRecords > 0L || malformedRecords > 0L
         val readyForTraining =
-            trainCount >= minimumTrainExamples &&
+            !needsManualReview &&
+                trainCount >= minimumTrainExamples &&
                 validationCount >= minimumValidationExamples &&
                 testCount >= minimumTestExamples &&
                 targetUpperBound <= trainTargetBudget &&
@@ -432,6 +435,7 @@ internal object KellvynJsonlCorpusReader {
                 estimatedTrainingWorkingSetBytes = estimatedTrainingWorkingSetBytes,
                 trainingWorkingSetBudgetBytes = config.maxTrainingWorkingSetBytes,
                 trainingTargetTokenUpperBound = targetUpperBound,
+                needsManualReview = needsManualReview,
                 readyForTraining = readyForTraining,
                 reasons = reasons
             )
