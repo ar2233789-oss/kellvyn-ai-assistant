@@ -3,6 +3,7 @@ package com.kellvyn.assistant
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -15,6 +16,32 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class KellvynAgentToolAvailabilityInstrumentedTest {
+
+    @Test
+    fun realInventoryReportsCreativeEnginesAsRegisteredLazyWithoutLoadingThem() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val runtime = KellvynRuntime(context)
+        try {
+            val registry = runtime.createProjectWorkspaceToolRegistry()
+            val inventoryTool = requireNotNull(
+                registry.find(KellvynInvisibleStudioCatalogTool.TOOL_NAME)
+            )
+            val result = inventoryTool.execute(emptyMap())
+
+            assertTrue(result.success)
+            assertTrue(result.content.contains("VECTOR_GRAPHICS status=REGISTERED_LAZY"))
+            assertTrue(result.content.contains("RASTER_IMAGE_EDIT status=REGISTERED_LAZY"))
+            assertTrue(result.content.contains("ANIMATION status=REGISTERED_LAZY"))
+            assertTrue(result.content.contains("IMAGE_GENERATION status=NOT_REGISTERED"))
+            assertTrue(result.content.contains("loaded_now=false"))
+            assertTrue(result.content.contains("Execução=NOT_CHECKED"))
+            assertTrue(result.content.contains("verificação independente=NOT_VERIFIED"))
+            assertTrue(result.content.contains("vector_render_artwork[ARTIFACT_CREATE]"))
+            assertTrue(result.content.contains("animation_render_spritesheet[ARTIFACT_CREATE]"))
+        } finally {
+            runtime.close()
+        }
+    }
 
     @Test
     fun eachSpecialistReceivesOnlyTheReadOnlyToolsBackedByRegisteredModules() {
