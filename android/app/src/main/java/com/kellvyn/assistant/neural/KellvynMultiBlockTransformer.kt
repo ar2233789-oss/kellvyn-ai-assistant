@@ -6,6 +6,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.util.Random
 import kotlin.math.abs
@@ -27,8 +28,8 @@ import kotlin.math.sqrt
 internal class KellvynMultiBlockTransformer private constructor(
     val config: Config,
     private val parameters: ParameterSet,
-    private val firstMoment: ParameterSet,
-    private val secondMoment: ParameterSet,
+    private var firstMoment: ParameterSet?,
+    private var secondMoment: ParameterSet?,
     var trainingSteps: Long,
     private var optimizerSteps: Long
 ) {
@@ -208,8 +209,11 @@ internal class KellvynMultiBlockTransformer private constructor(
 
     init {
         validateParameterShapes(parameters, config)
-        validateParameterShapes(firstMoment, config)
-        validateParameterShapes(secondMoment, config)
+        require((firstMoment == null) == (secondMoment == null)) {
+            "Os dois estados AdamW precisam estar presentes juntos ou ausentes juntos."
+        }
+        firstMoment?.let { validateParameterShapes(it, config) }
+        secondMoment?.let { validateParameterShapes(it, config) }
         require(trainingSteps >= 0L && optimizerSteps == trainingSteps)
     }
 
@@ -261,19 +265,56 @@ internal class KellvynMultiBlockTransformer private constructor(
         }
 
         fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer {
-            val bytes = readBounded(input)
-            require(bytes.size in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES) {
-                "Checkpoint KN-004 vazio, truncado ou acima do limite."
+            val buffer = readBounded(input)
+            return readCheckpointBytes(buffer.bytes, 0, buffer.length, retainOptimizerState = true)
+        }
+
+        /**
+         * Loads only trained weights for inference. AdamW moments are checksum-verified
+         * with the rest of the checkpoint, then skipped without allocating FloatArrays.
+         */
+        fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer {
+            val buffer = readBounded(input)
+            return readInferenceCheckpointBytes(buffer.bytes, 0, buffer.length)
+        }
+
+        /** Internal bundle reader avoids copying a model byte array that is already bounded. */
+        internal fun readCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
+            readCheckpointBytes(bytes, 0, bytes.size, retainOptimizerState = true)
+
+        /** Loads verified trained weights without allocating a second full checkpoint byte array. */
+        internal fun readInferenceCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
+            readInferenceCheckpointBytes(bytes, 0, bytes.size)
+
+        /** Reads a checkpoint directly from a verified bundle slice without copying its model payload. */
+        internal fun readInferenceCheckpointBytes(
+            bytes: ByteArray,
+            offset: Int,
+            length: Int
+        ): KellvynMultiBlockTransformer =
+            readCheckpointBytes(bytes, offset, length, retainOptimizerState = false)
+
+        private fun readCheckpointBytes(
+            bytes: ByteArray,
+            offset: Int,
+            length: Int,
+            retainOptimizerState: Boolean
+        ): KellvynMultiBlockTransformer {
+            require(offset >= 0 && length in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES)
+            require(offset <= bytes.size - length) {
+                "O intervalo do checkpoint KN-004 está fora do pacote."
             }
-            val payloadSize = bytes.size - CHECKSUM_BYTES
-            val payload = bytes.copyOfRange(0, payloadSize)
-            val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
-            val digest = MessageDigest.getInstance("SHA-256").digest(payload)
+            val payloadSize = length - CHECKSUM_BYTES
+            val checksumOffset = offset + payloadSize
+            val storedDigest = bytes.copyOfRange(checksumOffset, offset + length)
+            val digestEngine = MessageDigest.getInstance("SHA-256")
+            digestEngine.update(bytes, offset, payloadSize)
+            val digest = digestEngine.digest()
             require(MessageDigest.isEqual(storedDigest, digest)) {
                 "A integridade do checkpoint KN-004 não confere."
             }
 
-            val data = DataInputStream(ByteArrayInputStream(payload))
+            val data = DataInputStream(ByteArrayInputStream(bytes, offset, payloadSize))
             require(data.readInt() == CHECKPOINT_MAGIC) {
                 "Checkpoint não pertence ao Transformer KN-004."
             }
@@ -295,8 +336,18 @@ internal class KellvynMultiBlockTransformer private constructor(
                 "Contadores do checkpoint KN-004 inválidos."
             }
             val parameters = readParameters(data, config)
-            val firstMoment = readParameters(data, config)
-            val secondMoment = readParameters(data, config)
+            val firstMoment = if (retainOptimizerState) {
+                readParameters(data, config)
+            } else {
+                skipParameters(data, config)
+                null
+            }
+            val secondMoment = if (retainOptimizerState) {
+                readParameters(data, config)
+            } else {
+                skipParameters(data, config)
+                null
+            }
             require(data.available() == 0) {
                 "Checkpoint KN-004 contém bytes extras."
             }
@@ -304,6 +355,36 @@ internal class KellvynMultiBlockTransformer private constructor(
                 config, parameters, firstMoment, secondMoment,
                 trainingSteps, optimizerSteps
             )
+        }
+
+        private fun skipParameters(data: DataInputStream, config: Config) {
+            val d = config.embeddingSize
+            val v = config.vocabularySize
+            val f = config.feedForwardSize
+            val expectedSizes = buildList {
+                add(v * d)
+                repeat(config.depth) {
+                    addAll(listOf(d * d, d * d, d * d, d * d, d, d, d, d, d * f, d * f, f * d))
+                }
+                add(d * v)
+                add(v)
+            }
+            for (expectedSize in expectedSizes) {
+                val count = data.readInt()
+                require(count == expectedSize) {
+                    "Dimensões de estado AdamW no checkpoint KN-004 inválidas."
+                }
+                var remaining = count.toLong() * Float.SIZE_BYTES.toLong()
+                while (remaining > 0L) {
+                    val skipped = data.skipBytes(
+                        minOf(remaining, Int.MAX_VALUE.toLong()).toInt()
+                    )
+                    require(skipped > 0) {
+                        "Checkpoint KN-004 truncado nos estados AdamW."
+                    }
+                    remaining -= skipped.toLong()
+                }
+            }
         }
 
         private fun randomArray(size: Int, random: Random, limit: Float): FloatArray =
@@ -379,12 +460,21 @@ internal class KellvynMultiBlockTransformer private constructor(
             }
         }
 
-        private fun readBounded(input: InputStream): ByteArray {
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(8192)
+        private data class ReadBuffer(val bytes: ByteArray, val length: Int)
+
+        private class ExposedByteArrayOutputStream(initialCapacity: Int) :
+            ByteArrayOutputStream(initialCapacity) {
+            fun backingArray(): ByteArray = buf
+            fun writtenLength(): Int = count
+        }
+
+        private fun readBounded(input: InputStream): ReadBuffer {
+            val initialCapacity = input.available().coerceIn(8192, MAX_CHECKPOINT_BYTES)
+            val output = ExposedByteArrayOutputStream(initialCapacity)
+            val chunk = ByteArray(8192)
             var total = 0
             while (true) {
-                val count = input.read(buffer)
+                val count = input.read(chunk)
                 if (count < 0) break
                 if (count == 0) {
                     val value = input.read()
@@ -396,13 +486,17 @@ internal class KellvynMultiBlockTransformer private constructor(
                     require(total <= MAX_CHECKPOINT_BYTES - count) {
                         "Checkpoint KN-004 acima do limite."
                     }
-                    output.write(buffer, 0, count)
+                    output.write(chunk, 0, count)
                     total += count
                 }
             }
-            return output.toByteArray()
+            return ReadBuffer(output.backingArray(), output.writtenLength())
         }
     }
+
+    /** True when AdamW moments are resident and another training step is permitted. */
+    internal fun hasTrainingState(): Boolean =
+        firstMoment != null && secondMoment != null
 
     fun evaluateNextTokenProbabilities(contextTokenIds: IntArray): FloatArray {
         validateContext(contextTokenIds)
@@ -451,6 +545,9 @@ internal class KellvynMultiBlockTransformer private constructor(
         cancellationCheck: (() -> Unit)? = null
     ): TrainingReport {
         validateCompletion(promptTokenIds, completionTokenIds)
+        check(hasTrainingState()) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }
         require(epochs in 1..10_000)
         require(completionTokenIds.size.toLong() * epochs.toLong() <= MAX_TRAINING_STEPS_PER_CALL)
         validateOptimizerArguments(learningRate, weightDecay)
@@ -536,28 +633,58 @@ internal class KellvynMultiBlockTransformer private constructor(
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
-    fun writeCheckpoint(output: OutputStream) {
-        val buffer = ByteArrayOutputStream()
-        DataOutputStream(buffer).use { data ->
-            data.writeInt(CHECKPOINT_MAGIC)
-            data.writeInt(CHECKPOINT_VERSION)
-            data.writeInt(config.vocabularySize)
-            data.writeInt(config.contextLength)
-            data.writeInt(config.embeddingSize)
-            data.writeInt(config.headCount)
-            data.writeInt(config.feedForwardSize)
-            data.writeInt(config.depth)
-            data.writeLong(config.seed)
-            data.writeLong(trainingSteps)
-            data.writeLong(optimizerSteps)
-            listOf(parameters, firstMoment, secondMoment).forEach { set ->
-                set.arrays().forEach { writeFloatArray(data, it) }
+    /** Exact serialized size, including the model-level SHA-256 trailer. */
+    internal fun checkpointEncodedSizeBytes(): Long {
+        val first = requireNotNull(firstMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val second = requireNotNull(secondMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val sets = listOf(parameters, first, second)
+        val payloadBytes = 56L + sets.sumOf { set ->
+            set.arrays().sumOf { array ->
+                Int.SIZE_BYTES.toLong() + array.size.toLong() * Float.SIZE_BYTES.toLong()
             }
         }
-        val payload = buffer.toByteArray()
-        require(payload.size + CHECKSUM_BYTES <= MAX_CHECKPOINT_BYTES)
-        output.write(payload)
-        output.write(MessageDigest.getInstance("SHA-256").digest(payload))
+        val encodedBytes = payloadBytes + CHECKSUM_BYTES.toLong()
+        require(encodedBytes <= MAX_CHECKPOINT_BYTES.toLong()) {
+            "Checkpoint KN-004 excede o limite de bytes."
+        }
+        return encodedBytes
+    }
+
+    /**
+     * Streams the model and its checksum directly to the destination. This avoids creating
+     * a full serialized-model byte array while saving a checkpoint on memory-constrained devices.
+     */
+    fun writeCheckpoint(output: OutputStream) {
+        val first = requireNotNull(firstMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val second = requireNotNull(secondMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        checkpointEncodedSizeBytes()
+        val digest = MessageDigest.getInstance("SHA-256")
+        val digestOutput = DigestOutputStream(output, digest)
+        val data = DataOutputStream(digestOutput)
+        data.writeInt(CHECKPOINT_MAGIC)
+        data.writeInt(CHECKPOINT_VERSION)
+        data.writeInt(config.vocabularySize)
+        data.writeInt(config.contextLength)
+        data.writeInt(config.embeddingSize)
+        data.writeInt(config.headCount)
+        data.writeInt(config.feedForwardSize)
+        data.writeInt(config.depth)
+        data.writeLong(config.seed)
+        data.writeLong(trainingSteps)
+        data.writeLong(optimizerSteps)
+        listOf(parameters, first, second).forEach { set ->
+            set.arrays().forEach { writeFloatArray(data, it) }
+        }
+        data.flush()
+        output.write(digest.digest())
         output.flush()
     }
 
@@ -647,27 +774,41 @@ internal class KellvynMultiBlockTransformer private constructor(
             if (evicted) {
                 contextTokens.removeAt(0)
                 contextTokens += tokenId
-                // Earlier layer states were computed with the evicted history. Rebuild
-                // the retained window from scratch so cache output equals a fresh forward.
+                // Rebuild the retained window because its earliest states previously attended
+                // to the evicted token. Keep monotonic absolute positions while using a local
+                // cache index for the bounded KV arrays.
                 keyCaches.forEach { it.clear() }
                 valueCaches.forEach { it.clear() }
                 latestProbabilities = null
-                contextTokens.forEachIndexed { position, cachedToken ->
-                    processTokenIntoCache(cachedToken, position)
+                val firstRetainedAbsolutePosition =
+                    nextAbsolutePosition - contextTokens.size + 1
+                contextTokens.forEachIndexed { cachePosition, cachedToken ->
+                    processTokenIntoCache(
+                        cachedToken,
+                        firstRetainedAbsolutePosition + cachePosition,
+                        cachePosition
+                    )
                 }
-                nextAbsolutePosition = contextTokens.size
             } else {
                 contextTokens += tokenId
-                processTokenIntoCache(tokenId, nextAbsolutePosition)
-                nextAbsolutePosition++
+                processTokenIntoCache(
+                    tokenId,
+                    nextAbsolutePosition,
+                    contextTokens.lastIndex
+                )
             }
+            nextAbsolutePosition++
             require(keyCaches.all { it.size == contextTokens.size } &&
                 valueCaches.all { it.size == contextTokens.size }) {
                 "Os caches KV KN-004 divergiram do contexto ativo."
             }
         }
 
-        private fun processTokenIntoCache(tokenId: Int, position: Int) {
+        private fun processTokenIntoCache(
+            tokenId: Int,
+            position: Int,
+            cachePosition: Int
+        ) {
             val d = config.embeddingSize
             val f = config.feedForwardSize
             val heads = config.headCount
@@ -695,7 +836,9 @@ internal class KellvynMultiBlockTransformer private constructor(
                 keyCache += key
                 valueCache += value
                 require(keyCache.size == valueCache.size &&
-                    keyCache.size == position + 1) {
+                    keyCache.size == cachePosition + 1 &&
+                    cachePosition in 0 until config.contextLength &&
+                    position >= 0) {
                     "O cache KV do bloco $layerIndex ficou inconsistente."
                 }
 
@@ -830,7 +973,7 @@ internal class KellvynMultiBlockTransformer private constructor(
             }
             val keysRotated = Array(length) { position ->
                 linear(normalizedAttention[position], block.keyWeights, d, d)
-                    .also { rotateInPlace(it, position, h) }
+                    .also { rotateInPlace(it, firstAbsolutePosition + position, h) }
             }
             val values = Array(length) { position ->
                 linear(normalizedAttention[position], block.valueWeights, d, d)
@@ -1170,8 +1313,12 @@ internal class KellvynMultiBlockTransformer private constructor(
         val beta2Correction = 1.0 - BETA2.power(optimizerSteps)
         val values = parameters.arrays()
         val gradientArrays = gradients.arrays()
-        val first = firstMoment.arrays()
-        val second = secondMoment.arrays()
+        val first = requireNotNull(firstMoment) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }.arrays()
+        val second = requireNotNull(secondMoment) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }.arrays()
         for (group in values.indices) {
             for (index in values[group].indices) {
                 val gradient = gradientArrays[group][index].toDouble()
