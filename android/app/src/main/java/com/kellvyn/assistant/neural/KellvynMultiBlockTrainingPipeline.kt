@@ -14,7 +14,9 @@ internal data class KellvynMultiBlockTrainingConfig(
     val epochsPerExample: Int = 1,
     val learningRate: Float = 0.003f,
     val weightDecay: Float = 0.01f,
-    val maxTotalTrainingSteps: Long = 100_000L
+    val maxTotalTrainingSteps: Long = 100_000L,
+    /** Hard ceiling for estimated training memory before any neural tensors are allocated. */
+    val maxTrainingWorkingSetBytes: Long = 128L * 1024L * 1024L
 ) {
     init {
         require(contextLength in 1..2048)
@@ -29,6 +31,7 @@ internal data class KellvynMultiBlockTrainingConfig(
         require(learningRate.isFinite() && learningRate in 0.000001f..0.05f)
         require(weightDecay.isFinite() && weightDecay in 0.0f..0.1f)
         require(maxTotalTrainingSteps in 1..1_000_000L)
+        require(maxTrainingWorkingSetBytes in 16L * 1024L * 1024L..1024L * 1024L * 1024L)
     }
 }
 
@@ -192,17 +195,22 @@ internal object KellvynMultiBlockTrainingPipeline {
             "Uma completion excederia o limite de passos por exemplo KN-004."
         }
 
-        val model = KellvynMultiBlockTransformer.create(
-            KellvynMultiBlockTransformer.Config(
-                vocabularySize = tokenizer.vocabularySize,
-                contextLength = config.contextLength,
-                embeddingSize = config.embeddingSize,
-                headCount = config.headCount,
-                feedForwardSize = config.feedForwardSize,
-                depth = config.depth,
-                seed = config.seed
-            )
+        val modelConfig = KellvynMultiBlockTransformer.Config(
+            vocabularySize = tokenizer.vocabularySize,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            headCount = config.headCount,
+            feedForwardSize = config.feedForwardSize,
+            depth = config.depth,
+            seed = config.seed
         )
+        val estimatedWorkingSetBytes = modelConfig.estimatedTrainingWorkingSetBytes()
+        require(estimatedWorkingSetBytes <= config.maxTrainingWorkingSetBytes) {
+            "Treinamento KN-004 recusado antes da alocação: estimativa de " +
+                estimatedWorkingSetBytes + " bytes excede o orçamento de " +
+                config.maxTrainingWorkingSetBytes + " bytes."
+        }
+        val model = KellvynMultiBlockTransformer.create(modelConfig)
 
         fun meanCompletionLoss(partition: List<EncodedExample>): Double {
             var weightedLoss = 0.0
