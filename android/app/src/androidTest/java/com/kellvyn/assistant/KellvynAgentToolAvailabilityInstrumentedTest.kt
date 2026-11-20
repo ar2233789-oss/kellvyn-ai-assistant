@@ -30,7 +30,8 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertEquals(
                 setOf(
                     "artifact_store_status", "artifact_list_task", "artifact_verify",
-                    "image_inspect", "image_resize", "animation_render_spritesheet"
+                    "image_inspect", "image_resize", "animation_render_spritesheet",
+                    "vector_render_artwork"
                 ),
                 artifactToolNames
             )
@@ -39,6 +40,9 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             })
             assertTrue(registeredSpecs.any {
                 KellvynStudioCapability.ANIMATION in it.capabilities
+            })
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.VECTOR_GRAPHICS in it.capabilities
             })
             assertFalse(KellvynStudioCapability.IMAGE_GENERATION in registeredSpecs
                 .flatMap { it.capabilities }.toSet())
@@ -186,7 +190,7 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertEquals(
                 setOf(
                     "workspace_write_file", "workspace_delete_file", "wikipedia_search",
-                    "image_resize", "animation_render_spritesheet",
+                    "image_resize", "animation_render_spritesheet", "vector_render_artwork",
                     "automation_schedule_resource_snapshot", "automation_cancel_queued_task"
                 ),
                 registeredSpecs
