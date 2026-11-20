@@ -141,8 +141,8 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test
-    fun balancedMobileCandidateFitsItsDeclaredAnalyticalTrainingBudget() {
-        val candidate = KellvynMultiBlockTrainingConfig.balancedMobileCandidate()
+    fun mobileCapacityCeilingFitsItsDeclaredMemoryBudget() {
+        val candidate = KellvynMultiBlockTrainingConfig.capacityCeilingForMobileBenchmark()
         val modelConfig = KellvynMultiBlockTransformer.Config(
             vocabularySize = 769,
             contextLength = candidate.contextLength,

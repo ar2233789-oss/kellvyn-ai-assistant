@@ -36,10 +36,12 @@ internal data class KellvynMultiBlockTrainingConfig(
 
     companion object {
         /**
-         * Larger mobile candidate for measured-device experiments, not a validated Poco F6 profile.
-         * At 769 vocabulary entries its analytical training working-set lower bound is about 101 MiB.
+         * Capacity ceiling for RAM/latency experiments, not the recommended training profile.
+         * At 769 vocabulary entries it has about 1.77M parameters and a ~101 MiB training
+         * working-set estimate. The current 100k-step/500 KB experiment budget severely
+         * undertrains this size; do not use it as a production training configuration.
          */
-        fun balancedMobileCandidate(): KellvynMultiBlockTrainingConfig =
+        fun capacityCeilingForMobileBenchmark(): KellvynMultiBlockTrainingConfig =
             KellvynMultiBlockTrainingConfig(
                 contextLength = 256,
                 embeddingSize = 128,
