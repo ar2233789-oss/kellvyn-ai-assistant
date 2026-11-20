@@ -6,6 +6,7 @@ import java.io.DataInputStream
 import java.io.DataOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.security.DigestOutputStream
 import java.security.MessageDigest
 import java.util.Random
 import kotlin.math.abs
@@ -632,34 +633,58 @@ internal class KellvynMultiBlockTransformer private constructor(
             .joinToString("") { "%02x".format(it.toInt() and 0xff) }
     }
 
-    fun writeCheckpoint(output: OutputStream) {
-        val buffer = ByteArrayOutputStream()
-        DataOutputStream(buffer).use { data ->
-            data.writeInt(CHECKPOINT_MAGIC)
-            data.writeInt(CHECKPOINT_VERSION)
-            data.writeInt(config.vocabularySize)
-            data.writeInt(config.contextLength)
-            data.writeInt(config.embeddingSize)
-            data.writeInt(config.headCount)
-            data.writeInt(config.feedForwardSize)
-            data.writeInt(config.depth)
-            data.writeLong(config.seed)
-            data.writeLong(trainingSteps)
-            data.writeLong(optimizerSteps)
-            val first = requireNotNull(firstMoment) {
-                "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
-            }
-            val second = requireNotNull(secondMoment) {
-                "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
-            }
-            listOf(parameters, first, second).forEach { set ->
-                set.arrays().forEach { writeFloatArray(data, it) }
+    /** Exact serialized size, including the model-level SHA-256 trailer. */
+    internal fun checkpointEncodedSizeBytes(): Long {
+        val first = requireNotNull(firstMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val second = requireNotNull(secondMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val sets = listOf(parameters, first, second)
+        val payloadBytes = 56L + sets.sumOf { set ->
+            set.arrays().sumOf { array ->
+                Int.SIZE_BYTES.toLong() + array.size.toLong() * Float.SIZE_BYTES.toLong()
             }
         }
-        val payload = buffer.toByteArray()
-        require(payload.size + CHECKSUM_BYTES <= MAX_CHECKPOINT_BYTES)
-        output.write(payload)
-        output.write(MessageDigest.getInstance("SHA-256").digest(payload))
+        val encodedBytes = payloadBytes + CHECKSUM_BYTES.toLong()
+        require(encodedBytes <= MAX_CHECKPOINT_BYTES.toLong()) {
+            "Checkpoint KN-004 excede o limite de bytes."
+        }
+        return encodedBytes
+    }
+
+    /**
+     * Streams the model and its checksum directly to the destination. This avoids creating
+     * a full serialized-model byte array while saving a checkpoint on memory-constrained devices.
+     */
+    fun writeCheckpoint(output: OutputStream) {
+        val first = requireNotNull(firstMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        val second = requireNotNull(secondMoment) {
+            "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+        }
+        checkpointEncodedSizeBytes()
+        val digest = MessageDigest.getInstance("SHA-256")
+        val digestOutput = DigestOutputStream(output, digest)
+        val data = DataOutputStream(digestOutput)
+        data.writeInt(CHECKPOINT_MAGIC)
+        data.writeInt(CHECKPOINT_VERSION)
+        data.writeInt(config.vocabularySize)
+        data.writeInt(config.contextLength)
+        data.writeInt(config.embeddingSize)
+        data.writeInt(config.headCount)
+        data.writeInt(config.feedForwardSize)
+        data.writeInt(config.depth)
+        data.writeLong(config.seed)
+        data.writeLong(trainingSteps)
+        data.writeLong(optimizerSteps)
+        listOf(parameters, first, second).forEach { set ->
+            set.arrays().forEach { writeFloatArray(data, it) }
+        }
+        data.flush()
+        output.write(digest.digest())
         output.flush()
     }
 
