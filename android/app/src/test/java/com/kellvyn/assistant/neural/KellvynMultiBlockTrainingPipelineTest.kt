@@ -114,6 +114,17 @@ class KellvynMultiBlockTrainingPipelineTest {
         KellvynMultiBlockTrainingPipeline.train(examples)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesCredentialsInTrainingProvenanceMetadata() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(
+            provenance = examples[0].provenance.copy(
+                rightsEvidence = "client_secret = \"thisIsNotARealSecret123\""
+            )
+        )
+        KellvynMultiBlockTrainingPipeline.train(examples)
+    }
+
     @Test
     fun trainingWorkingSetAboveBudgetIsRejectedBeforeModelAllocation() {
         val error = try {
