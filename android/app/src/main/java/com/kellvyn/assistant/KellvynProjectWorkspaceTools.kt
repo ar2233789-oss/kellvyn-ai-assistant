@@ -386,6 +386,15 @@ internal object KellvynProjectWorkspaceTools {
                     KellvynStudioCapability.ARTIFACT_STORAGE in spec.capabilities &&
                         arguments["artifact_id"]?.matches(Regex("[a-f0-9]{64}")) == true &&
                         arguments["task_id"]?.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,95}")) == true
+                KellvynToolRisk.APPEND_ONLY_TASK_CREATE ->
+                    spec.name == "automation_schedule_resource_snapshot" &&
+                        KellvynStudioCapability.WORKFLOW_AUTOMATION in spec.capabilities &&
+                        arguments.keys.all { it == "delay_ms" }
+                KellvynToolRisk.CANCEL_QUEUED_TASK ->
+                    spec.name == "automation_cancel_queued_task" &&
+                        KellvynStudioCapability.WORKFLOW_AUTOMATION in spec.capabilities &&
+                        arguments.keys == setOf("task_id") &&
+                        arguments["task_id"]?.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,95}")) == true
                 KellvynToolRisk.NETWORK_READ,
                 KellvynToolRisk.DEVICE_CONTROL -> false
             }
