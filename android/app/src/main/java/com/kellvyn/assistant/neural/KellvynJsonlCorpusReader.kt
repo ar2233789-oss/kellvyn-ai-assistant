@@ -346,7 +346,8 @@ internal object KellvynJsonlCorpusReader {
 
     private fun offer(bucket: Bucket, candidate: Candidate) {
         if (candidate.retainedBytes > bucket.byteBudget ||
-            candidate.targetTokenUpperBound > bucket.targetBudget
+            candidate.targetTokenUpperBound > bucket.targetBudget ||
+            candidate.tokenizerTrainingBytes > bucket.tokenizerTrainingBudget
         ) return
 
         bucket.queue += candidate
@@ -363,6 +364,7 @@ internal object KellvynJsonlCorpusReader {
             val removed = bucket.queue.remove()
             bucket.retainedBytes -= removed.retainedBytes
             bucket.targetTokens -= removed.targetTokenUpperBound
+            bucket.tokenizerTrainingBytes -= removed.tokenizerTrainingBytes
         }
     }
 
