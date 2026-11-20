@@ -42,6 +42,23 @@ class KellvynArtifactCreateAuthorizationTest {
                 "Renderizar animação"
             )
         )
+        val vectorSpec = KellvynToolSpec(
+            name = "vector_render_artwork",
+            description = "Creates an SVG and PNG artwork pair.",
+            requiredArguments = setOf("task_id", "design_json"),
+            risk = KellvynToolRisk.ARTIFACT_CREATE,
+            capabilities = setOf(
+                KellvynStudioCapability.VECTOR_GRAPHICS,
+                KellvynStudioCapability.ARTIFACT_STORAGE
+            )
+        )
+        assertTrue(
+            auth.authorize(
+                vectorSpec,
+                mapOf("task_id" to "vector-task-1", "design_json" to "{}"),
+                "Criar arte vetorial"
+            )
+        )
         assertFalse(auth.authorize(validSpec, mapOf("artifact_id" to "a".repeat(64)), "Redimensionar"))
     }
 
