@@ -31,7 +31,21 @@ internal enum class KellvynStudioCapability {
     MEMORY_READ,
     SECURITY_AUDIT,
     AGENT_DESIGN,
-    AGENT_EVALUATION
+    AGENT_EVALUATION,
+    // Precise operational domains: diagnostics must not imply the action engine exists.
+    TASK_QUEUE_DIAGNOSTICS,
+    BOT_DIAGNOSTICS,
+    ANDROID_BUILD_DIAGNOSTICS,
+    IMAGE_GENERATION,
+    ANIMATION,
+    VIDEO_EDITING,
+    VIDEO_GENERATION,
+    AUDIO_PERCEPTION,
+    AUDIO_GENERATION,
+    GAME_INTERACTION,
+    APP_CONTROL,
+    SCREEN_CAPTURE,
+    CODE_EXECUTION
 }
 
 internal enum class KellvynStudioPermission {
