@@ -39,6 +39,8 @@ internal object KellvynJsonlCorpusReader {
         val selectedUtf8Bytes: Long,
         val selectedTokenizerTrainingBytes: Long,
         val tokenizerTrainingBudgetBytes: Long,
+        val estimatedTrainingWorkingSetBytes: Long,
+        val trainingWorkingSetBudgetBytes: Long,
         val trainingTargetTokenUpperBound: Long,
         val readyForTraining: Boolean,
         val reasons: List<String>
@@ -121,6 +123,21 @@ internal object KellvynJsonlCorpusReader {
                 MAX_EXAMPLE_BYTES.toLong(),
                 MAX_TOKENIZER_TRAINING_WORK / config.maxMerges.toLong()
             )
+        }
+        // Use the maximum vocabulary implied by maxMerges so admission cannot underestimate
+        // model memory merely because this corpus happens to produce fewer BPE merges.
+        val estimatedTrainingWorkingSetBytes = try {
+            KellvynMultiBlockTransformer.Config(
+                vocabularySize = BASE_VOCABULARY_SIZE + config.maxMerges + 1,
+                contextLength = config.contextLength,
+                embeddingSize = config.embeddingSize,
+                headCount = config.headCount,
+                feedForwardSize = config.feedForwardSize,
+                depth = config.depth,
+                seed = config.seed
+            ).estimatedTrainingWorkingSetBytes()
+        } catch (_: IllegalArgumentException) {
+            Long.MAX_VALUE
         }
 
         val buckets = mapOf(
@@ -322,6 +339,9 @@ internal object KellvynJsonlCorpusReader {
         if (targetUpperBound > trainTargetBudget) {
             reasons += "A amostra excederia o orçamento de passos antes do treinamento."
         }
+        if (estimatedTrainingWorkingSetBytes > config.maxTrainingWorkingSetBytes) {
+            reasons += "A configuração KN-004 excede o orçamento de memória antes da alocação do modelo."
+        }
         if (tokenizerWorkRejectedRecords > 0L) {
             reasons += "$tokenizerWorkRejectedRecords registros foram recusados pelo limite de processamento BPE por texto."
         }
@@ -344,6 +364,7 @@ internal object KellvynJsonlCorpusReader {
                 testCount >= minimumTestExamples &&
                 targetUpperBound <= trainTargetBudget &&
                 tokenizerTrainingBytes <= tokenizerTrainingBudget &&
+                estimatedTrainingWorkingSetBytes <= config.maxTrainingWorkingSetBytes &&
                 selectedBytes <= maxRetainedUtf8Bytes
 
         return Selection(
@@ -368,6 +389,8 @@ internal object KellvynJsonlCorpusReader {
                 selectedUtf8Bytes = selectedBytes,
                 selectedTokenizerTrainingBytes = tokenizerTrainingBytes,
                 tokenizerTrainingBudgetBytes = tokenizerTrainingBudget,
+                estimatedTrainingWorkingSetBytes = estimatedTrainingWorkingSetBytes,
+                trainingWorkingSetBudgetBytes = config.maxTrainingWorkingSetBytes,
                 trainingTargetTokenUpperBound = targetUpperBound,
                 readyForTraining = readyForTraining,
                 reasons = reasons
@@ -522,6 +545,7 @@ internal object KellvynJsonlCorpusReader {
 
     private const val MAX_JSONL_LINE_CHARS = 500_000
     private const val MAX_EXAMPLE_BYTES = 65_536
+    private const val BASE_VOCABULARY_SIZE = 256
     private const val MAX_STEPS_PER_EXAMPLE = 50_000L
     private const val MAX_TOKENIZER_TRAINING_WORK = 40_000_000L
     private val REQUIRED_FIELDS = setOf(
