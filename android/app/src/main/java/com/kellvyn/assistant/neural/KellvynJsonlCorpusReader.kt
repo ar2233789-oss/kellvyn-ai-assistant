@@ -159,7 +159,7 @@ internal object KellvynJsonlCorpusReader {
                 val allText = listOf(
                     id, prompt, completion, permission.name, licenseId, sourceReference, rightsEvidence
                 )
-                if (allText.any(KellvynTrainingInputGuard::containsSensitiveMaterial)) {
+                if (allText.any { KellvynTrainingInputGuard.containsSensitiveMaterial(it) }) {
                     sensitiveRecords++
                     continue
                 }
