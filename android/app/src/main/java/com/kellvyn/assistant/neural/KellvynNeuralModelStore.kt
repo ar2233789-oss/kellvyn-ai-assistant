@@ -153,6 +153,82 @@ internal class KellvynNeuralModelStore(
         null
     }
 
+    /** Saves KN-004 independently; existing KN-002/KN-003 bundles are never replaced. */
+    fun saveMultiBlock(result: KellvynMultiBlockTrainingResult) = synchronized(lock) {
+        val root = requireNotNull(prepareRoot())
+        val target = checkedChild(root, MULTIBLOCK_MODEL_FILE)
+        val temporary = checkedChild(root, MULTIBLOCK_TEMP_FILE)
+        val backup = checkedChild(root, MULTIBLOCK_BACKUP_FILE)
+
+        if (temporary.exists() && !temporary.delete()) {
+            error("Não foi possível remover o pacote KN-004 temporário anterior.")
+        }
+        FileOutputStream(temporary).use { output ->
+            KellvynMultiBlockCheckpointBundle.writeCheckpoint(result, output)
+            output.fd.sync()
+        }
+        check(
+            temporary.isFile &&
+                temporary.length() in 1..MAX_MULTIBLOCK_BUNDLE_BYTES.toLong()
+        ) { "O pacote KN-004 temporário ficou vazio ou excedeu o limite." }
+
+        if (backup.exists() && !backup.delete()) {
+            temporary.delete()
+            error("Não foi possível preparar o backup KN-004.")
+        }
+        if (target.exists() && !target.renameTo(backup)) {
+            temporary.delete()
+            error("Não foi possível preservar o último pacote KN-004 válido.")
+        }
+        if (!temporary.renameTo(target)) {
+            if (backup.exists()) backup.renameTo(target)
+            temporary.delete()
+            error("Não foi possível confirmar o novo pacote KN-004.")
+        }
+        if (backup.exists() && !backup.delete()) {
+            // New bundle is committed; a stale verified backup is safe to clean later.
+        }
+    }
+
+    /** Restores KN-004 only after checksum, model shapes and provenance manifest validate. */
+    fun loadMultiBlock(): KellvynRestoredMultiBlockBundle? = synchronized(lock) {
+        val root = prepareRoot(create = false) ?: return@synchronized null
+        val target = checkedChild(root, MULTIBLOCK_MODEL_FILE)
+        val backup = checkedChild(root, MULTIBLOCK_BACKUP_FILE)
+
+        if (target.isFile) {
+            try {
+                return@synchronized readMultiBlockBundle(target)
+            } catch (primaryError: Exception) {
+                if (!backup.isFile) throw primaryError
+                val restored = readMultiBlockBundle(backup)
+                val damaged = checkedChild(root, MULTIBLOCK_DAMAGED_FILE)
+                if (damaged.exists()) damaged.delete()
+                if (!target.renameTo(damaged)) return@synchronized restored
+                if (!backup.renameTo(target)) {
+                    damaged.renameTo(target)
+                    return@synchronized restored
+                }
+                damaged.delete()
+                return@synchronized restored
+            }
+        }
+        if (backup.isFile) {
+            val restored = readMultiBlockBundle(backup)
+            if (!backup.renameTo(target)) return@synchronized restored
+            return@synchronized restored
+        }
+        null
+    }
+
+    private fun readMultiBlockBundle(file: File): KellvynRestoredMultiBlockBundle {
+        require(
+            file.isFile &&
+                file.length() in 1..MAX_MULTIBLOCK_BUNDLE_BYTES.toLong()
+        ) { "O pacote KN-004 salvo está vazio ou excedeu o limite." }
+        return FileInputStream(file).use(KellvynMultiBlockCheckpointBundle::readCheckpoint)
+    }
+
     private fun readTransformerBundle(file: File): KellvynRestoredTransformerBundle {
         require(file.isFile && file.length() in 1..MAX_BUNDLE_BYTES.toLong()) {
             "O pacote Transformer salvo está vazio ou excedeu o limite."
@@ -163,12 +239,14 @@ internal class KellvynNeuralModelStore(
     fun exists(): Boolean = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized false
         checkedChild(root, MODEL_FILE).isFile || checkedChild(root, BACKUP_FILE).isFile ||
-            checkedChild(root, TRANSFORMER_MODEL_FILE).isFile || checkedChild(root, TRANSFORMER_BACKUP_FILE).isFile
+            checkedChild(root, TRANSFORMER_MODEL_FILE).isFile || checkedChild(root, TRANSFORMER_BACKUP_FILE).isFile ||
+            checkedChild(root, MULTIBLOCK_MODEL_FILE).isFile || checkedChild(root, MULTIBLOCK_BACKUP_FILE).isFile
     }
 
     fun delete() = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized
-        listOf(MODEL_FILE, TEMP_FILE, BACKUP_FILE, DAMAGED_FILE, TRANSFORMER_MODEL_FILE, TRANSFORMER_TEMP_FILE, TRANSFORMER_BACKUP_FILE, TRANSFORMER_DAMAGED_FILE).forEach { name ->
+        listOf(MODEL_FILE, TEMP_FILE, BACKUP_FILE, DAMAGED_FILE, TRANSFORMER_MODEL_FILE, TRANSFORMER_TEMP_FILE, TRANSFORMER_BACKUP_FILE, TRANSFORMER_DAMAGED_FILE, MULTIBLOCK_MODEL_FILE, MULTIBLOCK_TEMP_FILE,
+            MULTIBLOCK_BACKUP_FILE, MULTIBLOCK_DAMAGED_FILE).forEach { name ->
             val file = checkedChild(root, name)
             if (file.exists() && !file.delete()) {
                 error("Não foi possível remover o arquivo neural $name.")
