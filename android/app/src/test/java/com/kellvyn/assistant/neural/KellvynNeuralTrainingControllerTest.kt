@@ -102,6 +102,32 @@ class KellvynNeuralTrainingControllerTest {
     }
 
     @Test
+    fun auditJsonlIsReadOnlyAndDoesNotAllocateOrInstallTheModel() = runBlocking {
+        val source = (0 until 300).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
+        var inputClosed = false
+        val input = object : ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)) {
+            override fun close() {
+                inputClosed = true
+                super.close()
+            }
+        }
+        val report = KellvynNeuralTrainingController(store).auditJsonl(
+            input = input,
+            config = smallTrainingConfig(),
+            maxExamples = 300,
+            minimumTrainExamples = 100,
+            minimumValidationExamples = 20,
+            minimumTestExamples = 20
+        )
+
+        assertTrue(report.readyForTraining)
+        assertEquals(300L, report.validRecords)
+        assertEquals(300L, report.totalLines)
+        assertFalse(store.exists())
+        assertFalse(inputClosed)
+    }
+
+    @Test
     fun jsonlPreflightRejectsInsufficientPartitionsWithoutAllocatingOrInstallingModel() = runBlocking {
         val source = (0 until 10).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
