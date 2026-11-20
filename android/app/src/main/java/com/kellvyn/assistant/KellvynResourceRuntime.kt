@@ -207,5 +207,6 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
         private const val MEBIBYTE = 1024L * 1024L
         const val QUEUE_DRAIN_WORK_NAME = "kellvyn-automation-queue-drain"
         const val QUEUE_DRAIN_TAG = "kellvyn-automation-queue"
+        const val MAX_AUTOMATION_DELAY_MILLIS = 7L * 24L * 60L * 60L * 1_000L
     }
 }
