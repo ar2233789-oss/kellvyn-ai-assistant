@@ -287,6 +287,11 @@ internal class KellvynNeuralModelStore(
         const val TRANSFORMER_TEMP_FILE = "kellvyn-kn-003.bundle.tmp"
         const val TRANSFORMER_BACKUP_FILE = "kellvyn-kn-003.bundle.bak"
         const val TRANSFORMER_DAMAGED_FILE = "kellvyn-kn-003.bundle.damaged"
+        const val MULTIBLOCK_MODEL_FILE = "kellvyn-kn-004.bundle"
+        const val MULTIBLOCK_TEMP_FILE = "kellvyn-kn-004.bundle.tmp"
+        const val MULTIBLOCK_BACKUP_FILE = "kellvyn-kn-004.bundle.bak"
+        const val MULTIBLOCK_DAMAGED_FILE = "kellvyn-kn-004.bundle.damaged"
         const val MAX_BUNDLE_BYTES = 70 * 1024 * 1024
+        const val MAX_MULTIBLOCK_BUNDLE_BYTES = 136 * 1024 * 1024
     }
 }
