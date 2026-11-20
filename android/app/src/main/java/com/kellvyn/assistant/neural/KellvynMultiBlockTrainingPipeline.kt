@@ -118,11 +118,23 @@ internal object KellvynMultiBlockTrainingPipeline {
             require(sampleBytes in 2..MAX_EXAMPLE_BYTES.toLong()) {
                 "O exemplo KN-004 excede o limite individual de bytes."
             }
+            val sensitiveFields = listOf(
+                example.id,
+                example.prompt,
+                example.completion,
+                example.provenance.licenseId,
+                example.provenance.sourceReference,
+                example.provenance.rightsEvidence
+            )
+            val containsSensitiveMaterial = sensitiveFields.any {
+                KellvynTrainingInputGuard.containsSensitiveMaterial(it)
+            }
             require(
                 !containsSecretMaterial(example.prompt) &&
-                    !containsSecretMaterial(example.completion)
+                    !containsSecretMaterial(example.completion) &&
+                    !containsSensitiveMaterial
             ) {
-                "O exemplo KN-004 parece conter credenciais ou chave privada; foi recusado."
+                "O exemplo KN-004 contém credenciais, dados pessoais reconhecíveis ou metadados sensíveis; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_BYTES) {
