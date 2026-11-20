@@ -153,6 +153,35 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun refusesModelConfigurationsWhoseWorstCaseVocabularyExceedsMemoryBudget() {
+        val source = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+        val config = KellvynMultiBlockTrainingConfig(
+            contextLength = 256,
+            embeddingSize = 256,
+            headCount = 16,
+            feedForwardSize = 1_024,
+            depth = 8,
+            maxMerges = 0,
+            maxTrainingWorkingSetBytes = 16L * 1024L * 1024L
+        )
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            config = config,
+            maxExamples = 300,
+            minimumTrainExamples = 100,
+            minimumValidationExamples = 20,
+            minimumTestExamples = 20
+        )
+
+        assertFalse(result.report.readyForTraining)
+        assertTrue(
+            result.report.estimatedTrainingWorkingSetBytes >
+                result.report.trainingWorkingSetBudgetBytes
+        )
+        assertTrue(result.report.reasons.any { it.contains("orçamento de memória") })
+    }
+
+    @Test
     fun enforcesAggregateAndPerTextBpeWorkBeforeAllowingTraining() {
         val records = (0 until 300).map { jsonRecord(it) }.toMutableList()
         records += jsonRecord(
