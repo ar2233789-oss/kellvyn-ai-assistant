@@ -89,6 +89,7 @@ internal class KellvynAnimationStudio private constructor(
                     (column * timeline.width).toFloat(),
                     (row * timeline.height).toFloat()
                 )
+                canvas.clipRect(0f, 0f, timeline.width.toFloat(), timeline.height.toFloat())
                 canvas.drawRect(
                     0f,
                     0f,
