@@ -5,6 +5,8 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.io.ByteArrayOutputStream
 
 class KellvynMultiBlockTrainingPipelineTest {
     @Test
@@ -55,6 +57,35 @@ class KellvynMultiBlockTrainingPipelineTest {
         assertTrue(result.manifest.finalValidationLoss.isFinite())
         assertTrue(result.manifest.heldOutTestLoss.isFinite())
         assertFalse(KellvynMultiBlockTrainingQualityGate.evaluate(result.manifest).eligibleForProtocolBenchmark)
+    }
+
+    @Test
+    fun inferenceBundleRestoresFromVerifiedModelSliceWithoutAdamWState() {
+        val trained = KellvynMultiBlockTrainingPipeline.train(
+            examples = sampleExamples(),
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 48,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 8,
+                epochsPerExample = 1,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_850_003L
+        )
+        val bytes = ByteArrayOutputStream().also {
+            KellvynMultiBlockCheckpointBundle.writeCheckpoint(trained, it)
+        }.toByteArray()
+
+        val restored = KellvynMultiBlockCheckpointBundle.readInferenceCheckpoint(
+            ByteArrayInputStream(bytes)
+        )
+
+        assertEquals(trained.model.parameterFingerprint(), restored.model.parameterFingerprint())
+        assertFalse(restored.model.hasTrainingState())
+        assertEquals(trained.manifest.entries.map { it.id }, restored.manifest.entries.map { it.id })
     }
 
     @Test(expected = IllegalArgumentException::class)
