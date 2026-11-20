@@ -269,11 +269,27 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
-    fun refusesAStreamThatExceedsTheDeclaredByteLimit() {
-        val source = (0 until 3).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+    fun refusesAStreamThatExceedsTheDeclaredByteLimitWithoutReadingAnotherBuffer() {
+        val source = (0 until 3).joinToString("\n", postfix = "\n")
+            .toByteArray(Charsets.UTF_8)
+        var consumedBytes = 0
+        val input = object : ByteArrayInputStream(source) {
+            override fun read(): Int {
+                val value = super.read()
+                if (value >= 0) consumedBytes++
+                return value
+            }
+
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                val count = super.read(buffer, offset, length)
+                if (count > 0) consumedBytes += count
+                return count
+            }
+        }
+
         try {
             KellvynJsonlCorpusReader.read(
-                ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+                input,
                 maxExamples = 30,
                 maxSourceUtf8Bytes = 64L,
                 minimumTrainExamples = 1,
@@ -283,6 +299,7 @@ class KellvynJsonlCorpusReaderTest {
             throw AssertionError("O leitor não pode ultrapassar o limite de bytes da origem.")
         } catch (expected: IllegalArgumentException) {
             assertTrue(expected.message!!.contains("limite de leitura"))
+            assertTrue(consumedBytes <= 65)
         }
     }
 
