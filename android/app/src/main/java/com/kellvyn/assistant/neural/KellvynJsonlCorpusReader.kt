@@ -19,6 +19,11 @@ import java.util.PriorityQueue
  * logs raw records and does not close the caller-owned InputStream.
  */
 internal object KellvynJsonlCorpusReader {
+    data class LicenseCount(
+        val licenseId: String,
+        val records: Long
+    )
+
     data class Report(
         val sourceSha256: String,
         val sourceUtf8Bytes: Long,
@@ -47,6 +52,9 @@ internal object KellvynJsonlCorpusReader {
         val validTrainRecords: Long,
         val validValidationRecords: Long,
         val validTestRecords: Long,
+        val permissionCounts: Map<String, Long>,
+        val licenseCounts: List<LicenseCount>,
+        val licenseRecordsOutsideSummary: Long,
         val malformedRecords: Long,
         val sensitiveRecords: Long,
         val tokenizerWorkRejectedRecords: Long,
@@ -193,6 +201,9 @@ internal object KellvynJsonlCorpusReader {
         var validTrainRecords = 0L
         var validValidationRecords = 0L
         var validTestRecords = 0L
+        val permissionCounts = mutableMapOf<String, Long>()
+        val licenseCounts = linkedMapOf<String, Long>()
+        var licenseRecordsOutsideSummary = 0L
         var tokenizerWorkRejectedRecords = 0L
         var perExampleStepRejectedRecords = 0L
 
@@ -278,6 +289,16 @@ internal object KellvynJsonlCorpusReader {
                 KellvynTrainingSplit.TRAIN -> validTrainRecords++
                 KellvynTrainingSplit.VALIDATION -> validValidationRecords++
                 KellvynTrainingSplit.TEST -> validTestRecords++
+            }
+            val permissionName = record.provenance.permission.name
+            permissionCounts[permissionName] = (permissionCounts[permissionName] ?: 0L) + 1L
+            val licenseId = record.provenance.licenseId
+            if (licenseCounts.containsKey(licenseId)) {
+                licenseCounts[licenseId] = licenseCounts.getValue(licenseId) + 1L
+            } else if (licenseCounts.size < MAX_LICENSE_SUMMARY_ENTRIES) {
+                licenseCounts[licenseId] = 1L
+            } else {
+                licenseRecordsOutsideSummary++
             }
             val promptHash = sha256(normalizePrompt(record.prompt))
             val contentHash = sha256(record.prompt + "\u0000" + record.completion)
@@ -420,6 +441,11 @@ internal object KellvynJsonlCorpusReader {
                 validTrainRecords = validTrainRecords,
                 validValidationRecords = validValidationRecords,
                 validTestRecords = validTestRecords,
+                permissionCounts = permissionCounts.toSortedMap(),
+                licenseCounts = licenseCounts.entries
+                    .map { LicenseCount(it.key, it.value) }
+                    .sortedBy { it.licenseId },
+                licenseRecordsOutsideSummary = licenseRecordsOutsideSummary,
                 malformedRecords = malformedRecords,
                 sensitiveRecords = sensitiveRecords,
                 tokenizerWorkRejectedRecords = tokenizerWorkRejectedRecords,
@@ -587,6 +613,7 @@ internal object KellvynJsonlCorpusReader {
         }
     }
 
+    private const val MAX_LICENSE_SUMMARY_ENTRIES = 32
     private const val SPLIT_POLICY_VERSION = "sha256-normalized-prompt-80-10-10-v1"
     private const val MAX_JSONL_LINE_CHARS = 500_000
     private const val MAX_EXAMPLE_BYTES = 65_536
