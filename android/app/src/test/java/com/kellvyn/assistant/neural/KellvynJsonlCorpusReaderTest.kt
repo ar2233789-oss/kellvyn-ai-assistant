@@ -75,6 +75,22 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun rejectsPromptsThatNormalizeToEmptyText() {
+        val source = jsonRecord(702, prompt = "!?... —") + "\n"
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1L, result.report.malformedRecords)
+        assertEquals(0L, result.report.validRecords)
+        assertTrue(result.examples.isEmpty())
+    }
+
+    @Test
     fun rejectsDuplicateJsonObjectKeys() {
         val duplicateKeyLine = jsonRecord(701).replaceFirst(
             "{",
