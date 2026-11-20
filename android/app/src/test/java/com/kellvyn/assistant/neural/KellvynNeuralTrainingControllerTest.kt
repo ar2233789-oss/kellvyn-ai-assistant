@@ -5,9 +5,11 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.io.File
 import java.nio.file.Files
 
@@ -98,6 +100,63 @@ class KellvynNeuralTrainingControllerTest {
         assertNotNull(restored)
         assertEquals(previousFingerprint, restored!!.model.parameterFingerprint())
     }
+
+    @Test
+    fun jsonlPreflightRejectsInsufficientPartitionsWithoutAllocatingOrInstallingModel() = runBlocking {
+        val source = (0 until 10).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
+        val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
+            input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            config = smallTrainingConfig(),
+            maxExamples = 50,
+            minimumTrainExamples = 10,
+            minimumValidationExamples = 5,
+            minimumTestExamples = 5
+        )
+
+        assertFalse(result.selection.report.readyForTraining)
+        assertNull(result.training)
+        assertFalse(store.exists())
+        assertTrue(result.selection.report.sourceSha256.matches(Regex("[a-f0-9]{64}")))
+    }
+
+    @Test
+    fun jsonlPreflightFeedsOnlyItsBoundedSampleIntoTheExistingTrainingController() = runBlocking {
+        val source = (0 until 30).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
+        val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
+            input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            config = smallTrainingConfig(),
+            maxExamples = 50,
+            minimumTrainExamples = 10,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1,
+            createdAtMillis = 1_800_000_940_000L
+        )
+
+        assertTrue(result.selection.report.readyForTraining)
+        assertTrue(result.selection.report.selectedTrain >= 10)
+        assertTrue(result.selection.report.selectedValidation >= 1)
+        assertTrue(result.selection.report.selectedTest >= 1)
+        assertNotNull(result.training)
+        // The intentionally small context is rejected by the numeric gate; no checkpoint is installed.
+        assertFalse(result.training!!.installed)
+        assertFalse(store.exists())
+    }
+
+    private fun smallTrainingConfig() = KellvynMultiBlockTrainingConfig(
+        contextLength = 48,
+        embeddingSize = 8,
+        headCount = 2,
+        feedForwardSize = 12,
+        depth = 2,
+        seed = 20261120L,
+        maxMerges = 8,
+        epochsPerExample = 1,
+        maxTotalTrainingSteps = 10_000L,
+        weightDecay = 0.0f
+    )
+
+    private fun jsonlRecord(index: Int): String =
+        """{"id":"controller-corpus-$index","prompt":"Pergunta: diga o número $index.","completion":"A resposta é $index.","permission":"OWNER_CREATED","licenseId":"owner-created","sourceReference":"owner://controller-corpus/$index","rightsEvidence":"Texto sintético criado para teste local."}"""
 
     private fun sampleExamples() = listOf(
         instruction("trainer-train", "Pergunta: diga olá.", "Olá.", KellvynTrainingSplit.TRAIN),
