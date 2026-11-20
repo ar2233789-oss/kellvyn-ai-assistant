@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -26,9 +28,17 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 .map { it.name }
                 .toSet()
             assertEquals(
-                setOf("artifact_store_status", "artifact_list_task", "artifact_verify"),
+                setOf(
+                    "artifact_store_status", "artifact_list_task", "artifact_verify",
+                    "image_inspect", "image_resize"
+                ),
                 artifactToolNames
             )
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.RASTER_IMAGE_EDIT in it.capabilities
+            })
+            assertFalse(KellvynStudioCapability.IMAGE_GENERATION in registeredSpecs
+                .flatMap { it.capabilities }.toSet())
             assertEquals(
                 KellvynToolRisk.READ_ONLY,
                 registeredSpecs.single { it.name == KellvynInvisibleStudioCatalogTool.TOOL_NAME }.risk
@@ -159,7 +169,7 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
 
             // Only workspace mutations remain outside the specialist registry.
             assertEquals(
-                setOf("workspace_write_file", "workspace_delete_file", "wikipedia_search"),
+                setOf("workspace_write_file", "workspace_delete_file", "wikipedia_search", "image_resize"),
                 registeredSpecs
                     .filter { it.risk != KellvynToolRisk.READ_ONLY }
                     .map { it.name }
