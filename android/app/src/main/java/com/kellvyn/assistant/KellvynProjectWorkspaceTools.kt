@@ -384,8 +384,9 @@ internal object KellvynProjectWorkspaceTools {
                 KellvynToolRisk.DESTRUCTIVE -> approvals.authorizesDelete(arguments)
                 KellvynToolRisk.ARTIFACT_CREATE ->
                     KellvynStudioCapability.ARTIFACT_STORAGE in spec.capabilities &&
-                        arguments["artifact_id"]?.matches(Regex("[a-f0-9]{64}")) == true &&
-                        arguments["task_id"]?.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,95}")) == true
+                        arguments["task_id"]?.matches(Regex("[A-Za-z0-9][A-Za-z0-9._-]{0,95}")) == true &&
+                        (arguments["artifact_id"] == null ||
+                            arguments["artifact_id"]?.matches(Regex("[a-f0-9]{64}")) == true)
                 KellvynToolRisk.APPEND_ONLY_TASK_CREATE ->
                     spec.name == "automation_schedule_resource_snapshot" &&
                         KellvynStudioCapability.WORKFLOW_AUTOMATION in spec.capabilities &&
