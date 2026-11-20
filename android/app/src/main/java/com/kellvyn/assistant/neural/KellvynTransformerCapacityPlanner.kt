@@ -37,9 +37,7 @@ internal object KellvynTransformerCapacityPlanner {
         embeddingSize: Int,
         headCount: Int,
         feedForwardSize: Int,
-        layerCount: Int,
-        bytesPerWeight: Int = Float.SIZE_BYTES,
-        bytesPerKvValue: Int = Float.SIZE_BYTES
+        layerCount: Int
     ): Estimate {
         require(vocabularySize in 256..65_536)
         require(contextLength in 1..32_768)
@@ -48,8 +46,6 @@ internal object KellvynTransformerCapacityPlanner {
         require(embeddingSize % headCount == 0)
         require(feedForwardSize in 4..32_768)
         require(layerCount in 1..256)
-        require(bytesPerWeight in 1..8)
-        require(bytesPerKvValue in 1..8)
 
         val d = embeddingSize.toLong()
         val v = vocabularySize.toLong()
@@ -70,17 +66,17 @@ internal object KellvynTransformerCapacityPlanner {
             multiplyExact(layers, parametersPerLayer)
         )
 
-        val fp32WeightBytes = multiplyExact(parameterCount, bytesPerWeight.toLong())
+        val fp32WeightBytes = multiplyExact(parameterCount, Float.SIZE_BYTES.toLong())
         val fp32AdamMomentBytes = multiplyExact(
             multiplyExact(parameterCount, ADAM_MOMENT_COPIES.toLong()),
-            bytesPerWeight.toLong()
+            Float.SIZE_BYTES.toLong()
         )
         // K and V each contain [layers, context, embedding] values.
         val kvValues = multiplyExact(
             multiplyExact(2L, multiplyExact(layers, context)),
             d
         )
-        val fp32KvCacheBytes = multiplyExact(kvValues, bytesPerKvValue.toLong())
+        val fp32KvCacheBytes = multiplyExact(kvValues, Float.SIZE_BYTES.toLong())
 
         return Estimate(
             vocabularySize = vocabularySize,
