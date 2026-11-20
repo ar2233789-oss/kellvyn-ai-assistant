@@ -108,6 +108,108 @@ class KellvynNeuralModelStoreTest {
         assertFalse(backup.exists())
     }
 
+    @Test
+    fun savesAndRestoresKn004BundleWithoutReplacingKn003() {
+        val transformer = trainTransformerSample()
+        val multiBlock = trainMultiBlockSample(seed = 8401L)
+
+        store.saveTransformer(transformer)
+        store.saveMultiBlock(multiBlock)
+
+        val restoredTransformer = store.loadTransformer()
+        val restoredMultiBlock = store.loadMultiBlock()
+
+        assertNotNull(restoredTransformer)
+        assertNotNull(restoredMultiBlock)
+        assertEquals(
+            transformer.model.parameterFingerprint(),
+            restoredTransformer!!.model.parameterFingerprint()
+        )
+        assertEquals(
+            multiBlock.model.parameterFingerprint(),
+            restoredMultiBlock!!.model.parameterFingerprint()
+        )
+        assertEquals(multiBlock.manifest, restoredMultiBlock.manifest)
+        assertEquals(2, restoredMultiBlock.model.config.depth)
+    }
+
+    @Test
+    fun verifiedKn004BackupRecoversWhenCurrentBundleIsCorrupted() {
+        val first = trainMultiBlockSample(seed = 8402L)
+        val second = trainMultiBlockSample(seed = 8403L)
+        store.saveMultiBlock(first)
+        store.saveMultiBlock(second)
+
+        val current = File(root, "kellvyn-kn-004.bundle")
+        val backup = File(root, "kellvyn-kn-004.bundle.bak")
+        assertTrue(current.isFile)
+        assertTrue(backup.isFile)
+        val corrupted = current.readBytes()
+        corrupted[20] = (corrupted[20].toInt() xor 0x40).toByte()
+        current.writeBytes(corrupted)
+
+        val restored = store.loadMultiBlock()
+
+        assertNotNull(restored)
+        assertEquals(first.model.parameterFingerprint(), restored!!.model.parameterFingerprint())
+        assertTrue(current.isFile)
+        assertFalse(backup.exists())
+    }
+
+    private fun trainMultiBlockSample(seed: Long) = KellvynMultiBlockTrainingPipeline.train(
+        examples = listOf(
+            multiBlockInstruction(
+                "kn004-train-$seed",
+                "Pergunta: diga olá.",
+                "Olá.",
+                KellvynTrainingSplit.TRAIN
+            ),
+            multiBlockInstruction(
+                "kn004-validation-$seed",
+                "Pergunta: diga bom dia.",
+                "Bom dia.",
+                KellvynTrainingSplit.VALIDATION
+            ),
+            multiBlockInstruction(
+                "kn004-test-$seed",
+                "Pergunta: termine.",
+                "Até logo.",
+                KellvynTrainingSplit.TEST
+            )
+        ),
+        config = KellvynMultiBlockTrainingConfig(
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            depth = 2,
+            seed = seed,
+            maxMerges = 8,
+            epochsPerExample = 1,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        ),
+        createdAtMillis = 1_800_000_840_000L + seed
+    )
+
+    private fun multiBlockInstruction(
+        id: String,
+        prompt: String,
+        completion: String,
+        split: KellvynTrainingSplit
+    ) = KellvynInstructionTrainingExample(
+        id = id,
+        prompt = prompt,
+        completion = completion,
+        split = split,
+        provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kn004-store-test/$id",
+            rightsEvidence = "Conteúdo sintético criado para teste de persistência KN-004."
+        )
+    )
+
     private fun trainTransformerSample() = KellvynTransformerTrainingPipeline.train(
         examples = listOf(
             transformerInstruction("train", "Pergunta: diga olá.", "Olá.", KellvynTrainingSplit.TRAIN),
