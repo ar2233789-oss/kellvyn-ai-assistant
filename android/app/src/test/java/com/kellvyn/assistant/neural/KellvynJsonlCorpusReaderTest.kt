@@ -58,7 +58,7 @@ class KellvynJsonlCorpusReaderTest {
 
     @Test
     fun decodesEscapedQuotesNewlinesAndUnicodeWithoutCorruptingPortugueseText() {
-        val prompt = "Pergunta:\n \"Qual é o símbolo?\” 🌱"
+        val prompt = "Pergunta:\n \"Qual é o símbolo?\" 🌱"
         val completion = "A resposta contém \"texto\" e acentuação: ação."
         val source = jsonRecord(700, completion = completion, prompt = prompt)
         val result = KellvynJsonlCorpusReader.read(
