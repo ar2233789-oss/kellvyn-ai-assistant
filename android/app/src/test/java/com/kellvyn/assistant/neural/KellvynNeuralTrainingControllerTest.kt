@@ -113,10 +113,10 @@ class KellvynNeuralTrainingControllerTest {
             minimumTestExamples = 5
         )
 
-        assertFalse(result.selection.report.readyForTraining)
+        assertFalse(result.audit.readyForTraining)
         assertNull(result.training)
         assertFalse(store.exists())
-        assertTrue(result.selection.report.sourceSha256.matches(Regex("[a-f0-9]{64}")))
+        assertTrue(result.audit.sourceSha256.matches(Regex("[a-f0-9]{64}")))
     }
 
     @Test
@@ -132,10 +132,10 @@ class KellvynNeuralTrainingControllerTest {
             createdAtMillis = 1_800_000_940_000L
         )
 
-        assertTrue(result.selection.report.readyForTraining)
-        assertTrue(result.selection.report.selectedTrain >= 10)
-        assertTrue(result.selection.report.selectedValidation >= 1)
-        assertTrue(result.selection.report.selectedTest >= 1)
+        assertTrue(result.audit.readyForTraining)
+        assertTrue(result.audit.selectedTrain >= 10)
+        assertTrue(result.audit.selectedValidation >= 1)
+        assertTrue(result.audit.selectedTest >= 1)
         assertNotNull(result.training)
         // The intentionally small context is rejected by the numeric gate; no checkpoint is installed.
         assertFalse(result.training!!.installed)
