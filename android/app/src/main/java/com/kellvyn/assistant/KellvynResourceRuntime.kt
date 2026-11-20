@@ -103,7 +103,7 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     suspend fun scheduledTaskStatus(taskId: String): KellvynQueuedTask? =
         withContext(Dispatchers.IO) { taskQueue.get(taskId) }
 
-    /** Only QUEUED tasks can be cancelled; running work is left to finish or cooperatively stop. */
+    /** Only QUEUED or WAITING_RESOURCES tasks can be cancelled; running work is never interrupted. */
     suspend fun cancelQueuedScheduledTask(taskId: String): Boolean =
         taskScheduler.cancelQueuedTask(taskId)
 
