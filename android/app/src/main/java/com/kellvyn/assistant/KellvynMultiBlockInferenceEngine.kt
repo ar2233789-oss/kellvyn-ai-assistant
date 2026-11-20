@@ -48,7 +48,10 @@ internal class KellvynMultiBlockInferenceEngine(
     ): KellvynModelDecision = withContext(Dispatchers.Default) {
         val coroutine = currentCoroutineContext()
         coroutine.ensureActive()
-        val prompt = buildBoundedPrompt(history, availableTools)
+        // The inference adapter enforces its own final prompt budget even when a
+        // caller configured a larger registry shortlist.
+        val promptTools = availableTools.take(config.maxToolsInPrompt)
+        val prompt = buildBoundedPrompt(history, promptTools)
         val prefix = tokenizer.encode(prompt)
         val promptBudget = model.config.contextLength - config.maxGenerationTokens
         require(prefix.isNotEmpty() && prefix.size <= promptBudget) {
