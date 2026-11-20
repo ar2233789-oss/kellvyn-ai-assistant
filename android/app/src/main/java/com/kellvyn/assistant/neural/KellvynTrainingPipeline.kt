@@ -171,8 +171,15 @@ internal object KellvynTrainingPipeline {
             require(sampleBytes in 2..MAX_DOCUMENT_BYTES.toLong()) {
                 "O exemplo " + example.id + " excede o limite individual de bytes."
             }
-            require(!containsSecretMaterial(example.prompt) && !containsSecretMaterial(example.completion)) {
-                "O exemplo " + example.id + " parece conter credenciais ou chave privada; foi recusado."
+            require(
+                !containsSecretMaterial(example.prompt) &&
+                    !containsSecretMaterial(example.completion) &&
+                    !containsSecretMaterial(example.provenance.licenseId) &&
+                    !containsSecretMaterial(example.provenance.sourceReference) &&
+                    !containsSecretMaterial(example.provenance.rightsEvidence)
+            ) {
+                "O exemplo " + example.id +
+                    " contém credenciais em conteúdo ou proveniência; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
@@ -324,8 +331,13 @@ internal object KellvynTrainingPipeline {
             require(size in 1..MAX_DOCUMENT_BYTES) {
                 "O documento ${document.id} excede o limite individual de bytes."
             }
-            require(!containsSecretMaterial(document.text)) {
-                "O documento ${document.id} parece conter credenciais ou chave privada; foi recusado."
+            require(
+                !containsSecretMaterial(document.text) &&
+                    !containsSecretMaterial(document.provenance.licenseId) &&
+                    !containsSecretMaterial(document.provenance.sourceReference) &&
+                    !containsSecretMaterial(document.provenance.rightsEvidence)
+            ) {
+                "O documento ${document.id} contém credenciais em conteúdo ou proveniência; foi recusado."
             }
             totalBytes += size.toLong()
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
