@@ -48,6 +48,18 @@ class KellvynNeuralBehaviorBenchmarkTest {
         assertTrue(report.reasons.size >= 1)
     }
 
+    @Test
+    fun emptyGenerationCountsAsFailureInsteadOfAbortingTheWholeBenchmark() {
+        val report = KellvynNeuralBehaviorBenchmark.evaluate(
+            modelFingerprint = FINGERPRINT,
+            examples = examples(20)
+        ) { "" }
+
+        assertFalse(report.eligibleForIntegrationReview)
+        assertEquals(0.0, report.exactMatchRate, 0.0)
+        assertEquals(0.0, report.meanTokenF1, 0.0)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsValidationOrTrainingExamples() {
         KellvynNeuralBehaviorBenchmark.evaluate(

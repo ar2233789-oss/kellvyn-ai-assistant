@@ -354,13 +354,25 @@ internal class KellvynNeuralChatRuntime(
                 } else {
                     "${example.prompt.trim()} Resposta:"
                 }
-                generateContinuation(
-                    prompt = prompt,
-                    maxNewTokens = maxNewTokens,
-                    sampling = KellvynSamplingConfig(temperature = 0.1f, topK = 1, topP = 1.0f),
-                    randomSeed = example.id.hashCode().toLong(),
-                    cancellationCheck = cancellationCheck
-                )
+                try {
+                    generateContinuation(
+                        prompt = prompt,
+                        maxNewTokens = maxNewTokens,
+                        sampling = KellvynSamplingConfig(
+                            temperature = 0.1f,
+                            topK = 1,
+                            topP = 1.0f
+                        ),
+                        randomSeed = example.id.hashCode().toLong(),
+                        cancellationCheck = cancellationCheck
+                    )
+                } catch (error: IllegalStateException) {
+                    if (error.message?.contains("não gerou texto") == true) {
+                        ""
+                    } else {
+                        throw error
+                    }
+                }
             }
             if (report.eligibleForIntegrationReview) {
                 behaviorApprovedFingerprint = fingerprint
