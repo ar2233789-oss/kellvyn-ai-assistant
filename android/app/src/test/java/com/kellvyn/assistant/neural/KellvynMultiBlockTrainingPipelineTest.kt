@@ -134,6 +134,15 @@ class KellvynMultiBlockTrainingPipelineTest {
         KellvynMultiBlockTrainingPipeline.train(examples)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesBrazilianPhoneNumbersInTrainingCompletion() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(
+            completion = "Telefone para contato: +55 (91) 0000-0000"
+        )
+        KellvynMultiBlockTrainingPipeline.train(examples)
+    }
+
     @Test
     fun trainingWorkingSetAboveBudgetIsRejectedBeforeModelAllocation() {
         val error = try {
