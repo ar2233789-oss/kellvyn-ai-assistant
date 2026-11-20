@@ -434,7 +434,16 @@ internal class KellvynAttentionLanguageModel private constructor(
         require(tokenizer.vocabularySize == config.vocabularySize) {
             "O vocabulário do tokenizer não corresponde ao modelo."
         }
-        return trainTokens(tokenizer.encode(text), epochs, learningRate, weightDecay)
+        val textTokens = tokenizer.encode(text)
+        val endTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
+            "O tokenizer não reservou o token de encerramento."
+        }
+        return trainTokens(
+            textTokens + intArrayOf(endTokenId),
+            epochs,
+            learningRate,
+            weightDecay
+        )
     }
 
     fun evaluateLoss(tokenIds: IntArray): Double {
@@ -465,18 +474,27 @@ internal class KellvynAttentionLanguageModel private constructor(
         return bestToken
     }
 
-    /** Greedy autoregressive generation for early KN-002 experiments. */
-    fun generate(prefixTokenIds: IntArray, maxNewTokens: Int): IntArray {
+    /** Greedy autoregressive generation; a supplied EOS control token is not returned. */
+    fun generate(
+        prefixTokenIds: IntArray,
+        maxNewTokens: Int,
+        endTokenId: Int? = null
+    ): IntArray {
         require(prefixTokenIds.isNotEmpty())
         require(prefixTokenIds.size <= MAX_GENERATION_INPUT_TOKENS) {
             "Prefixo de geração acima do limite."
         }
         require(prefixTokenIds.all { it in 0 until config.vocabularySize })
         require(maxNewTokens in 0..4096)
+        require(endTokenId == null || endTokenId in 0 until config.vocabularySize)
         val output = prefixTokenIds.toMutableList()
         repeat(maxNewTokens) {
             val context = output.takeLast(config.contextLength).toIntArray()
-            output += predictNext(context)
+            val nextToken = predictNext(context)
+            if (endTokenId != null && nextToken == endTokenId) {
+                return output.toIntArray()
+            }
+            output += nextToken
         }
         return output.toIntArray()
     }
@@ -487,7 +505,13 @@ internal class KellvynAttentionLanguageModel private constructor(
         maxNewTokens: Int
     ): String {
         require(tokenizer.vocabularySize == config.vocabularySize)
-        return tokenizer.decode(generate(tokenizer.encode(prefix), maxNewTokens))
+        return tokenizer.decode(
+            generate(
+                tokenizer.encode(prefix),
+                maxNewTokens,
+                endTokenId = tokenizer.endOfSequenceTokenId
+            )
+        )
     }
 
     /** Compares analytic gradients to central finite differences without changing weights. */
