@@ -26,6 +26,11 @@ class KellvynTrainingInputGuardTest {
                 "Telefone: 91 98765-4321"
             )
         )
+        assertTrue(
+            KellvynTrainingInputGuard.containsSensitiveMaterial(
+                "WhatsApp sem máscara: 91987654321"
+            )
+        )
     }
 
     @Test
