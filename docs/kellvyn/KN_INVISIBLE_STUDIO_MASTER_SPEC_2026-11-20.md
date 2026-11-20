@@ -90,6 +90,7 @@ O KN recebe apenas descrições compactas e referências aos artefatos. Não car
 - `KellvynPersistentTaskScheduler` e `KellvynAutomationDrainWorker`: fila durável e drenagem WorkManager de tarefas leves/padrão; o Worker não assume tarefas HEAVY.
 - `KellvynStudioModuleManager`: manifestos, construção lazy de módulos, leases, timeout, admissão de memória e descarte de módulos ociosos.
 - `KellvynArtifactStore` (fundação adicionada nesta branch): armazenamento privado endereçado por SHA-256, objetos binários deduplicados, registros vinculados a tarefa/produtor, gravação atômica e leitura/cópia verificadas. Ainda precisa ser ligado aos motores que produzirão imagens, cenas, animações, áudio, vídeo e builds.
+- Ferramentas centrais `artifact_store_status`, `artifact_list_task` e `artifact_verify`: consulta de metadados e integridade sem despejar binários no contexto da inteligência.
 - `studio_capability_inventory`: ferramenta somente leitura que distingue módulos lazy registrados, ferramentas centrais registradas e capacidades ausentes; não declara execução ou verificação sem evidência.
 - `ProjectWorkspaceStore` e ferramentas de workspace: listar projetos/arquivos, ler trechos, escrever e excluir sob aprovação exata.
 - Memória local cifrada, checkpoints de tarefa, traces com metadados e snapshots de recursos.

@@ -42,14 +42,22 @@ class KellvynInvisibleStudioCatalogToolTest {
             risk = KellvynToolRisk.REVERSIBLE_WRITE,
             capabilities = setOf(KellvynStudioCapability.CODE_EDITING)
         )
+        val artifactSpec = KellvynToolSpec(
+            name = "artifact_verify",
+            description = "Verifica metadados e SHA-256 de um artefato.",
+            requiredArguments = setOf("artifact_id"),
+            capabilities = setOf(KellvynStudioCapability.ARTIFACT_STORAGE)
+        )
         val result = KellvynInvisibleStudioCatalogTool.create(
             moduleManager = manager(),
-            coreToolSpecs = listOf(coreSpec)
+            coreToolSpecs = listOf(coreSpec, artifactSpec)
         ).execute(emptyMap())
 
         assertTrue(result.success)
         assertTrue(result.content.contains("CODE_EDITING status=REGISTERED_CORE"))
+        assertTrue(result.content.contains("ARTIFACT_STORAGE status=REGISTERED_CORE"))
         assertTrue(result.content.contains("workspace_write_file"))
+        assertTrue(result.content.contains("artifact_verify"))
         assertTrue(result.content.contains("SCENE_3D status=NOT_REGISTERED"))
     }
 

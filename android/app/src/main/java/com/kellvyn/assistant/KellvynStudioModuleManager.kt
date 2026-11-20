@@ -45,7 +45,8 @@ internal enum class KellvynStudioCapability {
     GAME_INTERACTION,
     APP_CONTROL,
     SCREEN_CAPTURE,
-    CODE_EXECUTION
+    CODE_EXECUTION,
+    ARTIFACT_STORAGE
 }
 
 internal enum class KellvynStudioPermission {

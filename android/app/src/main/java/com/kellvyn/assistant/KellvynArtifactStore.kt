@@ -15,6 +15,13 @@ import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
 
+internal data class KellvynArtifactStoreSnapshot(
+    val storedBytes: Long,
+    val recordCount: Int,
+    val maxArtifactBytes: Long,
+    val maxStoreBytes: Long
+)
+
 /** Small immutable reference returned to the KN; binary bytes remain outside model context. */
 internal data class KellvynArtifactRef(
     val id: String,
@@ -195,6 +202,21 @@ internal class KellvynArtifactStore(
 
     /** Counts unique stored binary bytes, excluding task metadata and temporary files. */
     fun storedBytes(): Long = synchronized(lock) { storedBytesInternal() }
+
+    /** A bounded metadata-only snapshot for the KN; no file paths or binary bytes are exposed. */
+    fun snapshot(): KellvynArtifactStoreSnapshot = synchronized(lock) {
+        val count = if (!recordsDirectory.isDirectory) 0 else {
+            recordsDirectory.listFiles()?.count {
+                it.isFile && it.name.endsWith(RECORD_EXTENSION)
+            } ?: 0
+        }
+        KellvynArtifactStoreSnapshot(
+            storedBytes = storedBytesInternal(),
+            recordCount = count,
+            maxArtifactBytes = maxArtifactBytes,
+            maxStoreBytes = maxStoreBytes
+        )
+    }
 
     private fun writeRecordAtomically(ref: KellvynArtifactRef) {
         val destination = recordFile(ref.id)
