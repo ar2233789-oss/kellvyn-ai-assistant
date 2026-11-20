@@ -37,6 +37,32 @@ class KellvynAttentionLanguageModelTest {
     }
 
     @Test
+    fun instructionTrainingLearnsEosAndGenerationStopsBeforeTheControlToken() {
+        val promptText = "Pergunta: finalize a resposta."
+        val tokenizer = KellvynBpeTokenizer.train(listOf(promptText), maxMerges = 8)
+        val model = KellvynAttentionLanguageModel.createForTokenizer(
+            tokenizer = tokenizer,
+            contextLength = 32,
+            embeddingSize = 8,
+            seed = 4108L
+        )
+        val prompt = tokenizer.encode(promptText)
+        val eos = requireNotNull(tokenizer.endOfSequenceTokenId)
+
+        model.trainCompletion(
+            promptTokenIds = prompt,
+            completionTokenIds = intArrayOf(eos),
+            epochs = 400,
+            learningRate = 0.01f,
+            weightDecay = 0.0f
+        )
+
+        assertEquals(eos, model.predictNext(prompt))
+        assertEquals(prompt.toList(), model.generate(prompt, 8, endTokenId = eos).toList())
+        assertEquals(promptText, model.generateText(promptText, tokenizer, 8))
+    }
+
+    @Test
     fun analyticGradientsMatchFiniteDifferences() {
         val model = KellvynAttentionLanguageModel.create(
             KellvynAttentionLanguageModel.Config(
