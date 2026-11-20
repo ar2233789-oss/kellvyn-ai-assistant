@@ -240,3 +240,71 @@ Leia este documento inteiro e trate-o como especificação obrigatória do KN-00
 - Agent Mode e alterações em vários arquivos, execução de build e verificação em dispositivo: https://developer.android.com/studio/gemini/agent-mode
 - Recursos de IA, contexto persistente via AGENTS.md, busca web e interação com dispositivo: https://developer.android.com/studio/gemini/features
 - Anexar arquivos com `@` na conversa: https://developer.android.com/studio/gemini/attach-file
+
+
+## 11. Evidência técnica e refinamentos da pesquisa (20/11/2026)
+
+Esta seção complementa os critérios acima e deve ser tratada como referência para decisões de implementação. Os trabalhos citados não fornecem pesos nem checkpoints para o KN.
+
+### 11.1 Agent Mode do Android Studio como executor de código
+
+A documentação atual do Android Studio descreve Agent Mode como capaz de trabalhar em tarefas multi-etapas, alterar vários arquivos, executar builds, instalar em emulador/dispositivo conectado, observar screenshots e consultar Logcat. As mudanças ficam visíveis no Changes drawer para revisão e aceitação/reversão.
+
+Procedimento recomendado neste projeto:
+1. usar uma única conversa de Agent Mode dedicada exclusivamente ao KN;
+2. anexar este documento e os arquivos neurais apontados na seção 8;
+3. pedir primeiro o relatório curto do estado do código e a Fase A/B, sem misturar UI;
+4. deixar as alterações visíveis no Changes drawer e revisar diffs antes de aceitar;
+5. exigir execução observável dos testes e build; em dispositivo conectado, recolher logs e métricas de desempenho.
+
+O Agent Mode é uma ferramenta de programação, não deve virar dependência em tempo de execução do app. Não adicionar SDK de Gemini, credenciais ou chamadas remotas ao APK por causa dessa tarefa.
+
+### 11.2 Gradientes: não aceitar só uma diferença numérica
+
+A validação de gradientes deve comparar derivadas analíticas e derivadas numéricas por diferença central:
+
+`g_num = (L(theta + eps) - L(theta - eps)) / (2 * eps)`
+
+Critérios adicionais:
+- verificar parâmetros das camadas inferiores, intermediárias e superiores separadamente;
+- cobrir Q, K, V, O, gamma/beta de ambas as normalizações, gate, up, down, embedding, saída e bias;
+- selecionar coordenadas não nulas e coordenadas esperadas como zero, para capturar caminhos ausentes;
+- testar pelo menos duas posições/contextos distintos, não apenas um exemplo;
+- executar com seed fixa e perda determinística;
+- testar a sensibilidade à escolha de `eps`. Como o modelo usa `FloatArray`, arredondamento em precisão simples pode contaminar diferenças muito pequenas; não copiar cegamente tolerâncias pensadas para double precision;
+- para um modelo-teste minúsculo, considerar uma implementação de referência em Double ou uma comparação independente de gradiente, apenas em testes. Não trocar a matemática de produção sem medir o custo.
+
+A documentação de gradcheck do PyTorch descreve diferença central e comparação entre gradientes analíticos e numéricos, e alerta que a precisão/tolerância depende do tipo numérico. A ideia relevante é o método de validação, não adicionar PyTorch ou Python como dependência do app.
+
+### 11.3 RoPE e máscara causal
+
+RoPE aplica rotação dependente da posição a Q e K, de modo que a similaridade de atenção incorpora informação relativa. No backward, a derivada precisa aplicar a transformação inversa correspondente às rotações usadas no forward. Verifique coordenadas, ordem de pares, offsets absolutos, janela deslizante e posição após truncamento do cache.
+
+Testes obrigatórios:
+- Q e K recebem rotação, V não recebe;
+- gradiente de Q/K passa pela rotação inversa;
+- mesma sequência completa e incremental gera logits equivalentes;
+- nenhuma posição consulta tokens futuros;
+- ao deslizar a janela, a posição RoPE permanece absoluta e não é reiniciada em zero.
+
+### 11.4 Otimizações de memória — ordem correta
+
+**Primeiro:** implementar e validar a versão densa multi-head de duas camadas, com shapes simples e backprop completo.
+
+**Depois:** avaliar GQA nativamente. GQA permite que grupos de cabeças de consulta compartilhem cabeças K/V e reduz o cache em relação ao multi-head convencional. No KN isso exigirá uma dimensão/contagem separada para cabeças KV, mapeamento explícito de grupos e gradientes acumulados para cada K/V compartilhado. Não adotar antes do baseline porque complica a implementação e a interpretação dos testes. Não usar a receita de uptraining do artigo nem qualquer checkpoint externo: somente a ideia arquitetural pode ser estudada.
+
+**Não transplantar FlashAttention literalmente para Kotlin/CPU.** O artigo original obtém eficiência com tiling e redução de tráfego entre níveis de memória específicos de GPU (HBM/SRAM). Isso não implica que o kernel seja mais rápido no CPU do Poco F6. Só considerar otimização equivalente depois de perfis reais e backend compatível.
+
+**LiteRT é possibilidade posterior de runtime**, não substituto do KN. A documentação atual recomenda a API CompiledModel em LiteRT 2.x para execução acelerada em plataformas edge; qualquer avaliação futura deve converter/carregar exclusivamente pesos próprios do KN e provar equivalência de logits, cache, tokenizer e checkpoint. Não adicionar LiteRT nesta fase se a versão Kotlin/CPU ainda não tiver referência correta e mensurada.
+
+### 11.5 Decisão de projeto consolidada
+
+A prioridade permanece:
+1. correção do forward/backward de 2 camadas;
+2. teste numérico por camada e teste do cache;
+3. checkpoint versionado e migração compatível;
+4. treino e avaliação comportamental;
+5. perfil real no Android;
+6. só então GQA, kernels/runtime acelerado e modalidades de áudio/imagem/vídeo.
+
+Aumentar a quantidade de parâmetros ou adicionar modalidades antes dessa sequência pode aumentar custo sem criar competência real.
