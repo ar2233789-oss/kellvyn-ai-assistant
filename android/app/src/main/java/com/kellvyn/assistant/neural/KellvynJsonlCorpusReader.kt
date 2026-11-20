@@ -419,7 +419,13 @@ internal object KellvynJsonlCorpusReader {
                 )
             }
             consumedAny = true
-            val newlineIndex = chunk.indexOf('\n', 0, count)
+            var newlineIndex = -1
+            for (index in 0 until count) {
+                if (chunk[index] == '\n') {
+                    newlineIndex = index
+                    break
+                }
+            }
             val lineCharacterCount = if (newlineIndex >= 0) newlineIndex else count
 
             if (!exceededLimit) {
