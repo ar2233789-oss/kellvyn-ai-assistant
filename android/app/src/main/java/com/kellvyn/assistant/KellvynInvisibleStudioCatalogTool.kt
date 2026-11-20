@@ -64,7 +64,7 @@ internal object KellvynInvisibleStudioCatalogTool {
                     it == KellvynStudioCapability.AGENT_EVALUATION
             }
 
-        return buildString {
+        val body = buildString {
             appendLine("CATÁLOGO DO LABORATÓRIO INVISÍVEL — SOMENTE LEITURA")
             appendLine("módulos_registrados=${manifests.size}")
             appendLine("ferramentas_núcleo=${core.size}")
@@ -143,6 +143,10 @@ internal object KellvynInvisibleStudioCatalogTool {
             appendLine("NOT_REGISTERED significa que não foi encontrado módulo nem ferramenta para a capacidade.")
             appendLine("Este inventário não executa ferramentas, não verifica dependências instaladas e não prova funcionamento.")
             appendLine("Execução=NOT_CHECKED; verificação independente=NOT_VERIFIED.")
-        }.take(MAX_OUTPUT_CHARS)
+        }
+        if (body.length <= MAX_OUTPUT_CHARS) return body
+        val notice = "\n[INVENTÁRIO TRUNCADO POR LIMITE DE CONTEXTO]\n" +
+            "Execução=NOT_CHECKED; verificação independente=NOT_VERIFIED."
+        return body.take(MAX_OUTPUT_CHARS - notice.length) + notice
     }
 }
