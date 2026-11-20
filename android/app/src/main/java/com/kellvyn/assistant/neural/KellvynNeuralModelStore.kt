@@ -190,6 +190,22 @@ internal class KellvynNeuralModelStore(
         }
     }
 
+    /**
+     * Installs a KN-004 checkpoint only after the numeric quality gate approves it.
+     * A rejected experiment never touches the active bundle or its recovery backup.
+     */
+    fun saveMultiBlockIfQualityApproved(
+        result: KellvynMultiBlockTrainingResult
+    ): KellvynMultiBlockTrainingQualityGate.Report = synchronized(lock) {
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(result.manifest)
+        require(quality.eligibleForProtocolBenchmark) {
+            "Checkpoint KN-004 recusado pelo gate numérico: " +
+                quality.reasons.joinToString(" ")
+        }
+        saveMultiBlock(result)
+        quality
+    }
+
     /** Restores KN-004 only after checksum, model shapes and provenance manifest validate. */
     fun loadMultiBlock(): KellvynRestoredMultiBlockBundle? = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized null
