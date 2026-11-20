@@ -490,9 +490,23 @@ internal object KellvynJsonlCorpusReader {
         }
 
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
-            val count = super.read(buffer, offset, length)
-            if (count > 0) this.count(count.toLong())
-            return count
+            require(offset >= 0 && length >= 0 && length <= buffer.size - offset)
+            if (length == 0) return 0
+
+            val remaining = maximumBytes - bytesRead
+            val allowedLength = minOf(length.toLong(), remaining).toInt()
+            if (allowedLength > 0) {
+                val readCount = super.read(buffer, offset, allowedLength)
+                if (readCount > 0) count(readCount.toLong())
+                return readCount
+            }
+
+            // Probe exactly one byte so an exactly-sized file can still end normally.
+            // If data remains, count() raises before the byte can reach the JSON decoder.
+            val probe = super.read()
+            if (probe < 0) return -1
+            count(1L)
+            return -1
         }
 
         private fun count(amount: Long) {
