@@ -94,7 +94,7 @@ internal class KellvynMultiBlockTransformer private constructor(
             val attentionMaps = layers * headCount.toLong() *
                 contextLength.toLong() * contextLength.toLong() * 4L
             val activationBuffers = layers * contextLength.toLong() *
-                (24L * embedding + 4L * feedForward) * 4L
+                (48L * embedding + 8L * feedForward) * 4L
             val kvBuffers = 2L * layers * contextLength.toLong() * embedding * 4L
             return weightsMomentsAndGradients + attentionMaps + activationBuffers + kvBuffers
         }
