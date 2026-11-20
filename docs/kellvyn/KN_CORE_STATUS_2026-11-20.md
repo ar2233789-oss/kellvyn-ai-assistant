@@ -87,3 +87,7 @@ Foram acrescentados testes específicos para sampler determinístico, top-k/top-
 O gate numérico de loss apenas autoriza o próximo exame. Ele não libera sozinho o runtime para responder. Foi adicionado `KellvynNeuralBehaviorBenchmark`, que exige pelo menos 20 exemplos TEST, IDs e prompts distintos, proveniência completa, correspondência exata normalizada mínima de 60% e F1 médio de tokens mínimo de 80%.
 
 O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manifesto e se o hash de prompt+resposta coincide com o checkpoint. Só executa o benchmark com esses exemplos. A aprovação fica vinculada ao fingerprint dos pesos carregados; recarregar ou descarregar o modelo remove a aprovação. Sem o gate numérico e o comportamental, a geração normal permanece bloqueada. A aprovação permite apenas um ensaio controlado de inferência, não declara o cérebro pronto para produção.
+
+## Pico de memória ao carregar checkpoints
+
+A leitura de inferência agora identifica os intervalos dos blocos dentro do pacote verificado e passa o intervalo do modelo diretamente ao leitor KN-004. O leitor calcula SHA-256 sobre o intervalo e usa `ByteArrayInputStream(bytes, offset, length)`, sem criar uma segunda cópia do bloco de pesos (que pode chegar a 128 MiB). Apenas tokenizer e manifesto, ambos pequenos, são copiados. Foi adicionado teste de checkpoint com prefixo/sufixo para validar leitura por offset e ausência dos estados AdamW na inferência.

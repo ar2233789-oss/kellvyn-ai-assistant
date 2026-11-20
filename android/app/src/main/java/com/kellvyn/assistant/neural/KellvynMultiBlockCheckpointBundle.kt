@@ -87,15 +87,28 @@ internal object KellvynMultiBlockCheckpointBundle {
         val data = DataInputStream(ByteArrayInputStream(bytes, 0, payloadSize))
         require(data.readInt() == MAGIC) { "O pacote não pertence ao KN-004." }
         require(data.readInt() == VERSION) { "Versão do pacote KN-004 não suportada." }
-        val tokenizerBytes = readBlob(data, MAX_TOKENIZER_BYTES, "tokenizer")
-        val modelBytes = readBlob(data, MAX_MODEL_BYTES, "modelo")
-        val manifestBytes = readBlob(data, MAX_MANIFEST_BYTES, "manifesto")
+        val tokenizerRange = readBlobRange(data, payloadSize, MAX_TOKENIZER_BYTES, "tokenizer")
+        val modelRange = readBlobRange(data, payloadSize, MAX_MODEL_BYTES, "modelo")
+        val manifestRange = readBlobRange(data, payloadSize, MAX_MANIFEST_BYTES, "manifesto")
         require(data.available() == 0) { "O pacote KN-004 contém campos extras." }
 
+        // Tokenizer and manifest are small; copy them. The potentially 128 MiB model is
+        // read directly from its verified slice of the outer bundle for inference.
+        val tokenizerBytes = bytes.copyOfRange(
+            tokenizerRange.offset, tokenizerRange.offset + tokenizerRange.length
+        )
+        val manifestBytes = bytes.copyOfRange(
+            manifestRange.offset, manifestRange.offset + manifestRange.length
+        )
         val tokenizer = KellvynBpeTokenizer.readCheckpoint(ByteArrayInputStream(tokenizerBytes))
         val model = if (inferenceOnly) {
-            KellvynMultiBlockTransformer.readInferenceCheckpointBytes(modelBytes)
+            KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+                bytes, modelRange.offset, modelRange.length
+            )
         } else {
+            val modelBytes = bytes.copyOfRange(
+                modelRange.offset, modelRange.offset + modelRange.length
+            )
             KellvynMultiBlockTransformer.readCheckpointBytes(modelBytes)
         }
         val manifest = decodeManifest(manifestBytes)
@@ -235,12 +248,20 @@ internal object KellvynMultiBlockCheckpointBundle {
         data.write(bytes)
     }
 
-    private fun readBlob(data: DataInputStream, maximum: Int, label: String): ByteArray {
+    private data class BlobRange(val offset: Int, val length: Int)
+
+    private fun readBlobRange(
+        data: DataInputStream,
+        payloadSize: Int,
+        maximum: Int,
+        label: String
+    ): BlobRange {
         val size = data.readInt()
         require(size in 1..maximum) { "Bloco $label do pacote KN-004 inválido." }
-        val bytes = ByteArray(size)
-        data.readFully(bytes)
-        return bytes
+        val offset = payloadSize - data.available()
+        require(size <= data.available()) { "Bloco $label do pacote KN-004 truncado." }
+        require(data.skipBytes(size) == size) { "Não foi possível avançar o bloco $label." }
+        return BlobRange(offset, size)
     }
 
     private fun writeString(data: DataOutputStream, value: String, maximum: Int) {

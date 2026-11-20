@@ -251,6 +251,30 @@ class KellvynMultiBlockTransformerTest {
         )
     }
 
+    @Test
+    fun inferenceCheckpointCanBeReadFromAnOffsetWithoutCopyingTheModelSlice() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val prefix = ByteArray(17) { 0x5A.toByte() }
+        val suffix = ByteArray(13) { 0x6B.toByte() }
+        val wrapped = ByteArrayOutputStream().apply {
+            write(prefix)
+            write(checkpoint)
+            write(suffix)
+        }.toByteArray()
+
+        val restored = KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+            bytes = wrapped,
+            offset = prefix.size,
+            length = checkpoint.size
+        )
+
+        assertFalse(restored.hasTrainingState())
+        assertEquals(model.parameterFingerprint(), restored.parameterFingerprint())
+        assertEquals(model.config, restored.config)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun checkpointRejectsCorruptedPayload() {
         val tokenizer = smallTokenizer()

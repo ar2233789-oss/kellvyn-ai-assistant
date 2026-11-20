@@ -264,40 +264,52 @@ internal class KellvynMultiBlockTransformer private constructor(
         }
 
         fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readCheckpointBytes(readBounded(input), retainOptimizerState = true)
+            readCheckpointBytes(readBounded(input))
 
         /**
          * Loads only trained weights for inference. AdamW moments are checksum-verified
          * with the rest of the checkpoint, then skipped without allocating FloatArrays.
          */
         fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readCheckpointBytes(readBounded(input), retainOptimizerState = false)
+            readInferenceCheckpointBytes(readBounded(input))
 
         /** Internal bundle reader avoids copying a model byte array that is already bounded. */
         internal fun readCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
-            readCheckpointBytes(bytes, retainOptimizerState = true)
+            readCheckpointBytes(bytes, 0, bytes.size, retainOptimizerState = true)
 
         /** Loads verified trained weights without allocating a second full checkpoint byte array. */
         internal fun readInferenceCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
-            readCheckpointBytes(bytes, retainOptimizerState = false)
+            readInferenceCheckpointBytes(bytes, 0, bytes.size)
+
+        /** Reads a checkpoint directly from a verified bundle slice without copying its model payload. */
+        internal fun readInferenceCheckpointBytes(
+            bytes: ByteArray,
+            offset: Int,
+            length: Int
+        ): KellvynMultiBlockTransformer =
+            readCheckpointBytes(bytes, offset, length, retainOptimizerState = false)
 
         private fun readCheckpointBytes(
             bytes: ByteArray,
+            offset: Int,
+            length: Int,
             retainOptimizerState: Boolean
         ): KellvynMultiBlockTransformer {
-            require(bytes.size in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES) {
-                "Checkpoint KN-004 vazio, truncado ou acima do limite."
+            require(offset >= 0 && length in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES)
+            require(offset <= bytes.size - length) {
+                "O intervalo do checkpoint KN-004 está fora do pacote."
             }
-            val payloadSize = bytes.size - CHECKSUM_BYTES
-            val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
+            val payloadSize = length - CHECKSUM_BYTES
+            val checksumOffset = offset + payloadSize
+            val storedDigest = bytes.copyOfRange(checksumOffset, offset + length)
             val digestEngine = MessageDigest.getInstance("SHA-256")
-            digestEngine.update(bytes, 0, payloadSize)
+            digestEngine.update(bytes, offset, payloadSize)
             val digest = digestEngine.digest()
             require(MessageDigest.isEqual(storedDigest, digest)) {
                 "A integridade do checkpoint KN-004 não confere."
             }
 
-            val data = DataInputStream(ByteArrayInputStream(bytes, 0, payloadSize))
+            val data = DataInputStream(ByteArrayInputStream(bytes, offset, payloadSize))
             require(data.readInt() == CHECKPOINT_MAGIC) {
                 "Checkpoint não pertence ao Transformer KN-004."
             }
