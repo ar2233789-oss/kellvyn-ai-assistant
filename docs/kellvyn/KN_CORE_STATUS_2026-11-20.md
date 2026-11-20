@@ -80,3 +80,5 @@ Foram adicionados testes para:
 - **Leitura de checkpoint:** a validação SHA-256 atualiza o digest diretamente sobre o array de bytes e usa uma visão limitada do payload, sem copiar o payload completo. O bundle entrega o bloco de pesos ao leitor KN-004 diretamente, evitando mais uma cópia integral do checkpoint durante a abertura. Os estados AdamW continuam verificados e ignorados no modo de inferência.
 
 Foram acrescentados testes específicos para sampler determinístico, top-k/top-p e repetição; quality gate e gap de generalização; bloqueio por orçamento de memória; carregamento sem estados AdamW; e comportamento do runtime quando não há checkpoint ou quando o checkpoint ainda não passou pelo gate.
+
+- **Instalação controlada:** `KellvynNeuralTrainingController` executa o treino em `Dispatchers.IO`, propaga cancelamento e só grava o novo bundle se o quality gate aprovar. Treinos cancelados ou reprovados não substituem um checkpoint existente. A função recebe exemplos e proveniência já preparados; ela não busca dados na rede nem inventa corpus.
