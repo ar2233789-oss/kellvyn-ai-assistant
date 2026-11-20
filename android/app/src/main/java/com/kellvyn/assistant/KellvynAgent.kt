@@ -1180,7 +1180,9 @@ internal enum class KellvynToolRisk {
     NETWORK_READ,
     REVERSIBLE_WRITE,
     DEVICE_CONTROL,
-    DESTRUCTIVE
+    DESTRUCTIVE,
+    /** Creates a new immutable private artifact; never overwrites or deletes workspace files. */
+    ARTIFACT_CREATE
 }
 
 internal enum class KellvynToolArgumentType {
