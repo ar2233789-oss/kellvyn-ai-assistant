@@ -9,5 +9,8 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep native inference lifecycle and model-download validation in the Android brain layer, separate from MainActivity's approved layout, so brain corrections cannot redesign the interface.
-- Pin the native model to an immutable upstream revision and validate exact size, SHA-256 and resumed ranges; keep the pure download policy covered by Android unit tests before APK packaging.
+- Keep the native KN inference lifecycle separate from MainActivity's approved layout; intelligence changes must not redesign the interface.
+- The only conversational brain is the original, centrally controlled KN model. Never download, load, bundle, import, fine-tune, or fall back to third-party language-model weights, checkpoints, adapters, or hosted inference.
+- Do not restore or reintroduce the deleted Gemma/LiteRT web preview runtime. The Lovable web preview must state that KN inference is unavailable until the native KN runtime passes its gates; do not silently substitute another model.
+- Preserve the Android Studio agent's existing work. Before changing neural/runtime/pipeline/store/test files, inspect the current branch HEAD, diff, and hashes; do not overwrite unreviewed changes.
+- Preserve the approved MainActivity/layout, menus, animations, effects and interface-lock files.
