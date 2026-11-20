@@ -27,7 +27,7 @@ internal class KellvynNeuralTrainingController(
     )
 
     data class CorpusOutcome(
-        val selection: KellvynJsonlCorpusReader.Selection,
+        val audit: KellvynJsonlCorpusReader.Report,
         val training: Outcome?
     )
 
@@ -43,6 +43,8 @@ internal class KellvynNeuralTrainingController(
         samplingSeed: Long = config.seed,
         maxExamples: Int = 1_000,
         maxRetainedUtf8Bytes: Long = 480_000L,
+        maxSourceUtf8Bytes: Long = 512L * 1024L * 1024L,
+        maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
         minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
@@ -54,6 +56,8 @@ internal class KellvynNeuralTrainingController(
             samplingSeed = samplingSeed,
             maxExamples = maxExamples,
             maxRetainedUtf8Bytes = maxRetainedUtf8Bytes,
+            maxSourceUtf8Bytes = maxSourceUtf8Bytes,
+            maxLines = maxLines,
             minimumTrainExamples = minimumTrainExamples,
             minimumValidationExamples = minimumValidationExamples,
             minimumTestExamples = minimumTestExamples,
@@ -62,7 +66,7 @@ internal class KellvynNeuralTrainingController(
         trainingContext.ensureActive()
         if (!selection.report.readyForTraining) {
             return@withContext CorpusOutcome(
-                selection = selection,
+                audit = selection.report,
                 training = null
             )
         }
@@ -71,7 +75,7 @@ internal class KellvynNeuralTrainingController(
             config = config,
             createdAtMillis = createdAtMillis
         )
-        CorpusOutcome(selection = selection, training = outcome)
+        CorpusOutcome(audit = selection.report, training = outcome)
     }
 
     suspend fun trainAndInstall(
