@@ -1,6 +1,8 @@
 package com.kellvyn.assistant
 
-/** Model-facing workflow controls are restricted to an internal read-only resource probe. */
+import kotlinx.coroutines.CancellationException
+
+/** Model-facing workflow controls are restricted to one internal read-only resource probe. */
 internal object KellvynAutomationTools {
     private const val MAX_DELAY_MILLIS = 7L * 24L * 60L * 60L * 1_000L
 
@@ -78,10 +80,12 @@ internal object KellvynAutomationTools {
                         append("payload=HIDDEN")
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível consultar a tarefa: " +
+                    "Não foi possível consultar a tarefa: "
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
@@ -127,10 +131,12 @@ internal object KellvynAutomationTools {
                     "Tarefa agendada.\ntask_id=$taskId\nhandler=resource_snapshot_probe\n" +
                         "delay_ms=$delay\npayload=FIXED_READ_ONLY_PROBE"
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível agendar a tarefa: " +
+                    "Não foi possível agendar a tarefa: "
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
@@ -142,7 +148,7 @@ internal object KellvynAutomationTools {
     ) = object : KellvynAgentTool {
         override val spec = KellvynToolSpec(
             name = "automation_cancel_queued_task",
-            description = "Cancela uma tarefa somente se ela ainda estiver QUEUED. Não interrompe trabalhos já iniciados.",
+            description = "Cancela uma tarefa somente se ela ainda estiver aguardando (QUEUED ou WAITING_RESOURCES). Não interrompe trabalhos já iniciados.",
             requiredArguments = setOf("task_id"),
             risk = KellvynToolRisk.CANCEL_QUEUED_TASK,
             timeoutMs = 5_000L,
@@ -162,10 +168,12 @@ internal object KellvynAutomationTools {
                     if (cancelled) "Tarefa cancelada antes do início."
                     else "A tarefa não existe ou já foi iniciada; nenhum trabalho em execução foi interrompido."
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível cancelar a tarefa: " +
+                    "Não foi possível cancelar a tarefa: "
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
