@@ -75,6 +75,43 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun reportsPermissionAndLicenseCompositionWithoutRetainingRawCorpusText() {
+        val lines = listOf(
+            jsonRecord(
+                710,
+                permission = "PUBLIC_DOMAIN",
+                licenseId = "public-domain"
+            ),
+            jsonRecord(
+                711,
+                permission = "PERMISSIVE_LICENSE",
+                licenseId = "CC0-1.0"
+            ),
+            jsonRecord(
+                712,
+                permission = "EXPLICIT_LICENSE",
+                licenseId = "CC-BY-4.0"
+            )
+        )
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(lines.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1L, result.report.permissionCounts["PUBLIC_DOMAIN"])
+        assertEquals(1L, result.report.permissionCounts["PERMISSIVE_LICENSE"])
+        assertEquals(1L, result.report.permissionCounts["EXPLICIT_LICENSE"])
+        assertEquals(
+            setOf("public-domain", "CC0-1.0", "CC-BY-4.0"),
+            result.report.licenseCounts.map { it.licenseId }.toSet()
+        )
+        assertEquals(0L, result.report.licenseRecordsOutsideSummary)
+    }
+
+    @Test
     fun decodesEscapedQuotesNewlinesAndUnicodeWithoutCorruptingPortugueseText() {
         val prompt = "Pergunta:\n \"Qual é o símbolo?\" 🌱"
         val completion = "A resposta contém \"texto\" e acentuação: ação."
@@ -428,14 +465,16 @@ class KellvynJsonlCorpusReaderTest {
     private fun jsonRecord(
         index: Int,
         completion: String = "A resposta para o número $index é $index.",
-        prompt: String = "Pergunta: diga o número $index."
+        prompt: String = "Pergunta: diga o número $index.",
+        permission: String = "OWNER_CREATED",
+        licenseId: String = "owner-created"
     ): String {
         val fields = linkedMapOf(
             "id" to "ptbr-sample-$index",
             "prompt" to prompt,
             "completion" to completion,
-            "permission" to "OWNER_CREATED",
-            "licenseId" to "owner-created",
+            "permission" to permission,
+            "licenseId" to licenseId,
             "sourceReference" to "owner://jsonl-test/$index",
             "rightsEvidence" to "Texto sintético criado para teste local."
         )
