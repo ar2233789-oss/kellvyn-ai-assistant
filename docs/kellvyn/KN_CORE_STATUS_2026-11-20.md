@@ -186,3 +186,12 @@ Nenhum corpus foi baixado, importado ou treinado. A decisão é deliberada: tama
    Referência: https://dados.gov.br/
 
 **Decisão da etapa:** nenhum dataset remoto aprovado. Prioridade imediata para o próximo estágio: criar corpus autoral/sintético em português com autoria clara, ou auditar conjuntos públicos registro a registro. O limite experimental atual de 500 KB continua insuficiente para pré-treinar um modelo generalista; não aumentá-lo sem pipeline de streaming, avaliação de dados, orçamento de memória/tempo e plano de escala. Esta triagem é técnica, não aconselhamento jurídico.
+
+
+## Evidência de CI após triagem de dados — 20/11/2026
+
+No commit de código `28c134c36b0c5604f7760b4a839eedd0df56fcc1`:
+- Build APK [44692023327](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44692023327), job `136139814823`: `runner_id=0`, sem steps e sem logs.
+- Laboratório [44692023238](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44692023238): Android `136139814525` e Web `136139815318` sem steps/logs; diff `136139832873` ignorado.
+
+Falha ocorreu antes de checkout/Gradle/JUnit/Bun/emulador. A causa exata continua sem confirmação. O SHA documental seguinte é `1b44ec56f6d1a317e5779cc16e9e3df642da5bb0`.
