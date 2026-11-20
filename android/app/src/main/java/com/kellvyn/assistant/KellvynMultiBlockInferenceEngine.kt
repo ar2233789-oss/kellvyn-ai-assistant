@@ -58,19 +58,18 @@ internal class KellvynMultiBlockInferenceEngine(
         val eos = requireNotNull(tokenizer.endOfSequenceTokenId) {
             "O tokenizer KN-004 não possui token EOS dedicado."
         }
-        val rollingContext = prefix.toMutableList()
+        val session = model.newGenerationSession(prefix)
         val generated = ArrayList<Int>(config.maxGenerationTokens)
         var terminated = false
         for (index in 0 until config.maxGenerationTokens) {
             coroutine.ensureActive()
-            val context = rollingContext.takeLast(model.config.contextLength).toIntArray()
-            val token = model.predictNext(context)
+            val token = session.predictNext()
             if (token == eos) {
                 terminated = true
                 break
             }
             generated += token
-            rollingContext += token
+            session.appendToken(token)
         }
         coroutine.ensureActive()
         if (!terminated) {
