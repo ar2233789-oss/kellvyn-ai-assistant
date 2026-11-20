@@ -424,6 +424,12 @@ internal class KellvynRuntime(context: Context) {
             neuralModelStore.loadMultiBlock()
         }
 
+    /** Loads the verified KN-004 weights for inference without the AdamW training arrays. */
+    suspend fun loadOwnMultiBlockModelForInference(): KellvynRestoredMultiBlockBundle? =
+        withContext(Dispatchers.IO) {
+            neuralModelStore.loadMultiBlockForInference()
+        }
+
     /**
      * Creates a strict KN-004 inference adapter for controlled benchmarks only.
      * MainActivity.isReady() remains false until the full behavioral/device gates pass.
@@ -431,7 +437,7 @@ internal class KellvynRuntime(context: Context) {
     suspend fun createOwnMultiBlockInferenceEngine(
         config: KellvynMultiBlockInferenceEngine.Config? = null
     ): KellvynMultiBlockInferenceEngine? {
-        val bundle = loadOwnMultiBlockModel() ?: return null
+        val bundle = loadOwnMultiBlockModelForInference() ?: return null
         val contextLength = bundle.model.config.contextLength
         if (contextLength < 128) return null
         val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
