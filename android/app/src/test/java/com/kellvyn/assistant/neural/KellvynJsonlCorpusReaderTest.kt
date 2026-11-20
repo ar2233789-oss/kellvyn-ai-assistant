@@ -101,6 +101,33 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun enforcesAggregateAndPerTextBpeWorkBeforeAllowingTraining() {
+        val records = (0 until 300).map { jsonRecord(it) }.toMutableList()
+        records += jsonRecord(
+            9999,
+            prompt = "X".repeat(10_000),
+            completion = "Resposta curta."
+        )
+        val config = KellvynMultiBlockTrainingConfig(maxMerges = 4_096)
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(records.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8)),
+            config = config,
+            maxExamples = 300,
+            minimumTrainExamples = 100,
+            minimumValidationExamples = 20,
+            minimumTestExamples = 20
+        )
+
+        assertTrue(result.report.readyForTraining)
+        assertTrue(result.report.selectedTrain >= 100)
+        assertTrue(
+            result.report.selectedTokenizerTrainingBytes * config.maxMerges.toLong() <=
+                40_000_000L
+        )
+        assertTrue(result.report.reasons.any { it.contains("processamento BPE por texto") })
+    }
+
+    @Test
     fun rejectsSensitiveAndMalformedRecordsWithoutRetainingTheirText() {
         val lines = (0 until 300).map { jsonRecord(it) }.toMutableList()
         lines += jsonRecord(
