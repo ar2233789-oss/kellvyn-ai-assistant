@@ -75,6 +75,28 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun boundsLicenseSummaryToThirtyTwoDistinctIdentifiers() {
+        val lines = (0 until 33).map { index ->
+            jsonRecord(
+                730 + index,
+                permission = "PUBLIC_DOMAIN",
+                licenseId = "public-domain-$index"
+            )
+        }
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(lines.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8)),
+            maxExamples = 60,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(32, result.report.licenseCounts.size)
+        assertEquals(1L, result.report.licenseRecordsOutsideSummary)
+        assertEquals(33L, result.report.permissionCounts["PUBLIC_DOMAIN"])
+    }
+
+    @Test
     fun reportsPermissionAndLicenseCompositionWithoutRetainingRawCorpusText() {
         val lines = listOf(
             jsonRecord(
