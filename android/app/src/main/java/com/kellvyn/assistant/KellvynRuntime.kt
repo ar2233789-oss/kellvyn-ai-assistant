@@ -67,6 +67,9 @@ internal class KellvynRuntime(context: Context) {
             KellvynCodeNavigationStudio.definition(projectWorkspace)
         )
         resourceRuntime.studioModules.registerIfAbsent(
+            KellvynImageStudio.definition(appContext, resourceRuntime.artifacts)
+        )
+        resourceRuntime.studioModules.registerIfAbsent(
             KellvynSecurityAuditStudio.definition(projectWorkspace)
         )
         resourceRuntime.studioModules.registerIfAbsent(
