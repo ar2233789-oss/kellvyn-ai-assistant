@@ -25,7 +25,7 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
             assertNotNull(tool)
             assertEquals(KellvynToolRisk.READ_ONLY, tool!!.spec.risk)
             assertEquals(
-                setOf(KellvynStudioCapability.ANDROID_BUILD),
+                setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS),
                 tool.spec.capabilities
             )
 
