@@ -1116,6 +1116,7 @@ internal data class KellvynAgentConfig(
         require(maxDelegationContextChars in 0..8_000)
         require(maxDelegationTimeoutMs > 0)
         require(maxContextChars in 256..200_000)
+        require(maxToolsInModelPrompt in 1..16)
         require(maxSkillContextChars <= maxContextChars)
     }
 }
