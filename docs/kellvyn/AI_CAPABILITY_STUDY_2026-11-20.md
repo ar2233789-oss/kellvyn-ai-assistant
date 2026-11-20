@@ -269,3 +269,107 @@ Este estudo é uma síntese documental e uma orientação de engenharia, não im
 - Android AccessibilityService: https://developer.android.com/guide/topics/ui/accessibility/service
 - Android MediaProjection: https://developer.android.com/media/grow/media-projection
 - Android background tasks: https://developer.android.com/develop/background-work/background-tasks
+
+
+## 11. Atualização da pesquisa com documentação oficial adicional — 20/11/2026
+
+### Android Studio: o ponto mais importante para preservar a evolução existente
+
+Em 28/10/2026, Android Studio Rabbit 2 passou a oferecer **Bring Your Own Agent (BYOA)**: mais de 40 agentes compatíveis podem ser escolhidos no próprio Android Studio, incluindo Claude Agent, Codex, Junie e Google Antigravity. Esses agentes recebem acesso às ferramentas Android Studio, incluindo Emulator, Build Systems e Logcat, além do gerenciador de Android Skills. Isso significa que o progresso visto no Android Studio pode envolver um agente ACP externo usando o ambiente de desenvolvimento da IDE; não se deve presumir que o executor seja necessariamente o Gemini nativo.
+
+O Gemini Agent Mode também documenta ciclo de plano → seleção de ferramentas → ação → retorno/avaliação, com aprovações e threads paralelas; as skills oficiais são carregadas sob demanda para não ocupar o contexto imediato. Para a Kellvyn, o aprendizado é: manter a IA externa como ambiente de execução/engenharia enquanto aproveitamos o diff e as provas; não reescrever o trabalho dela nem confundir a IDE com o cérebro KN.
+
+Fontes:
+- https://developer.android.com/blog/posts/ai-agents-android-studio-integration
+- https://developer.android.com/studio/gemini/agent-mode
+- https://developer.android.com/studio/gemini/skills
+- https://developer.android.com/studio/run
+
+### Lovable: ciclo completo e sincronização Git
+
+A documentação atual distingue três modos:
+- Chat: conversar e discutir, sem alterar código;
+- Plan: investigar o projeto e escrever um plano estruturado para revisão/edição/aprovação antes de escrever código;
+- Build: executar as alterações, explorar a codebase, editar múltiplos arquivos e verificar o resultado.
+
+O Browser Testing atua em navegador virtual real, com cliques, formulários, navegação, screenshots, console/network logs, erros de runtime e tamanhos de tela. A sincronização GitHub é bidirecional e permite branches, PRs, revisão e trabalho em IDE externa.
+
+**Tradução KN:** separar investigação, plano aprovado, patch e prova; preservar a possibilidade de usar branch/diff; o browser test é útil para a prévia web, mas não substitui build Android, emulador nativo ou Poco F6.
+
+Fontes:
+- https://docs.lovable.dev/features/plan-mode
+- https://docs.lovable.dev/features/agent-mode
+- https://docs.lovable.dev/features/browser-testing
+- https://docs.lovable.dev/integrations/github
+
+### Replit: limite importante do App Testing
+
+O Replit Agent atual documenta Plan Mode, modos Lite/Economy/Power, testes e checkpoints. Porém, a própria documentação do App Testing lista suporte para aplicativos web JavaScript Full Stack e Python Streamlit. Portanto, o replay/browser testing do Replit é uma referência para validar fluxos de web apps, não uma prova de que ele consiga testar um APK Android nativo sem ferramentas Android próprias.
+
+Fontes:
+- https://docs.replit.com/pt/references/agent/overview
+- https://docs.replit.com/pt/references/agent/plan-mode
+- https://docs.replit.com/pt/references/agent/app-testing
+- https://docs.replit.com/pt/references/version-control/checkpoints-and-rollbacks
+
+### Claude Code e Codex: padrões úteis para o KN
+
+Claude Code documenta MCP para conexão com ferramentas externas, hooks determinísticos que podem bloquear/validar ações, Skills reutilizáveis e checkpoints/rewind. Codex documenta Skills como diretórios versionados de instruções/arquivos de apoio, além de function calling, shell, computer use e sandbox. Computer use exige um driver fornecido pela aplicação, estado de sessão preservado, capturas de tela de retorno, permissões, limites e verificação do resultado real.
+
+**Tradução KN:** usar Skills para procedimentos operacionais carregados sob demanda; hooks/guards para validações determinísticas fora do modelo; tool registry com permissões e schemas; executor de computador que devolve screenshot/estado para o próximo ciclo; não depender de serviços/API hospedados para o modo offline.
+
+Fontes:
+- https://support.claude.com/pt/articles/14554922-faq-do-claude-code
+- https://developers.openai.com/api/docs/guides/tools-skills
+- https://developers.openai.com/api/docs/guides/tools-computer-use
+
+### Nano Banana: identificar a versão real, não usar um nome de marketing como API
+
+A página Google DeepMind atualmente apresenta a família com Nano Banana 2 Lite, Nano Banana 2 e Nano Banana Pro. A tabela da Gemini API identifica:
+- `gemini-3.1-flash-image` como Nano Banana 2;
+- `gemini-3.1-flash-lite-image` como Nano Banana 2 Lite;
+- versões Pro com capacidades/condições diferentes.
+
+A API é remota, com cobrança por tokens/imagem conforme resolução e modalidade. A tabela oficial consultada não oferece nível gratuito para esses modelos de imagem no endpoint de API. Isso reforça que Nano Banana é referência/conector online opcional, não motor offline nem cérebro KN.
+
+Fontes:
+- https://deepmind.google/models/gemini-image/
+- https://ai.google.dev/gemini-api/docs/pricing
+
+### SIMA 2 e Genie/Project Genie: separar pesquisa de ferramenta disponível
+
+SIMA 2 demonstra percepção visual, instruções de linguagem, raciocínio e ações em jogos 3D; a publicação também declara limitações em tarefas longas, memória curta e precisão de controles de baixo nível. É uma pesquisa limitada, não uma biblioteca Android pronta.
+
+Project Genie, segundo a página oficial de ajuda consultada, é um protótipo de pesquisa com acesso por assinaturas Google AI Ultra e lista de espera/rollout para Pro. A página identifica latência e controle imperfeito como limitações conhecidas. É referência para arquitetura de mundos e loops interativos, não um motor local incluível no APK.
+
+Fontes:
+- https://deepmind.google/blog/sima-2-an-agent-that-plays-reasons-and-learns-with-you-in-virtual-3d-worlds/
+- https://support.google.com/labs/answer/16875695
+
+### Música: atualização de versão
+
+A documentação Eleven Music informa que `music_v1` será removido em 31/01/2027 e recomenda `music_v2_5`. A geração permite controlar gênero, estrutura, voz/instrumental e editar seções. A Music API exige plano pago. Portanto, ela é uma referência/conector remoto opcional; o primeiro conjunto offline de Kellvyn deve priorizar edição, mixagem, conversão, MIDI e arranjo simples, sem prometer geração neural musical avançada local.
+
+Fonte:
+- https://elevenlabs.io/docs/overview/capabilities/music
+
+## 12. Princípios que passam a ser gates obrigatórios do laboratório
+
+1. **Não mexer no código neural do Android Studio antes de reconciliar o HEAD, o diff, os testes e os arquivos que o agente já modificou.**
+2. Registrar hash e commit-base dos arquivos neural, runtime, pipeline, store, tokenizer, inferência e testes antes de cada etapa.
+3. Planejar com base em estado observado; não inferir progresso por texto de conversa nem por nome de branch.
+4. Toda alteração deve ficar numa branch isolada; nenhuma promoção para `main` sem autorização do proprietário.
+5. Distinguir ferramenta detectada, ferramenta disponível, ferramenta executada e ferramenta validada.
+6. Ferramentas de mídia e automação são adaptadores subordinados ao mesmo KN; não introduzir cérebros separados.
+7. Modelo local/remoto de referência dentro de ferramenta de desenvolvimento não se converte em modelo-base do KN. A proibição de pesos de terceiros como cérebro do produto permanece absoluta.
+8. Para cada ferramenta, registrar versão, origem, licença/termos, custos, dependências de rede, limites de execução e requisitos de memória/CPU/GPU/bateria.
+9. A oficina deve carregar módulos sob demanda e liberar recursos ao terminar; não manter todos os motores pesados em RAM.
+10. Build, testes unitários, testes instrumentados, instalação, execução no emulador e execução no Poco F6 são gates distintos.
+
+## 13. Estado desta atualização
+
+- Pesquisa documental comparativa ampliada e registrada neste arquivo.
+- Nenhum arquivo da interface foi alterado.
+- Nenhum código Kotlin/Java do KN-003 foi alterado nesta atualização.
+- A branch `kellvyn-rnd/kn004-multiblock-20261120` é uma linha isolada de trabalho; a branch Android Studio/laboratório original permanece preservada.
+- A pesquisa conclui a etapa de levantamento inicial; o avanço seguinte deve ser o desenho e a implementação isolada do KN-004 multi-bloco, sem promover o runtime e sem ligar o chat antes dos gates técnicos e comportamentais.
