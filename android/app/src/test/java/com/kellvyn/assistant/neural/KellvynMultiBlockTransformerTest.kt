@@ -99,6 +99,28 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test
+    fun capacityEstimatorUsesActualMultiBlockDepthAndKvCaches() {
+        val tokenizer = smallTokenizer()
+        val config = smallConfig(tokenizer, depth = 2)
+        val report = KellvynTransformerCapacityEstimator.estimate(config)
+
+        val shared = 2L * config.vocabularySize * config.embeddingSize +
+            config.vocabularySize
+        val perBlock = 4L * config.embeddingSize * config.embeddingSize +
+            4L * config.embeddingSize +
+            3L * config.embeddingSize * config.feedForwardSize
+
+        assertEquals(config.depth, report.depth)
+        assertEquals(shared + perBlock * config.depth, report.parameterCount)
+        assertEquals(report.parameterCount * 4L, report.weightsBytes)
+        assertEquals(report.parameterCount * 8L, report.optimizerStateBytes)
+        assertEquals(
+            2L * config.depth * config.contextLength * config.embeddingSize * 4L,
+            report.generationKvCacheBytes
+        )
+    }
+
+    @Test
     fun checkpointRoundTripPreservesDepthWeightsOptimizerAndPredictions() {
         val tokenizer = smallTokenizer()
         val config = smallConfig(tokenizer, depth = 2)
