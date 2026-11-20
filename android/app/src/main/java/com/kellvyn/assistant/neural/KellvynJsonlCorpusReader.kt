@@ -146,7 +146,7 @@ internal object KellvynJsonlCorpusReader {
         val decoder = Charsets.UTF_8.newDecoder()
             .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-        val reader = PushbackReader(InputStreamReader(digestInput, decoder), 1)
+        val reader = PushbackReader(InputStreamReader(digestInput, decoder), 8_192)
 
         var totalLines = 0L
         var validRecords = 0L
@@ -404,13 +404,14 @@ internal object KellvynJsonlCorpusReader {
         reader: PushbackReader,
         maxCharacters: Int
     ): BoundedLine? {
-        val builder = StringBuilder(minOf(maxCharacters, 4_096))
+        val builder = StringBuilder(minOf(maxCharacters, 8_192))
+        val chunk = CharArray(8_192)
         var consumedAny = false
         var exceededLimit = false
 
         while (true) {
-            val next = reader.read()
-            if (next < 0) {
+            val count = reader.read(chunk, 0, chunk.size)
+            if (count < 0) {
                 if (!consumedAny) return null
                 return BoundedLine(
                     text = if (exceededLimit) null else builder.toString(),
@@ -418,26 +419,29 @@ internal object KellvynJsonlCorpusReader {
                 )
             }
             consumedAny = true
-            val character = next.toChar()
-            if (character == '\n' || character == '\r') {
-                if (character == '\r') {
-                    val following = reader.read()
-                    if (following >= 0 && following.toChar() != '\n') {
-                        reader.unread(following)
-                    }
+            val newlineIndex = chunk.indexOf('\n', 0, count)
+            val lineCharacterCount = if (newlineIndex >= 0) newlineIndex else count
+
+            if (!exceededLimit) {
+                val remaining = maxCharacters - builder.length
+                if (lineCharacterCount <= remaining) {
+                    builder.append(chunk, 0, lineCharacterCount)
+                } else {
+                    builder.append(chunk, 0, remaining)
+                    builder.setLength(0)
+                    exceededLimit = true
+                }
+            }
+
+            if (newlineIndex >= 0) {
+                val remainingChunkCharacters = count - newlineIndex - 1
+                if (remainingChunkCharacters > 0) {
+                    reader.unread(chunk, newlineIndex + 1, remainingChunkCharacters)
                 }
                 return BoundedLine(
                     text = if (exceededLimit) null else builder.toString(),
                     exceededLimit = exceededLimit
                 )
-            }
-            if (!exceededLimit) {
-                if (builder.length < maxCharacters) {
-                    builder.append(character)
-                } else {
-                    exceededLimit = true
-                    builder.setLength(0)
-                }
             }
         }
     }
