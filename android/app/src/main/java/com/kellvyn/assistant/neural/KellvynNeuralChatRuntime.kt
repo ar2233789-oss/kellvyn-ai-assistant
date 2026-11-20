@@ -332,7 +332,7 @@ internal class KellvynNeuralChatRuntime(
             val entry = manifestTest[example.id] ?: return@all false
             val digest = java.security.MessageDigest.getInstance("SHA-256")
                 .digest((example.prompt + "\u0000" + example.completion).toByteArray(Charsets.UTF_8))
-                .joinToString("") { byte -> "%02x".format(byte) }
+                .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
             digest == entry.contentSha256
         }) {
             "O benchmark só pode usar exemplos TEST originais registrados no manifesto do checkpoint."

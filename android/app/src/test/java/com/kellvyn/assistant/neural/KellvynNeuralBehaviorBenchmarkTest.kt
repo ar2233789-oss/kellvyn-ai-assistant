@@ -72,6 +72,6 @@ class KellvynNeuralBehaviorBenchmarkTest {
     )
 
     private companion object {
-        const val FINGERPRINT = "a".repeat(64)
+        val FINGERPRINT = "a".repeat(64)
     }
 }
