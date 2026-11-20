@@ -111,3 +111,15 @@ Mesmo o perfil experimental padrão é limitado pelo corpus e pelo orçamento de
 - A sessão KV mantém o contador total de tokens monotônico depois da expulsão de contexto. A posição absoluta usada pelo RoPE foi separada do índice local das listas KV; ao reconstruir uma janela deslizante, as entradas retidas mantêm suas posições absolutas e os índices dos buffers continuam limitados à janela.
 - Testes de regressão adicionados: rejeição de proveniência alterada mesmo com texto/hash idênticos; invariância de RoPE sob deslocamento uniforme. O teste existente de equivalência entre KV e forward completo após expulsão também valida a contagem total processada.
 - Os arquivos atualizados foram conferidos na branch. O GitHub Actions ainda não disponibilizou execução associada ao último commit; por isso, estes testes estão **adicionados, mas não executados**. Não há resultado Gradle/JUnit novo, APK ou validação no Poco F6.
+
+
+## Salvamento com fluxo contínuo e identidade de pesos — 20/11/2026
+
+Commits desta otimização:
+- `abed9ae78c12a228f0a6e8e8663bf6dd352042a0` — o writer KN-004 calcula o tamanho serializado exato e escreve pesos + estados AdamW diretamente no destino, calculando o checksum durante a escrita, sem montar um ByteArray completo do modelo.
+- `52b0cffc1d483fba320552fd8f2ee13d94584c9f` — o bundle externo escreve cabeçalho, tokenizer, tamanho do modelo, payload neural, manifesto e checksum direto no fluxo. Removidos o buffer completo do modelo e a segunda cópia do pacote integral. O formato/ordem dos campos e os dois níveis de SHA-256 são mantidos.
+- `de451897ad59a45696f063690ae8c08e511390cf` — teste exige que o tamanho calculado do checkpoint corresponda exatamente ao número de bytes emitidos.
+- `2f59eef48bc97016d4c12685bb792de69444eea2` — runtime calcula o fingerprint dos pesos imutáveis uma vez na inicialização e reutiliza esse valor nas respostas e no benchmark, em vez de percorrer/hashing de todos os parâmetros a cada chamada.
+
+A validação estática confirmou que o bundle não contém mais o buffer `modelBytes` nem o `payloadBuffer` integral e que o writer do modelo usa `DigestOutputStream`. Foi compilado isoladamente um pequeno snippet Kotlin/JVM para confirmar disponibilidade das APIs/constantes de tamanho usadas (`Int.SIZE_BYTES`, `Float.SIZE_BYTES`, `DigestOutputStream`); isso **não** compila o pacote real.
+A execução do CI associada ao commit `de451897...` voltou a falhar antes dos steps (Build APK run `44690047015`, laboratório `44690047029`). O commit mais recente `2f59eef...` ainda não apresentava workflow na consulta. Portanto, o teste real de round-trip/Gradle permanece **NOT_RUN**.
