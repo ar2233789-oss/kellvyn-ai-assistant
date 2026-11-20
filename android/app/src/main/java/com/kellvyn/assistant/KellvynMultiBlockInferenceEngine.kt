@@ -20,8 +20,8 @@ internal class KellvynMultiBlockInferenceEngine(
     data class Config(
         val maxGenerationTokens: Int = 64,
         val maxPromptChars: Int = 12_000,
-        val maxToolsInPrompt: Int = 24,
-        val maxToolDescriptionChars: Int = 120,
+        val maxToolsInPrompt: Int = 6,
+        val maxToolDescriptionChars: Int = 80,
         val maxMessageChars: Int = 2_000
     ) {
         init {
