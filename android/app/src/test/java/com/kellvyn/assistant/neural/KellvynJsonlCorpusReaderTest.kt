@@ -60,7 +60,7 @@ class KellvynJsonlCorpusReaderTest {
             minimumTestExamples = 20
         )
         val testPrompt = initial.examples.first { it.split == KellvynTrainingSplit.TEST }.prompt
-        val records = (0 until 300).map(::jsonRecord).toMutableList()
+        val records = (0 until 300).map { jsonRecord(it) }.toMutableList()
         records += jsonRecord(
             301,
             completion = "Uma resposta alternativa para o mesmo prompt de treino.",
@@ -95,7 +95,7 @@ class KellvynJsonlCorpusReaderTest {
 
     @Test
     fun rejectsSensitiveAndMalformedRecordsWithoutRetainingTheirText() {
-        val lines = (0 until 300).map(::jsonRecord).toMutableList()
+        val lines = (0 until 300).map { jsonRecord(it) }.toMutableList()
         lines += jsonRecord(
             251,
             completion = "Contato: pessoa@example.com"
