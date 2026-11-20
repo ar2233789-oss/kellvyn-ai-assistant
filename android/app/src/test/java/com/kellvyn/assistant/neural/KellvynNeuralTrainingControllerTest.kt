@@ -208,7 +208,38 @@ class KellvynNeuralTrainingControllerTest {
             )
             throw AssertionError("O controlador não pode treinar um arquivo diferente do auditado.")
         } catch (expected: IllegalArgumentException) {
-            assertTrue(expected.message!!.contains("mudou desde a auditoria"))
+            assertTrue(expected.message!!.contains("mudaram desde a auditoria"))
+        }
+        assertFalse(store.exists())
+    }
+
+    @Test
+    fun rejectsChangedTrainingConfigurationAfterReadOnlyAudit() = runBlocking {
+        val source = (0 until 300).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
+        val auditedConfig = smallTrainingConfig()
+        val audit = auditJsonl(
+            source,
+            auditedConfig,
+            maxExamples = 300,
+            minimumTrainExamples = 100,
+            minimumValidationExamples = 20,
+            minimumTestExamples = 20
+        )
+        assertTrue(audit.readyForTraining)
+
+        try {
+            KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
+                input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+                expectedAudit = audit,
+                config = auditedConfig.copy(learningRate = 0.004f),
+                maxExamples = 300,
+                minimumTrainExamples = 100,
+                minimumValidationExamples = 20,
+                minimumTestExamples = 20
+            )
+            throw AssertionError("O controlador não pode trocar hiperparâmetros após a auditoria.")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("parâmetros JSONL mudaram"))
         }
         assertFalse(store.exists())
     }
@@ -218,7 +249,7 @@ class KellvynNeuralTrainingControllerTest {
         val source = (0 until 30).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
             input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
-            expectedAudit = auditJsonl(source, smallTrainingConfig(), maxExamples = 50, minimumTrainExamples = 10, minimumValidationExamples = 5, minimumTestExamples = 5),
+            expectedAudit = auditJsonl(source, smallTrainingConfig(), maxExamples = 50, minimumTrainExamples = 10, minimumValidationExamples = 1, minimumTestExamples = 1),
             config = smallTrainingConfig(),
             maxExamples = 50,
             minimumTrainExamples = 10,
@@ -250,23 +281,21 @@ class KellvynNeuralTrainingControllerTest {
         weightDecay = 0.0f
     )
 
-    private fun auditJsonl(
+    private suspend fun auditJsonl(
         source: String,
         config: KellvynMultiBlockTrainingConfig,
         maxExamples: Int,
         minimumTrainExamples: Int,
         minimumValidationExamples: Int,
         minimumTestExamples: Int
-    ) = kotlinx.coroutines.runBlocking {
-        KellvynNeuralTrainingController(store).auditJsonl(
-            input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
-            config = config,
-            maxExamples = maxExamples,
-            minimumTrainExamples = minimumTrainExamples,
-            minimumValidationExamples = minimumValidationExamples,
-            minimumTestExamples = minimumTestExamples
-        )
-    }
+    ) = KellvynNeuralTrainingController(store).auditJsonl(
+        input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+        config = config,
+        maxExamples = maxExamples,
+        minimumTrainExamples = minimumTrainExamples,
+        minimumValidationExamples = minimumValidationExamples,
+        minimumTestExamples = minimumTestExamples
+    )
 
     private fun jsonlRecord(index: Int): String =
         """{"id":"controller-corpus-$index","prompt":"Pergunta: diga o número $index.","completion":"A resposta é $index.","permission":"OWNER_CREATED","licenseId":"owner-created","sourceReference":"owner://controller-corpus/$index","rightsEvidence":"Texto sintético criado para teste local."}"""
