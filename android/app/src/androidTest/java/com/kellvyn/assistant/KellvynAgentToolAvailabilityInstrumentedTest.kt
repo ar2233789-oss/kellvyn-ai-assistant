@@ -129,9 +129,9 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                 KellvynSpecialistRole.PLANNING_ANALYST to workflowAutomation + deviceDiagnostics + dataModeling + agentDesign + agentEvaluation,
                 KellvynSpecialistRole.DEBUGGER to codeNavigation + deviceDiagnostics + setOf("android_build_environment_status") + agentEvaluation,
                 KellvynSpecialistRole.AUDITOR to codeNavigation + securityAudit + dataModeling +
-                    setOf("android_build_environment_status") + agentDesign + agentEvaluation,
+                    setOf("android_build_environment_status", "image_inspect") + agentDesign + agentEvaluation,
                 KellvynSpecialistRole.OPERATIONS_ANALYST to deviceDiagnostics + workflowAutomation + agentEvaluation,
-                KellvynSpecialistRole.VISUAL_ANALYST to emptySet()
+                KellvynSpecialistRole.VISUAL_ANALYST to setOf("image_inspect")
             )
 
             assertEquals(KellvynSpecialistRole.values().toSet(), expectedByRole.keys)
