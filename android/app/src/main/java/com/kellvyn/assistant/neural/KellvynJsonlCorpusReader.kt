@@ -74,6 +74,7 @@ internal object KellvynJsonlCorpusReader {
         minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES,
         cancellationCheck: () -> Unit = {}
     ): Selection {
+        require(maxExamples in 3..1_000)
         require(maxExamples >= minimumTrainExamples + minimumValidationExamples + minimumTestExamples)
         require(maxRetainedUtf8Bytes in 1L..500_000L)
         require(maxLines > 0L)
@@ -217,14 +218,15 @@ internal object KellvynJsonlCorpusReader {
 
         val unique = ArrayList<Candidate>(selected.size)
         val ids = HashSet<String>()
-        val prompts = HashSet<String>()
+        val benchmarkPrompts = HashSet<String>()
         val content = HashSet<String>()
         var duplicateSelectedRecords = 0L
         for (candidate in selected) {
             val id = candidate.example.id
             if (!ids.add(id) ||
-                !prompts.add(candidate.promptHash) ||
-                !content.add(candidate.contentHash)
+                !content.add(candidate.contentHash) ||
+                (candidate.example.split == KellvynTrainingSplit.TEST &&
+                    !benchmarkPrompts.add(candidate.promptHash))
             ) {
                 duplicateSelectedRecords++
                 continue
@@ -319,7 +321,10 @@ internal object KellvynJsonlCorpusReader {
     }
 
     private fun normalizePrompt(value: String): String =
-        value.lowercase().replace(Regex("\\s+"), " ").trim()
+        value.lowercase()
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .trim()
+            .replace(Regex("\\s+"), " ")
 
     private fun sha256(value: String): String =
         MessageDigest.getInstance("SHA-256")
