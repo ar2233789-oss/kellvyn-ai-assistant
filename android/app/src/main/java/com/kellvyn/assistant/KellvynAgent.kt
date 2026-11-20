@@ -1436,7 +1436,7 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
         KellvynStudioCapability.RASTER_IMAGE_EDIT to setOf("imagem", "foto", "png", "jpeg", "webp", "redimensionar", "recortar", "editar"),
         KellvynStudioCapability.IMAGE_GENERATION to setOf("gerar", "imagem", "ilustracao", "arte"),
         KellvynStudioCapability.VISUAL_ANALYSIS to setOf("visual", "analise", "design", "layout"),
-        KellvynStudioCapability.VECTOR_GRAPHICS to setOf("vetor", "svg", "desenho", "ilustracao"),
+        KellvynStudioCapability.VECTOR_GRAPHICS to setOf("vetor", "svg", "desenho", "ilustracao", "imagem", "gerar", "arte"),
         KellvynStudioCapability.ANIMATION to setOf("animacao", "animar", "movimento", "quadro", "keyframe", "spritesheet"),
         KellvynStudioCapability.SCENE_3D to setOf("3d", "cena", "malha", "mesh", "modelo"),
         KellvynStudioCapability.CAD_PARAMETRIC to setOf("cad", "parametrico", "geometria", "medida"),
