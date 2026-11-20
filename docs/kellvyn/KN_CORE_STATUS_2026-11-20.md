@@ -285,3 +285,23 @@ O preflight estima também o working set KN-004 com o vocabulário máximo poss�
 Política final do preflight: qualquer registro de origem marcado como sensível (credencial, e-mail, telefone brasileiro ou CPF reconhecível) ou malformado faz `needsManualReview=true` e `readyForTraining=false`, mesmo quando a amostra limpa restante atingiria os mínimos. O controlador não inicia o treino. O operador deve corrigir/limpar o arquivo e submetê-lo novamente. Registros recusados apenas por limites computacionais (BPE, tamanho de exemplo ou steps) continuam contabilizados separadamente e podem ser excluídos da amostra se os restantes cumprirem todos os limites.
 
 Isso evita que o caminho de ingestão inicie o treino automaticamente a partir de uma origem que ainda contém dados sensíveis ou registros malformados. A detecção continua heurística e não substitui uma revisão de direitos/licenças.
+
+
+### Auditoria e treino vinculados ao mesmo relatório — 20/11/2026
+
+O controlador oferece duas operações distintas:
+1. `auditJsonl(InputStream, config, ...)`: leitura apenas para auditoria; não aloca o Transformer, não treina, não modifica checkpoint, não persiste a origem e não fecha o stream.
+2. `trainAndInstallFromJsonl(InputStream, expectedAudit, config, ...)`: recebe o relatório inteiro produzido na etapa anterior, relê o arquivo e exige igualdade estrutural de `Report` antes de permitir qualquer treino.
+
+A igualdade do relatório vincula muito mais que o SHA da origem: inclui seed de amostragem, versão da política de split, mínimos, limites de linhas/bytes, configuração completa do modelo (contexto, embedding, cabeças, FF, profundidade, merges, épocas, seed neural, learning rate, weight decay, passos), contagens, resumo de permissões/licenças, estimativa de working set e motivos de revisão. Se o arquivo mudar ou qualquer parâmetro for alterado, a chamada de treino é recusada e exige uma nova auditoria.
+
+O relatório agora também sumariza a composição das permissões declaradas e até 32 IDs de licença distintos, contando os registros cujo ID não coube no resumo. Nenhum texto bruto dos registros é guardado nesses agregados. Isso facilita a revisão da origem, mas não valida por si só a veracidade da licença ou os direitos do material de origem.
+
+Foram adicionados testes para:
+- auditoria somente de leitura sem alocar/instalar modelo e sem fechar stream;
+- arquivo alterado entre auditoria e treino;
+- hiperparâmetros alterados após auditoria, mesmo com o arquivo idêntico;
+- resumo de permissões/licenças e limite de 32 licenças distintas;
+- telefone brasileiro sem máscara.
+
+**Estado dos testes:** os novos testes estão adicionados, mas não executados por Gradle/JUnit. Não há build completo nem APK.
