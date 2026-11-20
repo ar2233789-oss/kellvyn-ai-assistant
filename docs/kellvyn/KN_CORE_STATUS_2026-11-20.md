@@ -91,3 +91,10 @@ O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manife
 ## Pico de memória ao carregar checkpoints
 
 A leitura de inferência agora identifica os intervalos dos blocos dentro do pacote verificado e passa o intervalo do modelo diretamente ao leitor KN-004. O buffer limitado de leitura expõe seu array interno e tamanho escrito, evitando também a cópia integral feita por `ByteArrayOutputStream.toByteArray()`. O leitor calcula SHA-256 sobre o intervalo e usa `ByteArrayInputStream(bytes, offset, length)`, sem criar uma segunda cópia do bloco de pesos (que pode chegar a 128 MiB). Apenas tokenizer e manifesto, ambos pequenos, são copiados. Foi adicionado teste de checkpoint com prefixo/sufixo para validar leitura por offset e ausência dos estados AdamW na inferência.
+
+
+## Perfil de capacidade móvel candidato
+
+Foi adicionado `KellvynMultiBlockTrainingConfig.balancedMobileCandidate()`: contexto 256, embedding 128, 8 cabeças, feed-forward 512, 6 blocos e até 512 merges BPE. Com vocabulário de 769 entradas, o estimador calcula aproximadamente 1,77 milhão de parâmetros, cerca de 100,6 MiB de working set de treinamento e menos de 16 MiB de residência inferior estimada para inferência.
+
+Esse perfil cabe no orçamento analítico de 128 MiB definido pelo pipeline, mas **não é um perfil validado no Poco F6**: overhead da JVM, buffers reais, PSS, tempo de treino, temperatura e bateria ainda precisam ser medidos. É um candidato para benchmark, não um checkpoint nem uma promessa de desempenho.

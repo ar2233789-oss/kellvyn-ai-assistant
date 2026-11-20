@@ -137,6 +137,28 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test
+    fun balancedMobileCandidateFitsItsDeclaredAnalyticalTrainingBudget() {
+        val candidate = KellvynMultiBlockTrainingConfig.balancedMobileCandidate()
+        val modelConfig = KellvynMultiBlockTransformer.Config(
+            vocabularySize = 769,
+            contextLength = candidate.contextLength,
+            embeddingSize = candidate.embeddingSize,
+            headCount = candidate.headCount,
+            feedForwardSize = candidate.feedForwardSize,
+            depth = candidate.depth,
+            seed = candidate.seed
+        )
+        val estimate = KellvynTransformerCapacityEstimator.estimate(modelConfig)
+
+        assertEquals(6, candidate.depth)
+        assertEquals(128, candidate.embeddingSize)
+        assertEquals(512, candidate.feedForwardSize)
+        assertTrue(modelConfig.estimatedTrainingWorkingSetBytes() <= candidate.maxTrainingWorkingSetBytes)
+        assertTrue(estimate.parameterCount > 1_700_000L)
+        assertTrue(estimate.inferenceResidentLowerBoundBytes < 16L * 1024L * 1024L)
+    }
+
+    @Test
     fun configurationIsDepthAware() {
         assertEquals(2, KellvynMultiBlockTrainingConfig().depth)
         assertEquals(4, KellvynMultiBlockTrainingConfig(depth = 4).depth)

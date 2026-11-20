@@ -33,6 +33,27 @@ internal data class KellvynMultiBlockTrainingConfig(
         require(maxTotalTrainingSteps in 1..1_000_000L)
         require(maxTrainingWorkingSetBytes in 16L * 1024L * 1024L..1024L * 1024L * 1024L)
     }
+
+    companion object {
+        /**
+         * Larger mobile candidate for measured-device experiments, not a validated Poco F6 profile.
+         * At 769 vocabulary entries its analytical training working-set lower bound is about 101 MiB.
+         */
+        fun balancedMobileCandidate(): KellvynMultiBlockTrainingConfig =
+            KellvynMultiBlockTrainingConfig(
+                contextLength = 256,
+                embeddingSize = 128,
+                headCount = 8,
+                feedForwardSize = 512,
+                depth = 6,
+                maxMerges = 512,
+                epochsPerExample = 1,
+                learningRate = 0.003f,
+                weightDecay = 0.01f,
+                maxTotalTrainingSteps = 100_000L,
+                maxTrainingWorkingSetBytes = 128L * 1024L * 1024L
+            )
+    }
 }
 
 internal data class KellvynMultiBlockTrainingManifest(
