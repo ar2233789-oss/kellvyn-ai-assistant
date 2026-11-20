@@ -76,9 +76,14 @@ internal class KellvynArtifactStore(
                 val output = BufferedOutputStream(raw)
                 val buffer = ByteArray(TRANSFER_BUFFER_BYTES)
                 while (true) {
-                    val count = input.read(buffer)
+                    var count = input.read(buffer)
                     if (count < 0) break
-                    if (count == 0) continue
+                    if (count == 0) {
+                        val single = input.read()
+                        if (single < 0) break
+                        buffer[0] = single.toByte()
+                        count = 1
+                    }
                     require(size <= maxArtifactBytes - count.toLong()) {
                         "O artefato ultrapassa o limite de $maxArtifactBytes bytes."
                     }
@@ -166,9 +171,14 @@ internal class KellvynArtifactStore(
                 val input = BufferedInputStream(raw)
                 val buffer = ByteArray(TRANSFER_BUFFER_BYTES)
                 while (true) {
-                    val count = input.read(buffer)
+                    var count = input.read(buffer)
                     if (count < 0) break
-                    if (count == 0) continue
+                    if (count == 0) {
+                        val single = input.read()
+                        if (single < 0) break
+                        buffer[0] = single.toByte()
+                        count = 1
+                    }
                     copied += count.toLong()
                     require(copied <= ref.sizeBytes) {
                         "O objeto do artefato excedeu o tamanho declarado."
@@ -345,9 +355,15 @@ internal class KellvynArtifactStore(
             val input = BufferedInputStream(raw)
             val buffer = ByteArray(TRANSFER_BUFFER_BYTES)
             while (true) {
-                val count = input.read(buffer)
+                var count = input.read(buffer)
                 if (count < 0) break
-                if (count > 0) digest.update(buffer, 0, count)
+                if (count == 0) {
+                    val single = input.read()
+                    if (single < 0) break
+                    buffer[0] = single.toByte()
+                    count = 1
+                }
+                digest.update(buffer, 0, count)
             }
         }
         return toHex(digest.digest())

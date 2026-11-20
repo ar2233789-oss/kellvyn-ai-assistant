@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.nio.file.Files
 
 class KellvynArtifactStoreTest {
@@ -62,7 +63,7 @@ class KellvynArtifactStoreTest {
                 input = ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)),
                 createdAtMillis = 1_800_000_000_100L
             )
-            val objectFile = File(root, "objects/\${ref.sha256.take(2)}/\${ref.sha256}.blob")
+            val objectFile = File(root, "objects/${ref.sha256.take(2)}/${ref.sha256}.blob")
             objectFile.writeBytes(byteArrayOf(4, 3, 2, 1))
 
             assertFalse(store.verify(ref.id))
