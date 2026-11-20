@@ -99,6 +99,110 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test
+    fun provenanceAwarePipelineCreatesIndependentKn004Bundle() {
+        val provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kn004-test-fixture",
+            rightsEvidence = "Texto sintético escrito pelo proprietário exclusivamente para teste."
+        )
+        val examples = listOf(
+            KellvynInstructionTrainingExample(
+                id = "train-1",
+                prompt = "Pergunta de treino: responda A.",
+                completion = "A",
+                split = KellvynTrainingSplit.TRAIN,
+                provenance = provenance
+            ),
+            KellvynInstructionTrainingExample(
+                id = "validation-1",
+                prompt = "Pergunta de validação: responda B.",
+                completion = "B",
+                split = KellvynTrainingSplit.VALIDATION,
+                provenance = provenance
+            ),
+            KellvynInstructionTrainingExample(
+                id = "test-1",
+                prompt = "Pergunta de teste: responda C.",
+                completion = "C",
+                split = KellvynTrainingSplit.TEST,
+                provenance = provenance
+            )
+        )
+        val trained = KellvynMultiBlockTrainingPipeline.train(
+            examples = examples,
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 128,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 8,
+                epochsPerExample = 2,
+                learningRate = 0.003f,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_000_000L
+        )
+
+        assertEquals(2, trained.model.config.depth)
+        assertEquals(3, trained.manifest.entries.size)
+        assertTrue(trained.manifest.entries.any { it.split == KellvynTrainingSplit.TRAIN })
+        assertTrue(trained.manifest.entries.any { it.split == KellvynTrainingSplit.VALIDATION })
+        assertTrue(trained.manifest.entries.any { it.split == KellvynTrainingSplit.TEST })
+        assertEquals(trained.model.trainingSteps, trained.manifest.totalTrainingSteps)
+
+        val bytes = ByteArrayOutputStream().also {
+            KellvynMultiBlockCheckpointBundle.writeCheckpoint(trained, it)
+        }.toByteArray()
+        val restored = KellvynMultiBlockCheckpointBundle.readCheckpoint(
+            ByteArrayInputStream(bytes)
+        )
+        assertEquals(trained.model.config, restored.model.config)
+        assertEquals(
+            trained.model.parameterFingerprint(),
+            restored.model.parameterFingerprint()
+        )
+        assertEquals(trained.manifest.entries, restored.manifest.entries)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun pipelineRejectsPromptLeakageAcrossDataSplits() {
+        val provenance = KellvynTrainingProvenance(
+            permission = KellvynTrainingPermission.OWNER_CREATED,
+            licenseId = "owner-created",
+            sourceReference = "owner://kn004-test-fixture",
+            rightsEvidence = "Texto sintético criado para teste."
+        )
+        val examples = listOf(
+            KellvynInstructionTrainingExample(
+                "train", "Prompt repetido", "A",
+                KellvynTrainingSplit.TRAIN, provenance
+            ),
+            KellvynInstructionTrainingExample(
+                "validation", "Prompt repetido", "B",
+                KellvynTrainingSplit.VALIDATION, provenance
+            ),
+            KellvynInstructionTrainingExample(
+                "test", "Prompt de teste", "C",
+                KellvynTrainingSplit.TEST, provenance
+            )
+        )
+        KellvynMultiBlockTrainingPipeline.train(
+            examples,
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 128,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 4,
+                epochsPerExample = 1
+            )
+        )
+    }
+
+    @Test
     fun capacityEstimatorUsesActualMultiBlockDepthAndKvCaches() {
         val tokenizer = smallTokenizer()
         val config = smallConfig(tokenizer, depth = 2)
