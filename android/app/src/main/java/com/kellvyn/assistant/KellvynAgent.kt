@@ -909,7 +909,10 @@ internal class KellvynAgent(
             val executeWithTimeout: suspend () -> KellvynModelDecision = {
                 try {
                     withTimeout(config.modelTimeoutMs) {
-                        inference.next(history, tools.descriptions())
+                        inference.next(
+                            history,
+                            tools.descriptionsForPrompt(history, config.maxToolsInModelPrompt)
+                        )
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     currentCoroutineContext().ensureActive()
