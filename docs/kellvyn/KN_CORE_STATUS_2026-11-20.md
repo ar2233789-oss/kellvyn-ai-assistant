@@ -195,3 +195,54 @@ No commit de código `28c134c36b0c5604f7760b4a839eedd0df56fcc1`:
 - Laboratório [44692023238](https://github.com/ar2233789-oss/kellvyn-ai-assistant/actions/runs/44692023238): Android `136139814525` e Web `136139815318` sem steps/logs; diff `136139832873` ignorado.
 
 Falha ocorreu antes de checkout/Gradle/JUnit/Bun/emulador. A causa exata continua sem confirmação. O SHA documental seguinte é `1b44ec56f6d1a317e5779cc16e9e3df642da5bb0`.
+
+
+## Ingestão local JSONL com amostra limitada — 20/11/2026
+
+### Contrato de entrada
+
+Foi adicionado `KellvynJsonlCorpusReader`, sem biblioteca JSON externa. O formato é JSONL UTF-8: um objeto por linha, com exatamente sete campos string obrigatórios:
+
+```json
+{"id":"ptbr-0001","prompt":"Pergunta: o que é energia?","completion":"Energia é a capacidade de realizar trabalho.","permission":"OWNER_CREATED","licenseId":"owner-created","sourceReference":"owner://meu-corpus/0001","rightsEvidence":"Texto autoral criado pelo proprietário."}
+```
+
+- `permission` deve ser um dos valores de `KellvynTrainingPermission`.
+- `id` deve ser único na amostra.
+- `licenseId`, `sourceReference` e `rightsEvidence` são obrigatórios; o leitor não presume direitos a partir de uma URL.
+- O arquivo não escolhe a partição. O leitor normaliza o prompt e calcula a partição por SHA-256 + seed: 80% TRAIN, 10% VALIDATION e 10% TEST. Assim, variações de caixa, pontuação e espaços do mesmo prompt não atravessam partições.
+- Objetos com campos extras, campos ausentes, valores que não sejam strings, chaves repetidas, escapes inválidos ou UTF-8 malformado não são aceitos.
+
+### Leitura e limites
+
+A leitura percorre o fluxo completo, sem carregar o arquivo todo na memória, e mantém uma amostra determinística com prioridade por hash:
+- limite padrão da origem: 512 MiB; o leitor aceita configuração até 2 GiB;
+- limite padrão de linhas: 10 milhões;
+- limite de uma linha JSONL: 500.000 caracteres;
+- amostra retida: até 1.000 exemplos e 480.000 bytes UTF-8 incluindo conteúdo e proveniência;
+- orçamentos de bytes por partição: aproximadamente 2/3 TRAIN, 1/6 VALIDATION e 1/6 TEST;
+- mínimos padrão: 100 TRAIN, 20 VALIDATION e 20 TEST;
+- orçamento superior dos targets: `maxTotalTrainingSteps / epochsPerExample`, contando o token EOS;
+- limite de 50.000 passos por exemplo, ajustado pela quantidade de épocas;
+- orçamento BPE de 40 milhões de operações aproximadas, aplicado por texto e ao corpus TRAIN agregado.
+
+A seleção mantém respostas alternativas para um mesmo prompt em TRAIN/VALIDATION, mas remove prompts repetidos normalizados em TEST para não inflar o benchmark comportamental. O limite de tokens de saída é estimado conservadoramente pelo número de bytes UTF-8 + EOS, pois BPE nunca produz mais tokens que bytes de entrada.
+
+O leitor calcula SHA-256 e tamanho exato da origem, conta linhas válidas/inválidas/sensíveis e quantidades por partição. O fluxo pertence ao chamador: o leitor consome, mas não fecha o `InputStream`. A leitura é cancelável entre linhas.
+
+### Controlador
+
+`KellvynNeuralTrainingController.trainAndInstallFromJsonl(InputStream, ...)` executa o preflight em `Dispatchers.IO`. Se os mínimos de partição ou os orçamentos falharem, devolve apenas o relatório e não aloca o Transformer. Se passar, encaminha a amostra ao pipeline KN-004 existente. O resultado retém apenas o relatório; os exemplos TEST ficam no `Outcome` apenas se o gate numérico aprovar. A origem não é persistida nem enviada à rede.
+
+Foram adicionados testes para:
+- leitura e hash de um fluxo completo;
+- seleção reproduzível mesmo com a ordem das linhas invertida;
+- divisão estável e independente de TRAIN/VALIDATION/TEST;
+- respostas alternativas em TRAIN e deduplicação de prompts de TEST;
+- rejeição de e-mail e linha JSON malformada;
+- ownership do `InputStream`;
+- limites de bytes e linhas;
+- recusa do treino pelo controlador quando as partições mínimas não existem;
+- passagem da amostra segura ao pipeline existente quando o preflight está apto.
+
+**Limite importante:** isto é ingestão/auditoria e amostragem limitada, não treino de todo um corpus de milhões de registros. O arquivo completo pode ser inspecionado até o teto configurado; o modelo atual ainda treina apenas a amostra limitada que cabe nos orçamentos do KN-004. A amostra de 480 KB não é suficiente para afirmar pré-treinamento generalista nem inteligência conversacional pronta.
