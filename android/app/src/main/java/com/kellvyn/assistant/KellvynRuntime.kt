@@ -13,6 +13,11 @@ import com.kellvyn.assistant.neural.KellvynTransformerTrainingConfig
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredTransformerBundle
+import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingConfig
+import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingManifest
+import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingPipeline
+import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingQualityGate
+import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
