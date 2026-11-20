@@ -57,6 +57,42 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun decodesEscapedQuotesNewlinesAndUnicodeWithoutCorruptingPortugueseText() {
+        val prompt = "Pergunta:\n \"Qual é o símbolo?\” 🌱"
+        val completion = "A resposta contém \"texto\" e acentuação: ação."
+        val source = jsonRecord(700, completion = completion, prompt = prompt)
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1, result.examples.size)
+        assertEquals(prompt, result.examples.single().prompt)
+        assertEquals(completion, result.examples.single().completion)
+    }
+
+    @Test
+    fun rejectsDuplicateJsonObjectKeys() {
+        val duplicateKeyLine = jsonRecord(701).replaceFirst(
+            "{",
+            "{\"id\":\"second-id\","
+        )
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(duplicateKeyLine.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1L, result.report.malformedRecords)
+        assertTrue(result.examples.isEmpty())
+    }
+
+    @Test
     fun keepsAlternateTrainingAnswersButDeduplicatesNormalizedTestPrompts() {
         val initialSource = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
         val initial = KellvynJsonlCorpusReader.read(
