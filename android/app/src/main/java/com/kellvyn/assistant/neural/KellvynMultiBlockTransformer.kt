@@ -932,7 +932,7 @@ internal class KellvynMultiBlockTransformer private constructor(
             }
             val keysRotated = Array(length) { position ->
                 linear(normalizedAttention[position], block.keyWeights, d, d)
-                    .also { rotateInPlace(it, position, h) }
+                    .also { rotateInPlace(it, firstAbsolutePosition + position, h) }
             }
             val values = Array(length) { position ->
                 linear(normalizedAttention[position], block.valueWeights, d, d)
