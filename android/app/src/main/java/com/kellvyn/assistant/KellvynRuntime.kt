@@ -19,6 +19,8 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingQualityGate
 import com.kellvyn.assistant.neural.KellvynMultiBlockTransformer
 import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
+import com.kellvyn.assistant.neural.KellvynNeuralTrainingController
+import com.kellvyn.assistant.neural.KellvynJsonlCorpusReader
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -103,6 +105,9 @@ internal class KellvynRuntime(context: Context) {
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
     )
+    private val neuralTrainingController by lazy {
+        KellvynNeuralTrainingController(neuralModelStore)
+    }
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
@@ -317,6 +322,55 @@ internal class KellvynRuntime(context: Context) {
         }
         return trained.manifest
     }
+
+    /**
+     * Audits a caller-owned local JSONL training source without retaining the source or
+     * allocating model weights. The caller remains responsible for closing the input stream.
+     */
+    suspend fun auditOwnMultiBlockCorpus(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynJsonlCorpusReader.Report = neuralTrainingController.auditJsonl(
+        input = input,
+        config = config,
+        samplingSeed = samplingSeed,
+        maxExamples = maxExamples,
+        minimumTrainExamples = minimumTrainExamples,
+        minimumValidationExamples = minimumValidationExamples,
+        minimumTestExamples = minimumTestExamples
+    )
+
+    /**
+     * Trains only the exact source/configuration that passed the previous read-only audit.
+     * The caller must reopen the same local file; changed bytes or parameters are rejected.
+     */
+    suspend fun trainOwnMultiBlockFromAuditedCorpus(
+        input: InputStream,
+        expectedAudit: KellvynJsonlCorpusReader.Report,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynNeuralTrainingController.CorpusOutcome =
+        neuralTrainingController.trainAndInstallFromJsonl(
+            input = input,
+            expectedAudit = expectedAudit,
+            config = config,
+            createdAtMillis = createdAtMillis,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples
+        )
 
     /** Loads the independently versioned KN-004 tokenizer, model and provenance bundle. */
     suspend fun loadOwnMultiBlockModel(): KellvynRestoredMultiBlockBundle? =
