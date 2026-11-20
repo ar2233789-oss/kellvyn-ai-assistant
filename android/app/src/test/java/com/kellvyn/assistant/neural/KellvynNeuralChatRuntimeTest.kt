@@ -144,6 +144,34 @@ class KellvynNeuralChatRuntimeTest {
         }
     }
 
+    @Test
+    fun benchmarkRejectsDuplicateTestExamplesBeforeRunningMetrics() {
+        val trained = trainSample(contextLength = 128)
+        val passingMetrics = trained.copy(
+            manifest = trained.manifest.copy(
+                initialValidationLoss = 5.0,
+                finalValidationLoss = 3.0,
+                heldOutTestLoss = 3.2
+            )
+        )
+        store.saveMultiBlock(passingMetrics)
+        val runtime = KellvynNeuralChatRuntime(store)
+        assertTrue(runtime.initialize().qualityApprovedForBenchmark)
+
+        val testExample = instruction(
+            "runtime-test",
+            "Pergunta: termine.",
+            "Até logo.",
+            KellvynTrainingSplit.TEST
+        )
+        try {
+            runtime.runBehaviorBenchmark(listOf(testExample, testExample))
+            throw AssertionError("O benchmark não pode contar o mesmo ID TEST duas vezes.")
+        } catch (expected: IllegalArgumentException) {
+            assertTrue(expected.message!!.contains("exatamente uma vez"))
+        }
+    }
+
     @Test(expected = IllegalStateException::class)
     fun generationIsRejectedUntilAValidatedCheckpointIsLoaded() {
         KellvynNeuralChatRuntime(store).generateReply("Olá")
