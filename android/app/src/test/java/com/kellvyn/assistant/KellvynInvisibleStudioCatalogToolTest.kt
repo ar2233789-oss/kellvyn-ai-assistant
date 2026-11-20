@@ -21,6 +21,11 @@ class KellvynInvisibleStudioCatalogToolTest {
         assertTrue(result.success)
         assertTrue(result.content.contains("CODE_NAVIGATION status=REGISTERED_LAZY"))
         assertTrue(result.content.contains("SCENE_3D status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("IMAGE_GENERATION status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("ANIMATION status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("VIDEO_GENERATION status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("GAME_INTERACTION status=NOT_REGISTERED"))
+        assertTrue(result.content.contains("WORKFLOW_AUTOMATION status=NOT_REGISTERED"))
         assertTrue(result.content.contains("loaded_now=false"))
         assertTrue(result.content.contains("Execução=NOT_CHECKED"))
         assertTrue(result.content.contains("verificação independente=NOT_VERIFIED"))
@@ -64,8 +69,7 @@ class KellvynInvisibleStudioCatalogToolTest {
         taskBroker = KellvynTaskBroker(
             governor = KellvynResourceGovernor(),
             queueWaitMillis = 100L,
-            snapshotProvider = { snapshot() }
-        )
+        ) { snapshot() }
     )
 
     private fun moduleDefinition(onCreate: () -> Unit): KellvynStudioModuleDefinition {
@@ -88,13 +92,14 @@ class KellvynInvisibleStudioCatalogToolTest {
                 )
             )
         )
-        return KellvynStudioModuleDefinition(manifest) {
+        val moduleManifest = manifest
+        return KellvynStudioModuleDefinition(moduleManifest) {
             onCreate()
             object : KellvynStudioModule {
-                override val manifest = manifest
+                override val manifest = moduleManifest
                 override val tools = listOf(
                     object : KellvynAgentTool {
-                        override val spec = manifest.toolSpecs.single()
+                        override val spec = moduleManifest.toolSpecs.single()
                         override suspend fun execute(arguments: Map<String, String>) =
                             KellvynToolResult(true, "ok")
                     }
