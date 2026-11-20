@@ -269,3 +269,12 @@ O relatório de preflight agora expõe `tokenizerWorkRejectedRecords` e `perExam
 Registros malformados ou com PII/credenciais reconhecíveis são excluídos e contabilizados; o preflight ainda pode prosseguir com a parte limpa se ela cumprir os mínimos e os orçamentos. Isso não comprova que os campos de licença/proveniência são verdadeiros, nem que a detecção heurística encontra todo dado pessoal. A aprovação da fonte continua sendo uma responsabilidade explícita de quem fornece o arquivo.
 
 Mais testes adicionados: escapes com aspas/quebras de linha, Unicode português/emoji, rejeição de chaves duplicadas no mesmo objeto, respostas alternativas de TRAIN e deduplicação normalizada do TEST, e contagens exatas de recusas BPE.
+
+
+### Limites rígidos de leitura e admissão de memória — 20/11/2026
+
+O leitor JSONL não usa mais `readLine()`, que poderia alocar uma string enorme antes de validar seu tamanho. Ele lê em blocos de 8.192 caracteres, mantém no máximo 500.000 caracteres da linha e descarta o restante de uma linha excedente sem armazená-lo. A próxima linha é preservada no buffer de retorno. LF e CRLF são cobertos por teste.
+
+O wrapper de bytes limita cada leitura ao espaço restante do teto da origem; após atingir o limite, faz no máximo uma leitura de prova para diferenciar EOF exato de arquivo maior. Um teste conta os bytes consumidos e confirma o teto + no máximo um byte de prova. Um harness Kotlin/JVM isolado da lógica de linhas/bytes passou: LF/CRLF, read-ahead, linha no limite exato, descarte/recuperação de linha grande, EOF e byte de prova. Isso **não** é compilação do pacote nem Gradle/JUnit do app.
+
+O preflight estima também o working set KN-004 com o vocabulário máximo possível (`256 + maxMerges + EOS`). Se a estimativa exceder `maxTrainingWorkingSetBytes` ou se a configuração violar o limite de atenção, o relatório fica `readyForTraining=false` e o controlador não aloca pesos. É uma estimativa de admissão baseada na fórmula interna; não substitui medição de PSS, temperatura ou bateria no Poco F6.
