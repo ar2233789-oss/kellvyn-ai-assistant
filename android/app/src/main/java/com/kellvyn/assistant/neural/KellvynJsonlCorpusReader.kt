@@ -21,6 +21,7 @@ import java.util.PriorityQueue
 internal object KellvynJsonlCorpusReader {
     data class Report(
         val sourceSha256: String,
+        val sourceUtf8Bytes: Long,
         val totalLines: Long,
         val validRecords: Long,
         val malformedRecords: Long,
@@ -68,6 +69,7 @@ internal object KellvynJsonlCorpusReader {
         samplingSeed: Long = config.seed,
         maxExamples: Int = 1_000,
         maxRetainedUtf8Bytes: Long = 480_000L,
+        maxSourceUtf8Bytes: Long = 512L * 1024L * 1024L,
         maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
@@ -77,6 +79,7 @@ internal object KellvynJsonlCorpusReader {
         require(maxExamples in 3..1_000)
         require(maxExamples >= minimumTrainExamples + minimumValidationExamples + minimumTestExamples)
         require(maxRetainedUtf8Bytes in 1L..500_000L)
+        require(maxSourceUtf8Bytes in 1L..(2L * 1024L * 1024L * 1024L))
         require(maxLines > 0L)
         require(minimumTrainExamples > 0 && minimumValidationExamples > 0 && minimumTestExamples > 0)
 
@@ -109,7 +112,8 @@ internal object KellvynJsonlCorpusReader {
         )
 
         val digest = MessageDigest.getInstance("SHA-256")
-        val digestInput = DigestInputStream(input, digest)
+        val countedInput = BoundedCountingInputStream(input, maxSourceUtf8Bytes)
+        val digestInput = DigestInputStream(countedInput, digest)
         val decoder = Charsets.UTF_8.newDecoder()
             .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
@@ -270,6 +274,7 @@ internal object KellvynJsonlCorpusReader {
             examples = selectedExamples,
             report = Report(
                 sourceSha256 = sourceSha256,
+                sourceUtf8Bytes = countedInput.bytesRead,
                 totalLines = totalLines,
                 validRecords = validRecords,
                 malformedRecords = malformedRecords,
@@ -333,6 +338,33 @@ internal object KellvynJsonlCorpusReader {
 
     private fun ByteArray.toHex(): String =
         joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+    private class BoundedCountingInputStream(
+        input: InputStream,
+        private val maximumBytes: Long
+    ) : java.io.FilterInputStream(input) {
+        var bytesRead: Long = 0L
+            private set
+
+        override fun read(): Int {
+            val value = super.read()
+            if (value >= 0) count(1L)
+            return value
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            val count = super.read(buffer, offset, length)
+            if (count > 0) this.count(count.toLong())
+            return count
+        }
+
+        private fun count(amount: Long) {
+            bytesRead += amount
+            require(bytesRead <= maximumBytes) {
+                "O arquivo JSONL excedeu o limite de leitura de $maximumBytes bytes."
+            }
+        }
+    }
 
     private const val MAX_JSONL_LINE_CHARS = 500_000
     private const val MAX_EXAMPLE_BYTES = 65_536
