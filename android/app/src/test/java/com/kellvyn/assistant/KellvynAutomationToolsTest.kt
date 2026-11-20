@@ -72,20 +72,39 @@ class KellvynAutomationToolsTest {
     }
 
     @Test
-    fun cancellationIsLimitedToTheQueueAndDoesNotClaimRunningWorkWasStopped() = runBlocking {
+    fun cancellationOnlyAffectsAllowlistedQueuedResourceProbe() = runBlocking {
         var cancelledId = ""
         val tools = createTools(cancel = { id ->
             cancelledId = id
-            false
+            true
         })
         val tool = tools.single { it.spec.name == "automation_cancel_queued_task" }
 
-        val result = tool.execute(mapOf("task_id" to "running-task-2"))
+        val result = tool.execute(mapOf("task_id" to "queued-task-1"))
 
-        assertFalse(result.success)
-        assertEquals("running-task-2", cancelledId)
-        assertTrue(result.content.contains("nenhum trabalho em execução foi interrompido"))
+        assertTrue(result.success)
+        assertEquals("queued-task-1", cancelledId)
+        assertTrue(result.content.contains("cancelada antes do início"))
         assertEquals(KellvynToolRisk.CANCEL_QUEUED_TASK, tool.spec.risk)
+    }
+
+    @Test
+    fun runningOrForeignTasksAreNotCancelled() = runBlocking {
+        var cancelWasCalled = false
+        val tools = createTools(cancel = {
+            cancelWasCalled = true
+            true
+        })
+        val tool = tools.single { it.spec.name == "automation_cancel_queued_task" }
+
+        val running = tool.execute(mapOf("task_id" to "running-task-2"))
+        val foreign = tool.execute(mapOf("task_id" to "foreign-task"))
+
+        assertFalse(running.success)
+        assertTrue(running.content.contains("já saiu da fila"))
+        assertFalse(foreign.success)
+        assertTrue(foreign.content.contains("só controla probes internos"))
+        assertFalse(cancelWasCalled)
     }
 
     @Test
@@ -106,7 +125,20 @@ class KellvynAutomationToolsTest {
     ): List<KellvynAgentTool> = KellvynAutomationTools.create(
         pendingCountProvider = { 3 },
         scheduleResourceSnapshot = schedule,
-        taskStatusProvider = { id -> if (id == "queued-task-1") queuedTask() else null },
+        taskStatusProvider = { id ->
+            when (id) {
+                "queued-task-1" -> queuedTask()
+                "running-task-2" -> queuedTask().copy(
+                    id = id,
+                    state = KellvynQueuedTaskState.RUNNING
+                )
+                "foreign-task" -> queuedTask().copy(
+                    id = id,
+                    handlerId = "unrelated_internal_handler"
+                )
+                else -> null
+            }
+        },
         cancelQueuedTask = cancel
     )
 
