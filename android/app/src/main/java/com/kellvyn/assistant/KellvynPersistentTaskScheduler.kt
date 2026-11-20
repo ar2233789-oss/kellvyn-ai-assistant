@@ -598,6 +598,10 @@ internal class KellvynTaskScheduler(
     suspend fun enqueue(spec: KellvynQueuedTaskSpec): String =
         withContext(Dispatchers.IO) { queue.enqueue(spec, clock()) }
 
+    /** Cancels only a task that has not been claimed by a worker. */
+    suspend fun cancelQueuedTask(taskId: String): Boolean =
+        withContext(Dispatchers.IO) { queue.cancelQueued(taskId, clock()) }
+
     private suspend fun ensureRecovered() {
         if (recoveryCompleted) return
         recoveryMutex.withLock {
