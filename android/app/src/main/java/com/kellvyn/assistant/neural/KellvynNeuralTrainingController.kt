@@ -71,6 +71,7 @@ internal class KellvynNeuralTrainingController(
      */
     suspend fun trainAndInstallFromJsonl(
         input: InputStream,
+        expectedSourceSha256: String,
         config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
         createdAtMillis: Long = System.currentTimeMillis(),
         samplingSeed: Long = config.seed,
@@ -83,6 +84,9 @@ internal class KellvynNeuralTrainingController(
         minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
     ): CorpusOutcome = withContext(Dispatchers.IO) {
         val trainingContext = currentCoroutineContext()
+        require(expectedSourceSha256.matches(Regex("[a-f0-9]{64}"))) {
+            "O SHA-256 da auditoria anterior está inválido."
+        }
         val selection = KellvynJsonlCorpusReader.read(
             input = input,
             config = config,
@@ -97,6 +101,9 @@ internal class KellvynNeuralTrainingController(
             cancellationCheck = { trainingContext.ensureActive() }
         )
         trainingContext.ensureActive()
+        require(selection.report.sourceSha256 == expectedSourceSha256) {
+            "O arquivo JSONL mudou desde a auditoria aprovada; faça uma nova auditoria antes de treinar."
+        }
         if (!selection.report.readyForTraining) {
             return@withContext CorpusOutcome(
                 audit = selection.report,
