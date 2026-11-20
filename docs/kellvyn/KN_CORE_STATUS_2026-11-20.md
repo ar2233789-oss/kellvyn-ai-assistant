@@ -246,3 +246,17 @@ Foram adicionados testes para:
 - passagem da amostra segura ao pipeline existente quando o preflight está apto.
 
 **Limite importante:** isto é ingestão/auditoria e amostragem limitada, não treino de todo um corpus de milhões de registros. O arquivo completo pode ser inspecionado até o teto configurado; o modelo atual ainda treina apenas a amostra limitada que cabe nos orçamentos do KN-004. A amostra de 480 KB não é suficiente para afirmar pré-treinamento generalista nem inteligência conversacional pronta.
+
+
+### Extensão da auditoria de origem e orçamento — atualização 20/11/2026
+
+O relatório tipado agora registra também:
+- contagens TRAIN/VALIDATION/TEST de todos os registros válidos antes da seleção limitada;
+- tamanho exato da origem e hash SHA-256;
+- bytes mantidos na amostra e bytes TRAIN consumidos pelo BPE;
+- teto BPE agregado permitido para a configuração;
+- registros rejeitados especificamente pelo limite de processamento por texto e pelo limite de passos por exemplo.
+
+Os limites BPE correspondem aos limites internos existentes no tokenizer: aproximadamente 40 milhões de operações `bytes × merges`, tanto por texto quanto no corpus TRAIN agregado. O limite por exemplo é 50.000 passos, dividido pelo número de épocas, com EOS incluído na estimativa. A amostra de treino respeita ainda `maxTotalTrainingSteps` e o limite de working set do KN-004 antes da alocação do modelo.
+
+Novos casos de teste cobrem escapes JSON, aspas, quebras de linha, Unicode/português, chaves duplicadas, BPE por texto/agregado, passos por exemplo, dados sensíveis, limites de origem e a passagem pelo controlador. Os testes estão **adicionados, não executados pelo Gradle/JUnit**.
