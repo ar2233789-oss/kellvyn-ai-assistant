@@ -260,3 +260,12 @@ O relatório tipado agora registra também:
 Os limites BPE correspondem aos limites internos existentes no tokenizer: aproximadamente 40 milhões de operações `bytes × merges`, tanto por texto quanto no corpus TRAIN agregado. O limite por exemplo é 50.000 passos, dividido pelo número de épocas, com EOS incluído na estimativa. A amostra de treino respeita ainda `maxTotalTrainingSteps` e o limite de working set do KN-004 antes da alocação do modelo.
 
 Novos casos de teste cobrem escapes JSON, aspas, quebras de linha, Unicode/português, chaves duplicadas, BPE por texto/agregado, passos por exemplo, dados sensíveis, limites de origem e a passagem pelo controlador. Os testes estão **adicionados, não executados pelo Gradle/JUnit**.
+
+
+### Relatório tipado e validação JSONL — continuação
+
+O relatório de preflight agora expõe `tokenizerWorkRejectedRecords` e `perExampleStepRejectedRecords` como contagens numéricas, além de `validTrainRecords`, `validValidationRecords` e `validTestRecords`. O leitor só marca `readyForTraining` quando os mínimos de partição, o teto de bytes retidos, o limite agregado BPE e o limite agregado de passos estão satisfeitos.
+
+Registros malformados ou com PII/credenciais reconhecíveis são excluídos e contabilizados; o preflight ainda pode prosseguir com a parte limpa se ela cumprir os mínimos e os orçamentos. Isso não comprova que os campos de licença/proveniência são verdadeiros, nem que a detecção heurística encontra todo dado pessoal. A aprovação da fonte continua sendo uma responsabilidade explícita de quem fornece o arquivo.
+
+Mais testes adicionados: escapes com aspas/quebras de linha, Unicode português/emoji, rejeição de chaves duplicadas no mesmo objeto, respostas alternativas de TRAIN e deduplicação normalizada do TEST, e contagens exatas de recusas BPE.
