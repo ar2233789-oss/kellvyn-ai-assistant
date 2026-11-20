@@ -4,9 +4,12 @@ package com.kellvyn.assistant.neural
  * Deterministic memory/parameter estimator for planning original dense KN Transformer sizes.
  *
  * The estimate covers trainable parameters, FP32 weights, two FP32 Adam moments and the
- * incremental key/value cache. It deliberately does not pretend to predict Android's exact
- * process RSS: allocator overhead, tokenizer tables, activations, JVM objects, runtime buffers,
- * and other application components must be measured separately on the target device.
+ * incremental key/value cache. These are separate components, not a prediction of simultaneous
+ * peak training memory: the current training path does not retain an inference KV cache while
+ * updating weights. The reported trainingCoreBytes is a conservative planning proxy that sums
+ * parameter weights, Adam moments, and the inference cache for the same shape. It excludes
+ * activations, temporary gradients, allocator overhead, tokenizer tables, JVM objects, runtime
+ * buffers, and other application components. Measure real peak RSS on the target device.
  */
 internal object KellvynTransformerCapacityPlanner {
     data class Estimate(
@@ -98,9 +101,10 @@ internal object KellvynTransformerCapacityPlanner {
     }
 
     /**
-     * Returns the greatest layer count whose estimated FP32 training core fits the explicit
-     * budget, or null if even one layer does not fit. This is a lower-bound estimate, not a
-     * device-safety guarantee; callers must leave headroom for activations and Android overhead.
+     * Returns the greatest layer count whose FP32 planning proxy fits the explicit budget,
+     * or null if even one layer does not fit. The proxy sums weights, Adam moments and KV cache;
+     * it is not a true peak-training-RAM estimate or a device-safety guarantee. Callers must
+     * leave substantial headroom for activations, gradients and Android/runtime overhead.
      */
     fun maximumLayersWithinTrainingBudget(
         vocabularySize: Int,
