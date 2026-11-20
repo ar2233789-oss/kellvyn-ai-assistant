@@ -2,6 +2,7 @@ package com.kellvyn.assistant.neural
 
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -26,7 +27,7 @@ class KellvynNeuralTrainingControllerTest {
     }
 
     @Test
-    fun lowContextExperimentIsNotInstalledOverAnyExistingCheckpoint() = runBlocking {
+    fun lowContextExperimentIsNotInstalledWhenNoCheckpointExists() = runBlocking {
         val outcome = KellvynNeuralTrainingController(store).trainAndInstall(
             examples = sampleExamples(),
             config = KellvynMultiBlockTrainingConfig(
@@ -47,6 +48,53 @@ class KellvynNeuralTrainingControllerTest {
         assertNotNull(outcome.qualityGate)
         assertTrue(outcome.qualityGate.reasons.any { it.contains("pequena demais") })
         assertTrue(outcome.detail.contains("não foi instalado"))
+    }
+
+    @Test
+    fun rejectedTrainingPreservesThePreviouslyInstalledCheckpoint() = runBlocking {
+        val trained = KellvynMultiBlockTrainingPipeline.train(
+            examples = sampleExamples(),
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 128,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 8,
+                epochsPerExample = 1,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_930_001L
+        )
+        val existing = trained.copy(
+            manifest = trained.manifest.copy(
+                initialValidationLoss = 5.0,
+                finalValidationLoss = 3.0,
+                heldOutTestLoss = 3.2
+            )
+        )
+        store.saveMultiBlock(existing)
+        val previousFingerprint = existing.model.parameterFingerprint()
+
+        val outcome = KellvynNeuralTrainingController(store).trainAndInstall(
+            examples = sampleExamples(),
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 48,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 8,
+                epochsPerExample = 1,
+                weightDecay = 0.0f
+            ),
+            createdAtMillis = 1_800_000_930_002L
+        )
+
+        assertFalse(outcome.installed)
+        val restored = store.loadMultiBlockForInference()
+        assertNotNull(restored)
+        assertEquals(previousFingerprint, restored!!.model.parameterFingerprint())
     }
 
     private fun sampleExamples() = listOf(
