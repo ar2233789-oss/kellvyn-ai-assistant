@@ -54,8 +54,7 @@ class KellvynMultiBlockTrainingPipelineTest {
         assertTrue(result.manifest.initialValidationLoss.isFinite())
         assertTrue(result.manifest.finalValidationLoss.isFinite())
         assertTrue(result.manifest.heldOutTestLoss.isFinite())
-        assertEquals(KellvynMultiBlockTrainingQualityGate.evaluate(result.manifest).eligibleForProtocolBenchmark,
-            false)
+        assertFalse(KellvynMultiBlockTrainingQualityGate.evaluate(result.manifest).eligibleForProtocolBenchmark)
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -81,7 +80,7 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test
-    fun configurationIsDepthAwareAndRejectsInvalidHeads() {
+    fun configurationIsDepthAware() {
         assertEquals(2, KellvynMultiBlockTrainingConfig().depth)
         assertEquals(4, KellvynMultiBlockTrainingConfig(depth = 4).depth)
         assertEquals(8, KellvynMultiBlockTrainingConfig(depth = 8).depth)
@@ -89,6 +88,15 @@ class KellvynMultiBlockTrainingPipelineTest {
             KellvynMultiBlockTrainingQualityGate.evaluate(
                 manifest = sampleManifestForGate()
             ).eligibleForProtocolBenchmark
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun configurationRejectsHeadCountThatDoesNotDivideEmbeddingSize() {
+        KellvynMultiBlockTrainingConfig(
+            contextLength = 48,
+            embeddingSize = 8,
+            headCount = 3
         )
     }
 
