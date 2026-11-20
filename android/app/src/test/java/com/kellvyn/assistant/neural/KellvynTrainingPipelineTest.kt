@@ -184,6 +184,34 @@ class KellvynTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun rejectsCredentialBearingInstructionProvenanceMetadata() {
+        val train = instruction(
+            "train-secret-metadata", "Pergunta: olá.", "Olá.", KellvynTrainingSplit.TRAIN
+        )
+        val examples = listOf(
+            train.copy(
+                provenance = train.provenance.copy(
+                    rightsEvidence = "api_key = \"ghp_abcdefghijklmnopqrstuvwxyz1234567890\""
+                )
+            ),
+            instruction("validation-metadata", "Pergunta: bom dia.", "Bom dia.", KellvynTrainingSplit.VALIDATION),
+            instruction("test-metadata", "Pergunta: fim.", "Fim.", KellvynTrainingSplit.TEST)
+        )
+        KellvynTrainingPipeline.trainInstructions(examples)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun rejectsCredentialBearingDocumentProvenanceMetadata() {
+        val docs = sampleDocuments().toMutableList()
+        docs[0] = docs[0].copy(
+            provenance = docs[0].provenance.copy(
+                sourceReference = "owner://dataset?access_token=ghp_abcdefghijklmnopqrstuvwxyz1234567890"
+            )
+        )
+        KellvynTrainingPipeline.train(docs)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun requiresExplicitTrainValidationAndTestPartitions() {
         val docs = sampleDocuments().filter { it.split != KellvynTrainingSplit.TEST }
         KellvynTrainingPipeline.train(docs)
