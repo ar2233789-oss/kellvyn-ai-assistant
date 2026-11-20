@@ -187,7 +187,9 @@ class KellvynMultiBlockTransformerTest {
 
         repeat(48) { step ->
             val cached = session.nextTokenProbabilities()
-            val reference = model.evaluateNextTokenProbabilities(session.contextTokenIds())
+            val context = session.contextTokenIds()
+            val firstAbsolutePosition = session.processedTokenCount() - context.size
+            val reference = model.evaluateNextTokenProbabilities(context, firstAbsolutePosition)
             assertEquals(reference.size, cached.size)
             for (token in reference.indices) {
                 assertTrue(
