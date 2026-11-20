@@ -515,14 +515,177 @@ internal class KellvynMultiBlockTransformer private constructor(
         require(prefixTokenIds.size <= config.contextLength)
         require(maxNewTokens in 0..4096)
         require(endTokenId == null || endTokenId in 0 until config.vocabularySize)
-        val output = prefixTokenIds.toMutableList()
+        val session = newGenerationSession(prefixTokenIds)
         repeat(maxNewTokens) {
-            val context = output.takeLast(config.contextLength).toIntArray()
-            val next = predictNext(context)
-            if (next == endTokenId && endTokenId != null) return output.toIntArray()
-            output += next
+            val next = session.predictNext()
+            if (next == endTokenId && endTokenId != null) return session.outputTokenIds()
+            session.appendToken(next)
         }
-        return output.toIntArray()
+        return session.outputTokenIds()
+    }
+
+    fun newGenerationSession(prefixTokenIds: IntArray): GenerationSession =
+        GenerationSession(prefixTokenIds.copyOf())
+
+    /**
+     * Incremental generation with one independent key/value cache for every KN-004 block.
+     * RoPE positions remain absolute as the oldest entry is evicted from the sliding window.
+     * Caches are transient and are never serialized into model checkpoints.
+     */
+    internal inner class GenerationSession internal constructor(prefixTokenIds: IntArray) {
+        private val outputTokens = ArrayList<Int>(prefixTokenIds.size + 64)
+        private val contextTokens = ArrayList<Int>(config.contextLength)
+        private val keyCaches = List(config.depth) {
+            ArrayList<FloatArray>(config.contextLength)
+        }
+        private val valueCaches = List(config.depth) {
+            ArrayList<FloatArray>(config.contextLength)
+        }
+        private var nextAbsolutePosition = 0
+        private var latestProbabilities: FloatArray? = null
+
+        init {
+            require(prefixTokenIds.isNotEmpty()) { "O prefixo da sessão KV está vazio." }
+            require(prefixTokenIds.size <= config.contextLength) {
+                "O prefixo excede a janela de contexto KN-004."
+            }
+            require(prefixTokenIds.all { it in 0 until config.vocabularySize }) {
+                "O prefixo contém um token fora do vocabulário."
+            }
+            prefixTokenIds.forEach(::appendInternal)
+        }
+
+        fun appendToken(tokenId: Int) {
+            require(tokenId in 0 until config.vocabularySize)
+            appendInternal(tokenId)
+        }
+
+        fun nextTokenProbabilities(): FloatArray =
+            requireNotNull(latestProbabilities) {
+                "A sessão KV ainda não processou nenhum token."
+            }.copyOf()
+
+        fun predictNext(): Int {
+            val probabilities = nextTokenProbabilities()
+            var best = 0
+            for (index in 1 until probabilities.size) {
+                if (probabilities[index] > probabilities[best]) best = index
+            }
+            return best
+        }
+
+        fun outputTokenIds(): IntArray = outputTokens.toIntArray()
+
+        fun contextTokenIds(): IntArray = contextTokens.toIntArray()
+
+        internal fun cachedTokenCount(layerIndex: Int): Int {
+            require(layerIndex in 0 until config.depth)
+            return keyCaches[layerIndex].size
+        }
+
+        internal fun processedTokenCount(): Int = nextAbsolutePosition
+
+        private fun appendInternal(tokenId: Int) {
+            if (contextTokens.size == config.contextLength) {
+                contextTokens.removeAt(0)
+                for (layerIndex in 0 until config.depth) {
+                    keyCaches[layerIndex].removeAt(0)
+                    valueCaches[layerIndex].removeAt(0)
+                }
+            }
+            outputTokens += tokenId
+            contextTokens += tokenId
+
+            val d = config.embeddingSize
+            val f = config.feedForwardSize
+            val heads = config.headCount
+            val headDim = d / heads
+            val absolutePosition = nextAbsolutePosition
+            val tokenOffset = tokenId * d
+            var hidden = FloatArray(d) { dimension ->
+                parameters.tokenEmbeddings[tokenOffset + dimension]
+            }
+
+            for (layerIndex in 0 until config.depth) {
+                val block = parameters.blocks[layerIndex]
+                val normalized = layerNorm(
+                    hidden,
+                    block.normAttentionGamma,
+                    block.normAttentionBeta
+                )
+                val query = linear(normalized.values, block.queryWeights, d, d)
+                rotateInPlace(query, absolutePosition, heads)
+                val key = linear(normalized.values, block.keyWeights, d, d)
+                rotateInPlace(key, absolutePosition, heads)
+                val value = linear(normalized.values, block.valueWeights, d, d)
+
+                val keyCache = keyCaches[layerIndex]
+                val valueCache = valueCaches[layerIndex]
+                keyCache += key
+                valueCache += value
+                require(keyCache.size == valueCache.size &&
+                    keyCache.size == contextTokens.size) {
+                    "O cache KV do bloco $layerIndex ficou inconsistente."
+                }
+
+                val attentionConcat = FloatArray(d)
+                for (head in 0 until heads) {
+                    val headOffset = head * headDim
+                    val scores = FloatArray(keyCache.size)
+                    var maximum = Float.NEGATIVE_INFINITY
+                    for (position in keyCache.indices) {
+                        var score = 0.0f
+                        for (dimension in 0 until headDim) {
+                            val feature = headOffset + dimension
+                            score += query[feature] * keyCache[position][feature]
+                        }
+                        scores[position] = score / sqrt(headDim.toDouble()).toFloat()
+                        if (scores[position] > maximum) maximum = scores[position]
+                    }
+                    var denominator = 0.0
+                    val weights = FloatArray(scores.size)
+                    for (position in scores.indices) {
+                        val weight = exp((scores[position] - maximum).toDouble())
+                        weights[position] = weight.toFloat()
+                        denominator += weight
+                    }
+                    require(denominator.isFinite() && denominator > 0.0)
+                    for (position in scores.indices) {
+                        val weight = (weights[position].toDouble() / denominator).toFloat()
+                        val cachedValue = valueCache[position]
+                        for (dimension in 0 until headDim) {
+                            val feature = headOffset + dimension
+                            attentionConcat[feature] += weight * cachedValue[feature]
+                        }
+                    }
+                }
+
+                val attentionProjection =
+                    linear(attentionConcat, block.attentionOutputWeights, d, d)
+                val residualAfterAttention = FloatArray(d) { dimension ->
+                    hidden[dimension] + attentionProjection[dimension]
+                }
+                val normalizedMlp = layerNorm(
+                    residualAfterAttention,
+                    block.normFeedForwardGamma,
+                    block.normFeedForwardBeta
+                )
+                val gate = linear(normalizedMlp.values, block.gateWeights, d, f)
+                val up = linear(normalizedMlp.values, block.upWeights, d, f)
+                val gated = FloatArray(f) { unit -> silu(gate[unit]) * up[unit] }
+                val ffnOutput = linear(gated, block.downWeights, f, d)
+                hidden = FloatArray(d) { dimension ->
+                    residualAfterAttention[dimension] + ffnOutput[dimension]
+                }
+            }
+
+            val logits = linear(hidden, parameters.outputWeights, d, config.vocabularySize)
+            for (token in logits.indices) logits[token] += parameters.outputBias[token]
+            latestProbabilities = softmax(logits)
+            nextAbsolutePosition++
+            require(keyCaches.all { it.size == contextTokens.size } &&
+                valueCaches.all { it.size == contextTokens.size })
+        }
     }
 
     private fun validateCompletion(prompt: IntArray, completion: IntArray) {
