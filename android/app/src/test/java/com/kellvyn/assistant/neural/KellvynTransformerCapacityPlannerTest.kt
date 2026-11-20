@@ -84,9 +84,9 @@ class KellvynTransformerCapacityPlannerTest {
         )
     }
 
-    @Test(expected = ArithmeticException::class)
-    fun rejectsArithmeticOverflowInsteadOfWrappingMemoryEstimate() {
-        KellvynTransformerCapacityPlanner.estimate(
+    @Test
+    fun maximumSupportedDimensionsProducePositiveNonOverflowedEstimates() {
+        val estimate = KellvynTransformerCapacityPlanner.estimate(
             vocabularySize = 65_536,
             contextLength = 32_768,
             embeddingSize = 8_192,
@@ -94,6 +94,13 @@ class KellvynTransformerCapacityPlannerTest {
             feedForwardSize = 32_768,
             layerCount = 256
         )
+
+        assertTrue(estimate.parameterCount > 0L)
+        assertTrue(estimate.fp32WeightBytes > 0L)
+        assertTrue(estimate.fp32AdamMomentBytes > estimate.fp32WeightBytes)
+        assertTrue(estimate.fp32KvCacheBytes > 0L)
+        assertTrue(estimate.inferenceCoreBytes > estimate.fp32WeightBytes)
+        assertTrue(estimate.trainingCoreBytes > estimate.fp32AdamMomentBytes)
     }
 
     private fun estimate(layers: Int) =
