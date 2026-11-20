@@ -156,7 +156,36 @@ class KellvynNeuralModelStoreTest {
         assertFalse(backup.exists())
     }
 
-    private fun trainMultiBlockSample(seed: Long) = KellvynMultiBlockTrainingPipeline.train(
+    @Test
+    fun rejectedKn004TrainingDoesNotReplacePreviouslyApprovedCheckpoint() {
+        val trainedApproved = trainMultiBlockSample(seed = 8404L, contextLength = 128)
+        val approved = trainedApproved.copy(
+            manifest = trainedApproved.manifest.copy(
+                initialValidationLoss = 5.0,
+                finalValidationLoss = 3.0,
+                heldOutTestLoss = 3.2
+            )
+        )
+        val approval = store.saveMultiBlockIfQualityApproved(approved)
+        assertTrue(approval.eligibleForProtocolBenchmark)
+        val previousFingerprint = approved.model.parameterFingerprint()
+
+        val rejected = trainMultiBlockSample(seed = 8405L, contextLength = 32)
+        var wasRejected = false
+        try {
+            store.saveMultiBlockIfQualityApproved(rejected)
+        } catch (_: IllegalArgumentException) {
+            wasRejected = true
+        }
+
+        assertTrue(wasRejected)
+        val restored = store.loadMultiBlock()
+        assertNotNull(restored)
+        assertEquals(previousFingerprint, restored!!.model.parameterFingerprint())
+        assertEquals(approved.manifest, restored.manifest)
+    }
+
+    private fun trainMultiBlockSample(seed: Long, contextLength: Int = 32) = KellvynMultiBlockTrainingPipeline.train(
         examples = listOf(
             multiBlockInstruction(
                 "kn004-train-$seed",
@@ -178,7 +207,7 @@ class KellvynNeuralModelStoreTest {
             )
         ),
         config = KellvynMultiBlockTrainingConfig(
-            contextLength = 32,
+            contextLength = contextLength,
             embeddingSize = 8,
             headCount = 2,
             feedForwardSize = 12,
