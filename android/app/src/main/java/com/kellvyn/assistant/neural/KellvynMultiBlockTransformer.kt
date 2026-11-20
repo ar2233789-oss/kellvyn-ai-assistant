@@ -52,6 +52,26 @@ internal class KellvynMultiBlockTransformer private constructor(
             }
             require(feedForwardSize in 4..1024)
             require(depth in 1..8)
+
+            // Reject pathological allocations before any model tensors are created.
+            val vocabulary = vocabularySize.toLong()
+            val embedding = embeddingSize.toLong()
+            val feedForward = feedForwardSize.toLong()
+            val sharedParameters = 2L * vocabulary * embedding + vocabulary
+            val perBlockParameters =
+                4L * embedding * embedding + 4L * embedding + 3L * embedding * feedForward
+            val parameterCount = sharedParameters + perBlockParameters * depth.toLong()
+            val weightsAndAdamBytes = parameterCount * 12L
+            require(weightsAndAdamBytes <= 128L * 1024L * 1024L) {
+                "A configuração KN-004 excede o orçamento de pesos e estados AdamW."
+            }
+
+            val attentionCacheBytes =
+                depth.toLong() * headCount.toLong() *
+                    contextLength.toLong() * contextLength.toLong() * 4L
+            require(attentionCacheBytes <= 32L * 1024L * 1024L) {
+                "A matriz de atenção KN-004 excede o orçamento de memória de sequência."
+            }
         }
     }
 
