@@ -30,6 +30,23 @@ internal object KellvynTransformerCapacityEstimator {
         val fitsMemoryBudget: Boolean?
     )
 
+    /** Estimates the actual KN-004 tensor layout, including one KV cache per block. */
+    fun estimate(
+        config: KellvynMultiBlockTransformer.Config,
+        memoryBudgetBytes: Long? = null
+    ): Report = estimate(
+        config = KellvynTransformerLanguageModel.Config(
+            vocabularySize = config.vocabularySize,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            headCount = config.headCount,
+            feedForwardSize = config.feedForwardSize,
+            seed = config.seed
+        ),
+        memoryBudgetBytes = memoryBudgetBytes,
+        depth = config.depth
+    )
+
     fun estimate(
         config: KellvynTransformerLanguageModel.Config,
         memoryBudgetBytes: Long? = null,
