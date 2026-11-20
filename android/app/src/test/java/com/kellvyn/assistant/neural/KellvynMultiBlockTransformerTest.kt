@@ -44,6 +44,21 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test
+    fun rotaryAttentionIsInvariantToUniformAbsolutePositionShift() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val context = tokenizer.encode("Kellvyn Oi!")
+
+        val relativePositions = model.evaluateNextTokenProbabilities(context)
+        val shiftedPositions = model.evaluateNextTokenProbabilities(
+            contextTokenIds = context,
+            firstAbsolutePosition = 37
+        )
+
+        assertArrayEquals(relativePositions, shiftedPositions, 0.00002f)
+    }
+
+    @Test
     fun twoBlockBackpropagationMatchesFiniteDifferencesForEveryLayerAndGroup() {
         val tokenizer = smallTokenizer()
         val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
