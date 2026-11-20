@@ -90,7 +90,7 @@ O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manife
 
 ## Pico de memória ao carregar checkpoints
 
-A leitura de inferência agora identifica os intervalos dos blocos dentro do pacote verificado e passa o intervalo do modelo diretamente ao leitor KN-004. O buffer limitado de leitura expõe seu array interno e tamanho escrito, evitando também a cópia integral feita por `ByteArrayOutputStream.toByteArray()`. O leitor calcula SHA-256 sobre o intervalo e usa `ByteArrayInputStream(bytes, offset, length)`, sem criar uma segunda cópia do bloco de pesos (que pode chegar a 128 MiB). Apenas tokenizer e manifesto, ambos pequenos, são copiados. Foi adicionado teste de checkpoint com prefixo/sufixo para validar leitura por offset e ausência dos estados AdamW na inferência.
+A leitura de inferência agora identifica os intervalos dos blocos dentro do pacote verificado e passa o intervalo do modelo diretamente ao leitor KN-004. O buffer limitado de leitura expõe seu array interno e tamanho efetivamente escrito (não confia em `InputStream.available()` como tamanho final), evitando também a cópia integral feita por `ByteArrayOutputStream.toByteArray()`. O leitor calcula SHA-256 sobre o intervalo e usa `ByteArrayInputStream(bytes, offset, length)`, sem criar uma segunda cópia do bloco de pesos (que pode chegar a 128 MiB). Apenas tokenizer e manifesto, ambos pequenos, são copiados. Foi adicionado teste de checkpoint com prefixo/sufixo para validar leitura por offset e ausência dos estados AdamW na inferência.
 
 
 ## Perfil de capacidade móvel candidato

@@ -77,7 +77,7 @@ internal object KellvynMultiBlockCheckpointBundle {
             "Pacote KN-004 vazio, truncado ou acima do limite."
         }
         val payloadSize = buffer.length - CHECKSUM_BYTES
-        val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
+        val storedDigest = bytes.copyOfRange(payloadSize, buffer.length)
         val digestEngine = MessageDigest.getInstance("SHA-256")
         digestEngine.update(bytes, 0, payloadSize)
         val digest = digestEngine.digest()

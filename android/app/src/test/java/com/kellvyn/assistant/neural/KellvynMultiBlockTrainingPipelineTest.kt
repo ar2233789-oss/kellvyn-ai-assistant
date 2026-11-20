@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import java.io.FilterInputStream
 
 class KellvynMultiBlockTrainingPipelineTest {
     @Test
@@ -79,8 +80,11 @@ class KellvynMultiBlockTrainingPipelineTest {
             KellvynMultiBlockCheckpointBundle.writeCheckpoint(trained, it)
         }.toByteArray()
 
+        val inputWithoutAvailableHint = object : FilterInputStream(ByteArrayInputStream(bytes)) {
+            override fun available(): Int = 0
+        }
         val restored = KellvynMultiBlockCheckpointBundle.readInferenceCheckpoint(
-            ByteArrayInputStream(bytes)
+            inputWithoutAvailableHint
         )
 
         assertEquals(trained.model.parameterFingerprint(), restored.model.parameterFingerprint())
