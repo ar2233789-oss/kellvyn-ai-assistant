@@ -71,7 +71,7 @@ internal class KellvynVectorStudio private constructor(
         val canvas = Canvas(bitmap)
         canvas.drawColor(design.background)
         try {
-            design.shapes.forEach { shape ->
+            for (shape in design.shapes) {
                 currentCoroutineContext().ensureActive()
                 drawShape(canvas, shape)
             }
