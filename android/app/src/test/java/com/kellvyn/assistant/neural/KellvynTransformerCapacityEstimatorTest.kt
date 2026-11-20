@@ -23,6 +23,31 @@ class KellvynTransformerCapacityEstimatorTest {
     }
 
     @Test
+    fun depthTwoAddsOneFullBlockAndOneKvCachePerLayer() {
+        val report = KellvynTransformerCapacityEstimator.estimate(
+            KellvynTransformerLanguageModel.Config(),
+            depth = 2
+        )
+
+        assertEquals(2, report.depth)
+        assertEquals(54_016L, report.parameterCount)
+        assertEquals(216_064L, report.weightsBytes)
+        assertEquals(432_128L, report.optimizerStateBytes)
+        assertEquals(648_192L, report.persistedStateBytes)
+        assertEquals(131_072L, report.generationKvCacheBytes)
+        assertEquals(780_464L, report.residentLowerBoundBytes)
+        assertEquals(648_288L, report.checkpointLowerBoundBytes)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun depthAboveExperimentalLimitIsRejected() {
+        KellvynTransformerCapacityEstimator.estimate(
+            KellvynTransformerLanguageModel.Config(),
+            depth = 9
+        )
+    }
+
+    @Test
     fun memoryBudgetDecisionUsesConservativeResidentLowerBound() {
         val config = KellvynTransformerLanguageModel.Config(
             vocabularySize = 4_096,
