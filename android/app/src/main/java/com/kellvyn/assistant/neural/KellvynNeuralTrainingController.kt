@@ -4,6 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import java.io.InputStream
 
 /**
  * Installs only a KN-004 checkpoint that clears the numeric quality gate.
@@ -24,6 +25,54 @@ internal class KellvynNeuralTrainingController(
         /** Original TEST examples are returned in memory for the next benchmark stage; never persisted here. */
         val heldOutTestExamples: List<KellvynInstructionTrainingExample> = emptyList()
     )
+
+    data class CorpusOutcome(
+        val selection: KellvynJsonlCorpusReader.Selection,
+        val training: Outcome?
+    )
+
+    /**
+     * Audits a caller-owned local JSONL stream, then trains only its bounded safe sample.
+     * The input stream is consumed but never closed here. No network access or corpus persistence
+     * is performed; a rejected preflight returns without allocating the neural model.
+     */
+    suspend fun trainAndInstallFromJsonl(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        maxRetainedUtf8Bytes: Long = 480_000L,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
+    ): CorpusOutcome = withContext(Dispatchers.IO) {
+        val trainingContext = currentCoroutineContext()
+        val selection = KellvynJsonlCorpusReader.read(
+            input = input,
+            config = config,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            maxRetainedUtf8Bytes = maxRetainedUtf8Bytes,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples,
+            cancellationCheck = { trainingContext.ensureActive() }
+        )
+        trainingContext.ensureActive()
+        if (!selection.report.readyForTraining) {
+            return@withContext CorpusOutcome(
+                selection = selection,
+                training = null
+            )
+        }
+        val outcome = trainAndInstall(
+            examples = selection.examples,
+            config = config,
+            createdAtMillis = createdAtMillis
+        )
+        CorpusOutcome(selection = selection, training = outcome)
+    }
 
     suspend fun trainAndInstall(
         examples: List<KellvynInstructionTrainingExample>,
