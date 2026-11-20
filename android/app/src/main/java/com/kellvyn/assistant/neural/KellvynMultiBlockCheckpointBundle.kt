@@ -8,6 +8,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import java.security.DigestOutputStream
 import java.security.MessageDigest
 
 /**
@@ -29,31 +30,39 @@ internal object KellvynMultiBlockCheckpointBundle {
     private const val MAX_EVIDENCE_BYTES = 500
     private const val HASH_HEX_LENGTH = 64
 
+    /**
+     * Writes tokenizer and manifest (small bounded blobs) while streaming the potentially
+     * large model checkpoint directly into the output. The outer checksum covers every byte,
+     * including the model's own checksum trailer, without staging a second full bundle array.
+     */
     fun writeCheckpoint(result: KellvynMultiBlockTrainingResult, output: OutputStream) {
         validateBundleContract(result)
         val tokenizerBytes = ByteArrayOutputStream().also {
             result.tokenizer.writeCheckpoint(it)
         }.toByteArray()
-        val modelBytes = ByteArrayOutputStream().also {
-            result.model.writeCheckpoint(it)
-        }.toByteArray()
+        val modelSize = result.model.checkpointEncodedSizeBytes()
         val manifestBytes = encodeManifest(result.manifest)
         require(tokenizerBytes.size in 1..MAX_TOKENIZER_BYTES)
-        require(modelBytes.size in 1..MAX_MODEL_BYTES)
+        require(modelSize in 1L..MAX_MODEL_BYTES.toLong())
         require(manifestBytes.size in 1..MAX_MANIFEST_BYTES)
 
-        val payloadBuffer = ByteArrayOutputStream()
-        DataOutputStream(payloadBuffer).use { data ->
-            data.writeInt(MAGIC)
-            data.writeInt(VERSION)
-            writeBlob(data, tokenizerBytes)
-            writeBlob(data, modelBytes)
-            writeBlob(data, manifestBytes)
+        val payloadSize =
+            20L + tokenizerBytes.size.toLong() + modelSize + manifestBytes.size.toLong()
+        require(payloadSize + CHECKSUM_BYTES <= MAX_BUNDLE_BYTES.toLong()) {
+            "Pacote KN-004 excede o limite de bytes."
         }
-        val payload = payloadBuffer.toByteArray()
-        require(payload.size + CHECKSUM_BYTES <= MAX_BUNDLE_BYTES)
-        output.write(payload)
-        output.write(MessageDigest.getInstance("SHA-256").digest(payload))
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        val digestOutput = DigestOutputStream(output, digest)
+        val data = DataOutputStream(digestOutput)
+        data.writeInt(MAGIC)
+        data.writeInt(VERSION)
+        writeBlob(data, tokenizerBytes)
+        data.writeInt(modelSize.toInt())
+        result.model.writeCheckpoint(data)
+        writeBlob(data, manifestBytes)
+        data.flush()
+        output.write(digest.digest())
         output.flush()
     }
 
