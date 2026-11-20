@@ -113,7 +113,7 @@ Essa bancada é usada no ambiente de engenharia; **não está embutida no APK e 
 - A branch não contém checkpoint/pesos treinados nem corpus conversacional autorizado suficiente. Os testes neurais usam fixtures sintéticas e não demonstram competência geral.
 - O quality gate KN-004 libera benchmark de protocolo, não prontidão de conversa/produção.
 - O catálogo de app não inclui motores internos de UI/UX, raster/vetor, geração de imagem, 3D/CAD, animação, vídeo, áudio ou jogos.
-- A ferramenta nativa de automação exposta ao KN é somente leitura da fila; o scheduler existe, mas o KN ainda não dispõe de um conjunto completo de operações autorizadas de criação/controle de workflows.
+- A automação nativa exposta ao KN agora permite agendar apenas o probe interno de recursos, consultar o estado sem payload e cancelar tarefas ainda não iniciadas. Ainda faltam workflows gerais definidos por usuário, gatilhos, condições, dependências, pausa/retomada configurável e integrações com apps externos.
 - O diagnóstico do compilador não compila; a compilação real ocorre por rota limitada do construtor nativo, ainda sem toolchain Android completo.
 - Não há integração do Blender externo com o runtime Android.
 - Não há sistema geral de interação com apps/jogos; permissões Android não podem ser presumidas.
