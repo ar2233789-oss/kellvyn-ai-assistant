@@ -244,7 +244,8 @@ class KellvynJsonlCorpusReaderTest {
             minimumTestExamples = 20
         )
 
-        assertTrue(result.report.readyForTraining)
+        assertFalse(result.report.readyForTraining)
+        assertTrue(result.report.needsManualReview)
         assertEquals(1L, result.report.sensitiveRecords)
         assertEquals(1L, result.report.malformedRecords)
         assertTrue(result.examples.none { it.completion.contains("example.com") })
