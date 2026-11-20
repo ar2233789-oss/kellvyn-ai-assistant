@@ -25,6 +25,10 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FilterInputStream
+import java.io.IOException
+import java.io.InputStream
+import java.util.Locale
 
 /**
  * Temporary application boundary while the original Kellvyn neural backend is built.
@@ -115,6 +119,50 @@ internal class KellvynRuntime(context: Context) {
 
     /** A fresh resource snapshot for the operations specialist and diagnostics. */
     suspend fun resourceSnapshot(): KellvynResourceSnapshot = resourceRuntime.snapshot()
+
+    /**
+     * Imports one explicitly selected Android image into the private artifact store.
+     * This is a trusted Android-content-resolver boundary for the main chat attachment flow;
+     * the model never receives a filesystem path or raw image bytes.
+     */
+    suspend fun importUserImageArtifact(
+        uri: Uri,
+        displayName: String,
+        taskId: String
+    ): KellvynArtifactRef = withContext(Dispatchers.IO) {
+        val resolver = appContext.contentResolver
+        val mimeType = resolver.getType(uri)
+            ?.substringBefore(';')
+            ?.trim()
+            ?.lowercase(Locale.ROOT)
+            ?: throw IOException("O Android não informou o tipo do anexo selecionado.")
+        val extension = when (mimeType) {
+            "image/png" -> "png"
+            "image/jpeg" -> "jpg"
+            "image/webp" -> "webp"
+            else -> throw IllegalArgumentException(
+                "O importador local aceita somente PNG, JPEG e WebP."
+            )
+        }
+        val stem = displayName.substringAfterLast('/').substringAfterLast('\\')
+            .substringBeforeLast('.', displayName)
+            .replace(Regex("[^A-Za-z0-9_-]+"), "-")
+            .trim('-', '_')
+            .take(96)
+            .ifBlank { "imagem" }
+        val safeName = "$stem.$extension"
+        val input = resolver.openInputStream(uri)
+            ?: throw IOException("Não foi possível abrir o anexo selecionado.")
+        input.use { stream ->
+            resourceRuntime.artifacts.put(
+                taskId = taskId,
+                fileName = safeName,
+                mediaType = mimeType,
+                producerId = "user.import",
+                input = BoundedArtifactInputStream(stream, MAX_IMPORTED_IMAGE_BYTES)
+            )
+        }
+    }
 
     /**
      * Persists a complete planner snapshot in app-private storage.
@@ -738,5 +786,34 @@ internal class KellvynRuntime(context: Context) {
 
     fun close() {
         memoryRepository.close()
+    }
+
+    private class BoundedArtifactInputStream(
+        input: InputStream,
+        private val maxBytes: Long
+    ) : FilterInputStream(input) {
+        private var bytesRead = 0L
+
+        override fun read(): Int {
+            val value = super.read()
+            if (value >= 0) {
+                bytesRead++
+                if (bytesRead > maxBytes) throw IOException("O anexo excede o limite de 64 MiB.")
+            }
+            return value
+        }
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            val count = super.read(buffer, offset, length)
+            if (count > 0) {
+                bytesRead += count.toLong()
+                if (bytesRead > maxBytes) throw IOException("O anexo excede o limite de 64 MiB.")
+            }
+            return count
+        }
+    }
+
+    private companion object {
+        const val MAX_IMPORTED_IMAGE_BYTES = 64L * 1024L * 1024L
     }
 }
