@@ -102,7 +102,7 @@ O KN recebe apenas descrições compactas e referências aos artefatos. Não car
 - `KellvynToolRegistry.descriptionsForPrompt`: seleção lexical determinística das ferramentas pertinentes ao pedido, com limite configurável de seis descrições por padrão e inventário sempre disponível. O registro completo continua acessível ao executor; essa seleção não constitui outra inteligência nem remove capacidades.
 - `ProjectWorkspaceStore` e ferramentas de workspace: listar projetos/arquivos, ler trechos, escrever e excluir sob aprovação exata.
 - Memória local cifrada, checkpoints de tarefa, traces com metadados e snapshots de recursos.
-- Catálogo interno atual: navegação de Kotlin/Java, auditoria de segurança, inspeção de dados JSON/CSV, diagnóstico do ambiente de compilação, pesquisa restrita à Wikipédia em português, diagnóstico de bots, editor raster inicial e renderizador 2D de spritesheet.
+- Catálogo interno atual: navegação de Kotlin/Java, auditoria de segurança, inspeção de dados JSON/CSV, diagnóstico do ambiente de compilação, pesquisa restrita à Wikipédia em português, diagnóstico de bots, editor raster inicial, renderizador 2D de spritesheet e gerador vetorial SVG/PNG.
 - Compilador local Java experimental: ECJ → D8 → APK, assinatura e verificação. O construtor limita-se a projetos Java Android simples; não é um Gradle/Android Studio completo.
 - KN-004: Transformer multi-bloco próprio, retropropagação por todas as camadas, cache KV por camada, tokenizer BPE, pipeline local e checkpoint independente.
 
