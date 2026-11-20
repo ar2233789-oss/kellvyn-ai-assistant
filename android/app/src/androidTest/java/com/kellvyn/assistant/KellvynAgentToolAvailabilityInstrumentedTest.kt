@@ -21,6 +21,47 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
         try {
             val registeredSpecs = runtime.createProjectWorkspaceToolRegistry().descriptions()
 
+            val artifactToolNames = registeredSpecs
+                .filter { KellvynStudioCapability.ARTIFACT_STORAGE in it.capabilities }
+                .map { it.name }
+                .toSet()
+            assertEquals(
+                setOf("artifact_store_status", "artifact_list_task", "artifact_verify"),
+                artifactToolNames
+            )
+            assertEquals(
+                KellvynToolRisk.READ_ONLY,
+                registeredSpecs.single { it.name == KellvynInvisibleStudioCatalogTool.TOOL_NAME }.risk
+            )
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS in it.capabilities
+            })
+            assertFalse(registeredSpecs.any {
+                KellvynStudioCapability.ANDROID_BUILD in it.capabilities
+            })
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS in it.capabilities
+            })
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.BOT_DIAGNOSTICS in it.capabilities
+            })
+            assertFalse(registeredSpecs.any {
+                KellvynStudioCapability.WORKFLOW_AUTOMATION in it.capabilities
+            })
+            val notImplementedYet = setOf(
+                KellvynStudioCapability.IMAGE_GENERATION,
+                KellvynStudioCapability.ANIMATION,
+                KellvynStudioCapability.VIDEO_GENERATION,
+                KellvynStudioCapability.AUDIO_GENERATION,
+                KellvynStudioCapability.GAME_INTERACTION,
+                KellvynStudioCapability.APP_CONTROL,
+                KellvynStudioCapability.SCENE_3D,
+                KellvynStudioCapability.CODE_EXECUTION
+            )
+            assertTrue(registeredSpecs.none { spec ->
+                spec.capabilities.any { it in notImplementedYet }
+            })
+
             val codeNavigation = setOf(
                 "workspace_list_projects",
                 "workspace_list_files",
