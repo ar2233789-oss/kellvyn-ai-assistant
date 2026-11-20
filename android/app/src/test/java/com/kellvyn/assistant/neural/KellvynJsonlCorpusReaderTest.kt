@@ -156,6 +156,8 @@ class KellvynJsonlCorpusReaderTest {
 
         assertTrue(result.report.readyForTraining)
         assertTrue(result.report.selectedTrain >= 100)
+        assertEquals(1L, result.report.tokenizerWorkRejectedRecords)
+        assertEquals(0L, result.report.perExampleStepRejectedRecords)
         assertTrue(
             result.report.selectedTokenizerTrainingBytes * config.maxMerges.toLong() <=
                 40_000_000L
