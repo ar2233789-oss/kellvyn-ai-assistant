@@ -120,7 +120,12 @@ internal object KellvynAutomationTools {
             if ((arguments.keys - setOf("delay_ms")).isNotEmpty()) {
                 return KellvynToolResult(false, "A automação não aceita handler, script ou payload fornecido pelo modelo.")
             }
-            val delay = arguments["delay_ms"]?.toLongOrNull() ?: 0L
+            val delay = if (arguments.containsKey("delay_ms")) {
+                arguments["delay_ms"]?.toLongOrNull()
+                    ?: return KellvynToolResult(false, "delay_ms precisa ser um inteiro válido.")
+            } else {
+                0L
+            }
             if (delay !in 0L..MAX_DELAY_MILLIS) {
                 return KellvynToolResult(false, "O atraso precisa ficar entre 0 e sete dias.")
             }
