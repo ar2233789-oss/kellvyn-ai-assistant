@@ -27,8 +27,8 @@ import kotlin.math.sqrt
 internal class KellvynMultiBlockTransformer private constructor(
     val config: Config,
     private val parameters: ParameterSet,
-    private val firstMoment: ParameterSet,
-    private val secondMoment: ParameterSet,
+    private var firstMoment: ParameterSet?,
+    private var secondMoment: ParameterSet?,
     var trainingSteps: Long,
     private var optimizerSteps: Long
 ) {
@@ -208,8 +208,11 @@ internal class KellvynMultiBlockTransformer private constructor(
 
     init {
         validateParameterShapes(parameters, config)
-        validateParameterShapes(firstMoment, config)
-        validateParameterShapes(secondMoment, config)
+        require((firstMoment == null) == (secondMoment == null)) {
+            "Os dois estados AdamW precisam estar presentes juntos ou ausentes juntos."
+        }
+        firstMoment?.let { validateParameterShapes(it, config) }
+        secondMoment?.let { validateParameterShapes(it, config) }
         require(trainingSteps >= 0L && optimizerSteps == trainingSteps)
     }
 
@@ -260,7 +263,20 @@ internal class KellvynMultiBlockTransformer private constructor(
             )
         }
 
-        fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer {
+        fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
+            readCheckpoint(input, retainOptimizerState = true)
+
+        /**
+         * Loads only trained weights for inference. AdamW moments are checksum-verified
+         * with the rest of the checkpoint, then skipped without allocating FloatArrays.
+         */
+        fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
+            readCheckpoint(input, retainOptimizerState = false)
+
+        private fun readCheckpoint(
+            input: InputStream,
+            retainOptimizerState: Boolean
+        ): KellvynMultiBlockTransformer {
             val bytes = readBounded(input)
             require(bytes.size in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES) {
                 "Checkpoint KN-004 vazio, truncado ou acima do limite."
@@ -295,8 +311,18 @@ internal class KellvynMultiBlockTransformer private constructor(
                 "Contadores do checkpoint KN-004 inválidos."
             }
             val parameters = readParameters(data, config)
-            val firstMoment = readParameters(data, config)
-            val secondMoment = readParameters(data, config)
+            val firstMoment = if (retainOptimizerState) {
+                readParameters(data, config)
+            } else {
+                skipParameters(data, config)
+                null
+            }
+            val secondMoment = if (retainOptimizerState) {
+                readParameters(data, config)
+            } else {
+                skipParameters(data, config)
+                null
+            }
             require(data.available() == 0) {
                 "Checkpoint KN-004 contém bytes extras."
             }
@@ -304,6 +330,36 @@ internal class KellvynMultiBlockTransformer private constructor(
                 config, parameters, firstMoment, secondMoment,
                 trainingSteps, optimizerSteps
             )
+        }
+
+        private fun skipParameters(data: DataInputStream, config: Config) {
+            val d = config.embeddingSize
+            val v = config.vocabularySize
+            val f = config.feedForwardSize
+            val expectedSizes = buildList {
+                add(v * d)
+                repeat(config.depth) {
+                    addAll(listOf(d * d, d * d, d * d, d * d, d, d, d, d, d * f, d * f, f * d))
+                }
+                add(d * v)
+                add(v)
+            }
+            for (expectedSize in expectedSizes) {
+                val count = data.readInt()
+                require(count == expectedSize) {
+                    "Dimensões de estado AdamW no checkpoint KN-004 inválidas."
+                }
+                var remaining = count.toLong() * Float.SIZE_BYTES.toLong()
+                while (remaining > 0L) {
+                    val skipped = data.skipBytes(
+                        minOf(remaining, Int.MAX_VALUE.toLong()).toInt()
+                    )
+                    require(skipped > 0) {
+                        "Checkpoint KN-004 truncado nos estados AdamW."
+                    }
+                    remaining -= skipped.toLong()
+                }
+            }
         }
 
         private fun randomArray(size: Int, random: Random, limit: Float): FloatArray =
@@ -404,6 +460,10 @@ internal class KellvynMultiBlockTransformer private constructor(
         }
     }
 
+    /** True when AdamW moments are resident and another training step is permitted. */
+    internal fun hasTrainingState(): Boolean =
+        firstMoment != null && secondMoment != null
+
     fun evaluateNextTokenProbabilities(contextTokenIds: IntArray): FloatArray {
         validateContext(contextTokenIds)
         return forward(contextTokenIds, firstAbsolutePosition = 0).probabilities.copyOf()
@@ -451,6 +511,9 @@ internal class KellvynMultiBlockTransformer private constructor(
         cancellationCheck: (() -> Unit)? = null
     ): TrainingReport {
         validateCompletion(promptTokenIds, completionTokenIds)
+        check(hasTrainingState()) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }
         require(epochs in 1..10_000)
         require(completionTokenIds.size.toLong() * epochs.toLong() <= MAX_TRAINING_STEPS_PER_CALL)
         validateOptimizerArguments(learningRate, weightDecay)
@@ -550,7 +613,13 @@ internal class KellvynMultiBlockTransformer private constructor(
             data.writeLong(config.seed)
             data.writeLong(trainingSteps)
             data.writeLong(optimizerSteps)
-            listOf(parameters, firstMoment, secondMoment).forEach { set ->
+            val first = requireNotNull(firstMoment) {
+                "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+            }
+            val second = requireNotNull(secondMoment) {
+                "Modelo KN-004 compactado para inferência: estados AdamW não estão carregados."
+            }
+            listOf(parameters, first, second).forEach { set ->
                 set.arrays().forEach { writeFloatArray(data, it) }
             }
         }
@@ -1170,8 +1239,12 @@ internal class KellvynMultiBlockTransformer private constructor(
         val beta2Correction = 1.0 - BETA2.power(optimizerSteps)
         val values = parameters.arrays()
         val gradientArrays = gradients.arrays()
-        val first = firstMoment.arrays()
-        val second = secondMoment.arrays()
+        val first = requireNotNull(firstMoment) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }.arrays()
+        val second = requireNotNull(secondMoment) {
+            "Treinamento KN-004 indisponível: o modelo foi carregado em modo somente inferência."
+        }.arrays()
         for (group in values.indices) {
             for (index in values[group].indices) {
                 val gradient = gradientArrays[group][index].toDouble()

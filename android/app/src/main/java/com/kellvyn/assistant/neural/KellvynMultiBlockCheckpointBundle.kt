@@ -57,7 +57,20 @@ internal object KellvynMultiBlockCheckpointBundle {
         output.flush()
     }
 
-    fun readCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle {
+    fun readCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle =
+        readCheckpoint(input, inferenceOnly = false)
+
+    /**
+     * Restores the same tokenizer, weights and provenance while omitting AdamW moments.
+     * Use this path for the live chat runtime to avoid keeping training-only arrays in RAM.
+     */
+    fun readInferenceCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle =
+        readCheckpoint(input, inferenceOnly = true)
+
+    private fun readCheckpoint(
+        input: InputStream,
+        inferenceOnly: Boolean
+    ): KellvynRestoredMultiBlockBundle {
         val bytes = readBounded(input)
         require(bytes.size in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
             "Pacote KN-004 vazio, truncado ou acima do limite."
@@ -79,7 +92,11 @@ internal object KellvynMultiBlockCheckpointBundle {
         require(data.available() == 0) { "O pacote KN-004 contém campos extras." }
 
         val tokenizer = KellvynBpeTokenizer.readCheckpoint(ByteArrayInputStream(tokenizerBytes))
-        val model = KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(modelBytes))
+        val model = if (inferenceOnly) {
+            KellvynMultiBlockTransformer.readInferenceCheckpoint(ByteArrayInputStream(modelBytes))
+        } else {
+            KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(modelBytes))
+        }
         val manifest = decodeManifest(manifestBytes)
         val restored = KellvynRestoredMultiBlockBundle(tokenizer, model, manifest)
         validateBundleContract(

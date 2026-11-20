@@ -190,18 +190,30 @@ internal class KellvynNeuralModelStore(
         }
     }
 
-    /** Restores KN-004 only after checksum, model shapes and provenance manifest validate. */
-    fun loadMultiBlock(): KellvynRestoredMultiBlockBundle? = synchronized(lock) {
+    /** Restores KN-004 with full AdamW state when future training/resume is required. */
+    fun loadMultiBlock(): KellvynRestoredMultiBlockBundle? =
+        loadMultiBlock(inferenceOnly = false)
+
+    /**
+     * Restores KN-004 for chat inference without allocating AdamW first/second moments.
+     * Parameters, tokenizer and provenance remain checksum- and shape-validated.
+     */
+    fun loadMultiBlockForInference(): KellvynRestoredMultiBlockBundle? =
+        loadMultiBlock(inferenceOnly = true)
+
+    private fun loadMultiBlock(
+        inferenceOnly: Boolean
+    ): KellvynRestoredMultiBlockBundle? = synchronized(lock) {
         val root = prepareRoot(create = false) ?: return@synchronized null
         val target = checkedChild(root, MULTIBLOCK_MODEL_FILE)
         val backup = checkedChild(root, MULTIBLOCK_BACKUP_FILE)
 
         if (target.isFile) {
             try {
-                return@synchronized readMultiBlockBundle(target)
+                return@synchronized readMultiBlockBundle(target, inferenceOnly)
             } catch (primaryError: Exception) {
                 if (!backup.isFile) throw primaryError
-                val restored = readMultiBlockBundle(backup)
+                val restored = readMultiBlockBundle(backup, inferenceOnly)
                 val damaged = checkedChild(root, MULTIBLOCK_DAMAGED_FILE)
                 if (damaged.exists()) damaged.delete()
                 if (!target.renameTo(damaged)) return@synchronized restored
@@ -214,19 +226,28 @@ internal class KellvynNeuralModelStore(
             }
         }
         if (backup.isFile) {
-            val restored = readMultiBlockBundle(backup)
+            val restored = readMultiBlockBundle(backup, inferenceOnly)
             if (!backup.renameTo(target)) return@synchronized restored
             return@synchronized restored
         }
         null
     }
 
-    private fun readMultiBlockBundle(file: File): KellvynRestoredMultiBlockBundle {
+    private fun readMultiBlockBundle(
+        file: File,
+        inferenceOnly: Boolean
+    ): KellvynRestoredMultiBlockBundle {
         require(
             file.isFile &&
                 file.length() in 1..MAX_MULTIBLOCK_BUNDLE_BYTES.toLong()
         ) { "O pacote KN-004 salvo está vazio ou excedeu o limite." }
-        return FileInputStream(file).use(KellvynMultiBlockCheckpointBundle::readCheckpoint)
+        return FileInputStream(file).use { input ->
+            if (inferenceOnly) {
+                KellvynMultiBlockCheckpointBundle.readInferenceCheckpoint(input)
+            } else {
+                KellvynMultiBlockCheckpointBundle.readCheckpoint(input)
+            }
+        }
     }
 
     private fun readTransformerBundle(file: File): KellvynRestoredTransformerBundle {

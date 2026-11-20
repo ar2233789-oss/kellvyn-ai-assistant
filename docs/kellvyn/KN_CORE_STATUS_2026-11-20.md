@@ -44,3 +44,23 @@ O caminho técnico de desempenho que já existe no código é a geração increm
 6. Só depois criar um adaptador pequeno que conecte um checkpoint validado ao chat principal. Continuar com uma única Kellvyn IA, sem sistema de agentes, sem outro chat e sem mudanças visuais no Lovable.
 
 A extração é uma base de engenharia para acelerar o trabalho com código já existente, não uma declaração de que o cérebro está pronto.
+
+
+## Avanço de engenharia — carregamento compacto para inferência
+
+O KN-004 agora possui dois caminhos de leitura para o mesmo formato de checkpoint:
+
+- `readCheckpoint`: preserva parâmetros e estados AdamW, permitindo continuar treinamento.
+- `readInferenceCheckpoint`: valida o checksum do checkpoint e as dimensões dos arrays, carrega os pesos e salta os bytes dos estados AdamW sem alocar os respectivos `FloatArray`.
+
+O armazenamento também oferece `loadMultiBlockForInference()`, mantendo `loadMultiBlock()` para a restauração completa de treinamento. Assim, a mesma arquitetura e os mesmos pesos servem aos dois modos, sem manter estados de otimizador no caminho de conversa.
+
+O estimador passou a separar a estimativa de memória residente de treinamento da estimativa de inferência. A diferença corresponde aos dois estados AdamW que não são necessários para gerar texto. Para modelos maiores, essa separação reduz a parcela de memória dos arrays de parâmetros de 12 bytes por parâmetro (pesos + dois momentos) para 4 bytes por parâmetro (somente pesos), sem contar cache KV e overhead.
+
+Foram adicionados testes para:
+- igualdade do fingerprint e das probabilidades entre checkpoint completo e carregamento compacto;
+- rejeição de tentativa de treinar um modelo aberto em modo somente inferência;
+- restauração do bundle KN-004 via armazenamento compacto;
+- diferença entre estimativa residente de treinamento e inferência.
+
+**Limite:** estes testes foram adicionados ao código, mas ainda precisam executar em um runner Android/Gradle real. A validação anterior da branch foi interrompida antes do primeiro step de CI, então não há resultado de compilação ou JUnit a declarar.

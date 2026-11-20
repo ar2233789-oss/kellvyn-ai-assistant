@@ -222,6 +222,11 @@ class KellvynMultiBlockTransformerTest {
             2L * config.depth * config.contextLength * config.embeddingSize * 4L,
             report.generationKvCacheBytes
         )
+        assertTrue(report.inferenceResidentLowerBoundBytes < report.residentLowerBoundBytes)
+        assertEquals(
+            report.optimizerStateBytes,
+            report.residentLowerBoundBytes - report.inferenceResidentLowerBoundBytes
+        )
     }
 
     @Test

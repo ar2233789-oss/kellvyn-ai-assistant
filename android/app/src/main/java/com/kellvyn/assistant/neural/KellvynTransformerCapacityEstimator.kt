@@ -25,6 +25,7 @@ internal object KellvynTransformerCapacityEstimator {
         val persistedStateBytes: Long,
         val generationKvCacheBytes: Long,
         val residentLowerBoundBytes: Long,
+        val inferenceResidentLowerBoundBytes: Long,
         val checkpointLowerBoundBytes: Long,
         val memoryBudgetBytes: Long?,
         val fitsMemoryBudget: Boolean?
@@ -83,6 +84,9 @@ internal object KellvynTransformerCapacityEstimator {
         val arrayHeaders = parameterArrayCount * 3L * ARRAY_HEADER_ESTIMATE_BYTES
         val residentLowerBoundBytes =
             persistedStateBytes + generationKvCacheBytes + arrayHeaders
+        // Live inference keeps weights and per-layer KV only; AdamW moments are training-only.
+        val inferenceResidentLowerBoundBytes =
+            weightsBytes + generationKvCacheBytes + arrayHeaders
         val checkpointLowerBoundBytes =
             persistedStateBytes + CHECKSUM_BYTES + CHECKPOINT_HEADER_ESTIMATE_BYTES
 
@@ -94,6 +98,7 @@ internal object KellvynTransformerCapacityEstimator {
             persistedStateBytes = persistedStateBytes,
             generationKvCacheBytes = generationKvCacheBytes,
             residentLowerBoundBytes = residentLowerBoundBytes,
+            inferenceResidentLowerBoundBytes = inferenceResidentLowerBoundBytes,
             checkpointLowerBoundBytes = checkpointLowerBoundBytes,
             memoryBudgetBytes = memoryBudgetBytes,
             fitsMemoryBudget = memoryBudgetBytes?.let { residentLowerBoundBytes <= it }
