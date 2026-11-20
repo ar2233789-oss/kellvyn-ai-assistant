@@ -232,6 +232,28 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun recoversAfterDiscardingAnOversizedLineAndReadsTheNextRecord() {
+        val oversized = jsonRecord(
+            899,
+            prompt = "x".repeat(500_100)
+        )
+        val valid = jsonRecord(900, prompt = "Pergunta curta após a linha longa.")
+        val source = oversized + "\n" + valid + "\n"
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(2L, result.report.totalLines)
+        assertEquals(1L, result.report.malformedRecords)
+        assertEquals(1L, result.report.validRecords)
+        assertEquals("ptbr-sample-900", result.examples.single().id)
+    }
+
+    @Test
     fun readsWindowsCrLfLineSeparatorsWithoutMergingRecords() {
         val source = (0 until 3).joinToString("\r\n", postfix = "\r\n") { jsonRecord(it) }
         val result = KellvynJsonlCorpusReader.read(
