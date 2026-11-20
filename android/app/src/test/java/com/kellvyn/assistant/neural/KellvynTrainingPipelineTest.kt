@@ -31,7 +31,7 @@ class KellvynTrainingPipelineTest {
         )
         val expectedCompletionSteps = examples
             .filter { it.split == KellvynTrainingSplit.TRAIN }
-            .sumOf { result.tokenizer.encode(it.completion).size.toLong() * config.epochsPerDocument }
+            .sumOf { (result.tokenizer.encode(it.completion).size.toLong() + 1L) * config.epochsPerDocument }
 
         assertEquals(expectedCompletionSteps, result.model.trainingSteps)
         assertEquals(expectedCompletionSteps, result.manifest.totalTrainingSteps)
@@ -108,6 +108,10 @@ class KellvynTrainingPipelineTest {
         })
         assertEquals(trainOnlyTokenizer.vocabularySize, result.tokenizer.vocabularySize)
         assertEquals(result.tokenizer.vocabularySize, result.model.config.vocabularySize)
+        val expectedDocumentSteps = documents
+            .filter { it.split == KellvynTrainingSplit.TRAIN }
+            .sumOf { trainOnlyTokenizer.encode(it.text).size.toLong() * config.epochsPerDocument.toLong() }
+        assertEquals(expectedDocumentSteps, result.model.trainingSteps)
         assertTrue(result.model.trainingSteps > 0L)
         assertTrue(result.manifest.initialValidationLoss.isFinite())
         assertTrue(result.manifest.finalValidationLoss.isFinite())
