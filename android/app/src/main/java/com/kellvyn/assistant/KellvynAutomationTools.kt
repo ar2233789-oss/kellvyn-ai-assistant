@@ -85,7 +85,7 @@ internal object KellvynAutomationTools {
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível consultar a tarefa: "
+                    "Não foi possível consultar a tarefa: " +
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
@@ -141,7 +141,7 @@ internal object KellvynAutomationTools {
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível agendar a tarefa: "
+                    "Não foi possível agendar a tarefa: " +
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
@@ -178,7 +178,7 @@ internal object KellvynAutomationTools {
             } catch (error: Exception) {
                 KellvynToolResult(
                     false,
-                    "Não foi possível cancelar a tarefa: "
+                    "Não foi possível cancelar a tarefa: " +
                         (error.message ?: error.javaClass.simpleName).take(240)
                 )
             }
