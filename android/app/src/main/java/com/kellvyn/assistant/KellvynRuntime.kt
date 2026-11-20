@@ -21,6 +21,8 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTransformer
 import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
 import com.kellvyn.assistant.neural.KellvynNeuralTrainingController
 import com.kellvyn.assistant.neural.KellvynJsonlCorpusReader
+import com.kellvyn.assistant.neural.KellvynNeuralChatRuntime
+import com.kellvyn.assistant.neural.KellvynNeuralBehaviorBenchmark
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -107,6 +109,9 @@ internal class KellvynRuntime(context: Context) {
     )
     private val neuralTrainingController by lazy {
         KellvynNeuralTrainingController(neuralModelStore)
+    }
+    private val neuralChatRuntime by lazy {
+        KellvynNeuralChatRuntime(neuralModelStore)
     }
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
@@ -371,6 +376,47 @@ internal class KellvynRuntime(context: Context) {
             minimumValidationExamples = minimumValidationExamples,
             minimumTestExamples = minimumTestExamples
         )
+
+    /**
+     * Initializes the local free-text KN-004 runtime from the verified compact checkpoint.
+     * This is an internal controlled API; it does not change MainActivity readiness or UI.
+     */
+    suspend fun initializeOwnMultiBlockChat(): KellvynNeuralChatRuntime.Status =
+        withContext(Dispatchers.IO) { neuralChatRuntime.initialize() }
+
+    /**
+     * Runs the original held-out TEST examples against this exact loaded checkpoint.
+     * Only a passing report unlocks this runtime instance; restart requires a new benchmark.
+     */
+    suspend fun benchmarkOwnMultiBlockChat(
+        heldOutTestExamples: List<KellvynInstructionTrainingExample>,
+        maxNewTokens: Int = 96
+    ): KellvynNeuralBehaviorBenchmark.Report = withContext(Dispatchers.Default) {
+        neuralChatRuntime.runBehaviorBenchmark(
+            examples = heldOutTestExamples,
+            maxNewTokens = maxNewTokens
+        )
+    }
+
+    /**
+     * Generates with the locally trained KN-004 only after numeric and behavioral gates pass.
+     * Main chat remains disabled until app-level integration and device validation are approved.
+     */
+    suspend fun generateOwnMultiBlockReply(
+        prompt: String,
+        maxNewTokens: Int = 96,
+        onPartial: (String) -> Unit = {}
+    ): String = withContext(Dispatchers.Default) {
+        neuralChatRuntime.generateReply(
+            userText = prompt,
+            maxNewTokens = maxNewTokens,
+            onPartial = onPartial
+        )
+    }
+
+    fun unloadOwnMultiBlockChat() {
+        neuralChatRuntime.unload()
+    }
 
     /** Loads the independently versioned KN-004 tokenizer, model and provenance bundle. */
     suspend fun loadOwnMultiBlockModel(): KellvynRestoredMultiBlockBundle? =
@@ -859,6 +905,7 @@ internal class KellvynRuntime(context: Context) {
     fun resetConversationAndWait() = Unit
 
     fun close() {
+        neuralChatRuntime.unload()
         memoryRepository.close()
     }
 
