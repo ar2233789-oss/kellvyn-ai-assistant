@@ -94,7 +94,11 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             val securityAudit = setOf("security_scan_project")
             val dataModeling = setOf("data_inspect_structure")
             val deviceDiagnostics = setOf("device_resource_snapshot")
-            val workflowAutomation = setOf("automation_queue_status", KellvynBotOperationsStudio.HEALTH_TOOL)
+            val workflowAutomation = setOf(
+                "automation_queue_status",
+                "automation_task_status",
+                KellvynBotOperationsStudio.HEALTH_TOOL
+            )
             val agentDesign = setOf(
                 KellvynAgentCreationStudio.CATALOG_TOOL,
                 KellvynAgentCreationStudio.INSPECT_TOOL,
