@@ -115,7 +115,7 @@ internal class KellvynMultiBlockInferenceEngine(
                 KellvynTrustLevel.USER_PROVIDED -> "USER_DATA"
                 KellvynTrustLevel.UNTRUSTED -> "UNTRUSTED_DATA"
             }
-            "[SYSTEM $trustLabel origem=${message.source.take(80)}]\\n" +
+            "[SYSTEM $trustLabel origem=${message.source.take(80)}]\n" +
                 message.content.take(config.maxMessageChars)
         }
         val toolCatalog = renderTools(availableTools)
