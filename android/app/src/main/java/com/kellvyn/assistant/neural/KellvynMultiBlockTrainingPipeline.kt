@@ -146,9 +146,12 @@ internal object KellvynMultiBlockTrainingPipeline {
             }
             require(
                 !containsSecretMaterial(example.prompt) &&
-                    !containsSecretMaterial(example.completion)
+                    !containsSecretMaterial(example.completion) &&
+                    !containsSecretMaterial(example.provenance.licenseId) &&
+                    !containsSecretMaterial(example.provenance.sourceReference) &&
+                    !containsSecretMaterial(example.provenance.rightsEvidence)
             ) {
-                "O exemplo KN-004 parece conter credenciais ou chave privada; foi recusado."
+                "O exemplo KN-004 contém credenciais em conteúdo ou proveniência; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_BYTES) {
