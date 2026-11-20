@@ -33,7 +33,7 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertTrue(result.content.contains("RASTER_IMAGE_EDIT status=REGISTERED_LAZY"))
             assertTrue(result.content.contains("ANIMATION status=REGISTERED_LAZY"))
             assertTrue(result.content.contains("IMAGE_GENERATION status=NOT_REGISTERED"))
-            assertTrue(result.content.contains("loaded_now=false"))
+            assertTrue(result.content.contains("state=REGISTERED_LAZY"))
             assertTrue(result.content.contains("Execução=NOT_CHECKED"))
             assertTrue(result.content.contains("verificação independente=NOT_VERIFIED"))
             assertTrue(result.content.contains("vector_render_artwork[ARTIFACT_CREATE]"))
