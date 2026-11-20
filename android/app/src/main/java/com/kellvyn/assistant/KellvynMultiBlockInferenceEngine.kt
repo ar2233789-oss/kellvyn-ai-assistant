@@ -61,7 +61,8 @@ internal class KellvynMultiBlockInferenceEngine(
                 promptTools = promptTools.dropLast(1)
             }
         }
-        val prefix = tokenizer.encode(prompt)
+        val boundedPrompt = requireNotNull(prompt)
+        val prefix = tokenizer.encode(boundedPrompt)
         val promptBudget = model.config.contextLength - config.maxGenerationTokens
         require(prefix.isNotEmpty() && prefix.size <= promptBudget) {
             "O prompt KN-004 ocupa ${prefix.size} tokens; o orçamento é $promptBudget."
