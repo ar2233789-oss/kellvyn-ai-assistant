@@ -276,6 +276,24 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun inferenceSliceRejectsCorruptedModelBytesWithoutReadingNeighboringBytes() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer))
+        val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val prefixSize = 9
+        val wrapped = ByteArray(prefixSize + checkpoint.size + 7)
+        checkpoint.copyInto(wrapped, destinationOffset = prefixSize)
+        wrapped[prefixSize + checkpoint.size / 2] =
+            (wrapped[prefixSize + checkpoint.size / 2].toInt() xor 0x01).toByte()
+
+        KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+            bytes = wrapped,
+            offset = prefixSize,
+            length = checkpoint.size
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun checkpointRejectsCorruptedPayload() {
         val tokenizer = smallTokenizer()
         val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer))
