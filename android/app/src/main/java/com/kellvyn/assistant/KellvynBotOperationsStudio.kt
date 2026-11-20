@@ -129,7 +129,7 @@ internal class KellvynBotOperationsStudio(
             timeoutMs = 4_000L,
             workloadClass = KellvynWorkloadClass.LIGHT,
             estimatedWorkingSetBytes = 32L * KIBIBYTE,
-            capabilities = setOf(KellvynStudioCapability.WORKFLOW_AUTOMATION)
+            capabilities = setOf(KellvynStudioCapability.BOT_DIAGNOSTICS)
         )
 
         private val MANIFEST = KellvynStudioModuleManifest(
