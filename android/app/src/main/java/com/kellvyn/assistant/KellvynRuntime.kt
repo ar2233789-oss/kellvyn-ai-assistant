@@ -9,6 +9,7 @@ import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
 import com.kellvyn.assistant.neural.KellvynTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynRestoredNeuralBundle
+import com.kellvyn.assistant.neural.KellvynTransformerFineTuneConfig
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingConfig
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingManifest
 import com.kellvyn.assistant.neural.KellvynTransformerTrainingPipeline
@@ -202,9 +203,11 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Trains the original KN-003 decoder-only Transformer from authorized local instruction
-     * examples and stores its own tokenizer, weights, optimizer moments and manifest.
-     * This does not connect the model to chat or silently replace the KN-002 experiment.
+     * Starts a fresh KN-003 run from this project's random initialization using authorized
+     * instruction examples. This intentionally does not continue an existing bundle.
+     * To preserve pretrained weights, call fineTuneOwnTransformerModel instead.
+     *
+     * This operation does not connect the model to chat or replace the KN-002 experiment.
      */
     suspend fun trainOwnTransformerModel(
         examples: List<KellvynInstructionTrainingExample>,
@@ -215,6 +218,63 @@ internal class KellvynRuntime(context: Context) {
             withContext(Dispatchers.Default) {
                 val trainingContext = currentCoroutineContext()
                 KellvynTransformerTrainingPipeline.train(
+                    examples = examples,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveTransformer(trained)
+        }
+        return trained.manifest
+    }
+
+    /**
+     * Pretrains KN-003 on authorized local documents using next-token prediction.
+     * The document pipeline keeps validation/test held out and persists the same
+     * tokenizer/Transformer bundle format used by supervised instruction training.
+     */
+    suspend fun pretrainOwnTransformerFromDocuments(
+        documents: List<KellvynTrainingDocument>,
+        config: KellvynTransformerTrainingConfig = KellvynTransformerTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTransformerTrainingManifest {
+        val trained = runHeavyTask("pretraining-transformer-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTransformerTrainingPipeline.pretrainDocuments(
+                    documents = documents,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveTransformer(trained)
+        }
+        return trained.manifest
+    }
+
+    /**
+     * Fine-tunes an existing pretrained KN-003 bundle with supervised examples.
+     * The pipeline clones the current checkpoint and the stored bundle is replaced only
+     * after training and held-out evaluation complete successfully.
+     */
+    suspend fun fineTuneOwnTransformerModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynTransformerFineTuneConfig = KellvynTransformerFineTuneConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynTransformerTrainingManifest {
+        val base = loadOwnTransformerModel()
+            ?: throw IllegalStateException("Não há um bundle KN-003 pré-treinado para ajuste fino.")
+        val trained = runHeavyTask("fine-tuning-transformer-${createdAtMillis}") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynTransformerTrainingPipeline.fineTuneInstructions(
+                    base = base,
                     examples = examples,
                     config = config,
                     createdAtMillis = createdAtMillis,

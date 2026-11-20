@@ -292,3 +292,28 @@ Registro de desenvolvimento da branch `lab/kellvyn-intelligence-core-20261116`. 
 | `da26e3ed1d692fa775ef03181a63ee71820f49b2` | Adicionado teste de regressão da detecção de Playwright Node |
 
 **Validação local:** 14/14 testes Python aprovados e `py_compile` aprovado. Gradle, ADB e Blender não estão instalados no host; build Android, smoke em AVD e render Blender real continuam NOT RUN/BLOCKED. Não confundir pipeline escrito com execução validada.
+
+## 19/11/2026 — Analista de raciocínio v2 / rotas alternativas
+
+- Criada branch isolada `kellvyn-rnd/reasoning-alternatives-20261119` a partir de `kellvyn-rnd/agent-trace-duration-port-20261118`.
+- Auditoria cruzada confirmou que o `REASONING_ANALYST` tinha missão genérica, sem ferramentas de navegação/Agent Lab, apesar de a capacidade WEB_RESEARCH e a ferramenta READ_ONLY já existirem para outros usos.
+- Atualizado o perfil para v2 com método de comparação de rotas, contraexemplos, orçamento de recursos, critérios, fallback e experimento reversível.
+- Concedidas capabilities de leitura de código e Agent Lab, além de WEB_RESEARCH condicionada ao switch; escrita e rede irrestrita continuam bloqueadas.
+- Substituído o cenário genérico do papel pelo benchmark `reasoning-alternative-delivery-routes`, sem aumentar a suíte além de 28 casos.
+- Testes adicionados/ajustados para matriz, switch de rede, roteamento do Orchestrator e benchmark. **Ainda não executados via Gradle/JUnit**; manter NOT_RUN até executor real.
+- Arquivos de interface, cérebro, Runtime de produção e `MainActivity.java` não foram alterados.
+
+## 19/11/2026 — endurecimento do comparador do Agent Lab
+
+- Auditoria encontrou que `agent_lab_trace_compare` calculava variação de aprovações mesmo entre traces de baterias ou ferramentas potencialmente diferentes.
+- `KellvynSpecialistEvaluationHarness` passou a registrar fingerprints separados para dados da bateria, perfis e contratos das ferramentas/política de rede.
+- `KellvynAgentLabStudio` agora recusa baterias diferentes/IDs duplicados, exige cobertura idêntica e resumo terminal `CASES_N`, e só calcula delta quando ferramentas/política são iguais. `BLOCKED`, `REVIEW_REQUIRED`, `BENCHMARK_ERROR` e `CANCELLED` não sustentam delta.
+- Perfil pode mudar como variável candidata; o relatório ainda ressalva que identidade/checkpoint do modelo não está fingerprintado.
+- Testes do Agent Lab adicionados para mudança de perfil, ferramentas divergentes, bateria divergente e cobertura incompleta; teste antigo do harness atualizado para três fingerprints.
+- **NOT RUN:** Gradle/JUnit não foram executados. Run Build APK `44534146166`/job `135595015706` terminou sem steps e não é o workflow Agent Lab. Não classificar como falha de Kotlin/Gradle.
+
+## 19/11/2026 — checkpoint CI após endurecimento do Agent Lab
+
+- HEAD observado: `1fc210c6ade761cc5b4965b3bd99ee077cd0c1b1`; PR #24 segue draft e não mesclada.
+- Runs `44535437579` / job `135599463253`, `44536111891` / job `135601840231` e `44536357173` / job `135602708033`: Build APK em failure sem steps, logs ou artefatos; combined status sem checks.
+- Classificação: execução de Build APK não iniciada/sem evidência de steps. Não chamar de falha de código, nem confundir com a suíte `agent-lab-tests.yml`. Gradle/JUnit/Android instrumented seguem NOT RUN.

@@ -3,22 +3,23 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 19/11/2026 — checkpoint da bancada externa  
+**Última revisão:** 19/11/2026 — foco atual: estudar e construir o cérebro neural próprio Kellvyn; agentes/laboratório de agentes em pausa  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
-**Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
+**Branch-base de engenharia:** kellvyn-rnd/agent-trace-duration-port-20261118  
+**Branch experimental ativa:** kellvyn-rnd/reasoning-alternatives-20261119  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
 **Implementação da R&D Studio:** 4598cab4e831dd3e1f9d96c0c2158de8e77ff566  
 **Últimos estudos:** auditoria KN-003 de gradientes e método de diferenças finitas, em `docs/kellvyn/rnd-studio/`.  
 **CI observado:** run 44392690462 — `runner_id=0`, `steps=[]`; Gradle/JUnit/Android NOT RUN.
 
-> Prioridade ativa: usar a Kellvyn R&D Studio externa para estudar e melhorar o cérebro próprio. Agent Lab Android e Agent Creation Studio são camadas distintas e não substituem essa bancada. Confirme sempre o HEAD real; o commit deste checkpoint é auto-referencial e será reconciliado pelo diário quando o runner voltar.
+> Prioridade ativa (19/11/2026): estudar e construir o cérebro neural próprio Kellvyn em ciclos simultâneos de pesquisa, auditoria de código, implementação pequena e validação. A Kellvyn R&D Studio externa é a bancada para esse trabalho, não o produto final. Novos agentes e expansão do Agent Lab/Agent Creation Studio ficam pausados; estudar esses sistemas como referência não autoriza ampliar sua implementação agora. Não declarar capacidade sem teste real. Confirme sempre o HEAD real e leia os commits posteriores antes de editar.
 > Se o HEAD atual for diferente, leia os commits posteriores antes de editar. Este documento não autoriza sobrescrever trabalho posterior.
 
 ---
 
 ## 1. Objetivo ativo — não desviar
 
-A prioridade ativa é a **Kellvyn R&D Studio externa**: uma bancada de engenharia para o assistente estudar a arquitetura neural própria, pesquisar métodos, formular hipóteses falsificáveis, isolar alterações, executar testes, comparar evidências e melhorar o cérebro sem perder continuidade. Não é uma tela do usuário nem um módulo do app.
+A prioridade ativa é **estudar e construir o cérebro neural próprio Kellvyn**, avançando em paralelo por quatro frentes: (1) pesquisa documental atualizada das referências; (2) auditoria do código neural, tokenizer, treinamento, memória e contexto já existentes; (3) implementação incremental de melhorias específicas; (4) validação com testes reproduzíveis e benchmarks. A Kellvyn R&D Studio externa é a bancada para isolar hipóteses, guardar evidências e validar essas mudanças; não é uma tela do usuário nem o cérebro. Novos agentes e expansão do laboratório de agentes permanecem em pausa.
 
 Não confundir estas camadas:
 - **Cérebro Kellvyn (KN):** modelo/tokenizer/pesos próprios e inferência neural; não está conectado ao chat de produção.
@@ -736,3 +737,51 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Próximo passo
 Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
+
+
+## 11.2. Continuidade — laboratório de agentes e Analista de Raciocínio v2 (19/11/2026)
+
+**Branch experimental:** `kellvyn-rnd/reasoning-alternatives-20261119` (derivada da branch `kellvyn-rnd/agent-trace-duration-port-20261118`). Não mesclar automaticamente.
+
+### Correção implementada nesta trilha
+- `REASONING_ANALYST` foi atualizado para perfil v2: comparação de rotas materialmente diferentes, contraexemplos, pré-condições, riscos, recursos, critérios de aceite, fallback e menor experimento reversível.
+- A matriz concede `AGENT_EVALUATION`, `CODE_NAVIGATION`, `WEB_RESEARCH`, `DATA_MODELING` e `DEVICE_DIAGNOSTICS` ao papel. A política continua fail-closed: leitura apenas; `NETWORK_READ` depende do switch do proprietário; nenhuma escrita/shell/instalação/controle do dispositivo.
+- O caso genérico `reasoning-contradictory-premises` foi substituído por `reasoning-alternative-delivery-routes`, mantendo 28 casos e dois por papel.
+- Testes escritos: matriz de capabilities, switch de rede, contexto/roteamento do Orchestrator e presença do benchmark alternativo.
+
+### Estado de validação
+- Alterações foram gravadas em commits pequenos na branch isolada.
+- Gradle/JUnit/Android instrumented ainda NÃO EXECUTADOS. O bloqueio histórico do CI é anterior ao primeiro step, `runner_id=0`, `steps=[]`; isso não permite diagnosticar compilação nem declarar aprovação.
+- O perfil e o benchmark são contratos estruturais. Não demonstram competência do modelo, pois não há checkpoint neural treinado aprovado.
+- Próxima sequência: revisar diff/compilabilidade dos testes; abrir PR draft para tentativa de CI sem merge; buscar rota de execução manual isolada sem usar o Poco F6 pessoal como runner; depois retomar lacunas dos outros papéis e Agent Lab.
+
+**Proteções:** não tocar `MainActivity.java`, interface/layout, `.github/interface-lock.sha`, cérebro/Runtime nem dados de produção nesta trilha.
+
+## 11.3. Continuidade — comparador científico do Agent Lab (19/11/2026)
+
+**Branch:** `kellvyn-rnd/reasoning-alternatives-20261119`  
+**PR draft:** [#24 — Reasoning Analyst v2 e comparação segura](https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/24)
+
+### Correção do laboratório
+- O comparador antigo somava aprovações mesmo quando baseline e candidato tinham suites/ferramentas diferentes. Isso permitia apresentar variação sem comparabilidade real.
+- O harness agora grava três fingerprints SHA-256: `CASES_` (definição integral da bateria), `PROFILES_` (perfis e limites) e `TOOLS_` (contratos das ferramentas e modo de rede).
+- Comparar baterias diferentes agora é recusado. Mudança de ferramenta/política, cobertura de casos diferente, suíte bloqueada/review-required ou trace interrompido suprime o delta; ainda é possível mostrar estados brutos.
+- Perfil diferente pode ser a variável do experimento, desde que a bateria e os contratos de ferramentas/política sejam os mesmos e ambas as suítes tenham o resumo terminal `CASES_N`.
+- `FAILED` com `CASES_N` indica que a bateria terminou e encontrou casos reprovados; `BENCHMARK_ERROR` e `CANCELLED` não contam como execução completa.
+- Limite ainda aberto: checkpoint/identidade do modelo neural não está no fingerprint. O relatório avisa que mesmo uma comparação controlada não prova causalidade por mudanças de pesos.
+- Testes ajustados para os três fingerprints, quatro cenários de comparação, execução incompleta e limites da suíte de 28 casos. Todos escritos, ainda sem Gradle/JUnit real.
+
+### Estado CI observado
+- SHA da branch no momento da verificação: `afdc129963fc56b7328e26b887455ebbecb48239` (antes dos dois últimos commits documentais/teste de compatibilidade).
+- O run `44534146166` foi do workflow `Build APK`; job `135595015706` terminou sem steps. Isso não representa execução de `agent-lab-tests.yml` nem prova falha de código.
+- `get_commit_combined_status` não retornou checks. Gradle/JUnit/Android instrumented permanecem NOT_RUN até runner executar as etapas.
+
+**Não mesclar PR #24.** Manter draft até a suíte iniciar e passar com logs associados ao SHA final. Não alterar `MainActivity`, layout, cérebro de produção, `KellvynRuntime` ou permissões de escrita.
+
+## 11.4. Checkpoint mais recente desta trilha (19/11/2026)
+
+- HEAD observado: `1fc210c6ade761cc5b4965b3bd99ee077cd0c1b1` na branch `kellvyn-rnd/reasoning-alternatives-20261119`.
+- PR #24 permanece aberta, draft, mergeable e NÃO mesclada; 14 arquivos no diff contra a branch-base.
+- Runs `44535437579` / job `135599463253`, `44536111891` / job `135601840231` e `44536357173` / job `135602708033`: workflow **Build APK**, todos terminaram em failure sem steps, logs ou artefatos. Combined status do SHA sem checks.
+- Esse run não é evidência de falha Kotlin/Gradle e não comprova execução de `agent-lab-tests.yml`. Os testes novos e o build Android continuam NÃO EXECUTADOS.
+- Não promover a PR nem declarar o laboratório validado até uma execução real das suites Python/Gradle/JUnit e Android instrumented, com logs vinculados ao SHA.

@@ -114,6 +114,78 @@ class KellvynTransformerLanguageModelTest {
     }
 
     @Test
+    fun rawTokenEpochPrimitiveMatchesSingleEpochTrainingExactly() {
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf("Kellvyn aprende linguagem contínua."),
+            maxMerges = 8
+        )
+        val tokens = tokenizer.encode("A previsão do próximo token é a tarefa básica.")
+        val config = KellvynTransformerLanguageModel.Config(
+            vocabularySize = tokenizer.vocabularySize,
+            contextLength = 16,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 8_422L
+        )
+        val measuredModel = KellvynTransformerLanguageModel.create(config)
+        val directModel = KellvynTransformerLanguageModel.create(config)
+
+        measuredModel.trainTokens(
+            tokenIds = tokens,
+            epochs = 1,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+        directModel.trainTokensEpoch(
+            tokenIds = tokens,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+
+        assertEquals(measuredModel.trainingSteps, directModel.trainingSteps)
+        assertEquals(measuredModel.parameterFingerprint(), directModel.parameterFingerprint())
+    }
+
+    @Test
+    fun directEpochPrimitiveMatchesSingleEpochTrainingExactly() {
+        val promptText = "Pergunta: responda sim. Resposta:"
+        val tokenizer = KellvynBpeTokenizer.train(
+            listOf(promptText, "sim"),
+            maxMerges = 8
+        )
+        val prompt = tokenizer.encode(promptText)
+        val completion = tokenizer.encode("sim")
+        val config = KellvynTransformerLanguageModel.Config(
+            vocabularySize = tokenizer.vocabularySize,
+            contextLength = 32,
+            embeddingSize = 8,
+            headCount = 2,
+            feedForwardSize = 12,
+            seed = 8_421L
+        )
+        val measuredModel = KellvynTransformerLanguageModel.create(config)
+        val directModel = KellvynTransformerLanguageModel.create(config)
+
+        measuredModel.trainCompletion(
+            promptTokenIds = prompt,
+            completionTokenIds = completion,
+            epochs = 1,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+        directModel.trainCompletionEpoch(
+            promptTokenIds = prompt,
+            completionTokenIds = completion,
+            learningRate = 0.003f,
+            weightDecay = 0.0f
+        )
+
+        assertEquals(measuredModel.trainingSteps, directModel.trainingSteps)
+        assertEquals(measuredModel.parameterFingerprint(), directModel.parameterFingerprint())
+    }
+
+    @Test
     fun transformerCheckpointRestoresArchitectureWeightsAndOptimizer() {
         val tokenizer = KellvynBpeTokenizer.train(
             listOf("Kellvyn aprende português."),
@@ -243,7 +315,14 @@ class KellvynTransformerLanguageModelTest {
         val cachedSession = model.newGenerationSession(prompt)
         val cachedTokens = mutableListOf<Int>()
         repeat(12) {
+            val probabilityReference = cachedSession.nextTokenProbabilities()
+            val probabilityArgmax = probabilityReference.indices.maxBy { probabilityReference[it] }
             val token = cachedSession.predictNext()
+            assertEquals(
+                "Greedy logits must select the same token as softmax probabilities.",
+                probabilityArgmax,
+                token
+            )
             cachedTokens += token
             cachedSession.appendToken(token)
         }

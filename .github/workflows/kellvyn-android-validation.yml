@@ -1,0 +1,76 @@
+name: Kellvyn Android validation
+
+on:
+  push:
+    branches:
+      - "kellvyn-rnd/reasoning-alternatives-20261119"
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kellvyn-android-validation-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-validation:
+    name: Android compile and JVM tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 35 packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      # The repository has no Gradle Wrapper files. Provision the exact
+      # Gradle version required by AGP 8.13 instead of assuming ./gradlew.
+      - name: Set up Gradle 8.13
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: "8.13"
+
+      - name: Confirm build toolchain
+        run: |
+          java -version
+          gradle --version
+          test -f android/settings.gradle
+          test -f android/app/build.gradle
+
+      - name: Compile app and run JVM unit tests
+        run: |
+          gradle -p android :app:testDebugUnitTest :app:assembleDebug \
+            --no-daemon --stacktrace
+
+      - name: Upload JVM test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kellvyn-jvm-test-reports
+          path: android/app/build/reports/tests/
+          if-no-files-found: ignore
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kellvyn-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

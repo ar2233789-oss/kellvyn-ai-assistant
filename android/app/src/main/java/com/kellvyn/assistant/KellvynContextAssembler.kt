@@ -37,13 +37,15 @@ internal object KellvynContextAssembler {
         var remaining = maxChars - requiredChars
         val retained = pinned.toMutableSet()
 
+        // Preserve a contiguous recent suffix. Skipping a large recent message and
+        // then restoring an older, smaller message would create a history gap (for example,
+        // keeping a user request while dropping the tool result that answered a later turn).
         for (index in messages.indices.reversed()) {
             if (index in retained) continue
             val itemCost = cost(messages[index])
-            if (itemCost <= remaining) {
-                retained += index
-                remaining -= itemCost
-            }
+            if (itemCost > remaining) break
+            retained += index
+            remaining -= itemCost
         }
 
         val selected = retained.sorted().map { messages[it] }

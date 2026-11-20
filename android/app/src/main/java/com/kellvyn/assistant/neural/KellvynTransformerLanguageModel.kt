@@ -133,6 +133,7 @@ internal class KellvynTransformerLanguageModel private constructor(
         val normalizedInputInverseStd: FloatArray,
         val queryRotated: FloatArray,
         val keysRotated: Array<FloatArray>,
+        val rotaryFactorsByPosition: Array<RotaryFactors>,
         val values: Array<FloatArray>,
         val attentionWeights: Array<FloatArray>,
         val attentionConcat: FloatArray,
@@ -155,6 +156,23 @@ internal class KellvynTransformerLanguageModel private constructor(
         validateParameterShapes(firstMoment, config)
         validateParameterShapes(secondMoment, config)
         require(trainingSteps >= 0L && optimizerSteps == trainingSteps)
+    }
+
+    // Parameter arrays are immutable as references after construction; cache their
+    // views so the per-token optimizer loop does not allocate fresh Lists every step.
+    private val parameterArrayViews = parameters.arrays()
+    private val firstMomentArrayViews = firstMoment.arrays()
+    private val secondMomentArrayViews = secondMoment.arrays()
+
+    // RoPE frequencies and attention scaling depend only on the immutable model
+    // configuration. Precompute them once instead of repeating pow()/sqrt() in
+    // every token/position during training and generation.
+    private val rotaryHeadDimension = config.embeddingSize / config.headCount
+    private val attentionScoreDivisor = sqrt(rotaryHeadDimension.toDouble()).toFloat()
+    private val inverseAttentionScale = (1.0 / sqrt(rotaryHeadDimension.toDouble())).toFloat()
+    private val rotaryFrequencies = DoubleArray(rotaryHeadDimension / 2) { pair ->
+        val exponent = (pair * 2).toDouble() / rotaryHeadDimension.toDouble()
+        1.0 / Math.pow(ROPE_BASE, exponent)
     }
 
     companion object {
@@ -379,16 +397,12 @@ internal class KellvynTransformerLanguageModel private constructor(
         val initialLoss = evaluateLoss(tokenIds)
 
         repeat(epochs) {
-            for (targetIndex in 1 until tokenIds.size) {
-                if (targetIndex and 31 == 0) cancellationCheck?.invoke()
-                val start = max(0, targetIndex - config.contextLength)
-                trainOne(
-                    tokenIds.copyOfRange(start, targetIndex),
-                    tokenIds[targetIndex],
-                    learningRate,
-                    weightDecay
-                )
-            }
+            trainTokensEpoch(
+                tokenIds = tokenIds,
+                learningRate = learningRate,
+                weightDecay = weightDecay,
+                cancellationCheck = cancellationCheck
+            )
         }
         cancellationCheck?.invoke()
         val finalLoss = evaluateLoss(tokenIds)
@@ -399,6 +413,36 @@ internal class KellvynTransformerLanguageModel private constructor(
             epochs,
             trainingSteps
         )
+    }
+
+    /**
+     * Applies one next-token epoch to a raw token sequence without measuring loss.
+     * This lets the corpus pipeline interleave documents and measure held-out loss only
+     * at epoch boundaries instead of repeating per-document evaluations.
+     */
+    internal fun trainTokensEpoch(
+        tokenIds: IntArray,
+        learningRate: Float = 0.003f,
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
+    ) {
+        require(tokenIds.size in 2..MAX_TRAINING_TOKENS)
+        require(tokenIds.all { it in 0 until config.vocabularySize })
+        require(tokenIds.size - 1L <= MAX_TRAINING_STEPS_PER_CALL)
+        validateOptimizerArguments(learningRate, weightDecay)
+        cancellationCheck?.invoke()
+
+        for (targetIndex in 1 until tokenIds.size) {
+            if (targetIndex and 31 == 0) cancellationCheck?.invoke()
+            val start = max(0, targetIndex - config.contextLength)
+            trainOne(
+                tokenIds.copyOfRange(start, targetIndex),
+                tokenIds[targetIndex],
+                learningRate,
+                weightDecay
+            )
+        }
+        cancellationCheck?.invoke()
     }
 
     fun trainCompletion(
@@ -420,16 +464,13 @@ internal class KellvynTransformerLanguageModel private constructor(
         val initialLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
 
         repeat(epochs) {
-            for (targetIndex in promptTokenIds.size until combined.size) {
-                if ((targetIndex - promptTokenIds.size) and 31 == 0) cancellationCheck?.invoke()
-                val start = max(0, targetIndex - config.contextLength)
-                trainOne(
-                    combined.copyOfRange(start, targetIndex),
-                    combined[targetIndex],
-                    learningRate,
-                    weightDecay
-                )
-            }
+            trainCompletionEpoch(
+                promptTokenIds = promptTokenIds,
+                completionTokenIds = completionTokenIds,
+                learningRate = learningRate,
+                weightDecay = weightDecay,
+                cancellationCheck = cancellationCheck
+            )
         }
         cancellationCheck?.invoke()
         val finalLoss = evaluateCompletionLoss(promptTokenIds, completionTokenIds)
@@ -440,6 +481,39 @@ internal class KellvynTransformerLanguageModel private constructor(
             epochs,
             trainingSteps
         )
+    }
+
+    /**
+     * Applies exactly one epoch to a prompt/completion pair without performing extra
+     * before/after loss evaluations. The pipeline uses this primitive to interleave
+     * examples efficiently and measure validation loss only at epoch boundaries.
+     */
+    internal fun trainCompletionEpoch(
+        promptTokenIds: IntArray,
+        completionTokenIds: IntArray,
+        learningRate: Float = 0.003f,
+        weightDecay: Float = DEFAULT_WEIGHT_DECAY,
+        cancellationCheck: (() -> Unit)? = null
+    ) {
+        require(promptTokenIds.isNotEmpty() && completionTokenIds.isNotEmpty())
+        require(promptTokenIds.size.toLong() + completionTokenIds.size.toLong() <= MAX_TRAINING_TOKENS)
+        val combined = promptTokenIds + completionTokenIds
+        require(combined.all { it in 0 until config.vocabularySize })
+        require(completionTokenIds.size.toLong() <= MAX_TRAINING_STEPS_PER_CALL)
+        validateOptimizerArguments(learningRate, weightDecay)
+        cancellationCheck?.invoke()
+
+        for (targetIndex in promptTokenIds.size until combined.size) {
+            if ((targetIndex - promptTokenIds.size) and 31 == 0) cancellationCheck?.invoke()
+            val start = max(0, targetIndex - config.contextLength)
+            trainOne(
+                combined.copyOfRange(start, targetIndex),
+                combined[targetIndex],
+                learningRate,
+                weightDecay
+            )
+        }
+        cancellationCheck?.invoke()
     }
 
     fun evaluateLoss(tokenIds: IntArray): Double {
@@ -526,15 +600,22 @@ internal class KellvynTransformerLanguageModel private constructor(
         }
 
         fun predictNext(): Int {
-            val probabilities = nextTokenProbabilities()
+            // Softmax is strictly monotonic for finite logits: greedy decoding can
+            // select the largest logit directly and skip vocabulary-wide exp/division.
+            val logits = nextTokenLogits()
+            require(logits.all(Float::isFinite)) {
+                "A saída neural contém logit não finito."
+            }
             var best = 0
-            for (index in 1 until probabilities.size) {
-                if (probabilities[index] > probabilities[best]) best = index
+            for (index in 1 until logits.size) {
+                if (logits[index] > logits[best]) best = index
             }
             return best
         }
 
-        internal fun nextTokenProbabilities(): FloatArray {
+        internal fun nextTokenProbabilities(): FloatArray = softmax(nextTokenLogits())
+
+        private fun nextTokenLogits(): FloatArray {
             val query = requireNotNull(latestQueryRotated) {
                 "A sessão de geração ainda não possui contexto."
             }
@@ -549,10 +630,11 @@ internal class KellvynTransformerLanguageModel private constructor(
             val headDim = d / h
             val length = keyCache.size
             val attentionConcat = FloatArray(d)
+            // Scratch storage is reused because heads are processed sequentially.
+            val scores = FloatArray(length)
 
             for (head in 0 until h) {
                 val offset = head * headDim
-                val scores = FloatArray(length)
                 var maximum = Float.NEGATIVE_INFINITY
                 for (position in 0 until length) {
                     var score = 0.0f
@@ -561,20 +643,19 @@ internal class KellvynTransformerLanguageModel private constructor(
                         val feature = offset + dimension
                         score += query[feature] * key[feature]
                     }
-                    scores[position] = score / sqrt(headDim.toDouble()).toFloat()
+                    scores[position] = score / attentionScoreDivisor
                     if (scores[position] > maximum) maximum = scores[position]
                 }
 
                 var denominator = 0.0
-                val probabilities = FloatArray(length)
                 for (position in 0 until length) {
                     val value = exp((scores[position] - maximum).toDouble())
-                    probabilities[position] = value.toFloat()
+                    scores[position] = value.toFloat()
                     denominator += value
                 }
                 require(denominator.isFinite() && denominator > 0.0)
                 for (position in 0 until length) {
-                    val weight = (probabilities[position].toDouble() / denominator).toFloat()
+                    val weight = (scores[position].toDouble() / denominator).toFloat()
                     val values = valueCache[position]
                     for (dimension in 0 until headDim) {
                         val feature = offset + dimension
@@ -614,7 +695,7 @@ internal class KellvynTransformerLanguageModel private constructor(
 
             val logits = linear(hidden, parameters.outputWeights, d, config.vocabularySize)
             for (token in logits.indices) logits[token] += parameters.outputBias[token]
-            return softmax(logits)
+            return logits
         }
 
         fun outputTokenIds(): IntArray = outputTokens.toIntArray()
@@ -636,10 +717,11 @@ internal class KellvynTransformerLanguageModel private constructor(
                 parameters.normAttentionGamma,
                 parameters.normAttentionBeta
             )
+            val rotaryFactors = createRotaryFactors(nextAbsolutePosition)
             val query = linear(normalized.values, parameters.queryWeights, d, d)
-            rotateInPlace(query, nextAbsolutePosition)
+            rotateInPlace(query, rotaryFactors)
             val key = linear(normalized.values, parameters.keyWeights, d, d)
-            rotateInPlace(key, nextAbsolutePosition)
+            rotateInPlace(key, rotaryFactors)
             val value = linear(normalized.values, parameters.valueWeights, d, d)
 
             outputTokens += tokenId
@@ -826,14 +908,15 @@ internal class KellvynTransformerLanguageModel private constructor(
         weightDecay: Float
     ) {
         val gradients = computeGradients(contextTokenIds, targetTokenId).parameters
+        val gradientArrays = gradients.arrays()
         var squaredNorm = 0.0
-        for (array in gradients.arrays()) {
+        for (array in gradientArrays) {
             for (value in array) squaredNorm += value.toDouble() * value.toDouble()
         }
         val norm = sqrt(squaredNorm)
         if (norm > GRADIENT_CLIP_NORM) {
             val scale = GRADIENT_CLIP_NORM / norm
-            for (array in gradients.arrays()) {
+            for (array in gradientArrays) {
                 for (index in array.indices) array[index] = (array[index] * scale).toFloat()
             }
         }
@@ -842,10 +925,9 @@ internal class KellvynTransformerLanguageModel private constructor(
         trainingSteps++
         val beta1Correction = 1.0 - BETA1.power(optimizerSteps)
         val beta2Correction = 1.0 - BETA2.power(optimizerSteps)
-        val parameterArrays = parameters.arrays()
-        val gradientArrays = gradients.arrays()
-        val firstArrays = firstMoment.arrays()
-        val secondArrays = secondMoment.arrays()
+        val parameterArrays = parameterArrayViews
+        val firstArrays = firstMomentArrayViews
+        val secondArrays = secondMomentArrayViews
 
         for (group in parameterArrays.indices) {
             val values = parameterArrays[group]
@@ -874,7 +956,7 @@ internal class KellvynTransformerLanguageModel private constructor(
         val headDim = d / h
         val length = contextTokenIds.size
         val last = length - 1
-        val inverseAttentionScale = (1.0 / sqrt(headDim.toDouble())).toFloat()
+        val inverseAttentionScale = this.inverseAttentionScale
 
         val dTokenEmbeddings = FloatArray(parameters.tokenEmbeddings.size)
         val dQueryWeights = FloatArray(parameters.queryWeights.size)
@@ -963,10 +1045,11 @@ internal class KellvynTransformerLanguageModel private constructor(
         val dQueryRotated = FloatArray(d)
         val dKeysRotated = Array(length) { FloatArray(d) }
         val dValues = Array(length) { FloatArray(d) }
+        // Each head overwrites every entry before consuming this reusable buffer.
+        val dAttentionProbability = FloatArray(length)
 
         for (head in 0 until h) {
             val headOffset = head * headDim
-            val dAttentionProbability = FloatArray(length)
             for (position in 0 until length) {
                 val attention = pass.attentionWeights[head][position]
                 var derivative = 0.0f
@@ -998,10 +1081,14 @@ internal class KellvynTransformerLanguageModel private constructor(
             }
         }
 
+        val finalRotaryFactors = pass.rotaryFactorsByPosition[last]
         val dQueryRaw = dQueryRotated.copyOf()
-        rotateInPlace(dQueryRaw, last, inverse = true)
+        rotateInPlace(dQueryRaw, finalRotaryFactors, inverse = true)
         val dKeysRaw = Array(length) { position ->
-            dKeysRotated[position].copyOf().also { rotateInPlace(it, position, inverse = true) }
+            val factors = pass.rotaryFactorsByPosition[position]
+            dKeysRotated[position].copyOf().also {
+                rotateInPlace(it, factors, inverse = true)
+            }
         }
 
         val dNormalizedInputs = Array(length) { FloatArray(d) }
@@ -1104,13 +1191,15 @@ internal class KellvynTransformerLanguageModel private constructor(
             normalizedInputInverseStd[position] = normalized.inverseStandardDeviation
         }
 
+        val rotaryFactorsByPosition = Array(length, ::createRotaryFactors)
+        val finalRotaryFactors = rotaryFactorsByPosition[last]
         val queryRotated = linear(
             normalizedInputs[last], parameters.queryWeights, d, d
         )
-        rotateInPlace(queryRotated, last)
+        rotateInPlace(queryRotated, finalRotaryFactors)
         val keysRotated = Array(length) { position ->
             linear(normalizedInputs[position], parameters.keyWeights, d, d)
-                .also { rotateInPlace(it, position) }
+                .also { rotateInPlace(it, rotaryFactorsByPosition[position]) }
         }
         val values = Array(length) { position ->
             linear(normalizedInputs[position], parameters.valueWeights, d, d)
@@ -1118,10 +1207,10 @@ internal class KellvynTransformerLanguageModel private constructor(
 
         val attentionWeights = Array(h) { FloatArray(length) }
         val attentionConcat = FloatArray(d)
-        val scale = (1.0 / sqrt(headDim.toDouble())).toFloat()
+        val scores = FloatArray(length)
+        val scale = inverseAttentionScale
         for (head in 0 until h) {
             val offset = head * headDim
-            val scores = FloatArray(length)
             var maximum = Float.NEGATIVE_INFINITY
             for (position in 0 until length) {
                 var score = 0.0f
@@ -1190,6 +1279,7 @@ internal class KellvynTransformerLanguageModel private constructor(
             normalizedInputInverseStd,
             queryRotated,
             keysRotated,
+            rotaryFactorsByPosition,
             values,
             attentionWeights,
             attentionConcat,
@@ -1259,18 +1349,36 @@ internal class KellvynTransformerLanguageModel private constructor(
         }
     }
 
-    private fun rotateInPlace(values: FloatArray, position: Int, inverse: Boolean = false) {
+    private data class RotaryFactors(
+        val cosine: FloatArray,
+        val sine: FloatArray
+    )
+
+    private fun createRotaryFactors(position: Int): RotaryFactors {
+        val pairs = rotaryHeadDimension / 2
+        val cosine = FloatArray(pairs)
+        val sine = FloatArray(pairs)
+        for (pair in 0 until pairs) {
+            val angle = position.toDouble() * rotaryFrequencies[pair]
+            cosine[pair] = kotlin.math.cos(angle).toFloat()
+            sine[pair] = kotlin.math.sin(angle).toFloat()
+        }
+        return RotaryFactors(cosine, sine)
+    }
+
+    private fun rotateInPlace(
+        values: FloatArray,
+        factors: RotaryFactors,
+        inverse: Boolean = false
+    ) {
         val headDim = config.embeddingSize / config.headCount
         for (head in 0 until config.headCount) {
             val headOffset = head * headDim
             for (pair in 0 until headDim / 2) {
                 val firstIndex = headOffset + pair * 2
                 val secondIndex = firstIndex + 1
-                val exponent = (pair * 2).toDouble() / headDim.toDouble()
-                val frequency = 1.0 / Math.pow(ROPE_BASE, exponent)
-                val angle = position.toDouble() * frequency
-                val cosine = kotlin.math.cos(angle).toFloat()
-                val sine = kotlin.math.sin(angle).toFloat()
+                val cosine = factors.cosine[pair]
+                val sine = factors.sine[pair]
                 val first = values[firstIndex]
                 val second = values[secondIndex]
                 if (inverse) {

@@ -217,6 +217,92 @@ class KellvynOrchestratorTest {
     }
 
     @Test
+    fun reasoningAnalystGetsOnlyScopedReadToolsAndOwnerGatedNetworkResearch() = runBlocking {
+        val profiles = KellvynSpecialistProfileRegistry.default()
+        val profile = profiles.requireProfile(KellvynSpecialistRole.REASONING_ANALYST)
+        assertEquals(2, profile.version)
+        assertTrue(profile.instruction.contains("duas rotas materialmente distintas"))
+        assertTrue(profile.instruction.contains("contraexemplos"))
+        assertTrue(profile.instruction.contains("fallback seguro"))
+        assertTrue(profiles.compileAll().success)
+
+        val tools = listOf(
+            RecordingTool(
+                KellvynToolSpec(
+                    name = "code_find_symbols",
+                    description = "Localiza símbolos no workspace.",
+                    capabilities = setOf(KellvynStudioCapability.CODE_NAVIGATION)
+                )
+            ),
+            RecordingTool(
+                KellvynToolSpec(
+                    name = "data_inspect_structure",
+                    description = "Inspeciona estrutura de dados.",
+                    capabilities = setOf(KellvynStudioCapability.DATA_MODELING)
+                )
+            ),
+            RecordingTool(
+                KellvynToolSpec(
+                    name = "wikipedia_search",
+                    description = "Pesquisa Web limitada.",
+                    risk = KellvynToolRisk.NETWORK_READ,
+                    capabilities = setOf(KellvynStudioCapability.WEB_RESEARCH)
+                )
+            ),
+            RecordingTool(
+                KellvynToolSpec(
+                    name = "workspace_write_file",
+                    description = "Escrita no workspace.",
+                    risk = KellvynToolRisk.REVERSIBLE_WRITE,
+                    capabilities = setOf(KellvynStudioCapability.CODE_EDITING)
+                )
+            )
+        )
+
+        val enabledEngine = RecordingEngine(KellvynModelDecision.Final("Rotas comparadas."))
+        val enabled = orchestrator(
+            engine = enabledEngine,
+            tools = tools,
+            allowNetworkRead = true
+        ).newSession().dispatch(
+            KellvynModelDecision.Delegate(
+                role = KellvynSpecialistRole.REASONING_ANALYST,
+                task = "Compare duas rotas seguras para validar uma alteração.",
+                context = "CI não iniciou; não presuma a causa.",
+                allowedTools = tools.map { it.spec.name }.toSet()
+            )
+        )
+        assertTrue(enabled.consumesDelegationSlot)
+        assertEquals(
+            setOf("code_find_symbols", "data_inspect_structure", "wikipedia_search"),
+            enabledEngine.toolsSeen.single().map { it.name }.toSet()
+        )
+        val enabledPrompt = enabledEngine.histories.single().joinToString("\n") { it.content }
+        assertTrue(enabledPrompt.contains("Analista de raciocínio"))
+        assertTrue(enabledPrompt.contains("fallback seguro"))
+        assertTrue(enabledPrompt.contains("CI não iniciou"))
+        assertFalse(enabledEngine.toolsSeen.single().any { it.name == "workspace_write_file" })
+
+        val disabledEngine = RecordingEngine(KellvynModelDecision.Final("Rotas locais comparadas."))
+        orchestrator(
+            engine = disabledEngine,
+            tools = tools,
+            allowNetworkRead = false
+        ).newSession().dispatch(
+            KellvynModelDecision.Delegate(
+                role = KellvynSpecialistRole.REASONING_ANALYST,
+                task = "Compare rotas locais para validar a alteração.",
+                context = "",
+                allowedTools = tools.map { it.spec.name }.toSet()
+            )
+        )
+        assertEquals(
+            setOf("code_find_symbols", "data_inspect_structure"),
+            disabledEngine.toolsSeen.single().map { it.name }.toSet()
+        )
+    }
+
+    @Test
     fun refusesDelegationOutsideBudgetWithoutCallingTheModel() = runBlocking {
         val engine = RecordingEngine(KellvynModelDecision.Final("Pesquisa concluída."))
         val session = orchestrator(engine, emptyList(), maxDelegations = 1).newSession()
@@ -288,6 +374,7 @@ class KellvynOrchestratorTest {
         tools: List<KellvynAgentTool>,
         maxDelegations: Int = 2,
         maxDelegationContextChars: Int = 4_000,
+        allowNetworkRead: Boolean = false,
         monotonicNanos: () -> Long = System::nanoTime
     ) = KellvynOrchestrator(
         inference = engine,
@@ -298,7 +385,7 @@ class KellvynOrchestratorTest {
         ),
         skillRegistry = KellvynSkillRegistry.empty(),
         taskBroker = null,
-        networkReadEnabled = { false },
+        networkReadEnabled = { allowNetworkRead },
         specialistProfiles = KellvynSpecialistProfileRegistry.default(),
         monotonicNanos = monotonicNanos
     )

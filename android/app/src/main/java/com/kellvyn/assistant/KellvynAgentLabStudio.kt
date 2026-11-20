@@ -203,18 +203,83 @@ internal class KellvynAgentLabStudio(
                 }
                 val baseline = withContext(Dispatchers.IO) { traceStore.historyTail(baselineId, MAX_COMPARE_EVENTS) }
                 val candidate = withContext(Dispatchers.IO) { traceStore.historyTail(candidateId, MAX_COMPARE_EVENTS) }
-                val baselineCases = baseline.map { it.event }
-                    .filter { it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null }
-                    .associateBy { it.detailCode!! }
-                val candidateCases = candidate.map { it.event }
-                    .filter { it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null }
-                    .associateBy { it.detailCode!! }
+                val baselineEvents = baseline.map { it.event }
+                val candidateEvents = candidate.map { it.event }
+                fun fingerprint(events: List<KellvynAgentLabEvent>, prefix: String): String? =
+                    events.firstOrNull {
+                        it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED &&
+                            it.detailCode?.startsWith("${prefix}_") == true
+                    }?.detailCode?.substringAfter("${prefix}_")
+
+                val baselineCaseFingerprint = fingerprint(baselineEvents, "CASES")
+                val candidateCaseFingerprint = fingerprint(candidateEvents, "CASES")
+                if (baselineCaseFingerprint == null || candidateCaseFingerprint == null) {
+                    return KellvynToolResult(
+                        false,
+                        "Comparação recusada: trace legado ou sem fingerprint verificável do conjunto de casos."
+                    )
+                }
+                if (baselineCaseFingerprint != candidateCaseFingerprint) {
+                    return KellvynToolResult(
+                        false,
+                        "Comparação recusada: os fingerprints do conjunto de casos divergem. Execute a mesma versão da bateria antes de comparar resultados."
+                    )
+                }
+
+                val baselineCaseEvents = baselineEvents.filter {
+                    it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null
+                }
+                val candidateCaseEvents = candidateEvents.filter {
+                    it.kind == KellvynAgentLabEventKind.BENCHMARK_CASE_FINISHED && it.detailCode != null
+                }
+                val baselineCases = baselineCaseEvents.associateBy { it.detailCode!! }
+                val candidateCases = candidateCaseEvents.associateBy { it.detailCode!! }
                 if (baselineCases.isEmpty() || candidateCases.isEmpty()) {
                     return KellvynToolResult(
                         false,
-                        "Um dos traces não contém resultados de casos de benchmark comparáveis."
+                        "Um dos traces não contém resultados de casos de benchmark."
                     )
                 }
+                if (baselineCases.size != baselineCaseEvents.size ||
+                    candidateCases.size != candidateCaseEvents.size
+                ) {
+                    return KellvynToolResult(
+                        false,
+                        "Comparação recusada: há IDs de casos duplicados no trace; a ordem de tentativas é ambígua."
+                    )
+                }
+
+                val baselineToolFingerprint = fingerprint(baselineEvents, "TOOLS")
+                val candidateToolFingerprint = fingerprint(candidateEvents, "TOOLS")
+                val baselineProfileFingerprint = fingerprint(baselineEvents, "PROFILES")
+                val candidateProfileFingerprint = fingerprint(candidateEvents, "PROFILES")
+                val toolPolicyMatches = baselineToolFingerprint != null &&
+                    baselineToolFingerprint == candidateToolFingerprint
+                val caseCoverageMatches = baselineCases.keys == candidateCases.keys
+                val baselineTerminalEvent = baselineEvents.lastOrNull {
+                    it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED
+                }
+                val candidateTerminalEvent = candidateEvents.lastOrNull {
+                    it.kind == KellvynAgentLabEventKind.EXPERIMENT_FINISHED
+                }
+                val baselineTerminal = baselineTerminalEvent?.outcome
+                val candidateTerminal = candidateTerminalEvent?.outcome
+                // A failed case suite is complete only when the harness wrote its CASES_N
+                // summary. BENCHMARK_ERROR/CANCELLED must never be treated as a full run.
+                fun hasCompleteCaseSummary(
+                    terminalEvent: KellvynAgentLabEvent?,
+                    caseCount: Int
+                ): Boolean =
+                    terminalEvent != null &&
+                        terminalEvent.detailCode == "CASES_$caseCount" &&
+                        terminalEvent.outcome in setOf(
+                            KellvynAgentLabOutcome.SUCCEEDED,
+                            KellvynAgentLabOutcome.FAILED
+                        )
+                val bothSuitesCompleted =
+                    hasCompleteCaseSummary(baselineTerminalEvent, baselineCases.size) &&
+                        hasCompleteCaseSummary(candidateTerminalEvent, candidateCases.size)
+                val comparisonControlled = toolPolicyMatches && caseCoverageMatches && bothSuitesCompleted
                 val caseIds = (baselineCases.keys + candidateCases.keys).toSortedSet()
                 val baselinePassed = baselineCases.values.count {
                     it.outcome == KellvynAgentLabOutcome.SUCCEEDED
@@ -232,20 +297,39 @@ internal class KellvynAgentLabStudio(
                     append("COMPARAÇÃO DE EXPERIMENTOS\n")
                     append("BASELINE: ").append(baselineId).append("\n")
                     append("CANDIDATO: ").append(candidateId).append("\n")
-                    val baselineFingerprint = baseline.map { it.event }
-                        .firstOrNull { it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED }
-                        ?.detailCode ?: "não registrado"
-                    val candidateFingerprint = candidate.map { it.event }
-                        .firstOrNull { it.kind == KellvynAgentLabEventKind.EXPERIMENT_STARTED }
-                        ?.detailCode ?: "não registrado"
-                    append("Suite fingerprint: ")
-                        .append(baselineFingerprint).append(" → ").append(candidateFingerprint).append("\n")
+                    append("Fingerprint dos casos: ")
+                        .append(baselineCaseFingerprint.take(12)).append(" = ")
+                        .append(candidateCaseFingerprint.take(12)).append("\n")
+                    append("Fingerprint das ferramentas/política: ")
+                        .append(baselineToolFingerprint?.take(12) ?: "ausente")
+                        .append(" → ")
+                        .append(candidateToolFingerprint?.take(12) ?: "ausente").append("\n")
+                    append("Fingerprint dos perfis: ")
+                        .append(baselineProfileFingerprint?.take(12) ?: "ausente")
+                        .append(" → ")
+                        .append(candidateProfileFingerprint?.take(12) ?: "ausente").append("\n")
+                    append("Término das suítes: ")
+                        .append(baselineTerminal?.name ?: "ausente")
+                        .append(" → ")
+                        .append(candidateTerminal?.name ?: "ausente").append("\n")
+                    append("Comparabilidade: ")
+                        .append(
+                            if (comparisonControlled) {
+                                "CONTROLADA — mesmos casos, mesmas ferramentas/política, mesma cobertura e ambas as suítes concluídas"
+                            } else {
+                                "NÃO CONTROLADA — há mudança de ferramentas/política, cobertura incompleta ou execução não concluída"
+                            }
+                        ).append("\n")
                     append("Casos aprovados: ").append(baselinePassed)
                         .append("/").append(baselineCases.size)
                         .append(" → ").append(candidatePassed)
                         .append("/").append(candidateCases.size).append("\n")
                     append("Variação de aprovações: ")
-                        .append(candidatePassed - baselinePassed).append("\n")
+                        .append(if (comparisonControlled) {
+                            (candidatePassed - baselinePassed).toString()
+                        } else {
+                            "NÃO CALCULADA"
+                        }).append("\n")
                     append("Revisão necessária: ")
                         .append(baselineReview).append("/").append(baselineCases.size)
                         .append(" → ").append(candidateReview).append("/").append(candidateCases.size)
@@ -283,7 +367,8 @@ internal class KellvynAgentLabStudio(
                         .append(baselineResources.joinToString(" | ").ifBlank { "não registrados" })
                     append("\nCandidato: ")
                         .append(candidateResources.joinToString(" | ").ifBlank { "não registrados" })
-                    append("\nA comparação usa estados, durações e snapshots registrados; não mede qualidade sem os verificadores do benchmark.")
+                    append("\nA comparação não registra fingerprint do checkpoint/modelo neural; mesmo CONTROLADA, não atribui causalidade a mudanças de pesos. ")
+                    append("Resultados brutos não substituem verificação independente.")
                 }
                 return KellvynToolResult(true, output.take(MAX_OUTPUT_CHARS))
             }

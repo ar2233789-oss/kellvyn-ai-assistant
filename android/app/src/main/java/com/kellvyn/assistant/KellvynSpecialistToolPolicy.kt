@@ -30,6 +30,9 @@ internal object KellvynSpecialistToolPolicy {
             KellvynStudioCapability.DEVICE_DIAGNOSTICS
         ),
         KellvynSpecialistRole.REASONING_ANALYST to setOf(
+            KellvynStudioCapability.AGENT_EVALUATION,
+            KellvynStudioCapability.CODE_NAVIGATION,
+            KellvynStudioCapability.WEB_RESEARCH,
             KellvynStudioCapability.DATA_MODELING,
             KellvynStudioCapability.DEVICE_DIAGNOSTICS
         ),
@@ -103,8 +106,8 @@ internal object KellvynSpecialistToolPolicy {
     ): Set<String> = permittedToolNames(role, specs, allowNetworkRead = false)
 
     /**
-     * Network reads are a separate risk class. Only the Researcher may receive a tool that
-     * declares WEB_RESEARCH, and only when the owner-controlled web-access switch is enabled.
+     * Network reads are a separate risk class. Only roles explicitly granted WEB_RESEARCH
+     * may receive NETWORK_READ tools, and only while the owner-controlled web-access switch is enabled.
      */
     fun permittedToolNames(
         role: KellvynSpecialistRole,

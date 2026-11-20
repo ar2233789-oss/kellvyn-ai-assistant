@@ -113,6 +113,9 @@ class KellvynSpecialistToolPolicyTest {
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
             ),
             KellvynSpecialistRole.REASONING_ANALYST to setOf(
+                KellvynStudioCapability.AGENT_EVALUATION,
+                KellvynStudioCapability.CODE_NAVIGATION,
+                KellvynStudioCapability.WEB_RESEARCH,
                 KellvynStudioCapability.DATA_MODELING,
                 KellvynStudioCapability.DEVICE_DIAGNOSTICS
             ),
@@ -233,7 +236,7 @@ class KellvynSpecialistToolPolicyTest {
 
 
     @Test
-    fun webResearchNetworkReadIsGrantedOnlyToResearcherWhenOwnerSwitchIsEnabled() {
+    fun webResearchNetworkReadIsGrantedOnlyToExplicitRolesWhenOwnerSwitchIsEnabled() {
         val networkTool = KellvynToolSpec(
             name = "wikipedia_search",
             description = "Pesquisa na Wikipédia em português.",
@@ -257,8 +260,28 @@ class KellvynSpecialistToolPolicyTest {
             )
         )
 
+        assertTrue(
+            "O analista de raciocínio recebe pesquisa apenas porque a capability foi concedida.",
+            "wikipedia_search" in KellvynSpecialistToolPolicy.permittedToolNames(
+                KellvynSpecialistRole.REASONING_ANALYST,
+                allSpecs,
+                allowNetworkRead = true
+            )
+        )
+        assertFalse(
+            "O analista de raciocínio não recebe rede com o controle desligado.",
+            "wikipedia_search" in KellvynSpecialistToolPolicy.permittedToolNames(
+                KellvynSpecialistRole.REASONING_ANALYST,
+                allSpecs,
+                allowNetworkRead = false
+            )
+        )
+
         KellvynSpecialistRole.values()
-            .filter { it != KellvynSpecialistRole.RESEARCHER }
+            .filter {
+                it != KellvynSpecialistRole.RESEARCHER &&
+                    it != KellvynSpecialistRole.REASONING_ANALYST
+            }
             .forEach { role ->
                 assertFalse(
                     "O papel $role não deve receber pesquisa Web.",
@@ -274,6 +297,15 @@ class KellvynSpecialistToolPolicyTest {
             setOf("wikipedia_search"),
             KellvynSpecialistToolPolicy.deniedRequestedNames(
                 KellvynSpecialistRole.RESEARCHER,
+                setOf("wikipedia_search"),
+                allSpecs,
+                allowNetworkRead = false
+            )
+        )
+        assertEquals(
+            setOf("wikipedia_search"),
+            KellvynSpecialistToolPolicy.deniedRequestedNames(
+                KellvynSpecialistRole.REASONING_ANALYST,
                 setOf("wikipedia_search"),
                 allSpecs,
                 allowNetworkRead = false

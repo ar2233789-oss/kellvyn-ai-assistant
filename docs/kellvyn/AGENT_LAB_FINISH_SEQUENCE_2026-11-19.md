@@ -90,7 +90,7 @@
 2. Separar casos determinísticos de contrato, ferramenta real, competência cognitiva e revisão humana.
 3. Cada caso grava runId/caseId, perfil/hash, commit, configuração do modelo, orçamento, ferramentas solicitadas/permitidas/executadas, evidências, estado e falha.
 4. Implementar replay somente para ações seguras/read-only; replay de mutações exige nova autorização.
-5. Comparar baseline/candidato com mesmo ambiente e fingerprints equivalentes; mostrar PASSED, REVIEW_REQUIRED, FAILED, BLOCKED e NOT_RUN separadamente.
+5. Comparar baseline/candidato com fingerprint separado para bateria de casos, perfis e ferramentas/política; recusar baterias diferentes e não calcular delta com ferramenta/política divergente, cobertura incompleta, trace interrompido ou revisão/bloqueio pendente.
 6. Medir RAM, heap, PSS, CPU, armazenamento, bateria e temperatura nos limites das tarefas; execução sequencial por padrão no Poco F6.
 7. Expandir benchmarks depois que o runner real executar a base de 28 casos; não aumentar a carga antes de comprovar memória/tempo.
 
@@ -145,3 +145,6 @@ Esses módulos devem carregar sob demanda e liberar buffers/caches ao terminar. 
 ## 5. Regra de conclusão
 
 Uma etapa só é marcada como concluída quando possui implementação, teste, execução no ambiente correto, evidência vinculada ao SHA, política/autorização testada e medição de recursos quando relevante. Sem runner, build ou evidência, o estado continua NOT_RUN/BLOCKED — nunca “pronto”.
+
+
+**Implementação experimental em 19/11/2026:** o trace agora registra `CASES_<sha256>`, `PROFILES_<sha256>` e `TOOLS_<sha256>` separadamente; o fingerprint `TOOLS_` inclui manifests e a matriz central role→capabilities→ferramentas permitidas. A mudança de perfil pode ser a variável comparada, enquanto mudanças na bateria são recusadas e mudanças de ferramentas/política tornam o resultado não controlado. `FAILED` só conta como suíte concluída quando o evento terminal traz `CASES_N`; `BENCHMARK_ERROR` e `CANCELLED` não servem para delta. O fingerprint do checkpoint/modelo ainda não é registrado e permanece uma limitação explícita.
