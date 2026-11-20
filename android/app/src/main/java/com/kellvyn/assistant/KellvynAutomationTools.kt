@@ -12,7 +12,7 @@ internal object KellvynAutomationTools {
                 risk = KellvynToolRisk.READ_ONLY,
                 timeoutMs = 5_000L,
                 workloadClass = KellvynWorkloadClass.LIGHT,
-                capabilities = setOf(KellvynStudioCapability.WORKFLOW_AUTOMATION)
+                capabilities = setOf(KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS)
             )
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
