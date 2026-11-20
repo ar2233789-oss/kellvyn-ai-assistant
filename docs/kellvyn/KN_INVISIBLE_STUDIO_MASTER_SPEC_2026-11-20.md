@@ -89,8 +89,10 @@ O KN recebe apenas descrições compactas e referências aos artefatos. Não car
 - `KellvynResourceGovernor`, `KellvynTaskBroker`, `KellvynAndroidResourceMonitor` e `KellvynResourceRuntime`: admissão de recursos, snapshots, gestão sob demanda e fila persistente.
 - `KellvynPersistentTaskScheduler` e `KellvynAutomationDrainWorker`: fila durável e drenagem WorkManager de tarefas leves/padrão; o Worker não assume tarefas HEAVY.
 - `KellvynStudioModuleManager`: manifestos, construção lazy de módulos, leases, timeout, admissão de memória e descarte de módulos ociosos.
-- `KellvynArtifactStore` (fundação adicionada nesta branch): armazenamento privado endereçado por SHA-256, objetos binários deduplicados, registros vinculados a tarefa/produtor, gravação atômica e leitura/cópia verificadas. Ainda precisa ser ligado aos motores que produzirão imagens, cenas, animações, áudio, vídeo e builds.
+- `KellvynArtifactStore` (fundação adicionada nesta branch): armazenamento privado endereçado por SHA-256, objetos binários deduplicados, registros vinculados a tarefa/produtor, gravação atômica e leitura/cópia verificadas.
+- `KellvynImageStudio` (motor raster inicial adicionado nesta branch): inspeção de dimensões/formato e redimensionamento/exportação PNG/JPEG/WebP sobre artefatos privados, com limites de pixels, admissão HEAVY, autorização append-only e saída imutável verificada. Não é um gerador neural de imagens; ainda faltam recorte, composição, camadas, máscaras, edição vetorial, importação de anexos pelo chat e testes executados no aparelho.
 - Ferramentas centrais `artifact_store_status`, `artifact_list_task` e `artifact_verify`: consulta de metadados e integridade sem despejar binários no contexto da inteligência.
+- Ferramentas `image_inspect` e `image_resize`: disponíveis via registro central; edição raster somente após o fluxo fornecer um artefato de origem. A geração neural por prompt continua NOT_IMPLEMENTED.
 - `studio_capability_inventory`: ferramenta somente leitura que distingue módulos lazy registrados, ferramentas centrais registradas e capacidades ausentes; não declara execução ou verificação sem evidência.
 - `ProjectWorkspaceStore` e ferramentas de workspace: listar projetos/arquivos, ler trechos, escrever e excluir sob aprovação exata.
 - Memória local cifrada, checkpoints de tarefa, traces com metadados e snapshots de recursos.
