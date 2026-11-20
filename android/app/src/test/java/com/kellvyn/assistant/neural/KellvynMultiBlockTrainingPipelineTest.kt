@@ -125,6 +125,15 @@ class KellvynMultiBlockTrainingPipelineTest {
         KellvynMultiBlockTrainingPipeline.train(examples)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesCredentialLikeIdentifiersBeforePersistingTheManifest() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(
+            id = "ghp_abcdefghijklmnopqrstuvwxyz1234567890"
+        )
+        KellvynMultiBlockTrainingPipeline.train(examples)
+    }
+
     @Test
     fun trainingWorkingSetAboveBudgetIsRejectedBeforeModelAllocation() {
         val error = try {
