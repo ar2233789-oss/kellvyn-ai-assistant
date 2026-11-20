@@ -215,6 +215,64 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
+     * Trains the original KN-004 multi-block Transformer from explicitly authorized local
+     * examples. The checkpoint is stored separately from KN-003 and is not connected to chat.
+     */
+    suspend fun trainOwnMultiBlockModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynMultiBlockTrainingManifest {
+        val trained = runHeavyTask("training-kn004-$createdAtMillis") {
+            withContext(Dispatchers.Default) {
+                val trainingContext = currentCoroutineContext()
+                KellvynMultiBlockTrainingPipeline.train(
+                    examples = examples,
+                    config = config,
+                    createdAtMillis = createdAtMillis,
+                    cancellationCheck = { trainingContext.ensureActive() }
+                )
+            }
+        }
+        withContext(Dispatchers.IO) {
+            neuralModelStore.saveMultiBlock(trained)
+        }
+        return trained.manifest
+    }
+
+    /** Loads the independently versioned KN-004 tokenizer, model and provenance bundle. */
+    suspend fun loadOwnMultiBlockModel(): KellvynRestoredMultiBlockBundle? =
+        withContext(Dispatchers.IO) {
+            neuralModelStore.loadMultiBlock()
+        }
+
+    /**
+     * Creates a strict KN-004 inference adapter for controlled benchmarks only.
+     * MainActivity.isReady() remains false until the full behavioral/device gates pass.
+     */
+    suspend fun createOwnMultiBlockInferenceEngine(
+        config: KellvynMultiBlockInferenceEngine.Config? = null
+    ): KellvynMultiBlockInferenceEngine? {
+        val bundle = loadOwnMultiBlockModel() ?: return null
+        val contextLength = bundle.model.config.contextLength
+        if (contextLength < 128) return null
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
+        if (!quality.eligibleForProtocolBenchmark) return null
+        val safeDefault = KellvynMultiBlockInferenceEngine.Config(
+            maxGenerationTokens = minOf(
+                256,
+                maxOf(64, contextLength / 8),
+                contextLength - 1
+            )
+        )
+        return KellvynMultiBlockInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = config ?: safeDefault
+        )
+    }
+
+    /**
      * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
