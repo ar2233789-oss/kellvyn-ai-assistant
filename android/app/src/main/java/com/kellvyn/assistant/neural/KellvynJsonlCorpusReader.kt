@@ -1,8 +1,8 @@
 package com.kellvyn.assistant.neural
 
-import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
+import java.io.PushbackReader
 import java.security.DigestInputStream
 import java.security.MessageDigest
 import java.util.PriorityQueue
@@ -57,6 +57,11 @@ internal object KellvynJsonlCorpusReader {
         val targetTokenUpperBound: Long,
         val tokenizerTrainingBytes: Long,
         val example: KellvynInstructionTrainingExample
+    )
+
+    private data class BoundedLine(
+        val text: String?,
+        val exceededLimit: Boolean
     )
 
     private data class Bucket(
@@ -141,7 +146,7 @@ internal object KellvynJsonlCorpusReader {
         val decoder = Charsets.UTF_8.newDecoder()
             .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
             .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
-        val reader = BufferedReader(InputStreamReader(digestInput, decoder), 16 * 1024)
+        val reader = PushbackReader(InputStreamReader(digestInput, decoder), 1)
 
         var totalLines = 0L
         var validRecords = 0L
@@ -155,16 +160,17 @@ internal object KellvynJsonlCorpusReader {
 
         while (true) {
             cancellationCheck()
-            val line = reader.readLine() ?: break
+            val boundedLine = readBoundedLine(reader, MAX_JSONL_LINE_CHARS) ?: break
             totalLines++
             require(totalLines <= maxLines) {
                 "O corpus JSONL excedeu o limite de $maxLines linhas."
             }
-            if (line.isBlank()) continue
-            if (line.length > MAX_JSONL_LINE_CHARS) {
+            if (boundedLine.exceededLimit) {
                 malformedRecords++
                 continue
             }
+            val line = boundedLine.text ?: ""
+            if (line.isBlank()) continue
 
             val fields = try {
                 StrictJsonStringObject.parse(line)
@@ -387,6 +393,52 @@ internal object KellvynJsonlCorpusReader {
             bucket.retainedBytes -= removed.retainedBytes
             bucket.targetTokens -= removed.targetTokenUpperBound
             bucket.tokenizerTrainingBytes -= removed.tokenizerTrainingBytes
+        }
+    }
+
+    /**
+     * Reads at most maxCharacters into memory. Once the limit is exceeded, the rest of that
+     * physical line is discarded without appending it to a StringBuilder.
+     */
+    private fun readBoundedLine(
+        reader: PushbackReader,
+        maxCharacters: Int
+    ): BoundedLine? {
+        val builder = StringBuilder(minOf(maxCharacters, 4_096))
+        var consumedAny = false
+        var exceededLimit = false
+
+        while (true) {
+            val next = reader.read()
+            if (next < 0) {
+                if (!consumedAny) return null
+                return BoundedLine(
+                    text = if (exceededLimit) null else builder.toString(),
+                    exceededLimit = exceededLimit
+                )
+            }
+            consumedAny = true
+            val character = next.toChar()
+            if (character == '\n' || character == '\r') {
+                if (character == '\r') {
+                    val following = reader.read()
+                    if (following >= 0 && following.toChar() != '\n') {
+                        reader.unread(following)
+                    }
+                }
+                return BoundedLine(
+                    text = if (exceededLimit) null else builder.toString(),
+                    exceededLimit = exceededLimit
+                )
+            }
+            if (!exceededLimit) {
+                if (builder.length < maxCharacters) {
+                    builder.append(character)
+                } else {
+                    exceededLimit = true
+                    builder.setLength(0)
+                }
+            }
         }
     }
 
