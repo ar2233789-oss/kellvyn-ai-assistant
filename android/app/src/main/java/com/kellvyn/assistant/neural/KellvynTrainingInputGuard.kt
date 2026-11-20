@@ -24,6 +24,9 @@ internal object KellvynTrainingInputGuard {
     private val BRAZILIAN_PHONE = Regex(
         """(?<!\d)(?:\+?55[\s.-]*)?(?:\([1-9]\d\)[\s.-]*|[1-9]\d[\s.-]+)(?:9?\d{4})[\s.-]?\d{4}(?!\d)"""
     )
+    private val BRAZILIAN_PHONE_UNFORMATTED = Regex(
+        """(?<!\d)(?:\+?55)?[1-9]\d(?:9\d{8}|[2-5]\d{7})(?!\d)"""
+    )
     private val CPF_CANDIDATE = Regex(
         """(?<!\d)\d{3}\.?\d{3}\.?\d{3}-?\d{2}(?!\d)"""
     )
@@ -35,6 +38,7 @@ internal object KellvynTrainingInputGuard {
             KNOWN_TOKEN.containsMatchIn(text) ||
             EMAIL_ADDRESS.containsMatchIn(text) ||
             BRAZILIAN_PHONE.containsMatchIn(text) ||
+            BRAZILIAN_PHONE_UNFORMATTED.containsMatchIn(text) ||
             containsValidCpf(text)
 
     private fun containsValidCpf(text: String): Boolean =
