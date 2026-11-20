@@ -32,6 +32,13 @@ class KellvynJsonlCorpusReaderTest {
         assertTrue(first.report.readyForTraining)
         assertEquals(300L, first.report.totalLines)
         assertEquals(300L, first.report.validRecords)
+        assertEquals(
+            300L,
+            first.report.validTrainRecords +
+                first.report.validValidationRecords +
+                first.report.validTestRecords
+        )
+        assertTrue(first.report.selectedTokenizerTrainingBytes <= first.report.tokenizerTrainingBudgetBytes)
         assertEquals(bytes.size.toLong(), first.report.sourceUtf8Bytes)
         assertTrue(first.report.selectedTrain >= 100)
         assertTrue(first.report.selectedValidation >= 20)
