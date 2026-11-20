@@ -100,3 +100,14 @@ Foi adicionado `KellvynMultiBlockTrainingConfig.capacityCeilingForMobileBenchmar
 **Esse perfil não é recomendado para o treino atual.** O limite atual é 100 mil passos de treinamento; para 1,77 milhão de parâmetros isso representa no máximo cerca de 0,056 token de treino por parâmetro. Como referência aproximada — não uma lei universal — o estudo Chinchilla encontrou alocação compute-optimal perto de 20 tokens por parâmetro nos modelos estudados. Portanto, esse perfil serve apenas para avaliar o teto de memória/latência quando houver dados e orçamento de treino muito maiores; não deve ser apresentado como cérebro treinado. Fonte: https://proceedings.neurips.cc/paper_files/paper/2022/hash/c1e2faff6f588870935f114ebe04a3e5-Abstract-Conference.html
 
 Mesmo o perfil experimental padrão é limitado pelo corpus e pelo orçamento de treino. Nenhum desses perfis foi validado no Poco F6: overhead da JVM, PSS, tempo de treino, temperatura e bateria ainda precisam ser medidos.
+
+
+## Revisão de integridade e cache — 20/11/2026
+
+Último commit desta revisão: `e887b2d4a8ae78f373b46ccbbf3b310f2c22a009`.
+
+- O benchmark comportamental agora compara, além do hash de prompt+completion, todos os campos de proveniência do exemplo TEST com a entrada correspondente no manifesto: permissão, licença, referência da fonte e evidência de direitos. Isso impede que metadados sejam trocados entre o treino e a autorização do benchmark sem alterar o texto.
+- O cálculo RoPE do caminho de referência agora aplica o mesmo deslocamento absoluto a consultas e chaves. O produto interno causal deve permanecer invariante quando toda a janela sofre o mesmo deslocamento.
+- A sessão KV mantém o contador total de tokens monotônico depois da expulsão de contexto. A posição absoluta usada pelo RoPE foi separada do índice local das listas KV; ao reconstruir uma janela deslizante, as entradas retidas mantêm suas posições absolutas e os índices dos buffers continuam limitados à janela.
+- Testes de regressão adicionados: rejeição de proveniência alterada mesmo com texto/hash idênticos; invariância de RoPE sob deslocamento uniforme. O teste existente de equivalência entre KV e forward completo após expulsão também valida a contagem total processada.
+- Os arquivos atualizados foram conferidos na branch. O GitHub Actions ainda não disponibilizou execução associada ao último commit; por isso, estes testes estão **adicionados, mas não executados**. Não há resultado Gradle/JUnit novo, APK ou validação no Poco F6.
