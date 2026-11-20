@@ -59,6 +59,8 @@ internal object KellvynSpecialistToolPolicy {
             KellvynStudioCapability.AGENT_DESIGN,
             KellvynStudioCapability.AGENT_EVALUATION,
             KellvynStudioCapability.WORKFLOW_AUTOMATION,
+            KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS,
+            KellvynStudioCapability.BOT_DIAGNOSTICS,
             KellvynStudioCapability.DEVICE_DIAGNOSTICS,
             KellvynStudioCapability.DATA_MODELING
         ),
@@ -82,7 +84,9 @@ internal object KellvynSpecialistToolPolicy {
         KellvynSpecialistRole.OPERATIONS_ANALYST to setOf(
             KellvynStudioCapability.AGENT_EVALUATION,
             KellvynStudioCapability.DEVICE_DIAGNOSTICS,
-            KellvynStudioCapability.WORKFLOW_AUTOMATION
+            KellvynStudioCapability.WORKFLOW_AUTOMATION,
+            KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS,
+            KellvynStudioCapability.BOT_DIAGNOSTICS
         ),
         KellvynSpecialistRole.VISUAL_ANALYST to setOf(
             KellvynStudioCapability.VISUAL_ANALYSIS,
