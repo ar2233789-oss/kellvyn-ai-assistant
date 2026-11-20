@@ -73,6 +73,31 @@ internal class KellvynMultiBlockTransformer private constructor(
                 "A matriz de atenção KN-004 excede o orçamento de memória de sequência."
             }
         }
+
+        /**
+         * Conservative admission estimate for a full training step. Includes weights,
+         * Adam moments, gradients, full-sequence attention maps, activations and KV buffers.
+         * It is intentionally higher than the persisted/resident inference lower bound.
+         */
+        fun estimatedTrainingWorkingSetBytes(): Long {
+            val vocabulary = vocabularySize.toLong()
+            val embedding = embeddingSize.toLong()
+            val feedForward = feedForwardSize.toLong()
+            val layers = depth.toLong()
+            val parameterCount =
+                2L * vocabulary * embedding + vocabulary +
+                    layers * (
+                        4L * embedding * embedding + 4L * embedding +
+                            3L * embedding * feedForward
+                    )
+            val weightsMomentsAndGradients = parameterCount * 16L
+            val attentionMaps = layers * headCount.toLong() *
+                contextLength.toLong() * contextLength.toLong() * 4L
+            val activationBuffers = layers * contextLength.toLong() *
+                (24L * embedding + 4L * feedForward) * 4L
+            val kvBuffers = 2L * layers * contextLength.toLong() * embedding * 4L
+            return weightsMomentsAndGradients + attentionMaps + activationBuffers + kvBuffers
+        }
     }
 
     data class TrainingReport(
