@@ -81,4 +81,9 @@ Foram adicionados testes para:
 
 Foram acrescentados testes específicos para sampler determinístico, top-k/top-p e repetição; quality gate e gap de generalização; bloqueio por orçamento de memória; carregamento sem estados AdamW; e comportamento do runtime quando não há checkpoint ou quando o checkpoint ainda não passou pelo gate.
 
-- **Instalação controlada:** `KellvynNeuralTrainingController` executa o treino em `Dispatchers.IO`, propaga cancelamento e só grava o novo bundle se o quality gate aprovar. Treinos cancelados ou reprovados não substituem um checkpoint existente. A função recebe exemplos e proveniência já preparados; ela não busca dados na rede nem inventa corpus.
+
+## Gate comportamental independente
+
+O gate numérico de loss apenas autoriza o próximo exame. Ele não libera sozinho o runtime para responder. Foi adicionado `KellvynNeuralBehaviorBenchmark`, que exige pelo menos 20 exemplos TEST, IDs e prompts distintos, proveniência completa, correspondência exata normalizada mínima de 60% e F1 médio de tokens mínimo de 80%.
+
+O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manifesto e se o hash de prompt+resposta coincide com o checkpoint. Só executa o benchmark com esses exemplos. A aprovação fica vinculada ao fingerprint dos pesos carregados; recarregar ou descarregar o modelo remove a aprovação. Sem o gate numérico e o comportamental, a geração normal permanece bloqueada. A aprovação permite apenas um ensaio controlado de inferência, não declara o cérebro pronto para produção.

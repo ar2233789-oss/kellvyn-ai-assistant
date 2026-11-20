@@ -100,11 +100,17 @@ internal class KellvynNeuralChatRuntime(
         val tokenizer: KellvynBpeTokenizer,
         val model: KellvynMultiBlockTransformer,
         val endTokenId: Int,
-        val qualityGate: KellvynMultiBlockTrainingQualityGate.Report
+        val qualityGate: KellvynMultiBlockTrainingQualityGate.Report,
+        val manifest: KellvynMultiBlockTrainingManifest
     )
 
     @Volatile
     private var loadedModel: LoadedModel? = null
+
+    @Volatile
+    private var behaviorApprovedFingerprint: String? = null
+
+    private val benchmarkThread = ThreadLocal.withInitial { false }
 
     val isReady: Boolean
         get() = loadedModel != null
@@ -115,6 +121,7 @@ internal class KellvynNeuralChatRuntime(
      */
     @Synchronized
     fun initialize(): Status {
+        behaviorApprovedFingerprint = null
         return try {
             val restored = modelStore.loadMultiBlockForInference()
                 ?: run {
@@ -138,11 +145,13 @@ internal class KellvynNeuralChatRuntime(
                 "O carregamento de inferência manteve estados de treinamento na memória."
             }
             val qualityGate = KellvynMultiBlockTrainingQualityGate.evaluate(restored.manifest)
+            behaviorApprovedFingerprint = null
             loadedModel = LoadedModel(
                 tokenizer = restored.tokenizer,
                 model = restored.model,
                 endTokenId = endTokenId,
-                qualityGate = qualityGate
+                qualityGate = qualityGate,
+                manifest = restored.manifest
             )
             Status(
                 ready = true,
@@ -171,6 +180,7 @@ internal class KellvynNeuralChatRuntime(
     @Synchronized
     fun unload() {
         loadedModel = null
+        behaviorApprovedFingerprint = null
     }
 
     /**
@@ -221,6 +231,12 @@ internal class KellvynNeuralChatRuntime(
         check(active.qualityGate.eligibleForProtocolBenchmark) {
             "O checkpoint KN-004 ainda não passou pelo quality gate: " +
                 active.qualityGate.reasons.joinToString(" ")
+        }
+        check(
+            benchmarkThread.get() ||
+                behaviorApprovedFingerprint == active.model.parameterFingerprint()
+        ) {
+            "O checkpoint KN-004 ainda precisa passar pelo benchmark comportamental TEST antes de responder."
         }
         val maxTokenizerSafeChars = minOf(
             MAX_PROMPT_CHARS,
@@ -288,6 +304,68 @@ internal class KellvynNeuralChatRuntime(
             )
         }
         return answer
+    }
+
+    /**
+     * Runs the held-out TEST set on this exact checkpoint. Only the manifest's TEST IDs and
+     * content hashes are accepted, preventing a caller from benchmarking training examples.
+     * A successful report unlocks controlled local inference for this checkpoint fingerprint.
+     * Call from a worker thread; generation is CPU-bound.
+     */
+    fun runBehaviorBenchmark(
+        examples: List<KellvynInstructionTrainingExample>,
+        maxNewTokens: Int = DEFAULT_MAX_NEW_TOKENS,
+        cancellationCheck: () -> Unit = {}
+    ): KellvynNeuralBehaviorBenchmark.Report {
+        require(maxNewTokens in 1..MAX_GENERATION_TOKENS)
+        val active = loadedModel ?: throw IllegalStateException(
+            "Carregue um checkpoint KN-004 antes do benchmark comportamental."
+        )
+        check(active.qualityGate.eligibleForProtocolBenchmark) {
+            "O quality gate numérico precisa passar antes do benchmark comportamental."
+        }
+
+        val manifestTest = active.manifest.entries
+            .filter { it.split == KellvynTrainingSplit.TEST }
+            .associateBy { it.id }
+        require(examples.all { example ->
+            val entry = manifestTest[example.id] ?: return@all false
+            val digest = java.security.MessageDigest.getInstance("SHA-256")
+                .digest((example.prompt + "\u0000" + example.completion).toByteArray(Charsets.UTF_8))
+                .joinToString("") { byte -> "%02x".format(byte) }
+            digest == entry.contentSha256
+        }) {
+            "O benchmark só pode usar exemplos TEST originais registrados no manifesto do checkpoint."
+        }
+
+        val fingerprint = active.model.parameterFingerprint()
+        benchmarkThread.set(true)
+        try {
+            val report = KellvynNeuralBehaviorBenchmark.evaluate(
+                modelFingerprint = fingerprint,
+                examples = examples
+            ) { example ->
+                cancellationCheck()
+                val prompt = if (example.prompt.contains("Resposta:")) {
+                    example.prompt
+                } else {
+                    "${example.prompt.trim()} Resposta:"
+                }
+                generateContinuation(
+                    prompt = prompt,
+                    maxNewTokens = maxNewTokens,
+                    sampling = KellvynSamplingConfig(temperature = 0.1f, topK = 1, topP = 1.0f),
+                    randomSeed = example.id.hashCode().toLong(),
+                    cancellationCheck = cancellationCheck
+                )
+            }
+            if (report.eligibleForIntegrationReview) {
+                behaviorApprovedFingerprint = fingerprint
+            }
+            return report
+        } finally {
+            benchmarkThread.remove()
+        }
     }
 
     private companion object {

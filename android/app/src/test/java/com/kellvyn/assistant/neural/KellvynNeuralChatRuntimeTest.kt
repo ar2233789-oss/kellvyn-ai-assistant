@@ -78,6 +78,31 @@ class KellvynNeuralChatRuntimeTest {
         }
     }
 
+    @Test
+    fun numericQualityPassStillCannotAnswerBeforeHeldOutBehaviorBenchmark() {
+        val trained = trainSample(contextLength = 128)
+        val passingMetrics = trained.copy(
+            manifest = trained.manifest.copy(
+                initialValidationLoss = 5.0,
+                finalValidationLoss = 3.0,
+                heldOutTestLoss = 3.2
+            )
+        )
+        store.saveMultiBlock(passingMetrics)
+        val runtime = KellvynNeuralChatRuntime(store)
+
+        val status = runtime.initialize()
+
+        assertTrue(status.ready)
+        assertTrue(status.qualityApprovedForBenchmark)
+        try {
+            runtime.generateReply("Olá")
+            throw AssertionError("O gate numérico sozinho não pode liberar respostas.")
+        } catch (expected: IllegalStateException) {
+            assertTrue(expected.message!!.contains("benchmark comportamental TEST"))
+        }
+    }
+
     @Test(expected = IllegalStateException::class)
     fun generationIsRejectedUntilAValidatedCheckpointIsLoaded() {
         KellvynNeuralChatRuntime(store).generateReply("Olá")
@@ -88,14 +113,14 @@ class KellvynNeuralChatRuntimeTest {
         KellvynNeuralChatRuntime(store).generateReply("   ")
     }
 
-    private fun trainSample() = KellvynMultiBlockTrainingPipeline.train(
+    private fun trainSample(contextLength: Int = 32) = KellvynMultiBlockTrainingPipeline.train(
         examples = listOf(
             instruction("runtime-train", "Pergunta: diga olá.", "Olá.", KellvynTrainingSplit.TRAIN),
             instruction("runtime-validation", "Pergunta: diga bom dia.", "Bom dia.", KellvynTrainingSplit.VALIDATION),
             instruction("runtime-test", "Pergunta: termine.", "Até logo.", KellvynTrainingSplit.TEST)
         ),
         config = KellvynMultiBlockTrainingConfig(
-            contextLength = 32,
+            contextLength = contextLength,
             embeddingSize = 8,
             headCount = 2,
             feedForwardSize = 12,
