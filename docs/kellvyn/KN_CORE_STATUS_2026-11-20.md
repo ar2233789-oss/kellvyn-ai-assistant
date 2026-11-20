@@ -278,3 +278,10 @@ O leitor JSONL não usa mais `readLine()`, que poderia alocar uma string enorme 
 O wrapper de bytes limita cada leitura ao espaço restante do teto da origem; após atingir o limite, faz no máximo uma leitura de prova para diferenciar EOF exato de arquivo maior. Um teste conta os bytes consumidos e confirma o teto + no máximo um byte de prova. Um harness Kotlin/JVM isolado da lógica de linhas/bytes passou: LF/CRLF, read-ahead, linha no limite exato, descarte/recuperação de linha grande, EOF e byte de prova. Isso **não** é compilação do pacote nem Gradle/JUnit do app.
 
 O preflight estima também o working set KN-004 com o vocabulário máximo possível (`256 + maxMerges + EOS`). Se a estimativa exceder `maxTrainingWorkingSetBytes` ou se a configuração violar o limite de atenção, o relatório fica `readyForTraining=false` e o controlador não aloca pesos. É uma estimativa de admissão baseada na fórmula interna; não substitui medição de PSS, temperatura ou bateria no Poco F6.
+
+
+### Revisão manual obrigatória em fontes sujas — 20/11/2026
+
+Política final do preflight: qualquer registro de origem marcado como sensível (credencial, e-mail, telefone brasileiro ou CPF reconhecível) ou malformado faz `needsManualReview=true` e `readyForTraining=false`, mesmo quando a amostra limpa restante atingiria os mínimos. O controlador não inicia o treino. O operador deve corrigir/limpar o arquivo e submetê-lo novamente. Registros recusados apenas por limites computacionais (BPE, tamanho de exemplo ou steps) continuam contabilizados separadamente e podem ser excluídos da amostra se os restantes cumprirem todos os limites.
+
+Isso evita que o caminho de ingestão inicie o treino automaticamente a partir de uma origem que ainda contém dados sensíveis ou registros malformados. A detecção continua heurística e não substitui uma revisão de direitos/licenças.
