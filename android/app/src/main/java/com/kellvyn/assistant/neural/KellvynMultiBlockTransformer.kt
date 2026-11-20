@@ -406,7 +406,18 @@ internal class KellvynMultiBlockTransformer private constructor(
 
     fun evaluateNextTokenProbabilities(contextTokenIds: IntArray): FloatArray {
         validateContext(contextTokenIds)
-        return forward(contextTokenIds).probabilities.copyOf()
+        return forward(contextTokenIds, firstAbsolutePosition = 0).probabilities.copyOf()
+    }
+
+    /** Full-window reference for a cached session whose sliding context starts at an absolute RoPE offset. */
+    internal fun evaluateNextTokenProbabilities(
+        contextTokenIds: IntArray,
+        firstAbsolutePosition: Int
+    ): FloatArray {
+        validateContext(contextTokenIds)
+        require(firstAbsolutePosition >= 0)
+        require(firstAbsolutePosition <= Int.MAX_VALUE - contextTokenIds.size)
+        return forward(contextTokenIds, firstAbsolutePosition).probabilities.copyOf()
     }
 
     fun predictNext(contextTokenIds: IntArray): Int {
@@ -763,8 +774,13 @@ internal class KellvynMultiBlockTransformer private constructor(
         return result
     }
 
-    private fun forward(contextTokenIds: IntArray): ForwardPass {
+    private fun forward(
+        contextTokenIds: IntArray,
+        firstAbsolutePosition: Int = 0
+    ): ForwardPass {
         validateContext(contextTokenIds)
+        require(firstAbsolutePosition >= 0)
+        require(firstAbsolutePosition <= Int.MAX_VALUE - contextTokenIds.size)
         val d = config.embeddingSize
         val v = config.vocabularySize
         val f = config.feedForwardSize
@@ -797,7 +813,7 @@ internal class KellvynMultiBlockTransformer private constructor(
 
             val queryRotated = Array(length) { position ->
                 linear(normalizedAttention[position], block.queryWeights, d, d)
-                    .also { rotateInPlace(it, position, h) }
+                    .also { rotateInPlace(it, firstAbsolutePosition + position, h) }
             }
             val keysRotated = Array(length) { position ->
                 linear(normalizedAttention[position], block.keyWeights, d, d)
