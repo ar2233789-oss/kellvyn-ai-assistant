@@ -35,6 +35,18 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
+    fun imageIllustrationRequestGetsTheVectorArtworkRenderer() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(user("Gere uma ilustração vetorial SVG com formas geométricas")),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("vector_render_artwork" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
     fun taskAndResourceRequestGetsBoundedAutomationAndDeviceTools() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Agendar tarefa para verificar RAM, bateria e temperatura")),
@@ -100,6 +112,11 @@ class KellvynToolRegistryPromptSelectionTest {
                 "animation_render_spritesheet",
                 "Renderiza uma animação 2D com keyframes e movimento em spritesheet.",
                 setOf(KellvynStudioCapability.ANIMATION, KellvynStudioCapability.VISUAL_ANALYSIS)
+            ),
+            tool(
+                "vector_render_artwork",
+                "Cria ilustração vetorial SVG e prévia PNG a partir de formas geométricas.",
+                setOf(KellvynStudioCapability.VECTOR_GRAPHICS, KellvynStudioCapability.ARTIFACT_STORAGE)
             ),
             tool(
                 "automation_schedule_resource_snapshot",
