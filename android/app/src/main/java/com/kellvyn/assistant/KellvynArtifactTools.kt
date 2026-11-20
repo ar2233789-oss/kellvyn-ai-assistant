@@ -65,10 +65,10 @@ internal object KellvynArtifactTools {
                         true,
                         buildString {
                             appendLine("ARMAZENAMENTO PRIVADO DE ARTEFATOS")
-                            appendLine("records=\${snapshot.recordCount}")
-                            appendLine("stored_bytes=\${snapshot.storedBytes}")
-                            appendLine("max_artifact_bytes=\${snapshot.maxArtifactBytes}")
-                            appendLine("max_store_bytes=\${snapshot.maxStoreBytes}")
+                            appendLine("records=${snapshot.recordCount}")
+                            appendLine("stored_bytes=${snapshot.storedBytes}")
+                            appendLine("max_artifact_bytes=${snapshot.maxArtifactBytes}")
+                            appendLine("max_store_bytes=${snapshot.maxStoreBytes}")
                             appendLine("binary_payloads_in_model_context=false")
                         }
                     )
@@ -88,7 +88,7 @@ internal object KellvynArtifactTools {
                             true,
                             buildString {
                                 appendLine("ARTEFATOS DA TAREFA")
-                                appendLine("total=\${refs.size}; exibidos=\${shown.size}")
+                                appendLine("total=${refs.size}; exibidos=${shown.size}")
                                 shown.forEach { ref ->
                                     append(ref.id).append(" | ")
                                         .append(ref.fileName).append(" | ")
@@ -121,13 +121,13 @@ internal object KellvynArtifactTools {
                         val verified = store.verify(ref.id)
                         val content = buildString {
                             appendLine("ARTEFATO")
-                            appendLine("artifact_id=\${ref.id}")
-                            appendLine("task_id=\${ref.taskId}")
-                            appendLine("file_name=\${ref.fileName}")
-                            appendLine("media_type=\${ref.mediaType}")
-                            appendLine("producer=\${ref.producerId}")
-                            appendLine("size_bytes=\${ref.sizeBytes}")
-                            appendLine("sha256=\${ref.sha256}")
+                            appendLine("artifact_id=${ref.id}")
+                            appendLine("task_id=${ref.taskId}")
+                            appendLine("file_name=${ref.fileName}")
+                            appendLine("media_type=${ref.mediaType}")
+                            appendLine("producer=${ref.producerId}")
+                            appendLine("size_bytes=${ref.sizeBytes}")
+                            appendLine("sha256=${ref.sha256}")
                             append("integrity=").append(if (verified) "VERIFIED" else "FAILED")
                         }
                         KellvynToolResult(verified, content)
