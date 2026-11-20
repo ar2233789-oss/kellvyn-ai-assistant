@@ -749,27 +749,41 @@ internal class KellvynMultiBlockTransformer private constructor(
             if (evicted) {
                 contextTokens.removeAt(0)
                 contextTokens += tokenId
-                // Earlier layer states were computed with the evicted history. Rebuild
-                // the retained window from scratch so cache output equals a fresh forward.
+                // Rebuild the retained window because its earliest states previously attended
+                // to the evicted token. Keep monotonic absolute positions while using a local
+                // cache index for the bounded KV arrays.
                 keyCaches.forEach { it.clear() }
                 valueCaches.forEach { it.clear() }
                 latestProbabilities = null
-                contextTokens.forEachIndexed { position, cachedToken ->
-                    processTokenIntoCache(cachedToken, position)
+                val firstRetainedAbsolutePosition =
+                    nextAbsolutePosition - contextTokens.size + 1
+                contextTokens.forEachIndexed { cachePosition, cachedToken ->
+                    processTokenIntoCache(
+                        cachedToken,
+                        firstRetainedAbsolutePosition + cachePosition,
+                        cachePosition
+                    )
                 }
-                nextAbsolutePosition = contextTokens.size
             } else {
                 contextTokens += tokenId
-                processTokenIntoCache(tokenId, nextAbsolutePosition)
-                nextAbsolutePosition++
+                processTokenIntoCache(
+                    tokenId,
+                    nextAbsolutePosition,
+                    contextTokens.lastIndex
+                )
             }
+            nextAbsolutePosition++
             require(keyCaches.all { it.size == contextTokens.size } &&
                 valueCaches.all { it.size == contextTokens.size }) {
                 "Os caches KV KN-004 divergiram do contexto ativo."
             }
         }
 
-        private fun processTokenIntoCache(tokenId: Int, position: Int) {
+        private fun processTokenIntoCache(
+            tokenId: Int,
+            position: Int,
+            cachePosition: Int
+        ) {
             val d = config.embeddingSize
             val f = config.feedForwardSize
             val heads = config.headCount
@@ -797,7 +811,9 @@ internal class KellvynMultiBlockTransformer private constructor(
                 keyCache += key
                 valueCache += value
                 require(keyCache.size == valueCache.size &&
-                    keyCache.size == position + 1) {
+                    keyCache.size == cachePosition + 1 &&
+                    cachePosition in 0 until config.contextLength &&
+                    position >= 0) {
                     "O cache KV do bloco $layerIndex ficou inconsistente."
                 }
 
