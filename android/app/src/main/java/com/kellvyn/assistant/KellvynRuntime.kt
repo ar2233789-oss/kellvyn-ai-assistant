@@ -291,6 +291,23 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
+     * Creates the single central KN cognition loop over the validated KN-004 model.
+     * This is a controlled runtime API; it does not connect or enable MainActivity chat.
+     */
+    suspend fun createOwnMultiBlockCognitiveKernel(
+        activeProjectId: String? = null,
+        inferenceConfig: KellvynMultiBlockInferenceEngine.Config? = null,
+        agentConfig: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynCognitiveKernel? {
+        val inference = createOwnMultiBlockInferenceEngine(inferenceConfig) ?: return null
+        return createCentralCognition(
+            inference = inference,
+            activeProjectId = activeProjectId,
+            config = agentConfig
+        )
+    }
+
+    /**
      * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
