@@ -642,21 +642,36 @@ internal class KellvynMultiBlockTransformer private constructor(
         internal fun processedTokenCount(): Int = nextAbsolutePosition
 
         private fun appendInternal(tokenId: Int) {
-            if (contextTokens.size == config.contextLength) {
-                contextTokens.removeAt(0)
-                for (layerIndex in 0 until config.depth) {
-                    keyCaches[layerIndex].removeAt(0)
-                    valueCaches[layerIndex].removeAt(0)
-                }
-            }
             outputTokens += tokenId
-            contextTokens += tokenId
+            val evicted = contextTokens.size == config.contextLength
+            if (evicted) {
+                contextTokens.removeAt(0)
+                contextTokens += tokenId
+                // Earlier layer states were computed with the evicted history. Rebuild
+                // the retained window from scratch so cache output equals a fresh forward.
+                keyCaches.forEach { it.clear() }
+                valueCaches.forEach { it.clear() }
+                latestProbabilities = null
+                contextTokens.forEachIndexed { position, cachedToken ->
+                    processTokenIntoCache(cachedToken, position)
+                }
+                nextAbsolutePosition = contextTokens.size
+            } else {
+                contextTokens += tokenId
+                processTokenIntoCache(tokenId, nextAbsolutePosition)
+                nextAbsolutePosition++
+            }
+            require(keyCaches.all { it.size == contextTokens.size } &&
+                valueCaches.all { it.size == contextTokens.size }) {
+                "Os caches KV KN-004 divergiram do contexto ativo."
+            }
+        }
 
+        private fun processTokenIntoCache(tokenId: Int, position: Int) {
             val d = config.embeddingSize
             val f = config.feedForwardSize
             val heads = config.headCount
             val headDim = d / heads
-            val absolutePosition = nextAbsolutePosition
             val tokenOffset = tokenId * d
             var hidden = FloatArray(d) { dimension ->
                 parameters.tokenEmbeddings[tokenOffset + dimension]
@@ -670,9 +685,9 @@ internal class KellvynMultiBlockTransformer private constructor(
                     block.normAttentionBeta
                 )
                 val query = linear(normalized.values, block.queryWeights, d, d)
-                rotateInPlace(query, absolutePosition, heads)
+                rotateInPlace(query, position, heads)
                 val key = linear(normalized.values, block.keyWeights, d, d)
-                rotateInPlace(key, absolutePosition, heads)
+                rotateInPlace(key, position, heads)
                 val value = linear(normalized.values, block.valueWeights, d, d)
 
                 val keyCache = keyCaches[layerIndex]
@@ -680,7 +695,7 @@ internal class KellvynMultiBlockTransformer private constructor(
                 keyCache += key
                 valueCache += value
                 require(keyCache.size == valueCache.size &&
-                    keyCache.size == contextTokens.size) {
+                    keyCache.size == position + 1) {
                     "O cache KV do bloco $layerIndex ficou inconsistente."
                 }
 
@@ -689,26 +704,27 @@ internal class KellvynMultiBlockTransformer private constructor(
                     val headOffset = head * headDim
                     val scores = FloatArray(keyCache.size)
                     var maximum = Float.NEGATIVE_INFINITY
-                    for (position in keyCache.indices) {
+                    for (cachePosition in keyCache.indices) {
                         var score = 0.0f
                         for (dimension in 0 until headDim) {
                             val feature = headOffset + dimension
-                            score += query[feature] * keyCache[position][feature]
+                            score += query[feature] * keyCache[cachePosition][feature]
                         }
-                        scores[position] = score / sqrt(headDim.toDouble()).toFloat()
-                        if (scores[position] > maximum) maximum = scores[position]
+                        scores[cachePosition] =
+                            score / sqrt(headDim.toDouble()).toFloat()
+                        if (scores[cachePosition] > maximum) maximum = scores[cachePosition]
                     }
-                    var denominator = 0.0
                     val weights = FloatArray(scores.size)
-                    for (position in scores.indices) {
-                        val weight = exp((scores[position] - maximum).toDouble())
-                        weights[position] = weight.toFloat()
+                    var denominator = 0.0
+                    for (cachePosition in scores.indices) {
+                        val weight = exp((scores[cachePosition] - maximum).toDouble())
+                        weights[cachePosition] = weight.toFloat()
                         denominator += weight
                     }
                     require(denominator.isFinite() && denominator > 0.0)
-                    for (position in scores.indices) {
-                        val weight = (weights[position].toDouble() / denominator).toFloat()
-                        val cachedValue = valueCache[position]
+                    for (cachePosition in scores.indices) {
+                        val weight = (weights[cachePosition].toDouble() / denominator).toFloat()
+                        val cachedValue = valueCache[cachePosition]
                         for (dimension in 0 until headDim) {
                             val feature = headOffset + dimension
                             attentionConcat[feature] += weight * cachedValue[feature]
@@ -738,9 +754,6 @@ internal class KellvynMultiBlockTransformer private constructor(
             val logits = linear(hidden, parameters.outputWeights, d, config.vocabularySize)
             for (token in logits.indices) logits[token] += parameters.outputBias[token]
             latestProbabilities = softmax(logits)
-            nextAbsolutePosition++
-            require(keyCaches.all { it.size == contextTokens.size } &&
-                valueCaches.all { it.size == contextTokens.size })
         }
     }
 
