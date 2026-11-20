@@ -11,11 +11,11 @@ import java.security.MessageDigest
 class KellvynJsonlCorpusReaderTest {
     @Test
     fun streamsFullSourceAndSelectsDeterministicTrainValidationAndTestPartitions() {
-        val source = (0 until 250).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+        val source = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
         val bytes = source.toByteArray(Charsets.UTF_8)
         val first = KellvynJsonlCorpusReader.read(
             ByteArrayInputStream(bytes),
-            maxExamples = 250,
+            maxExamples = 300,
             minimumTrainExamples = 100,
             minimumValidationExamples = 20,
             minimumTestExamples = 20
@@ -23,15 +23,15 @@ class KellvynJsonlCorpusReaderTest {
         val second = KellvynJsonlCorpusReader.read(
             ByteArrayInputStream(source.lineSequence().toList().asReversed().joinToString("\n", postfix = "\n")
                 .toByteArray(Charsets.UTF_8)),
-            maxExamples = 250,
+            maxExamples = 300,
             minimumTrainExamples = 100,
             minimumValidationExamples = 20,
             minimumTestExamples = 20
         )
 
         assertTrue(first.report.readyForTraining)
-        assertEquals(250L, first.report.totalLines)
-        assertEquals(250L, first.report.validRecords)
+        assertEquals(300L, first.report.totalLines)
+        assertEquals(300L, first.report.validRecords)
         assertTrue(first.report.selectedTrain >= 100)
         assertTrue(first.report.selectedValidation >= 20)
         assertTrue(first.report.selectedTest >= 20)
@@ -50,15 +50,15 @@ class KellvynJsonlCorpusReaderTest {
 
     @Test
     fun rejectsSensitiveAndMalformedRecordsWithoutRetainingTheirText() {
-        val lines = (0 until 250).map(::jsonRecord).toMutableList()
+        val lines = (0 until 300).map(::jsonRecord).toMutableList()
         lines += jsonRecord(
             251,
             completion = "Contato: pessoa@example.com"
         )
-        lines += """{"id":"broken","prompt":"" 
+        lines += "{\"id\":\"broken\",\"prompt\":\"\""
         val result = KellvynJsonlCorpusReader.read(
             ByteArrayInputStream(lines.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8)),
-            maxExamples = 250,
+            maxExamples = 300,
             minimumTrainExamples = 100,
             minimumValidationExamples = 20,
             minimumTestExamples = 20
@@ -73,7 +73,7 @@ class KellvynJsonlCorpusReaderTest {
 
     @Test
     fun doesNotCloseCallerOwnedInputStream() {
-        val bytes = (0 until 250).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+        val bytes = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
             .toByteArray(Charsets.UTF_8)
         var closed = false
         val input = object : ByteArrayInputStream(bytes) {
@@ -85,7 +85,7 @@ class KellvynJsonlCorpusReaderTest {
 
         KellvynJsonlCorpusReader.read(
             input,
-            maxExamples = 250,
+            maxExamples = 300,
             minimumTrainExamples = 100,
             minimumValidationExamples = 20,
             minimumTestExamples = 20
