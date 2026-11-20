@@ -418,9 +418,18 @@ internal class KellvynRuntime(context: Context) {
     ): KellvynToolRegistry {
         val workspaceTools = KellvynProjectWorkspaceTools.create(projectWorkspace, projectWriteApprovalGate)
         val resourceTools = KellvynResourceTools.create { resourceSnapshot() }
-        val automationTools = KellvynAutomationTools.create {
-            resourceRuntime.pendingScheduledTaskCount()
-        }
+        val automationTools = KellvynAutomationTools.create(
+            pendingCountProvider = { resourceRuntime.pendingScheduledTaskCount() },
+            scheduleResourceSnapshot = { delayMillis ->
+                resourceRuntime.enqueueResourceSnapshotProbe(delayMillis)
+            },
+            taskStatusProvider = { taskId ->
+                resourceRuntime.scheduledTaskStatus(taskId)
+            },
+            cancelQueuedTask = { taskId ->
+                resourceRuntime.cancelQueuedScheduledTask(taskId)
+            }
+        )
         val registeredCapabilities = resourceRuntime.studioModules.manifests()
             .flatMap { it.capabilities }
             .toSet()
