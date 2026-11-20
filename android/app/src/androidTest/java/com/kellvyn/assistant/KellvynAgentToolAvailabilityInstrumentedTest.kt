@@ -176,7 +176,7 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
                     )
                 }
 
-            // Only workspace mutations remain outside the specialist registry.
+            // Only explicit side-effecting tools remain outside read-only specialist subsets.
             assertEquals(
                 setOf(
                     "workspace_write_file", "workspace_delete_file", "wikipedia_search",
