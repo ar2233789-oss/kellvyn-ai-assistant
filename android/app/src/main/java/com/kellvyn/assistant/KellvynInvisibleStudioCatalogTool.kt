@@ -16,7 +16,7 @@ internal object KellvynInvisibleStudioCatalogTool {
         moduleManager: KellvynStudioModuleManager,
         coreToolSpecs: List<KellvynToolSpec>
     ): KellvynAgentTool {
-        val spec = KellvynToolSpec(
+        val catalogSpec = KellvynToolSpec(
             name = TOOL_NAME,
             description = "Lista capacidades realmente registradas no laboratório invisível, módulos sob demanda, ferramentas centrais, dependências declaradas e lacunas. É somente inventário: não carrega nem executa motores.",
             risk = KellvynToolRisk.READ_ONLY,
@@ -26,7 +26,7 @@ internal object KellvynInvisibleStudioCatalogTool {
         )
 
         return object : KellvynAgentTool {
-            override val spec: KellvynToolSpec = spec
+            override val spec: KellvynToolSpec = catalogSpec
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
                 if (arguments.isNotEmpty()) {
