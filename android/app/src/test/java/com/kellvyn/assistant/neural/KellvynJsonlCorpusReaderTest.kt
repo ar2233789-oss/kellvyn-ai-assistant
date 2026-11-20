@@ -212,6 +212,41 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun discardsAnOversizedPhysicalLineWithoutParsingIt() {
+        val oversized = jsonRecord(
+            800,
+            prompt = "x".repeat(500_100)
+        )
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(oversized.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1L, result.report.totalLines)
+        assertEquals(1L, result.report.malformedRecords)
+        assertEquals(0L, result.report.validRecords)
+        assertTrue(result.examples.isEmpty())
+    }
+
+    @Test
+    fun readsWindowsCrLfLineSeparatorsWithoutMergingRecords() {
+        val source = (0 until 3).joinToString("\r\n", postfix = "\r\n") { jsonRecord(it) }
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(3L, result.report.totalLines)
+        assertEquals(3L, result.report.validRecords)
+    }
+
+    @Test
     fun refusesAStreamThatExceedsTheDeclaredByteLimit() {
         val source = (0 until 3).joinToString("\n", postfix = "\n") { jsonRecord(it) }
         try {
