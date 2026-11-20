@@ -47,6 +47,8 @@ class KellvynBotOperationsStudioTest {
         val result = studio.tools.single().execute(emptyMap())
 
         assertTrue(result.success)
+        assertTrue(studio.tools.single().spec.capabilities == setOf(KellvynStudioCapability.BOT_DIAGNOSTICS))
+        assertFalse(KellvynStudioCapability.WORKFLOW_AUTOMATION in studio.tools.single().spec.capabilities)
         assertTrue(result.content.contains("IA de resposta local: NÃO PRONTA"))
         assertTrue(result.content.contains("Telegram: HEARTBEAT RECENTE"))
         assertTrue(result.content.contains("Discord: HEARTBEAT DESATUALIZADO"))
