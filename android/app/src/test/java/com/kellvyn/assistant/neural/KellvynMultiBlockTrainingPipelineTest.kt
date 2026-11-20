@@ -104,6 +104,22 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun refusesTrainingBeforeAllocationWhenEstimatedWorkingSetExceedsBudget() {
+        KellvynMultiBlockTrainingPipeline.train(
+            examples = sampleExamples(),
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 256,
+                embeddingSize = 128,
+                headCount = 8,
+                feedForwardSize = 512,
+                depth = 6,
+                maxMerges = 64,
+                maxTrainingWorkingSetBytes = 16L * 1024L * 1024L
+            )
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun configurationRejectsHeadCountThatDoesNotDivideEmbeddingSize() {
         KellvynMultiBlockTrainingConfig(
             contextLength = 48,
