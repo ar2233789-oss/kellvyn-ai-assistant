@@ -71,11 +71,12 @@ internal object KellvynMultiBlockCheckpointBundle {
         input: InputStream,
         inferenceOnly: Boolean
     ): KellvynRestoredMultiBlockBundle {
-        val bytes = readBounded(input)
-        require(bytes.size in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
+        val buffer = readBounded(input)
+        val bytes = buffer.bytes
+        require(buffer.length in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
             "Pacote KN-004 vazio, truncado ou acima do limite."
         }
-        val payloadSize = bytes.size - CHECKSUM_BYTES
+        val payloadSize = buffer.length - CHECKSUM_BYTES
         val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
         val digestEngine = MessageDigest.getInstance("SHA-256")
         digestEngine.update(bytes, 0, payloadSize)
@@ -283,12 +284,21 @@ internal object KellvynMultiBlockCheckpointBundle {
             .toString()
     }
 
-    private fun readBounded(input: InputStream): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
+    private data class ReadBuffer(val bytes: ByteArray, val length: Int)
+
+    private class ExposedByteArrayOutputStream(initialCapacity: Int) :
+        ByteArrayOutputStream(initialCapacity) {
+        fun backingArray(): ByteArray = buf
+        fun writtenLength(): Int = count
+    }
+
+    private fun readBounded(input: InputStream): ReadBuffer {
+        val initialCapacity = input.available().coerceIn(8192, MAX_BUNDLE_BYTES)
+        val output = ExposedByteArrayOutputStream(initialCapacity)
+        val chunk = ByteArray(8192)
         var total = 0
         while (true) {
-            val count = input.read(buffer)
+            val count = input.read(chunk)
             if (count < 0) break
             if (count == 0) {
                 val value = input.read()
@@ -300,10 +310,10 @@ internal object KellvynMultiBlockCheckpointBundle {
                 require(total <= MAX_BUNDLE_BYTES - count) {
                     "Pacote KN-004 acima do limite."
                 }
-                output.write(buffer, 0, count)
+                output.write(chunk, 0, count)
                 total += count
             }
         }
-        return output.toByteArray()
+        return ReadBuffer(output.backingArray(), output.writtenLength())
     }
 }

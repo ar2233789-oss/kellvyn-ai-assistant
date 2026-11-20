@@ -263,15 +263,19 @@ internal class KellvynMultiBlockTransformer private constructor(
             )
         }
 
-        fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readCheckpointBytes(readBounded(input))
+        fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer {
+            val buffer = readBounded(input)
+            return readCheckpointBytes(buffer.bytes, 0, buffer.length, retainOptimizerState = true)
+        }
 
         /**
          * Loads only trained weights for inference. AdamW moments are checksum-verified
          * with the rest of the checkpoint, then skipped without allocating FloatArrays.
          */
-        fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readInferenceCheckpointBytes(readBounded(input))
+        fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer {
+            val buffer = readBounded(input)
+            return readInferenceCheckpointBytes(buffer.bytes, 0, buffer.length)
+        }
 
         /** Internal bundle reader avoids copying a model byte array that is already bounded. */
         internal fun readCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
@@ -455,12 +459,21 @@ internal class KellvynMultiBlockTransformer private constructor(
             }
         }
 
-        private fun readBounded(input: InputStream): ByteArray {
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(8192)
+        private data class ReadBuffer(val bytes: ByteArray, val length: Int)
+
+        private class ExposedByteArrayOutputStream(initialCapacity: Int) :
+            ByteArrayOutputStream(initialCapacity) {
+            fun backingArray(): ByteArray = buf
+            fun writtenLength(): Int = count
+        }
+
+        private fun readBounded(input: InputStream): ReadBuffer {
+            val initialCapacity = input.available().coerceIn(8192, MAX_CHECKPOINT_BYTES)
+            val output = ExposedByteArrayOutputStream(initialCapacity)
+            val chunk = ByteArray(8192)
             var total = 0
             while (true) {
-                val count = input.read(buffer)
+                val count = input.read(chunk)
                 if (count < 0) break
                 if (count == 0) {
                     val value = input.read()
@@ -472,11 +485,11 @@ internal class KellvynMultiBlockTransformer private constructor(
                     require(total <= MAX_CHECKPOINT_BYTES - count) {
                         "Checkpoint KN-004 acima do limite."
                     }
-                    output.write(buffer, 0, count)
+                    output.write(chunk, 0, count)
                     total += count
                 }
             }
-            return output.toByteArray()
+            return ReadBuffer(output.backingArray(), output.writtenLength())
         }
     }
 
