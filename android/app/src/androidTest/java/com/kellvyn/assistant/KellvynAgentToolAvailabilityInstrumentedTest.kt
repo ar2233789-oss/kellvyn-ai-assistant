@@ -30,12 +30,15 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertEquals(
                 setOf(
                     "artifact_store_status", "artifact_list_task", "artifact_verify",
-                    "image_inspect", "image_resize"
+                    "image_inspect", "image_resize", "animation_render_spritesheet"
                 ),
                 artifactToolNames
             )
             assertTrue(registeredSpecs.any {
                 KellvynStudioCapability.RASTER_IMAGE_EDIT in it.capabilities
+            })
+            assertTrue(registeredSpecs.any {
+                KellvynStudioCapability.ANIMATION in it.capabilities
             })
             assertFalse(KellvynStudioCapability.IMAGE_GENERATION in registeredSpecs
                 .flatMap { it.capabilities }.toSet())
@@ -69,7 +72,6 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             )
             val notImplementedYet = setOf(
                 KellvynStudioCapability.IMAGE_GENERATION,
-                KellvynStudioCapability.ANIMATION,
                 KellvynStudioCapability.VIDEO_GENERATION,
                 KellvynStudioCapability.AUDIO_GENERATION,
                 KellvynStudioCapability.GAME_INTERACTION,
@@ -180,7 +182,8 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertEquals(
                 setOf(
                     "workspace_write_file", "workspace_delete_file", "wikipedia_search",
-                    "image_resize", "automation_schedule_resource_snapshot", "automation_cancel_queued_task"
+                    "image_resize", "animation_render_spritesheet",
+                    "automation_schedule_resource_snapshot", "automation_cancel_queued_task"
                 ),
                 registeredSpecs
                     .filter { it.risk != KellvynToolRisk.READ_ONLY }
