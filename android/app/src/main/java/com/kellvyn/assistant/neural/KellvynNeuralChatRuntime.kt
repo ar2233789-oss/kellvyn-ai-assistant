@@ -212,7 +212,8 @@ internal class KellvynNeuralChatRuntime(
     }
 
     /**
-     * Streams decoded token fragments from the same local model used by the main chat.
+     * Emits cumulative UTF-8-valid response snapshots from the same local model used by the main chat.
+     * Each onPartial callback receives the full response accumulated so far (not a token delta).
      * Cancellation is checked between tokens so a UI/service can stop generation promptly.
      */
     fun generateContinuation(
