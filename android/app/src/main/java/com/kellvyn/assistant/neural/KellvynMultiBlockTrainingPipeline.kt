@@ -112,17 +112,6 @@ internal object KellvynMultiBlockTrainingPipeline {
     private const val MAX_STEPS_PER_EXAMPLE = 50_000L
     private const val MAX_TOKENIZED_EXAMPLE = 100_000L
 
-    private val SECRET_ASSIGNMENT = Regex(
-        """(?i)\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\b\s*[:=]\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
-    )
-    private val BEARER_TOKEN = Regex(
-        """(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}"""
-    )
-    private val PRIVATE_KEY = Regex("""-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----""")
-    private val KNOWN_TOKEN = Regex(
-        """\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\b"""
-    )
-
     fun train(
         examples: List<KellvynInstructionTrainingExample>,
         config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
@@ -145,14 +134,14 @@ internal object KellvynMultiBlockTrainingPipeline {
                 "O exemplo KN-004 excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(example.id) &&
-                    !containsSecretMaterial(example.prompt) &&
-                    !containsSecretMaterial(example.completion) &&
-                    !containsSecretMaterial(example.provenance.licenseId) &&
-                    !containsSecretMaterial(example.provenance.sourceReference) &&
-                    !containsSecretMaterial(example.provenance.rightsEvidence)
+                !KellvynTrainingInputGuard.containsSensitiveMaterial(example.id) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.prompt) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.completion) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.licenseId) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.sourceReference) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.rightsEvidence)
             ) {
-                "O exemplo KN-004 contém credenciais em conteúdo ou proveniência; foi recusado."
+                "O exemplo KN-004 contém credenciais ou dados pessoais identificáveis; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_BYTES) {
@@ -290,12 +279,6 @@ internal object KellvynMultiBlockTrainingPipeline {
         )
         return KellvynMultiBlockTrainingResult(tokenizer, model, manifest)
     }
-
-    private fun containsSecretMaterial(text: String): Boolean =
-        SECRET_ASSIGNMENT.containsMatchIn(text) ||
-            BEARER_TOKEN.containsMatchIn(text) ||
-            PRIVATE_KEY.containsMatchIn(text) ||
-            KNOWN_TOKEN.containsMatchIn(text)
 
     private fun sha256(text: String): String =
         MessageDigest.getInstance("SHA-256")
