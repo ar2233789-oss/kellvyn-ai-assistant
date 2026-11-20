@@ -8,6 +8,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
+import java.security.DigestOutputStream
 import java.security.MessageDigest
 
 /**
@@ -29,57 +30,97 @@ internal object KellvynMultiBlockCheckpointBundle {
     private const val MAX_EVIDENCE_BYTES = 500
     private const val HASH_HEX_LENGTH = 64
 
+    /**
+     * Writes tokenizer and manifest (small bounded blobs) while streaming the potentially
+     * large model checkpoint directly into the output. The outer checksum covers every byte,
+     * including the model's own checksum trailer, without staging a second full bundle array.
+     */
     fun writeCheckpoint(result: KellvynMultiBlockTrainingResult, output: OutputStream) {
         validateBundleContract(result)
         val tokenizerBytes = ByteArrayOutputStream().also {
             result.tokenizer.writeCheckpoint(it)
         }.toByteArray()
-        val modelBytes = ByteArrayOutputStream().also {
-            result.model.writeCheckpoint(it)
-        }.toByteArray()
+        val modelSize = result.model.checkpointEncodedSizeBytes()
         val manifestBytes = encodeManifest(result.manifest)
         require(tokenizerBytes.size in 1..MAX_TOKENIZER_BYTES)
-        require(modelBytes.size in 1..MAX_MODEL_BYTES)
+        require(modelSize in 1L..MAX_MODEL_BYTES.toLong())
         require(manifestBytes.size in 1..MAX_MANIFEST_BYTES)
 
-        val payloadBuffer = ByteArrayOutputStream()
-        DataOutputStream(payloadBuffer).use { data ->
-            data.writeInt(MAGIC)
-            data.writeInt(VERSION)
-            writeBlob(data, tokenizerBytes)
-            writeBlob(data, modelBytes)
-            writeBlob(data, manifestBytes)
+        val payloadSize =
+            20L + tokenizerBytes.size.toLong() + modelSize + manifestBytes.size.toLong()
+        require(payloadSize + CHECKSUM_BYTES <= MAX_BUNDLE_BYTES.toLong()) {
+            "Pacote KN-004 excede o limite de bytes."
         }
-        val payload = payloadBuffer.toByteArray()
-        require(payload.size + CHECKSUM_BYTES <= MAX_BUNDLE_BYTES)
-        output.write(payload)
-        output.write(MessageDigest.getInstance("SHA-256").digest(payload))
+
+        val digest = MessageDigest.getInstance("SHA-256")
+        val digestOutput = DigestOutputStream(output, digest)
+        val data = DataOutputStream(digestOutput)
+        data.writeInt(MAGIC)
+        data.writeInt(VERSION)
+        writeBlob(data, tokenizerBytes)
+        data.writeInt(modelSize.toInt())
+        result.model.writeCheckpoint(data)
+        writeBlob(data, manifestBytes)
+        data.flush()
+        output.write(digest.digest())
         output.flush()
     }
 
-    fun readCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle {
-        val bytes = readBounded(input)
-        require(bytes.size in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
+    fun readCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle =
+        readCheckpoint(input, inferenceOnly = false)
+
+    /**
+     * Restores the same tokenizer, weights and provenance while omitting AdamW moments.
+     * Use this path for the live chat runtime to avoid keeping training-only arrays in RAM.
+     */
+    fun readInferenceCheckpoint(input: InputStream): KellvynRestoredMultiBlockBundle =
+        readCheckpoint(input, inferenceOnly = true)
+
+    private fun readCheckpoint(
+        input: InputStream,
+        inferenceOnly: Boolean
+    ): KellvynRestoredMultiBlockBundle {
+        val buffer = readBounded(input)
+        val bytes = buffer.bytes
+        require(buffer.length in (CHECKSUM_BYTES + 24)..MAX_BUNDLE_BYTES) {
             "Pacote KN-004 vazio, truncado ou acima do limite."
         }
-        val payloadSize = bytes.size - CHECKSUM_BYTES
-        val payload = bytes.copyOfRange(0, payloadSize)
-        val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
-        val digest = MessageDigest.getInstance("SHA-256").digest(payload)
+        val payloadSize = buffer.length - CHECKSUM_BYTES
+        val storedDigest = bytes.copyOfRange(payloadSize, buffer.length)
+        val digestEngine = MessageDigest.getInstance("SHA-256")
+        digestEngine.update(bytes, 0, payloadSize)
+        val digest = digestEngine.digest()
         require(MessageDigest.isEqual(storedDigest, digest)) {
             "A integridade do pacote KN-004 não confere."
         }
 
-        val data = DataInputStream(ByteArrayInputStream(payload))
+        val data = DataInputStream(ByteArrayInputStream(bytes, 0, payloadSize))
         require(data.readInt() == MAGIC) { "O pacote não pertence ao KN-004." }
         require(data.readInt() == VERSION) { "Versão do pacote KN-004 não suportada." }
-        val tokenizerBytes = readBlob(data, MAX_TOKENIZER_BYTES, "tokenizer")
-        val modelBytes = readBlob(data, MAX_MODEL_BYTES, "modelo")
-        val manifestBytes = readBlob(data, MAX_MANIFEST_BYTES, "manifesto")
+        val tokenizerRange = readBlobRange(data, payloadSize, MAX_TOKENIZER_BYTES, "tokenizer")
+        val modelRange = readBlobRange(data, payloadSize, MAX_MODEL_BYTES, "modelo")
+        val manifestRange = readBlobRange(data, payloadSize, MAX_MANIFEST_BYTES, "manifesto")
         require(data.available() == 0) { "O pacote KN-004 contém campos extras." }
 
+        // Tokenizer and manifest are small; copy them. The potentially 128 MiB model is
+        // read directly from its verified slice of the outer bundle for inference.
+        val tokenizerBytes = bytes.copyOfRange(
+            tokenizerRange.offset, tokenizerRange.offset + tokenizerRange.length
+        )
+        val manifestBytes = bytes.copyOfRange(
+            manifestRange.offset, manifestRange.offset + manifestRange.length
+        )
         val tokenizer = KellvynBpeTokenizer.readCheckpoint(ByteArrayInputStream(tokenizerBytes))
-        val model = KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(modelBytes))
+        val model = if (inferenceOnly) {
+            KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+                bytes, modelRange.offset, modelRange.length
+            )
+        } else {
+            val modelBytes = bytes.copyOfRange(
+                modelRange.offset, modelRange.offset + modelRange.length
+            )
+            KellvynMultiBlockTransformer.readCheckpointBytes(modelBytes)
+        }
         val manifest = decodeManifest(manifestBytes)
         val restored = KellvynRestoredMultiBlockBundle(tokenizer, model, manifest)
         validateBundleContract(
@@ -217,12 +258,20 @@ internal object KellvynMultiBlockCheckpointBundle {
         data.write(bytes)
     }
 
-    private fun readBlob(data: DataInputStream, maximum: Int, label: String): ByteArray {
+    private data class BlobRange(val offset: Int, val length: Int)
+
+    private fun readBlobRange(
+        data: DataInputStream,
+        payloadSize: Int,
+        maximum: Int,
+        label: String
+    ): BlobRange {
         val size = data.readInt()
         require(size in 1..maximum) { "Bloco $label do pacote KN-004 inválido." }
-        val bytes = ByteArray(size)
-        data.readFully(bytes)
-        return bytes
+        val offset = payloadSize - data.available()
+        require(size <= data.available()) { "Bloco $label do pacote KN-004 truncado." }
+        require(data.skipBytes(size) == size) { "Não foi possível avançar o bloco $label." }
+        return BlobRange(offset, size)
     }
 
     private fun writeString(data: DataOutputStream, value: String, maximum: Int) {
@@ -244,12 +293,21 @@ internal object KellvynMultiBlockCheckpointBundle {
             .toString()
     }
 
-    private fun readBounded(input: InputStream): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(8192)
+    private data class ReadBuffer(val bytes: ByteArray, val length: Int)
+
+    private class ExposedByteArrayOutputStream(initialCapacity: Int) :
+        ByteArrayOutputStream(initialCapacity) {
+        fun backingArray(): ByteArray = buf
+        fun writtenLength(): Int = count
+    }
+
+    private fun readBounded(input: InputStream): ReadBuffer {
+        val initialCapacity = input.available().coerceIn(8192, MAX_BUNDLE_BYTES)
+        val output = ExposedByteArrayOutputStream(initialCapacity)
+        val chunk = ByteArray(8192)
         var total = 0
         while (true) {
-            val count = input.read(buffer)
+            val count = input.read(chunk)
             if (count < 0) break
             if (count == 0) {
                 val value = input.read()
@@ -261,10 +319,10 @@ internal object KellvynMultiBlockCheckpointBundle {
                 require(total <= MAX_BUNDLE_BYTES - count) {
                     "Pacote KN-004 acima do limite."
                 }
-                output.write(buffer, 0, count)
+                output.write(chunk, 0, count)
                 total += count
             }
         }
-        return output.toByteArray()
+        return ReadBuffer(output.backingArray(), output.writtenLength())
     }
 }
