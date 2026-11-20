@@ -67,7 +67,7 @@ internal class KellvynAnimationStudio private constructor(
         }
     }
 
-    private fun render(taskId: String, timelineJson: String): KellvynToolResult {
+    private suspend fun render(taskId: String, timelineJson: String): KellvynToolResult {
         val timeline = parseTimeline(timelineJson)
         val rows = ceil(timeline.frameCount.toDouble() / timeline.columns.toDouble()).toInt()
         val sheetWidth = timeline.width * timeline.columns
@@ -423,7 +423,7 @@ internal class KellvynAnimationStudio private constructor(
         private const val MAX_FRAMES = 36
         private const val MAX_OBJECTS = 16
         private const val MAX_KEYFRAMES_PER_OBJECT = 16
-        private const val MAX_TIMELINE_CHARS = 20_000
+        private const val MAX_TIMELINE_CHARS = 4_000
         private const val MEBIBYTE = 1024L * 1024L
 
         private val RENDER_SPEC = KellvynToolSpec(
