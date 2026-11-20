@@ -208,7 +208,7 @@ internal class KellvynVectorStudio private constructor(
 
     private fun buildSvg(design: VectorDesign): String = buildString {
         appendLine("""<svg xmlns="http://www.w3.org/2000/svg" width="${design.width}" height="${design.height}" viewBox="0 0 ${design.width} ${design.height}">""")
-        appendLine("""  <rect width="100%" height="100%" fill="${colorHex(design.background)}"/>""")
+        appendLine("""  <rect width="100%" height="100%" fill="${colorHex(design.background)}" fill-opacity="${opacity(design.background)}"/>""")
         design.shapes.forEach { shape ->
             when (shape) {
                 is VectorShape.Rect -> {
@@ -222,7 +222,7 @@ internal class KellvynVectorStudio private constructor(
                     appendLine(" />")
                 }
                 is VectorShape.Line -> {
-                    append("""  <line x1="${num(shape.x1)}" y1="${num(shape.y1)}" x2="${num(shape.x2)}" y2="${num(shape.y2)}" stroke="${colorHex(shape.stroke)}" stroke-width="${num(shape.strokeWidth)}" stroke-linecap="round" />""")
+                    append("""  <line x1="${num(shape.x1)}" y1="${num(shape.y1)}" x2="${num(shape.x2)}" y2="${num(shape.y2)}" stroke="${colorHex(shape.stroke)}" stroke-opacity="${opacity(shape.stroke)}" stroke-width="${num(shape.strokeWidth)}" stroke-linecap="round" />""")
                     appendLine()
                 }
                 is VectorShape.Polygon -> {
@@ -231,7 +231,8 @@ internal class KellvynVectorStudio private constructor(
                     appendLine(" />")
                 }
                 is VectorShape.Text -> {
-                    append("""  <text x="${num(shape.x)}" y="${num(shape.y)}" font-size="${num(shape.fontSize)}" font-family="sans-serif" fill="${colorHex(shape.fill ?: Color.WHITE)}">""")
+                    val textColor = shape.fill ?: Color.WHITE
+                    append("""  <text x="${num(shape.x)}" y="${num(shape.y)}" font-size="${num(shape.fontSize)}" font-family="sans-serif" fill="${colorHex(textColor)}" fill-opacity="${opacity(textColor)}">""")
                     append(escapeXml(shape.text))
                     appendLine("</text>")
                 }
@@ -241,9 +242,13 @@ internal class KellvynVectorStudio private constructor(
     }
 
     private fun StringBuilder.appendPaint(fill: Int?, stroke: Int?, strokeWidth: Float) {
-        if (fill == null) append(""" fill="none"""") else append(""" fill="${colorHex(fill)}"""")
+        if (fill == null) {
+            append(""" fill="none"""")
+        } else {
+            append(""" fill="${colorHex(fill)}" fill-opacity="${opacity(fill)}"""")
+        }
         if (stroke != null) {
-            append(""" stroke="${colorHex(stroke)}" stroke-width="${num(strokeWidth)}"""")
+            append(""" stroke="${colorHex(stroke)}" stroke-opacity="${opacity(stroke)}" stroke-width="${num(strokeWidth)}"""")
         }
     }
 
@@ -327,7 +332,8 @@ internal class KellvynVectorStudio private constructor(
                 val text = json.getString("text")
                 val size = finiteFloat(json, "font_size", 24f)
                 validateBounds(x, y, frameWidth, frameHeight)
-                require(text.isNotBlank() && text.length <= MAX_TEXT_CHARS)
+                require(text.isNotBlank() && text.length <= MAX_TEXT_CHARS &&
+                    text.none { it.code < 32 || it.code == 127 })
                 require(size in 8f..256f)
                 VectorShape.Text(x, y, text, size, optionalColor(json, "fill") ?: Color.WHITE)
             }
@@ -366,6 +372,9 @@ internal class KellvynVectorStudio private constructor(
 
     private fun colorHex(color: Int): String =
         String.format(Locale.ROOT, "#%06X", 0xFFFFFF and color)
+
+    private fun opacity(color: Int): String =
+        num(Color.alpha(color) / 255f)
 
     private fun num(value: Float): String =
         String.format(Locale.ROOT, "%.3f", value).trimEnd('0').trimEnd('.')
