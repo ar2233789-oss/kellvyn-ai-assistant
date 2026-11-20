@@ -336,8 +336,13 @@ internal class KellvynNeuralChatRuntime(
         val manifestTest = active.manifest.entries
             .filter { it.split == KellvynTrainingSplit.TEST }
             .associateBy { it.id }
-        require(examples.map { it.id }.toSet() == manifestTest.keys) {
-            "O benchmark precisa usar a partição TEST completa, sem selecionar apenas os exemplos mais fáceis."
+        val exampleIds = examples.map { it.id }
+        require(
+            examples.size == manifestTest.size &&
+                exampleIds.distinct().size == exampleIds.size &&
+                exampleIds.toSet() == manifestTest.keys
+        ) {
+            "O benchmark precisa usar cada exemplo da partição TEST exatamente uma vez."
         }
         require(examples.all { example ->
             val entry = manifestTest[example.id] ?: return@all false
