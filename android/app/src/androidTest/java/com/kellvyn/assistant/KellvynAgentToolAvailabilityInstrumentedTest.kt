@@ -55,9 +55,18 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
             assertTrue(registeredSpecs.any {
                 KellvynStudioCapability.BOT_DIAGNOSTICS in it.capabilities
             })
-            assertFalse(registeredSpecs.any {
-                KellvynStudioCapability.WORKFLOW_AUTOMATION in it.capabilities
-            })
+            val workflowToolNames = registeredSpecs
+                .filter { KellvynStudioCapability.WORKFLOW_AUTOMATION in it.capabilities }
+                .map { it.name }
+                .toSet()
+            assertEquals(
+                setOf("automation_schedule_resource_snapshot", "automation_cancel_queued_task"),
+                workflowToolNames
+            )
+            assertEquals(
+                KellvynToolRisk.READ_ONLY,
+                registeredSpecs.single { it.name == "automation_task_status" }.risk
+            )
             val notImplementedYet = setOf(
                 KellvynStudioCapability.IMAGE_GENERATION,
                 KellvynStudioCapability.ANIMATION,
@@ -169,7 +178,10 @@ class KellvynAgentToolAvailabilityInstrumentedTest {
 
             // Only workspace mutations remain outside the specialist registry.
             assertEquals(
-                setOf("workspace_write_file", "workspace_delete_file", "wikipedia_search", "image_resize"),
+                setOf(
+                    "workspace_write_file", "workspace_delete_file", "wikipedia_search",
+                    "image_resize", "automation_schedule_resource_snapshot", "automation_cancel_queued_task"
+                ),
                 registeredSpecs
                     .filter { it.risk != KellvynToolRisk.READ_ONLY }
                     .map { it.name }
