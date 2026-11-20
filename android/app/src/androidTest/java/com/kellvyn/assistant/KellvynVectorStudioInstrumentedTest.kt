@@ -83,7 +83,7 @@ class KellvynVectorStudioInstrumentedTest {
     }
 
     @Test
-    fun rejectsUnknownOrExcessiveShapesWithoutPublishingArtifacts() = runBlocking {
+    fun rejectsUnknownShapesAndOutOfRangeDimensionsWithoutPublishingArtifacts() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val root = File(context.cacheDir, "vector-studio-invalid-${System.nanoTime()}")
         val store = KellvynArtifactStore(root)
@@ -99,7 +99,7 @@ class KellvynVectorStudioInstrumentedTest {
             val invalidDimensions = tool.execute(
                 mapOf(
                     "task_id" to "vector-invalid-2",
-                    "design_json" to """{"width":2048,"height":2048,"shapes":[{"type":"circle","cx":10,"cy":10,"radius":4,"fill":"#FFFFFF"}]}"""
+                    "design_json" to """{"width":2049,"height":2048,"shapes":[{"type":"circle","cx":10,"cy":10,"radius":4,"fill":"#FFFFFF"}]}"""
                 )
             )
             assertFalse(invalidShape.success)
