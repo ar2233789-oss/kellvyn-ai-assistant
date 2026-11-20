@@ -76,14 +76,15 @@ internal object KellvynMultiBlockCheckpointBundle {
             "Pacote KN-004 vazio, truncado ou acima do limite."
         }
         val payloadSize = bytes.size - CHECKSUM_BYTES
-        val payload = bytes.copyOfRange(0, payloadSize)
         val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
-        val digest = MessageDigest.getInstance("SHA-256").digest(payload)
+        val digestEngine = MessageDigest.getInstance("SHA-256")
+        digestEngine.update(bytes, 0, payloadSize)
+        val digest = digestEngine.digest()
         require(MessageDigest.isEqual(storedDigest, digest)) {
             "A integridade do pacote KN-004 não confere."
         }
 
-        val data = DataInputStream(ByteArrayInputStream(payload))
+        val data = DataInputStream(ByteArrayInputStream(bytes, 0, payloadSize))
         require(data.readInt() == MAGIC) { "O pacote não pertence ao KN-004." }
         require(data.readInt() == VERSION) { "Versão do pacote KN-004 não suportada." }
         val tokenizerBytes = readBlob(data, MAX_TOKENIZER_BYTES, "tokenizer")
@@ -93,9 +94,9 @@ internal object KellvynMultiBlockCheckpointBundle {
 
         val tokenizer = KellvynBpeTokenizer.readCheckpoint(ByteArrayInputStream(tokenizerBytes))
         val model = if (inferenceOnly) {
-            KellvynMultiBlockTransformer.readInferenceCheckpoint(ByteArrayInputStream(modelBytes))
+            KellvynMultiBlockTransformer.readInferenceCheckpointBytes(modelBytes)
         } else {
-            KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(modelBytes))
+            KellvynMultiBlockTransformer.readCheckpointBytes(modelBytes)
         }
         val manifest = decodeManifest(manifestBytes)
         val restored = KellvynRestoredMultiBlockBundle(tokenizer, model, manifest)

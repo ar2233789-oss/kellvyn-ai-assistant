@@ -46,6 +46,8 @@ class KellvynNeuralChatRuntimeTest {
 
         assertTrue(status.ready)
         assertTrue(runtime.isReady)
+        assertFalse(status.qualityApprovedForBenchmark)
+        assertTrue(status.qualityReasons.any { it.contains("pequena demais") })
         assertEquals(trained.model.config.depth, status.depth)
         assertEquals(trained.model.config.contextLength, status.contextLength)
         assertEquals(trained.tokenizer.vocabularySize, status.vocabularySize)
@@ -56,6 +58,24 @@ class KellvynNeuralChatRuntimeTest {
 
         runtime.unload()
         assertFalse(runtime.isReady)
+    }
+
+    @Test
+    fun generationRefusesAReadableButQualityRejectedCheckpoint() {
+        val trained = trainSample()
+        store.saveMultiBlock(trained)
+        val runtime = KellvynNeuralChatRuntime(store)
+
+        val status = runtime.initialize()
+
+        assertTrue(status.ready)
+        assertFalse(status.qualityApprovedForBenchmark)
+        try {
+            runtime.generateReply("Olá")
+            throw AssertionError("Checkpoint abaixo do quality gate não pode responder no chat.")
+        } catch (expected: IllegalStateException) {
+            assertTrue(expected.message!!.contains("quality gate"))
+        }
     }
 
     @Test(expected = IllegalStateException::class)

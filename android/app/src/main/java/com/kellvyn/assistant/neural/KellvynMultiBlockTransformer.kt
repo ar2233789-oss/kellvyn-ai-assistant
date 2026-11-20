@@ -264,32 +264,40 @@ internal class KellvynMultiBlockTransformer private constructor(
         }
 
         fun readCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readCheckpoint(input, retainOptimizerState = true)
+            readCheckpointBytes(readBounded(input), retainOptimizerState = true)
 
         /**
          * Loads only trained weights for inference. AdamW moments are checksum-verified
          * with the rest of the checkpoint, then skipped without allocating FloatArrays.
          */
         fun readInferenceCheckpoint(input: InputStream): KellvynMultiBlockTransformer =
-            readCheckpoint(input, retainOptimizerState = false)
+            readCheckpointBytes(readBounded(input), retainOptimizerState = false)
 
-        private fun readCheckpoint(
-            input: InputStream,
+        /** Internal bundle reader avoids copying a model byte array that is already bounded. */
+        internal fun readCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
+            readCheckpointBytes(bytes, retainOptimizerState = true)
+
+        /** Loads verified trained weights without allocating a second full checkpoint byte array. */
+        internal fun readInferenceCheckpointBytes(bytes: ByteArray): KellvynMultiBlockTransformer =
+            readCheckpointBytes(bytes, retainOptimizerState = false)
+
+        private fun readCheckpointBytes(
+            bytes: ByteArray,
             retainOptimizerState: Boolean
         ): KellvynMultiBlockTransformer {
-            val bytes = readBounded(input)
             require(bytes.size in (CHECKSUM_BYTES + 64)..MAX_CHECKPOINT_BYTES) {
                 "Checkpoint KN-004 vazio, truncado ou acima do limite."
             }
             val payloadSize = bytes.size - CHECKSUM_BYTES
-            val payload = bytes.copyOfRange(0, payloadSize)
             val storedDigest = bytes.copyOfRange(payloadSize, bytes.size)
-            val digest = MessageDigest.getInstance("SHA-256").digest(payload)
+            val digestEngine = MessageDigest.getInstance("SHA-256")
+            digestEngine.update(bytes, 0, payloadSize)
+            val digest = digestEngine.digest()
             require(MessageDigest.isEqual(storedDigest, digest)) {
                 "A integridade do checkpoint KN-004 não confere."
             }
 
-            val data = DataInputStream(ByteArrayInputStream(payload))
+            val data = DataInputStream(ByteArrayInputStream(bytes, 0, payloadSize))
             require(data.readInt() == CHECKPOINT_MAGIC) {
                 "Checkpoint não pertence ao Transformer KN-004."
             }
