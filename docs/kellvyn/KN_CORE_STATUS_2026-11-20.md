@@ -130,3 +130,17 @@ A execução do CI associada ao commit `de451897...` voltou a falhar antes dos s
 Os dois pipelines agora verificam os campos textuais persistidos no manifesto: identificador, licença, referência da fonte e evidência de direitos, além do conteúdo de treinamento. Foram incluídos testes negativos para campos de proveniência e identificadores com padrões semelhantes a credenciais.
 
 A checagem é heurística e baseada em padrões conhecidos; não é garantia formal de ausência de dados sensíveis nem comprovação jurídica da autorização de uso. Os testes foram adicionados, mas ainda não executados pelo Gradle.
+
+
+## Encerramento de resposta nos caminhos legados — 20/11/2026
+
+A auditoria identificou que o pipeline de instruções/documentos KN-002 criava um token EOS no tokenizer, mas não o incluía nos targets de treino. Além disso, `generateText` não parava quando esse token era previsto. Foi corrigido:
+- Instruções treinam o EOS como último target da completion.
+- Cada documento de linguagem inclui EOS no fim da sequência; as contagens de passos refletem o target de encerramento.
+- `generate` aceita um ID de encerramento opcional, interrompe antes de acrescentá-lo ao resultado e `generateText` usa o EOS do tokenizer.
+- Checkpoints de tokenizer v1 sem EOS continuam aceitos no caminho de treino/g geração legado, sem presumir um token que não existe.
+- Testes atualizados para a contagem adicional de passos e para a parada antes do token de controle.
+
+Commits: `58872bd5a9fcbfe29585a631da5bc8aa2b7b8dc2`, `c54046d4114dc4c666c38a4a699a39e66db5598f`, `218c5063d0ce179d0a2638ad80ffd0b7f9ef4e2d`, `4db175db624abbbb0dd3cbbbce2b589daf6f7c4f`, `b31e624d067ec692b91f94e6cfa5b9e9df71e995`.
+
+Os testes foram adicionados, mas não executados pelo Gradle.
