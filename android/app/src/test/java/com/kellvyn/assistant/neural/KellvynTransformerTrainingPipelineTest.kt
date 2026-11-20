@@ -113,6 +113,17 @@ class KellvynTransformerTrainingPipelineTest {
         KellvynTransformerTrainingPipeline.train(examples)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesPersonalContactDataInTrainingProvenance() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(
+            provenance = examples[0].provenance.copy(
+                rightsEvidence = "Fonte de contato: suporte@example.com"
+            )
+        )
+        KellvynTransformerTrainingPipeline.train(examples)
+    }
+
     @Test
     fun trainingConfigAllowsLargerContextWithoutChangingDefaultBudget() {
         assertEquals(256, KellvynTransformerTrainingConfig().contextLength)
