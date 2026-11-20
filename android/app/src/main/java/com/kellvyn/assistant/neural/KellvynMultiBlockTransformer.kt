@@ -540,16 +540,19 @@ internal class KellvynMultiBlockTransformer private constructor(
     }
 
     private fun contextFor(prompt: IntArray, completion: IntArray, targetIndex: Int): IntArray {
-        val combinedSize = prompt.size + targetIndex
-        val fromPrompt = max(0, config.contextLength - targetIndex)
-        val promptStart = max(0, prompt.size - fromPrompt)
-        val combined = IntArray(prompt.size - promptStart + targetIndex)
-        prompt.copyInto(combined, 0, promptStart, prompt.size)
-        if (targetIndex > 0) {
-            completion.copyInto(combined, prompt.size - promptStart, 0, targetIndex)
+        val totalSize = prompt.size + targetIndex
+        val start = max(0, totalSize - config.contextLength)
+        val result = IntArray(totalSize - start)
+        for (index in result.indices) {
+            val sourceIndex = start + index
+            result[index] = if (sourceIndex < prompt.size) {
+                prompt[sourceIndex]
+            } else {
+                completion[sourceIndex - prompt.size]
+            }
         }
-        require(combined.isNotEmpty() && combined.size <= config.contextLength)
-        return combined
+        require(result.isNotEmpty() && result.size <= config.contextLength)
+        return result
     }
 
     private fun forward(contextTokenIds: IntArray): ForwardPass {
@@ -893,8 +896,10 @@ internal class KellvynMultiBlockTransformer private constructor(
                 for (dimension in 0 until d) {
                     dBlockInput[position][dimension] =
                         dResidualAfterAttention[position][dimension] + dFromNorm[dimension]
-                    gradients.tokenEmbeddings[tokenOffset + dimension] +=
-                        dBlockInput[position][dimension]
+                    if (layerIndex == 0) {
+                        gradients.tokenEmbeddings[tokenOffset + dimension] +=
+                            dBlockInput[position][dimension]
+                    }
                 }
             }
             dLayerOutput = dBlockInput
