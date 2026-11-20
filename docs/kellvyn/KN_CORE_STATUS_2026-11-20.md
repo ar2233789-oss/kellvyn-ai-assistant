@@ -144,3 +144,45 @@ A auditoria identificou que o pipeline de instruções/documentos KN-002 criava 
 Commits: `58872bd5a9fcbfe29585a631da5bc8aa2b7b8dc2`, `c54046d4114dc4c666c38a4a699a39e66db5598f`, `218c5063d0ce179d0a2638ad80ffd0b7f9ef4e2d`, `4db175db624abbbb0dd3cbbbce2b589daf6f7c4f`, `b31e624d067ec692b91f94e6cfa5b9e9df71e995`.
 
 Os testes foram adicionados, mas não executados pelo Gradle.
+
+
+## Filtro comum de dados sensíveis e auditoria de corpus PT-BR — 20/11/2026
+
+### Proteção de ingestão
+
+Foi removida a duplicação de filtros de credenciais dos três caminhos de treinamento (documentos/instruções legado, KN-003 Transformer e KN-004). Todos agora usam `KellvynTrainingInputGuard`, aplicado a:
+- IDs;
+- prompts e respostas ou texto de documentos;
+- licença;
+- referência da fonte;
+- evidência de direitos.
+
+O filtro reconhece padrões conhecidos de credenciais/chaves privadas, e-mail, números de telefone brasileiros formatados e CPF com dígitos verificadores válidos. Não é um detector completo de PII: pode deixar passar dados não reconhecidos e pode recusar texto legítimo que contenha esses padrões. É uma barreira de pré-ingestão, não anonimização automática nem prova de direitos autorais.
+
+Testes adicionados:
+- unidade para e-mail, telefone, CPF válido/inválido, texto comum, token de API e cabeçalho de chave privada;
+- integração no pipeline legado (e-mail em documento);
+- integração KN-004 (telefone em completion);
+- integração KN-003 (e-mail em proveniência).
+
+O helper compartilhado foi compilado em isolamento com Kotlin/JVM e passou 8 casos de verificação. Isso não é Gradle/JUnit do projeto, nem valida a integração completa.
+
+### Triagem preliminar de fontes em português
+
+Nenhum corpus foi baixado, importado ou treinado. A decisão é deliberada: tamanho e selo de licença no pacote não provam que cada conteúdo está autorizado nem que dados pessoais foram removidos.
+
+1. **Comunidade-Synapse-BR/dataset-3m-ptbr-original** — o cartão declara Apache-2.0 e o conjunto tem milhões de exemplos; porém a prévia contém material adulto, spam e dados de contato/telefone. **Não ingerir bruto.** Exigiria proveniência por registro, filtragem/anonimização revisada, avaliação de qualidade e verificação dos direitos dos conteúdos.
+   Fonte: https://huggingface.co/datasets/Comunidade-Synapse-BR/dataset-3m-ptbr-original
+
+2. **Comunidade-Synapse-BR/Synapse-PT-75M-Dataset** — declara Apache-2.0 para o pacote, mas a amostra expõe um campo `src` com fontes como `wiki`. A licença do empacotamento não deve ser presumida como licença dos textos de origem. Conteúdo derivado da Wikipédia normalmente requer cumprir atribuição e os termos CC BY-SA/GFDL aplicáveis. **Não ingerir até resolver licença, atribuição e rastreabilidade por fonte.**
+   Fonte: https://huggingface.co/datasets/Comunidade-Synapse-BR/Synapse-PT-75M-Dataset
+   Termos Wikimedia: https://foundation.wikimedia.org/wiki/Policy:Terms_of_Use
+
+3. **Madras1/corpus-ptbr-v1** — o cartão descreve milhões de documentos e bilhões de tokens estimados, com fontes como C4 PT/FineWeb2 e conteúdo sintético; declara ODC-BY. ODC-BY trata direitos sobre a base de dados, não concede automaticamente direitos autorais sobre cada texto, nem resolve privacidade/dados pessoais. **Candidato apenas para auditoria posterior por origem/registro**, não aprovado para treino bruto.
+   Fonte: https://huggingface.co/datasets/Madras1/corpus-ptbr-v1
+   Licença: https://opendatacommons.org/licenses/by/1-0/
+
+4. **Dados públicos brasileiros** — podem ser candidatos melhores quando o conjunto específico publica licença aberta clara, permite reutilização e não contém dados protegidos/sensíveis. “Está em site público” não significa “está autorizado para treinar”. Avaliar cada conjunto, termos, atribuição, privacidade e qualidade antes de importar.
+   Referência: https://dados.gov.br/
+
+**Decisão da etapa:** nenhum dataset remoto aprovado. Prioridade imediata para o próximo estágio: criar corpus autoral/sintético em português com autoria clara, ou auditar conjuntos públicos registro a registro. O limite experimental atual de 500 KB continua insuficiente para pré-treinar um modelo generalista; não aumentá-lo sem pipeline de streaming, avaliação de dados, orçamento de memória/tempo e plano de escala. Esta triagem é técnica, não aconselhamento jurídico.
