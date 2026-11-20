@@ -435,15 +435,11 @@ internal class KellvynAttentionLanguageModel private constructor(
             "O vocabulário do tokenizer não corresponde ao modelo."
         }
         val textTokens = tokenizer.encode(text)
-        val endTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
-            "O tokenizer não reservou o token de encerramento."
-        }
-        return trainTokens(
-            textTokens + intArrayOf(endTokenId),
-            epochs,
-            learningRate,
-            weightDecay
-        )
+        // Version-1 tokenizer checkpoints predate EOS; keep those training calls compatible.
+        val trainingTokens = tokenizer.endOfSequenceTokenId?.let { endTokenId ->
+            textTokens + intArrayOf(endTokenId)
+        } ?: textTokens
+        return trainTokens(trainingTokens, epochs, learningRate, weightDecay)
     }
 
     fun evaluateLoss(tokenIds: IntArray): Double {
