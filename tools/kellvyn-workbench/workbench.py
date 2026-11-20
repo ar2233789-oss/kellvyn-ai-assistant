@@ -15,6 +15,7 @@ import os
 import platform
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -159,6 +160,83 @@ def within_repo(path: Path) -> Path:
     return resolved
 
 
+SAFE_CHILD_ENV_KEYS = {
+    "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "LANG", "LC_ALL", "TZ",
+    "JAVA_HOME", "ANDROID_HOME", "ANDROID_SDK_ROOT", "ANDROID_USER_HOME",
+    "GRADLE_USER_HOME", "BUN_INSTALL", "KOTLIN_LSP_JAVA_HOME", "KOTLIN_LSP_EXECUTABLE", "CI",
+}
+SENSITIVE_ENV_NAME = re.compile(
+    r"(?i)(TOKEN|SECRET|PASSWORD|PASSWD|API[_-]?KEY|AUTHORIZATION|CREDENTIAL|PRIVATE[_-]?KEY|SIGNING|KEYSTORE)"
+)
+SENSITIVE_ASSIGNMENT = re.compile(
+    r"""(?i)\b(api[_-]?key|access[_-]?token|refresh[_-]?token|client[_-]?secret|password|passwd|secret|authorization|private[_-]?key)(\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;]+)"""
+)
+BEARER_VALUE = re.compile(r"(?i)\bBearer\s+[A-Za-z0-9._~+/=-]{8,}")
+TOKEN_VALUE = re.compile(r"\b(?:gh[pousr]_[A-Za-z0-9_]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,})\b")
+SECRET_FLAG = re.compile(r"(?i)^--?(?:token|api[-_]?key|password|passwd|secret|authorization|client[-_]?secret)$")
+
+
+def sanitized_child_environment(extra: dict[str, str] | None = None) -> dict[str, str]:
+    """Pass only build-tool environment essentials; never inherit host credentials by default."""
+    child = {key: value for key, value in os.environ.items() if key in SAFE_CHILD_ENV_KEYS}
+    for key, value in (extra or {}).items():
+        if SENSITIVE_ENV_NAME.search(key):
+            raise ValueError(f"refusing to pass sensitive environment variable to child process: {key}")
+        child[key] = value
+    return child
+
+
+def redact_sensitive_text(value: str) -> str:
+    # Redact bearer payloads before the generic Authorization assignment rule.
+    value = BEARER_VALUE.sub("Bearer [REDACTED]", value)
+    value = SENSITIVE_ASSIGNMENT.sub(r"\1\2[REDACTED]", value)
+    value = TOKEN_VALUE.sub("[REDACTED_TOKEN]", value)
+    return value
+
+
+def redact_command(command: list[str]) -> list[str]:
+    """Preserve command shape while removing secret-valued arguments from run manifests."""
+    redacted: list[str] = []
+    hide_next = False
+    for raw in command:
+        arg = str(raw)
+        if hide_next:
+            redacted.append("[REDACTED]")
+            hide_next = False
+            continue
+        if SECRET_FLAG.match(arg):
+            redacted.append(arg)
+            hide_next = True
+        elif "=" in arg and SECRET_FLAG.match(arg.split("=", 1)[0]):
+            redacted.append(arg.split("=", 1)[0] + "=[REDACTED]")
+        else:
+            redacted.append(redact_sensitive_text(arg))
+    return redacted
+
+
+def terminate_process_tree(process: subprocess.Popen) -> None:
+    """Terminate the whole process group on POSIX so compiler/test children do not survive timeouts."""
+    if os.name == "nt":
+        if process.poll() is None:
+            process.kill()
+        process.wait()
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        pass
+    try:
+        process.wait(timeout=3)
+    except subprocess.TimeoutExpired:
+        pass
+    try:
+        os.killpg(process.pid, signal.SIGKILL)
+    except ProcessLookupError:
+        pass
+    if process.poll() is None:
+        process.wait()
+
+
 def command_version(binary: str, args: list[str]) -> str:
     exe = shutil.which(binary)
     if not exe:
@@ -178,11 +256,271 @@ def node_package_status(package: str) -> str:
     try:
         result = subprocess.run(
             [node, "-e", f"require.resolve({json.dumps(package)})"],
-            text=True, capture_output=True, timeout=8, check=False
+            cwd=ROOT, text=True, capture_output=True, timeout=8, check=False
         )
         return "AVAILABLE" if result.returncode == 0 else "NOT_INSTALLED"
     except Exception as exc:
         return f"CHECK_FAILED:{type(exc).__name__}"
+
+
+def parse_java_major_version(output: str) -> int | None:
+    """Extract the major version from java -version or javac version output."""
+    match = re.search(r'(?i)(?:openjdk|java)\s+version\s+"?(\d+(?:\.\d+)*)', output)
+    if not match:
+        match = re.search(r"(?i)\bjavac\s+(\d+(?:\.\d+)*)", output)
+    if not match:
+        return None
+    parts = match.group(1).split(".")
+    if parts[0] == "1" and len(parts) > 1:
+        return int(parts[1])
+    return int(parts[0])
+
+
+def probe_java_major_version(java_executable: Path) -> int | None:
+    """Probe a specific JDK without changing the JDK selected for Android Gradle builds."""
+    if not java_executable.is_file() or not os.access(java_executable, os.X_OK):
+        return None
+    try:
+        result = subprocess.run(
+            [str(java_executable), "-version"],
+            text=True, capture_output=True, timeout=10, check=False
+        )
+        if result.returncode != 0:
+            return None
+        return parse_java_major_version((result.stdout or "") + "\n" + (result.stderr or ""))
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+
+def detect_package_manager() -> str | None:
+    """Choose the package manager from the repository lockfile; never guess from PATH alone."""
+    candidates = (
+        ("bun.lock", "bun"), ("bun.lockb", "bun"),
+        ("pnpm-lock.yaml", "pnpm"), ("yarn.lock", "yarn"),
+        ("package-lock.json", "npm"),
+    )
+    return next((manager for lockfile, manager in candidates if (ROOT / lockfile).is_file()), None)
+
+
+def web_suite_command(suite: str) -> tuple[list[str] | None, str | None]:
+    """Resolve a web suite only when its lockfile, manager and local dependencies exist."""
+    if suite not in {"web-unit", "web-typecheck", "web-lint", "web-build"}:
+        raise ValueError("unknown web suite: " + suite)
+    package_file = ROOT / "package.json"
+    if not package_file.is_file():
+        return None, "package.json is missing"
+    try:
+        package = json.loads(package_file.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return None, "package.json cannot be read: " + type(exc).__name__
+    manager = detect_package_manager()
+    if not manager:
+        return None, "no supported package-manager lockfile was found"
+    executable = shutil.which(manager)
+    if not executable:
+        return None, f"lockfile selects {manager}, but its executable is not installed"
+    modules = ROOT / "node_modules"
+    if not modules.is_dir():
+        return None, "node_modules is missing; dependencies have not been installed"
+    scripts = package.get("scripts", {})
+    script_map = {"web-unit": "test", "web-lint": "lint", "web-build": "build"}
+    if suite == "web-typecheck":
+        tsc = modules / "typescript" / "bin" / "tsc"
+        if not tsc.is_file():
+            return None, "local TypeScript compiler is missing from node_modules"
+        node = shutil.which("node")
+        if not node:
+            return None, "Node.js executable is not installed"
+        return [node, str(tsc), "--noEmit"], None
+    script = script_map[suite]
+    if script not in scripts:
+        return None, f"package.json does not define the required {script!r} script"
+    required_bin = {"web-unit": "vitest", "web-lint": "eslint", "web-build": "vite"}[suite]
+    if not (modules / ".bin" / required_bin).exists():
+        return None, f"local {required_bin} executable is missing from node_modules/.bin"
+    return [executable, "run", script], None
+
+
+def is_gradle_813_banner(output: str) -> bool:
+    """Match Gradle 8.13 even when --version prefixes the version with a welcome banner."""
+    return bool(re.search(r"\bGradle\s+8\.13(?:\D|$)", output))
+
+
+def toolchain_matrix(found: dict[str, str], optional: dict[str, str]) -> dict[str, Any]:
+    """Report per-domain prerequisites without implying that detection is validation."""
+    def present(name: str) -> bool:
+        return shutil.which(name) is not None
+
+    sdk_candidates = []
+    for key in ("ANDROID_HOME", "ANDROID_SDK_ROOT"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            sdk_candidates.append(Path(value).expanduser())
+    sdk_candidates.append(Path.home() / "Android" / "Sdk")
+    sdk_root = next((path.resolve() for path in sdk_candidates if path.is_dir()), None)
+    platform_ok = bool(sdk_root and (sdk_root / "platforms" / "android-35" / "android.jar").is_file())
+    build_tools = sdk_root / "build-tools" / "35.0.0" if sdk_root else None
+    build_tools_ok = bool(build_tools and (build_tools / "aapt2").is_file() and (build_tools / "apksigner").is_file())
+    wrapper = ROOT / "android" / "gradlew"
+    wrapper_ok = wrapper.is_file() and all(
+        (ROOT / relative).is_file() for relative in (
+            "android/gradle/wrapper/gradle-wrapper.jar",
+            "android/gradle/wrapper/gradle-wrapper.properties",
+        )
+    )
+    android_missing = []
+    java_output = found.get("java", "")
+    javac_output = found.get("javac", "")
+    java17 = bool(re.search(r'\b17(?:[.\s"]|$)', java_output)) and bool(
+        re.search(r'\b17(?:[.\s]|$)', javac_output)
+    )
+    if not java17:
+        android_missing.append("JDK 17 (java and javac must both report version 17)")
+    wrapper_properties = ROOT / "android" / "gradle" / "wrapper" / "gradle-wrapper.properties"
+    wrapper_813 = False
+    if wrapper_properties.is_file():
+        wrapper_813 = bool(re.search(r"gradle-8\.13-(?:bin|all)\.zip", wrapper_properties.read_text(encoding="utf-8", errors="replace")))
+    system_gradle_813 = is_gradle_813_banner(found.get("gradle", ""))
+    if not (system_gradle_813 or (wrapper_ok and wrapper_813)):
+        android_missing.append("Gradle 8.13 (system executable or pinned complete wrapper)")
+    build_config = (ROOT / "android" / "build.gradle").read_text(encoding="utf-8", errors="replace") if (ROOT / "android" / "build.gradle").is_file() else ""
+    if "com.android.application' version '8.13.2'" not in build_config or "org.jetbrains.kotlin.android' version '2.3.20'" not in build_config:
+        android_missing.append("Pinned Android Gradle Plugin 8.13.2 / Kotlin Gradle Plugin 2.3.20")
+    if not platform_ok:
+        android_missing.append("Android SDK platform android-35")
+    if not build_tools_ok:
+        android_missing.append("Android Build Tools 35.0.0 (aapt2 + apksigner)")
+    android_ready = not android_missing
+
+    manager = detect_package_manager()
+    web_bins = ROOT / "node_modules" / ".bin"
+    web_missing = []
+    if not present("node"):
+        web_missing.append("Node.js")
+    if not manager or not present(manager):
+        web_missing.append("package manager selected by lockfile")
+    if not (ROOT / "node_modules").is_dir():
+        web_missing.append("installed node_modules")
+    for binary in ("tsc", "vitest", "eslint", "vite"):
+        if not (web_bins / binary).exists():
+            web_missing.append("local " + binary)
+    web_ready = not web_missing
+
+    shell_missing = []
+    if not present("bash"):
+        shell_missing.append("bash")
+    shell_optional = {name: ("AVAILABLE" if present(name) else "OPTIONAL_NOT_INSTALLED")
+                      for name in ("shellcheck", "actionlint")}
+    if not present("bash"):
+        shell_status = "BLOCKED"
+    elif shell_optional["shellcheck"] == "AVAILABLE" and shell_optional["actionlint"] == "AVAILABLE":
+        shell_status = "READY"
+    else:
+        shell_status = "PARTIAL"
+
+    kotlin_lsp_executable_override = os.environ.get("KOTLIN_LSP_EXECUTABLE", "").strip()
+    if kotlin_lsp_executable_override:
+        lsp_candidate = Path(kotlin_lsp_executable_override).expanduser()
+        kotlin_lsp_executable = str(lsp_candidate.resolve()) if lsp_candidate.is_file() and os.access(lsp_candidate, os.X_OK) else None
+        lsp_override_invalid = kotlin_lsp_executable is None
+    else:
+        kotlin_lsp_executable = shutil.which("kotlin-lsp") or shutil.which("intellij-server")
+        lsp_override_invalid = False
+    kotlin_lsp_java_home_text = os.environ.get("KOTLIN_LSP_JAVA_HOME", "").strip()
+    kotlin_lsp_java = (
+        Path(kotlin_lsp_java_home_text).expanduser() / "bin" / ("java.exe" if os.name == "nt" else "java")
+        if kotlin_lsp_java_home_text else None
+    )
+    kotlin_lsp_java_major = probe_java_major_version(kotlin_lsp_java) if kotlin_lsp_java else None
+    if lsp_override_invalid:
+        kotlin_lsp_status = "BLOCKED_LSP_EXECUTABLE_MISSING"
+    elif not kotlin_lsp_executable:
+        kotlin_lsp_status = "OPTIONAL_NOT_INSTALLED"
+    elif not kotlin_lsp_java:
+        kotlin_lsp_status = "BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED"
+    elif kotlin_lsp_java_major != 25:
+        kotlin_lsp_status = "BLOCKED_JDK25_REQUIRED"
+    else:
+        kotlin_lsp_status = "READY_UNVALIDATED"
+
+    sandbox_tools = {name: shutil.which(name) for name in ("podman", "docker")}
+    sandbox_detected = any(sandbox_tools.values())
+    # Presence is not proof of rootless mode, isolation, network policy or resource limits.
+    sandbox_status = "DETECTED_UNVALIDATED" if sandbox_detected else "NOT_AVAILABLE"
+
+    adb_path = shutil.which("adb")
+    adb_devices = []
+    adb_probe = "ADB_NOT_INSTALLED"
+    if adb_path:
+        try:
+            probe = subprocess.run([adb_path, "devices"], text=True, capture_output=True, timeout=8, check=False)
+            adb_devices = [
+                row.split()[0] for row in probe.stdout.splitlines()[1:]
+                if len(row.split()) >= 2 and row.split()[1] == "device"
+            ]
+            adb_probe = "AUTHORIZED_DEVICE_FOUND" if adb_devices else "NO_AUTHORIZED_DEVICE"
+        except (OSError, subprocess.SubprocessError):
+            adb_probe = "ADB_PROBE_FAILED"
+
+    def status(missing: list[str]) -> str:
+        return "READY" if not missing else ("PARTIAL" if len(missing) < 4 else "BLOCKED")
+
+    return {
+        "android_kotlin_java": {
+            "status": "READY" if android_ready else status(android_missing),
+            "missing": android_missing,
+            "sdk_root": str(sdk_root) if sdk_root else None,
+            "android_35_platform": platform_ok,
+            "build_tools_35_0_0": build_tools_ok,
+            "gradle_wrapper_present": wrapper_ok,
+            "note": "Detection only. Compile/test evidence is required to mark a build validated.",
+        },
+        "typescript_tsx": {
+            "status": "READY" if web_ready else status(web_missing),
+            "package_manager_from_lockfile": manager,
+            "missing": web_missing,
+            "scripts": (json.loads((ROOT / "package.json").read_text(encoding="utf-8")).get("scripts", {})
+                       if (ROOT / "package.json").is_file() else {}),
+            "note": "Typecheck, Vitest, ESLint and Vite must run against the checked-out lockfile.",
+        },
+        "python_lab": {
+            "status": "READY",
+            "interpreter": sys.executable,
+            "optional_modules": {name: optional.get(name, "NOT_INSTALLED") for name in ("pytest", "PIL")},
+            "note": "Python coordinates lab tasks; it is not the Kotlin neural brain.",
+        },
+        "shell_and_workflows": {
+            "status": shell_status,
+            "missing_required": shell_missing,
+            "optional": shell_optional,
+        },
+        "android_device": {
+            "status": "READY" if adb_probe == "AUTHORIZED_DEVICE_FOUND" else "BLOCKED",
+            "probe": adb_probe,
+            "authorized_devices": adb_devices,
+        },
+        "visual_and_media": {
+            "node_playwright": optional.get("node_playwright", "NOT_INSTALLED"),
+            "blender": "AVAILABLE" if present("blender") else "OPTIONAL_NOT_INSTALLED",
+            "ffmpeg": "AVAILABLE" if present("ffmpeg") else "OPTIONAL_NOT_INSTALLED",
+            "python_pillow": optional.get("PIL", "NOT_INSTALLED"),
+        },
+        "kotlin_semantic_analysis": {
+            "language_server": kotlin_lsp_executable,
+            "configured_executable": kotlin_lsp_executable_override or None,
+            "status": kotlin_lsp_status,
+            "runtime_jdk_home": kotlin_lsp_java_home_text or None,
+            "runtime_jdk_major": kotlin_lsp_java_major,
+            "required_runtime_jdk_major": 25,
+            "project_build_jdk_major": 17,
+            "note": "The Kotlin LSP runtime JDK is separate from the Android Gradle build JDK. READY_UNVALIDATED is detection only; the server still must import the actual Android project and pass semantic probes."
+        },
+        "sandbox": {
+            "status": sandbox_status,
+            "detected_tools": sandbox_tools,
+            "note": "Tool detection is not a security test. Worktree is not an OS sandbox.",
+        },
+    }
 
 
 def doctor() -> dict[str, Any]:
@@ -190,16 +528,31 @@ def doctor() -> dict[str, Any]:
         "git": ("git", ["--version"]),
         "python": (sys.executable, ["--version"]),
         "java": ("java", ["-version"]),
+        "javac": ("javac", ["-version"]),
+        "kotlinc": ("kotlinc", ["-version"]),
         "gradle": ("gradle", ["--version"]),
         "adb": ("adb", ["version"]),
-        "blender": ("blender", ["--version"]),
+        "sdkmanager": ("sdkmanager", ["--version"]),
+        "avdmanager": ("avdmanager", ["--version"]),
+        "emulator": ("emulator", ["-version"]),
         "node": ("node", ["--version"]),
         "npm": ("npm", ["--version"]),
+        "npx": ("npx", ["--version"]),
+        "bun": ("bun", ["--version"]),
+        "blender": ("blender", ["--version"]),
         "ffmpeg": ("ffmpeg", ["-version"]),
+        "shellcheck": ("shellcheck", ["--version"]),
+        "actionlint": ("actionlint", ["--version"]),
+        "tree-sitter": ("tree-sitter", ["--version"]),
+        "podman": ("podman", ["--version"]),
+        "docker": ("docker", ["--version"]),
+        "rustc": ("rustc", ["--version"]),
+        "cargo": ("cargo", ["--version"]),
+        "clang": ("clang", ["--version"]),
     }
     found = {name: command_version(binary, args) for name, (binary, args) in tools.items()}
     optional = {}
-    for module in ("PIL", "playwright", "pytest"):
+    for module in ("PIL", "playwright", "pytest", "numpy", "torch"):
         try:
             __import__(module)
             optional[module] = "AVAILABLE"
@@ -213,11 +566,15 @@ def doctor() -> dict[str, Any]:
         "python": platform.python_version(),
         "tools": found,
         "optional_modules": optional,
+        "toolchain_matrix": toolchain_matrix(found, optional),
         "repository": repo_identity(),
         "notes": [
-            "FOUND means the executable exists; it does not prove that a project build succeeds.",
-            "ADB device access is checked separately by android-smoke or debug --adb.",
-            "Blender is a host-side creative tool, not a dependency to embed in the Android APK.",
+            "Executable detection is not evidence of compilation, tests, security isolation or runtime success.",
+            "Kotlin uses the Gradle/Kotlin plugin pipeline; a standalone kotlinc CLI is not required for project builds.",
+            "Python coordinates lab workflows; the product brain remains Kotlin/JVM/Android.",
+            "Android device access is reported separately and is not inferred from SDK installation.",
+            "A detected Docker/Podman binary is not proof that a secure ephemeral sandbox has been configured.",
+            "Blender, Playwright, FFmpeg and analysis tools are host-side lab tools, not APK dependencies.",
         ],
     }
 
@@ -299,7 +656,7 @@ def write_checkpoint(summary: str, next_step: str, *, done: list[str], blocked: 
     append_event("CHECKPOINT", "RECORDED", summary, session_id=session_id, paths=[str(STATE_JSON.relative_to(ROOT)), str(STATE_MD.relative_to(ROOT))], evidence=[state["repository"]["head"]], metadata={"next_step": next_step})
 
 
-def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None) -> dict[str, Any]:
+def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: int = 1800, session_id: str = "", env: dict[str, str] | None = None, blocked_exit_codes: set[int] | None = None, partial_exit_codes: set[int] | None = None, captured_exit_codes: set[int] | None = None) -> dict[str, Any]:
     if timeout_s < 1 or timeout_s > 7200:
         raise ValueError("timeout must be between 1 and 7200 seconds")
     run_id = f"{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}-{uuid.uuid4().hex[:8]}"
@@ -316,16 +673,20 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
     def pump(pipe, destination: Path, echo_progress: bool = False):
         with destination.open("w", encoding="utf-8", errors="replace") as target:
             for line in iter(pipe.readline, ""):
-                target.write(line)
+                safe_line = redact_sensitive_text(line)
+                target.write(safe_line)
                 target.flush()
-                if echo_progress and line.startswith("WORKBENCH_PROGRESS "):
+                if echo_progress and safe_line.startswith("WORKBENCH_PROGRESS "):
                     # Creative tools publish structured stage events; stream them live.
-                    print(line.rstrip(), flush=True)
+                    print(safe_line.rstrip(), flush=True)
         pipe.close()
 
     try:
-        process = subprocess.Popen(command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
-                                   stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1, env={**os.environ, **(env or {})})
+        process = subprocess.Popen(
+            command, cwd=cwd, text=True, encoding="utf-8", errors="replace",
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1,
+            env=sanitized_child_environment(env), start_new_session=(os.name != "nt")
+        )
         assert process.stdout is not None and process.stderr is not None
         stdout_thread = Thread(target=pump, args=(process.stdout, stdout_path, True), daemon=True)
         stderr_thread = Thread(target=pump, args=(process.stderr, stderr_path, False), daemon=True)
@@ -333,12 +694,21 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
         try:
             exit_code = process.wait(timeout=timeout_s)
         except subprocess.TimeoutExpired:
-            process.kill()
-            exit_code = process.wait()
-            status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process terminated"
+            terminate_process_tree(process)
+            exit_code = process.returncode
+            status, error = "TIMED_OUT", f"timeout after {timeout_s}s; process tree terminated"
         stdout_thread.join(timeout=10); stderr_thread.join(timeout=10)
         if status != "TIMED_OUT":
-            status = "PASSED" if exit_code == 0 else "FAILED"
+            if exit_code in (captured_exit_codes or set()):
+                status = "CAPTURED"
+            elif exit_code == 0:
+                status = "PASSED"
+            elif exit_code in (blocked_exit_codes or set()):
+                status = "BLOCKED"
+            elif exit_code in (partial_exit_codes or set()):
+                status = "PARTIAL"
+            else:
+                status = "FAILED"
     except FileNotFoundError as exc:
         status, error = "BLOCKED", f"executable missing: {exc.filename}"
         stderr_path.write_text(error + "\n", encoding="utf-8")
@@ -348,13 +718,13 @@ def run_capture(name: str, command: list[str], *, cwd: Path = ROOT, timeout_s: i
         stderr_path.write_text(error + "\n", encoding="utf-8")
         stdout_path.touch(exist_ok=True)
         if process and process.poll() is None:
-            process.kill(); process.wait()
+            terminate_process_tree(process)
     elapsed = round(time.monotonic() - started, 3)
     meta = {
         "schema": "kellvyn-workbench-run/v1", "run_id": run_id, "name": name,
         "status": status, "exit_code": exit_code, "error": error,
         "started_at_utc": started_utc, "duration_seconds": elapsed,
-        "command": command, "cwd": str(cwd), "repository": repo_identity(),
+        "command": redact_command(command), "cwd": str(cwd), "repository": repo_identity(),
         "stdout": str(stdout_path.relative_to(ROOT)), "stderr": str(stderr_path.relative_to(ROOT)),
     }
     (out / "run.json").write_text(json.dumps(meta, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -470,7 +840,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     if not argv: raise ValueError("run requires an explicit executable and arguments after --")
     result = run_capture(args.name, argv, cwd=cwd, timeout_s=args.timeout, session_id=args.session)
     print(json.dumps(result, ensure_ascii=False, indent=2))
-    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
+    return 0 if result["status"] == "CAPTURED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_debug(args: argparse.Namespace) -> int:
@@ -516,11 +886,19 @@ def cmd_test(args: argparse.Namespace) -> int:
     commands = {
         "workbench": [py, "-m", "unittest", "discover", "-s", "tools/kellvyn-workbench/tests", "-v"],
         "rnd-studio": [py, "-m", "unittest", "discover", "-s", "tools/kellvyn-rnd-studio", "-p", "test_studio.py", "-v"],
-        "syntax": [py, "-m", "py_compile", "tools/kellvyn-workbench/workbench.py", "tools/kellvyn-workbench/creative/blender_pipeline.py", "tools/kellvyn-workbench/visual_diff.py"],
+        "syntax": [py, "-m", "py_compile", "tools/kellvyn-workbench/workbench.py", "tools/kellvyn-workbench/android_animation_audit.py", "tools/kellvyn-workbench/creative/blender_pipeline.py", "tools/kellvyn-workbench/visual_diff.py"],
         "android-syntax": ["bash", "-n", "tools/kellvyn-workbench/android_smoke.sh"],
         "web-syntax": ["node", "--check", "tools/kellvyn-workbench/web_audit.mjs"],
+        "web-map-tests": ["node", "--test", "tools/kellvyn-workbench/tests/typescript_semantic_map.test.mjs"],
     }
-    command = commands[args.suite]
+    if args.suite.startswith("web-"):
+        command, blocked_reason = web_suite_command(args.suite)
+        if blocked_reason:
+            append_event("TEST", "BLOCKED", f"{args.suite}: {blocked_reason}", session_id=args.session)
+            print(f"BLOCKED: {blocked_reason}", file=sys.stderr)
+            return 3
+    else:
+        command = commands[args.suite]
     result = run_capture(f"test:{args.suite}", command, timeout_s=args.timeout, session_id=args.session)
     stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
     stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
@@ -528,6 +906,36 @@ def cmd_test(args: argparse.Namespace) -> int:
     if stderr: print(stderr[-6000:], file=sys.stderr)
     print(f"\nRESULT={result['status']} RUN={result['run_id']} ELAPSED={result['duration_seconds']}s")
     return 0 if result["status"] == "PASSED" else 2
+
+
+def cmd_typescript_map(args: argparse.Namespace) -> int:
+    node = shutil.which("node")
+    script = Path(__file__).resolve().parent / "typescript_semantic_map.mjs"
+    if not node:
+        print("BLOCKED: Node.js is not installed.", file=sys.stderr)
+        return 3
+    if not script.is_file():
+        print("BLOCKED: TypeScript semantic map script is missing.", file=sys.stderr)
+        return 3
+    if not (ROOT / "node_modules" / "typescript" / "lib" / "typescript.js").is_file():
+        print("BLOCKED: local TypeScript compiler is missing; install dependencies from the lockfile first.", file=sys.stderr)
+        return 3
+    output = Path(args.output)
+    output = output if output.is_absolute() else ROOT / output
+    output = within_repo(output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    command = [node, str(script), "--root", str(ROOT), "--out", str(output)]
+    if args.fail_on_diagnostics:
+        command.append("--fail-on-diagnostics")
+    result = run_capture("typescript-semantic-map", command, timeout_s=args.timeout, session_id=args.session)
+    stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
+    stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
+    if stdout:
+        print(stdout[-5000:])
+    if stderr:
+        print(stderr[-8000:], file=sys.stderr)
+    print(f"TYPE_SCRIPT_MAP={result['status']} RUN={result['run_id']} OUTPUT={output.relative_to(ROOT)}")
+    return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_worktree(args: argparse.Namespace) -> int:
@@ -587,6 +995,42 @@ def cmd_android_smoke(args: argparse.Namespace) -> int:
     print((ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")[-8000:])
     print(f"ANDROID_SMOKE={result['status']} RUN={result['run_id']}")
     return 0 if result["status"] == "PASSED" else (3 if result["status"] == "BLOCKED" else 2)
+
+
+def cmd_android_animation_audit(args: argparse.Namespace) -> int:
+    script = Path(__file__).resolve().parent / "android_animation_audit.py"
+    if not shutil.which("adb"):
+        print("BLOCKED: adb is not installed.", file=sys.stderr)
+        append_event("ANDROID_ANIMATION_AUDIT", "BLOCKED", "ADB is not installed.")
+        return 3
+    output_base = Path(args.output)
+    output_base = output_base if output_base.is_absolute() else ROOT / output_base
+    output_base = within_repo(output_base)
+    output_base.mkdir(parents=True, exist_ok=True)
+    command = [
+        sys.executable, str(script),
+        "--serial", args.serial,
+        "--package", args.package,
+        "--scenario", args.scenario,
+        "--duration", str(args.duration),
+        "--frame-sample-fps", str(args.frame_sample_fps),
+        "--output", str(output_base)
+    ]
+    if args.frame_budget_ms is not None:
+        command.extend(["--frame-budget-ms", str(args.frame_budget_ms)])
+    result = run_capture(
+        "android-animation-audit", command,
+        timeout_s=args.timeout, session_id=args.session,
+        blocked_exit_codes={3}, partial_exit_codes={4}, captured_exit_codes={0}
+    )
+    stdout = (ROOT / result["stdout"]).read_text(encoding="utf-8", errors="replace")
+    stderr = (ROOT / result["stderr"]).read_text(encoding="utf-8", errors="replace")
+    if stdout:
+        print(stdout[-10000:])
+    if stderr:
+        print(stderr[-6000:], file=sys.stderr)
+    print(f"ANDROID_ANIMATION_AUDIT={result['status']} RUN={result['run_id']}")
+    return 0 if result["status"] == "CAPTURED" else (3 if result["status"] == "BLOCKED" else 2)
 
 
 def cmd_web_audit(args: argparse.Namespace) -> int:
@@ -709,13 +1153,15 @@ def build_parser() -> argparse.ArgumentParser:
     a = q.add_parser("end"); a.add_argument("--id", required=True); a.add_argument("--summary", required=True); a.add_argument("--status", choices=["completed", "interrupted", "blocked"], default="completed"); a.set_defaults(func=cmd_session)
     p = sub.add_parser("run"); p.add_argument("--name", required=True); p.add_argument("--cwd", default="."); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER, help="explicit executable and arguments; no shell is used"); p.set_defaults(func=cmd_run)
     p = sub.add_parser("debug"); p.add_argument("--log", default=""); p.add_argument("--adb", action="store_true"); p.add_argument("--serial", default=""); p.add_argument("--output", default=""); p.set_defaults(func=cmd_debug)
-    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
+    p = sub.add_parser("test"); p.add_argument("--suite", choices=["workbench", "rnd-studio", "syntax", "android-syntax", "web-syntax", "web-unit", "web-typecheck", "web-lint", "web-build", "web-map-tests"], required=True); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_test)
     p = sub.add_parser("rnd"); p.add_argument("--timeout", type=int, default=1800); p.add_argument("--session", default=""); p.add_argument("argv", nargs=argparse.REMAINDER); p.set_defaults(func=cmd_rnd)
     p = sub.add_parser("task"); q = p.add_subparsers(dest="action", required=True)
     z = q.add_parser("test"); z.add_argument("--id", required=True); z.add_argument("--suite", required=True, choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"]); z.add_argument("--timeout", type=int, default=1800); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     z = q.add_parser("check"); z.add_argument("--id", required=True); z.add_argument("--require-test", action="append", choices=["brain", "agents", "integration", "unit", "assemble", "instrumented"], default=[]); z.add_argument("--session", default=""); z.set_defaults(func=cmd_studio_task)
     p = sub.add_parser("android-smoke"); p.add_argument("--apk", required=True); p.add_argument("--output", default="artifacts/workbench/android/latest"); p.add_argument("--timeout", type=int, default=1200); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_smoke)
+    p = sub.add_parser("android-animation-audit"); p.add_argument("--serial", required=True); p.add_argument("--package", default="com.kellvyn.assistant"); p.add_argument("--scenario", default="manual-unspecified"); p.add_argument("--duration", type=int, default=10); p.add_argument("--frame-sample-fps", type=float, default=2.0); p.add_argument("--frame-budget-ms", type=float, default=None); p.add_argument("--output", default="artifacts/workbench/android-animation"); p.add_argument("--timeout", type=int, default=180); p.add_argument("--session", default=""); p.set_defaults(func=cmd_android_animation_audit)
     p = sub.add_parser("web-audit"); p.add_argument("--url", default="http://127.0.0.1:4173/"); p.add_argument("--output", default="artifacts/workbench/web/latest"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--session", default=""); p.set_defaults(func=cmd_web_audit)
+    p = sub.add_parser("typescript-map"); p.add_argument("--output", default="artifacts/workbench/maps/typescript-semantic-map.json"); p.add_argument("--timeout", type=int, default=300); p.add_argument("--fail-on-diagnostics", action="store_true"); p.add_argument("--session", default=""); p.set_defaults(func=cmd_typescript_map)
     p = sub.add_parser("report"); p.set_defaults(func=cmd_report)
     p = sub.add_parser("worktree"); p.add_argument("--id", required=True); p.add_argument("--title", required=True); p.add_argument("--objective", required=True); p.add_argument("--scope", choices=["brain", "agents", "integration"], default="agents"); p.add_argument("--base", default="HEAD"); p.add_argument("--require-test", action="append", default=[]); p.add_argument("--session", default=""); p.set_defaults(func=cmd_worktree)
     p = sub.add_parser("visual-diff"); p.add_argument("--before", required=True); p.add_argument("--after", required=True); p.add_argument("--output", required=True); p.add_argument("--threshold", type=int, default=18); p.set_defaults(func=cmd_visual_diff)

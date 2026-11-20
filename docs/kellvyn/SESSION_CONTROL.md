@@ -3,7 +3,10 @@
 **Este é o ponto único de entrada para qualquer nova conversa de trabalho.**
 Leia este arquivo antes de alterar código. Depois confirme o HEAD real no GitHub. Não dependa da memória do chat.
 
-**Última revisão:** 19/11/2026 — checkpoint da bancada externa  
+**Última revisão:** 19/11/2026 — laboratório poliglota v2 em construção
+**Branch experimental ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`
+**PR laboratório:** #25 (DRAFT, IMPLEMENTED_NOT_RUN) — `https://github.com/ar2233789-oss/kellvyn-ai-assistant/pull/25`
+**HEAD verificado antes da atualização final do checkpoint:** `64f4321746836f242fe39ef7f694b27cac0b70ce` (reconfirmar HEAD no GitHub antes de qualquer alteração)  
 **Repositório:** ar2233789-oss/kellvyn-ai-assistant  
 **Branch de trabalho:** kellvyn-rnd/agent-trace-duration-port-20261118  
 **HEAD-base confirmado antes da integração da Workbench:** d19ac2a653ed75873ad03d70f9c85d3519f678db  
@@ -736,3 +739,65 @@ A suíte `test_studio.py` agora contém 17 testes escritos. **Os 17 estão NOT R
 
 ### Próximo passo
 Executar a workflow `.github/workflows/kellvyn-workbench.yml` em runner que aloque. Ler os logs/artifacts, corrigir falhas reais e expandir a bancada somente depois de validar a execução. Não alterar cérebro, agentes do APK ou interface nesta frente.
+
+
+## 12. Continuidade — laboratório poliglota v2 (19/11/2026)
+
+**Foco atual:** preparar primeiro o ambiente completo de pesquisa e engenharia. Não desviar para implementar funcionalidades do cérebro, agentes ou interface até que as ferramentas e os gates de desenvolvimento necessários estejam disponíveis.
+
+- Especificação da arquitetura-alvo em `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`.
+- Branch isolada `kellvyn-rnd/polyglot-lab-foundation-20261119`, baseada no commit `ce0d7170c576e50fcb852d27aedfd4cae3d45caa`, PR #25.
+- Implementado na Workbench: matriz de toolchains por domínio; suites TypeScript/TSX para typecheck, Vitest, ESLint e Vite; mapa semântico TS/TSX via TypeScript Compiler API; testes do mapa com fixtures; higiene básica de ambiente de subprocesso, redaction e encerramento de process group em timeout POSIX.
+- Workflow Workbench usa Bun 1.4.5 e instalação congelada por `bun.lock`; testes do mapa e quatro gates TS/TSX entram no CI.
+- Manifesto da R&D Studio corrigido: o arquivo atual tem 20 métodos `test_*`; o resultado anterior 13/13 pertence a snapshot mais antigo. Os 20 do snapshot atual ainda precisam ser executados.
+- Último CI observado nesta branch: run `44554753701`, job `135667679375`, terminou em failure com `steps=[]`; classificar como runner/execução NOT RUN, não como falha de compilação.
+- O mapa semântico TS/TSX é implementado, mas não foi executado; análise semântica Kotlin/Java, Tree-sitter multilinguagem, DAG durável, sandbox descartável, tracing de agentes, animation/performance lab Android e benchmark cognitivo ainda não estão implementados.
+- Não mesclar PR #25. Não instalar runner no Poco F6, não adicionar serviços pagos e não modificar MainActivity/interface.
+
+
+---
+
+## 18. Continuidade — laboratório poliglota v2 (19/11/2026)
+
+**Branch ativa:** `kellvyn-rnd/polyglot-lab-foundation-20261119`  
+**PR:** #25 — DRAFT, IMPLEMENTED_NOT_RUN  
+**HEAD verificado antes do último checkpoint:** `64f4321746836f242fe39ef7f694b27cac0b70ce`  
+**Arquitetura:** `docs/kellvyn/LABORATORY_ARCHITECTURE_V2_2026-11-19.md`  
+**Ledger de evidências atualizado nesta retomada:** `050f0247f93562e319f1c93c08cc1d37542398cf`
+
+### O que entrou na bancada
+- Doctor/Toolchain matrix por domínio: Kotlin/Java/Android SDK, TS/TSX, Python, shell/workflows, ADB/dispositivo, visual/mídia e candidatos de sandbox.
+- Suites de projeto TS/TSX (typecheck, Vitest, ESLint, Vite build) selecionando Bun pelo `bun.lock`; CI fixa Bun 1.4.5 e usa instalação frozen.
+- Mapa semântico TS/TSX pela TypeScript Compiler API: exports/declarations, imports locais/externos/não resolvidos, chamadas, referências e arquivos de teste.
+- Executor com allowlist de ambiente filho, rejeição de nomes de variáveis sensíveis, redaction de padrões comuns e encerramento de grupos de processos POSIX em timeout.
+- Kotlin LSP preflight: launcher via PATH ou `KOTLIN_LSP_EXECUTABLE`; runtime JDK25 via `KOTLIN_LSP_JAVA_HOME`; não altera JDK17 do Gradle. Detecção não equivale a importação Android ou análise semântica aprovada.
+- Laboratório Android `android-animation-audit`: captura screenrecord do app já em primeiro plano por serial ADB explícito; recolhe gfxinfo/framestats, PSS, bateria, estado térmico e display; extrai quadros com FFmpeg; gera SHA-256 do vídeo e de cada frame; rotula cenário, usa correspondência exata do package, confere foreground antes/depois sem salvar dumpsys activity e salva checkpoint mínimo em falha pós-preflight. Não instala APK, não abre o app, não toca na UI nem muda configurações.
+- O relatório e o diário da Workbench usam `CAPTURED` apenas para coleta completa; `quality_assessment=NOT_EVALUATED`. Isso não declara fluidez ou fidelidade visual. O rótulo do cenário fica gravado; o alvo é comparado como token de pacote exato, e o foco é verificado antes/depois (sem monitoramento contínuo entre verificações). `PARTIAL` e `BLOCKED` continuam distintos.
+
+### Contagem de testes e evidência
+- Workbench principal: 31 métodos Python.
+- Parser/contratos do coletor Android: 16 métodos Python.
+- R&D Studio: 20 métodos Python.
+- Mapa TS: 2 casos Node.
+- Total inventariado: 67 métodos Python + 2 casos Node. Todos são testes escritos, não resultados de execução.
+- Probes isolados antigos: mapa TS 2/2 e helpers de executor 4/4 em harness separado. Não equivalem às suites do checkout e não validam Android.
+- Último CI observado: run `44576134219`, job `135744014615`, no HEAD `bcb5c6988032ad1e214ce16d22f4a38f4318c296`. O job terminou em failure com `steps=[]`, sem logs. Classificação correta: **RUNNER_ALLOCATION_BLOCKED / NOT_RUN**, não falha comprovada de compilação.
+- A captura Android também permanece NOT_RUN: nenhum ADB/AVD autorizado foi usado nesta sessão.
+
+### Limites que permanecem
+- Sem sandbox descartável com isolamento real de filesystem/rede e limites de CPU/RAM/PIDs. Git worktree e detecção de Docker/Podman não equivalem a sandbox.
+- Análise semântica Kotlin ainda não implementada; só preflight do Kotlin LSP. Experimento `kotlin-semantic-index-001` permanece PLANNED, exigindo JDK25 separado para LSP e JDK17 no build do app.
+- Sem DAG durável integrado entre Workbench e R&D Studio, tracing OpenTelemetry completo ou grafo semântico multi-linguagem unificado.
+- O coletor de animação ainda não automatiza cenário de chuva/raios/combinações; não integra Perfetto FrameTimeline nem Macrobenchmark; não substitui revisão visual com baseline.
+- O cérebro neural continua experimental/desconectado do chat de produção; não existe checkpoint conversacional aprovado nem avaliação cognitiva independente concluída.
+
+### Próximas tarefas, em ordem
+1. Manter PR #25 em draft; executar suites Python/Node/TS no SHA exato assim que o runner iniciar steps e preservar logs/artefatos.
+2. Revisar a implementação do coletor Android; validar parsers em testes locais confiáveis e realizar captura em AVD autorizado, depois separar medição física do Poco F6.
+3. Implementar o contrato comum de adaptadores e vincular Workbench ↔ R&D Studio por taskId, commit/diff hash, runId e evidência.
+4. Executar experimento Kotlin semântico comparando Analysis API Standalone e Kotlin LSP, com JDK25 do LSP separado do JDK17 do Gradle; medir precisão, cold start, warm latency e RSS.
+5. Desenvolver sandbox descartável e só então executar código experimental não confiável.
+6. Avançar para Perfetto/Macrobenchmark, replay de cenários de animação, tracing OTel e DAG de engenharia durável.
+7. Preservar `MainActivity.java`, `.github/interface-lock.sha`, layout e efeitos visuais. Nenhuma alteração de interface nesta frente.
+
+**Regra de continuidade:** antes de qualquer alteração, confirmar o HEAD atual no GitHub e ler commits posteriores. Não reiniciar a auditoria nem voltar ao PR #24 como foco; a frente ativa permanece PR #25.

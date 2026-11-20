@@ -13,7 +13,7 @@ import org.junit.Test
  * The scripted engine deliberately supplies valid KELLVYN/1 messages. This verifies
  * the integration contract, not the competence of a trained neural checkpoint.
  */
-class KellvynBrainAgentIntegrationContractTest {
+class KellvynKNAgentIntegrationContractTest {
     @Test
     fun protocolDelegationRunsSpecialistWithLeastPrivilegeAndUntrustedHandoff() = runBlocking {
         val engine = ProtocolScriptedEngine(
@@ -52,7 +52,7 @@ class KellvynBrainAgentIntegrationContractTest {
         val agent = KellvynAgent(
             inference = engine,
             tools = KellvynToolRegistry(listOf(readTool, deleteTool)),
-            config = KellvynAgentConfig(maxDelegations = 1),
+            config = KellvynAgentConfig(maxDelegations = 1, allowDelegation = true),
             skillRegistry = KellvynSkillRegistry.empty(),
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(recorder)

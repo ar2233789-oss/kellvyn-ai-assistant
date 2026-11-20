@@ -21,8 +21,8 @@ TESTS = {
     "instrumented": ["connectedDebugAndroidTest", "--no-daemon"],
 }
 TRACKS = {
- "brain": {
-  "title": "Brain R&D",
+ "kn": {
+  "title": "KN R&D",
   "sources": [
    "android/app/src/main/java/com/kellvyn/assistant/KellvynRuntime.kt",
    "android/app/src/main/java/com/kellvyn/assistant/KellvynLocalNeuralInferenceEngine.kt",
@@ -82,7 +82,7 @@ TRACKS = {
   "metrics": ["routing_accuracy","evidence_coverage","policy_violation_rate","context_leakage","timeout_cancellation_budget","tool_success_rate","delegation_duration_ms","pass_k_reliability","resource_cost"]
  },
  "integration": {
-  "title": "Brain + Agent Integration",
+  "title": "KN + Agent Integration",
   "sources": [
    "android/app/src/main/java/com/kellvyn/assistant/KellvynRuntime.kt",
    "android/app/src/main/java/com/kellvyn/assistant/KellvynAgent.kt",
@@ -101,7 +101,7 @@ TRACKS = {
    "com.kellvyn.assistant.KellvynSpecialistAgentBenchmarkExecutorTest",
    "com.kellvyn.assistant.KellvynSpecialistEvaluationHarnessTest",
    "com.kellvyn.assistant.KellvynSpecialistToolPolicyTest",
-   "com.kellvyn.assistant.KellvynBrainAgentIntegrationContractTest"
+   "com.kellvyn.assistant.KellvynKNAgentIntegrationContractTest"
   ],
   "metrics": ["valid_decision_rate","inference_to_agent_success","verified_tool_success","verified_delegation_success","untrusted_result_propagation","runtime_connection_status"]
  }

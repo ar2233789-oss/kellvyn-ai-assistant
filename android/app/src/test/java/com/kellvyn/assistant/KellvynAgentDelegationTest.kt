@@ -41,7 +41,7 @@ class KellvynAgentDelegationTest {
         val agent = KellvynAgent(
             inference = engine,
             tools = KellvynToolRegistry(listOf(readTool, deleteTool)),
-            config = KellvynAgentConfig(maxDelegations = 1),
+            config = KellvynAgentConfig(maxDelegations = 1, allowDelegation = true),
             skillRegistry = KellvynSkillRegistry.empty()
         )
 
@@ -87,7 +87,7 @@ class KellvynAgentDelegationTest {
         val agent = KellvynAgent(
             inference = engine,
             tools = KellvynToolRegistry(emptyList()),
-            config = KellvynAgentConfig(maxDelegations = 2),
+            config = KellvynAgentConfig(maxDelegations = 2, allowDelegation = true),
             skillRegistry = KellvynSkillRegistry.empty()
         )
 
@@ -96,7 +96,7 @@ class KellvynAgentDelegationTest {
         assertTrue(result is KellvynAgentResult.Completed)
         assertEquals(4, engine.histories.size)
         assertTrue(engine.histories[2].any {
-            it.content.contains("especialistas internos não podem delegar novamente")
+            it.source == "central-policy" && it.content.contains("inteligência central")
         })
     }
 

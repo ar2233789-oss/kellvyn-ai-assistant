@@ -77,3 +77,87 @@ python3 tools/kellvyn-workbench/workbench.py report
 ```
 
 O painel é `artifacts/workbench/dashboard/index.html`. Ele agrega evidências já geradas; não é um serviço hospedado.
+
+
+## Matriz poliglota e testes do projeto
+
+O comando `doctor` agora apresenta disponibilidade por domínio: Kotlin/Java/Android SDK, TypeScript/TSX, Python, shell/workflows, ADB/dispositivo, visual/mídia e ferramentas candidatas de sandbox. Os estados descrevem detecção e pré-requisitos; não certificam compilação, execução segura ou aprovação.
+
+O gerenciador JS é escolhido pelo lockfile do checkout. Neste repositório, `bun.lock` seleciona Bun; o laboratório não deve substituir silenciosamente esse lockfile por npm/yarn.
+
+Suites para a aplicação Web/TSX de referência:
+
+```bash
+python3 tools/kellvyn-workbench/workbench.py test --suite web-typecheck
+python3 tools/kellvyn-workbench/workbench.py test --suite web-unit
+python3 tools/kellvyn-workbench/workbench.py test --suite web-lint
+python3 tools/kellvyn-workbench/workbench.py test --suite web-build
+```
+
+Pré-condições ausentes são classificadas como `BLOCKED`, não como falha do código. A Web continua sendo referência de interface; estas suites não autorizam portar WebView para o APK nativo.
+
+**Limite de segurança:** Git worktree não é isolamento de sistema operacional. A detecção de Docker/Podman é apenas inventário; não significa que um sandbox seguro esteja configurado. Não executar código não confiável em host persistente.
+
+
+### Segurança do executor (alteração em revisão)
+
+- Os processos filhos recebem apenas variáveis ambientais essenciais; variáveis com nomes de credenciais não são repassadas por padrão.
+- Valores comuns de tokens/senhas/chaves são redigidos antes de persistir logs e manifests.
+- Timeout em POSIX encerra o grupo de processos para evitar subprocessos de Gradle/testes sobrevivendo.
+- Isto reduz exposição acidental; não fornece isolamento de filesystem/rede nem substitui sandbox. Código não confiável continua bloqueado até existir executor descartável apropriado.
+
+
+## Navegação semântica TS/TSX
+
+Com as dependências instaladas pelo `bun.lock`, o mapa usa o TypeScript Compiler API do próprio projeto para relacionar declarações, tipos, imports, chamadas, referências e arquivos de teste. Ele marca relações de projeto e externas separadamente e reporta imports não resolvidos.
+
+```bash
+python3 tools/kellvyn-workbench/workbench.py typescript-map --fail-on-diagnostics
+python3 tools/kellvyn-workbench/workbench.py test --suite web-map-tests
+```
+
+O mapa é estático: não prova que os testes referenciados foram executados nem que uma função funciona em runtime. A próxima frente semântica é Kotlin; o experimento `kotlin-semantic-index-001` compara Analysis API Standalone com o Kotlin Language Server oficial sem alterar o APK.
+
+**Inventário atual:** 31 métodos Python na suíte principal da Workbench, 16 testes do parser de animação Android, 20 métodos da R&D Studio e dois casos Node para o mapa TypeScript. São testes escritos; o snapshot do GitHub Actions continua sem steps executados.
+
+
+## Analisador semântico Kotlin (pré-requisitos)
+
+A Workbench reconhece o Kotlin Language Server opcionalmente, mas não instala nem inicia o servidor sozinha. O release standalone revisado exige JDK 25; o build Android da Kellvyn permanece em JDK 17. Não altere `JAVA_HOME` global para satisfazer o LSP.
+
+Configure o caminho do JDK 25 e, opcionalmente, o caminho explícito do launcher quando ele não estiver no `PATH`:
+
+```bash
+export KOTLIN_LSP_JAVA_HOME=/opt/jdk-25
+# Opcional: quando bin/intellij-server não estiver no PATH
+export KOTLIN_LSP_EXECUTABLE=/opt/kotlin-lsp/bin/intellij-server
+python3 tools/kellvyn-workbench/workbench.py doctor
+```
+
+Estados:
+- `OPTIONAL_NOT_INSTALLED`: servidor não detectado e sem override de caminho;
+- `BLOCKED_LSP_EXECUTABLE_MISSING`: caminho explícito configurado, mas arquivo não executável;
+- `BLOCKED_SEPARATE_JDK25_NOT_CONFIGURED`: servidor detectado, variável do JDK separado ausente;
+- `BLOCKED_JDK25_REQUIRED`: JDK configurado não é 25;
+- `READY_UNVALIDATED`: binário + JDK 25 detectados, mas importação Android e queries semânticas ainda não validadas.
+
+A presença do executável e JDK só libera o próximo experimento; não significa que o LSP consiga importar AGP 8.13.2 ou resolver os símbolos do projeto. O experimento `kotlin-semantic-index-001` permanece PLANNED. O LSP tem importação Android experimental e continua em alpha; mantenha a decisão dependente de medições de precisão, cold start e RSS.
+
+
+## Laboratório de animação e frame timing Android
+
+O comando captura um cenário que **já está aberto** no app e exige um serial ADB exato. Não instala APK, não inicia o aplicativo, não toca na tela e não altera configurações. Ele grava vídeo temporário, coleta `dumpsys gfxinfo ... framestats`, memória, bateria, temperatura e display, puxa o vídeo para um diretório local e extrai quadros com FFmpeg quando disponível.
+
+```bash
+# Exemplo AVD 60 Hz: limite de referência ~16,67 ms por frame
+python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
+  --serial emulator-5554 --scenario chuva --duration 15 --frame-sample-fps 5 \
+  --frame-budget-ms 16.67
+
+# Exemplo painel 120 Hz: limite de referência ~8,33 ms por frame
+python3 tools/kellvyn-workbench/workbench.py android-animation-audit \
+  --serial <serial-autorizado> --scenario chuva+raios --duration 15 --frame-sample-fps 5 \
+  --frame-budget-ms 8.33
+```
+
+O app deve permanecer em primeiro plano; a ferramenta confere o estado antes e depois da gravação e classifica como `PARTIAL` se ele não estiver em primeiro plano ao final. Ela não monitora continuamente mudanças temporárias de foco entre essas duas verificações. Cada execução recebe um rótulo de cenário validado (`chuva`, `raios`, `chuva+raios`) para comparar ensaios distintos. A ferramenta exige que o app continue em primeiro plano; caso contrário, o resultado é `PARTIAL`. O vídeo grava a tela inteira; feche notificações e conteúdo privado. Dumps brutos de `dumpsys activity` não são persistidos: só ficam os dois indicadores booleanos de foco. O orçamento de frame é explícito porque o laboratório não deve presumir 60 ou 120 Hz. Os estados `CAPTURED`, `PARTIAL` e `BLOCKED` são distintos inclusive no diário da Workbench: `CAPTURED` confirma apenas coleta completa, nunca aprovação; `quality_assessment` permanece `NOT_EVALUATED`. O manifesto registra o rótulo do cenário, os estados de foco antes/depois e o hash dos artefatos. Ausência do FFmpeg ou de métricas válidas gera parcial, nunca aprovação. O vídeo e os quadros recebem SHA-256 no manifesto. O próprio `screenrecord` acrescenta overhead à medição; portanto, use os tempos de `gfxinfo` como diagnóstico e confirme jank suspeito com Perfetto FrameTimeline/Macrobenchmark em coleta dedicada. O relatório não é um teste visual completo dos efeitos simultâneos. Se uma captura falhar depois do preflight, um manifesto de falha mínimo permanece no diretório, sem registrar a mensagem bruta do erro.
