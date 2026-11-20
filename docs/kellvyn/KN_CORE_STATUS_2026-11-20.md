@@ -86,7 +86,7 @@ Foram acrescentados testes específicos para sampler determinístico, top-k/top-
 
 O gate numérico de loss apenas autoriza o próximo exame. Ele não libera sozinho o runtime para responder. Foi adicionado `KellvynNeuralBehaviorBenchmark`, que exige pelo menos 20 exemplos TEST, IDs e prompts distintos, proveniência completa, correspondência exata normalizada mínima de 60% e F1 médio de tokens mínimo de 80%.
 
-O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manifesto e se o hash de prompt+resposta coincide com o checkpoint. Só executa o benchmark com esses exemplos. A aprovação fica vinculada ao fingerprint dos pesos carregados; recarregar ou descarregar o modelo remove a aprovação. Sem o gate numérico e o comportamental, a geração normal permanece bloqueada. A aprovação permite apenas um ensaio controlado de inferência, não declara o cérebro pronto para produção.
+O runtime confere se cada exemplo pertence ao conjunto TEST registrado no manifesto e se o hash de prompt+resposta coincide com o checkpoint. Só executa o benchmark com esses exemplos. A aprovação fica vinculada ao fingerprint dos pesos carregados; recarregar ou descarregar o modelo remove a aprovação. Sem o gate numérico e o comportamental, a geração normal permanece bloqueada. O controlador retorna os exemplos TEST originais em memória quando instala um checkpoint aprovado pelo gate numérico, para que a próxima etapa possa executar o benchmark sem reconstruir os exemplos; esses dados não são gravados automaticamente no armazenamento do modelo. A aprovação permite apenas um ensaio controlado de inferência, não declara o cérebro pronto para produção.
 
 ## Pico de memória ao carregar checkpoints
 

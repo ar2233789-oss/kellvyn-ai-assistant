@@ -44,6 +44,7 @@ class KellvynNeuralTrainingControllerTest {
         )
 
         assertFalse(outcome.installed)
+        assertTrue(outcome.heldOutTestExamples.isEmpty())
         assertFalse(store.exists())
         assertNotNull(outcome.qualityGate)
         assertTrue(outcome.qualityGate.reasons.any { it.contains("pequena demais") })
@@ -92,6 +93,7 @@ class KellvynNeuralTrainingControllerTest {
         )
 
         assertFalse(outcome.installed)
+        assertTrue(outcome.heldOutTestExamples.isEmpty())
         val restored = store.loadMultiBlockForInference()
         assertNotNull(restored)
         assertEquals(previousFingerprint, restored!!.model.parameterFingerprint())

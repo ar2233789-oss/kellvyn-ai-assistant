@@ -20,7 +20,9 @@ internal class KellvynNeuralTrainingController(
         val qualityGate: KellvynMultiBlockTrainingQualityGate.Report,
         val trainingSteps: Long,
         val parameterFingerprint: String?,
-        val detail: String
+        val detail: String,
+        /** Original TEST examples are returned in memory for the next benchmark stage; never persisted here. */
+        val heldOutTestExamples: List<KellvynInstructionTrainingExample> = emptyList()
     )
 
     suspend fun trainAndInstall(
@@ -57,7 +59,8 @@ internal class KellvynNeuralTrainingController(
             qualityGate = quality,
             trainingSteps = trained.model.trainingSteps,
             parameterFingerprint = trained.model.parameterFingerprint(),
-            detail = "Checkpoint KN-004 instalado. Próxima etapa: benchmark comportamental."
+            detail = "Checkpoint KN-004 instalado. Próxima etapa: benchmark comportamental.",
+            heldOutTestExamples = examples.filter { it.split == KellvynTrainingSplit.TEST }
         )
     }
 }
