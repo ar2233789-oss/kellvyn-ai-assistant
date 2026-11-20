@@ -48,6 +48,7 @@ internal object KellvynJsonlCorpusReader {
         val contentHash: String,
         val retainedBytes: Long,
         val targetTokenUpperBound: Long,
+        val tokenizerTrainingBytes: Long,
         val example: KellvynInstructionTrainingExample
     )
 
@@ -55,12 +56,14 @@ internal object KellvynJsonlCorpusReader {
         val quota: Int,
         val byteBudget: Long,
         val targetBudget: Long = Long.MAX_VALUE,
+        val tokenizerTrainingBudget: Long = Long.MAX_VALUE,
         val queue: PriorityQueue<Candidate> = PriorityQueue(
             16,
             Comparator { left, right -> right.rank.compareTo(left.rank) }
         ),
         var retainedBytes: Long = 0L,
-        var targetTokens: Long = 0L
+        var targetTokens: Long = 0L,
+        var tokenizerTrainingBytes: Long = 0L
     )
 
     fun read(
@@ -94,12 +97,26 @@ internal object KellvynJsonlCorpusReader {
         val testBytes = maxRetainedUtf8Bytes / 6L
         val trainBytes = maxRetainedUtf8Bytes - validationBytes - testBytes
         val trainTargetBudget = config.maxTotalTrainingSteps / config.epochsPerExample.toLong()
+        val tokenizerTrainingBudget = if (config.maxMerges == 0) {
+            Long.MAX_VALUE
+        } else {
+            MAX_TOKENIZER_TRAINING_WORK / config.maxMerges.toLong()
+        }
+        val maxTokenizerInputBytes = if (config.maxMerges == 0) {
+            MAX_EXAMPLE_BYTES.toLong()
+        } else {
+            minOf(
+                MAX_EXAMPLE_BYTES.toLong(),
+                MAX_TOKENIZER_TRAINING_WORK / config.maxMerges.toLong()
+            )
+        }
 
         val buckets = mapOf(
             KellvynTrainingSplit.TRAIN to Bucket(
                 quota = trainQuota,
                 byteBudget = trainBytes,
-                targetBudget = trainTargetBudget
+                targetBudget = trainTargetBudget,
+                tokenizerTrainingBudget = tokenizerTrainingBudget
             ),
             KellvynTrainingSplit.VALIDATION to Bucket(
                 quota = validationQuota,
@@ -123,6 +140,8 @@ internal object KellvynJsonlCorpusReader {
         var validRecords = 0L
         var malformedRecords = 0L
         var sensitiveRecords = 0L
+        var tokenizerWorkRejectedRecords = 0L
+        var perExampleStepRejectedRecords = 0L
 
         while (true) {
             cancellationCheck()
@@ -168,6 +187,16 @@ internal object KellvynJsonlCorpusReader {
                 val completionBytes = completion.toByteArray(Charsets.UTF_8).size.toLong()
                 require(prompt.isNotBlank() && completion.isNotBlank())
                 require(promptBytes + completionBytes in 2L..MAX_EXAMPLE_BYTES.toLong())
+                if (promptBytes > maxTokenizerInputBytes || completionBytes > maxTokenizerInputBytes) {
+                    tokenizerWorkRejectedRecords++
+                    continue
+                }
+                if (completionBytes + 1L >
+                    MAX_STEPS_PER_EXAMPLE / config.epochsPerExample.toLong()
+                ) {
+                    perExampleStepRejectedRecords++
+                    continue
+                }
 
                 val provenance = KellvynTrainingProvenance(
                     permission = permission,
@@ -199,8 +228,15 @@ internal object KellvynJsonlCorpusReader {
                 record.provenance.sourceReference,
                 record.provenance.rightsEvidence
             ).sumOf { it.toByteArray(Charsets.UTF_8).size.toLong() }
+            val promptBytes = record.prompt.toByteArray(Charsets.UTF_8).size.toLong()
+            val completionBytes = record.completion.toByteArray(Charsets.UTF_8).size.toLong()
             val targetTokenUpperBound = if (record.split == KellvynTrainingSplit.TRAIN) {
-                record.completion.toByteArray(Charsets.UTF_8).size.toLong() + 1L
+                completionBytes + 1L
+            } else {
+                0L
+            }
+            val tokenizerTrainingBytes = if (record.split == KellvynTrainingSplit.TRAIN) {
+                promptBytes + completionBytes
             } else {
                 0L
             }
@@ -211,6 +247,7 @@ internal object KellvynJsonlCorpusReader {
                 contentHash = contentHash,
                 retainedBytes = retainedBytes,
                 targetTokenUpperBound = targetTokenUpperBound,
+                tokenizerTrainingBytes = tokenizerTrainingBytes,
                 example = record
             )
             offer(buckets.getValue(record.split), candidate)
@@ -242,6 +279,7 @@ internal object KellvynJsonlCorpusReader {
         val selectedCounts = selectedExamples.groupingBy { it.split }.eachCount()
         val selectedBytes = unique.sumOf { it.retainedBytes }
         val targetUpperBound = unique.sumOf { it.targetTokenUpperBound }
+        val tokenizerTrainingBytes = unique.sumOf { it.tokenizerTrainingBytes }
         val sourceSha256 = digest.digest().toHex()
         val reasons = mutableListOf<String>()
 
@@ -260,6 +298,12 @@ internal object KellvynJsonlCorpusReader {
         if (targetUpperBound > trainTargetBudget) {
             reasons += "A amostra excederia o orçamento de passos antes do treinamento."
         }
+        if (tokenizerWorkRejectedRecords > 0L) {
+            reasons += "$tokenizerWorkRejectedRecords registros foram recusados pelo limite de processamento BPE por texto."
+        }
+        if (perExampleStepRejectedRecords > 0L) {
+            reasons += "$perExampleStepRejectedRecords registros foram recusados pelo limite de passos por exemplo."
+        }
         if (sensitiveRecords > 0L) {
             reasons += "$sensitiveRecords registros foram recusados por credenciais ou dados pessoais reconhecíveis."
         }
@@ -275,6 +319,7 @@ internal object KellvynJsonlCorpusReader {
                 validationCount >= minimumValidationExamples &&
                 testCount >= minimumTestExamples &&
                 targetUpperBound <= trainTargetBudget &&
+                tokenizerTrainingBytes <= tokenizerTrainingBudget &&
                 selectedBytes <= maxRetainedUtf8Bytes
 
         return Selection(
@@ -307,11 +352,13 @@ internal object KellvynJsonlCorpusReader {
         bucket.queue += candidate
         bucket.retainedBytes += candidate.retainedBytes
         bucket.targetTokens += candidate.targetTokenUpperBound
+        bucket.tokenizerTrainingBytes += candidate.tokenizerTrainingBytes
 
         while (
             bucket.queue.size > bucket.quota ||
             bucket.retainedBytes > bucket.byteBudget ||
-            bucket.targetTokens > bucket.targetBudget
+            bucket.targetTokens > bucket.targetBudget ||
+            bucket.tokenizerTrainingBytes > bucket.tokenizerTrainingBudget
         ) {
             val removed = bucket.queue.remove()
             bucket.retainedBytes -= removed.retainedBytes
@@ -372,6 +419,8 @@ internal object KellvynJsonlCorpusReader {
 
     private const val MAX_JSONL_LINE_CHARS = 500_000
     private const val MAX_EXAMPLE_BYTES = 65_536
+    private const val MAX_STEPS_PER_EXAMPLE = 50_000L
+    private const val MAX_TOKENIZER_TRAINING_WORK = 40_000_000L
     private val REQUIRED_FIELDS = setOf(
         "id", "prompt", "completion", "permission",
         "licenseId", "sourceReference", "rightsEvidence"
