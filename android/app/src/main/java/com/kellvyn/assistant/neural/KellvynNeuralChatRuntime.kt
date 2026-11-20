@@ -297,6 +297,9 @@ internal class KellvynNeuralChatRuntime(
         cancellationCheck()
 
         val answer = active.tokenizer.decode(generatedTokens.toIntArray()).trim()
+        check(!answer.contains('\uFFFD')) {
+            "O checkpoint KN-004 produziu uma sequência UTF-8 inválida; a resposta foi recusada."
+        }
         if (answer != streamedText) onPartial(answer)
         if (answer.isEmpty()) {
             throw IllegalStateException(
@@ -367,7 +370,10 @@ internal class KellvynNeuralChatRuntime(
                         cancellationCheck = cancellationCheck
                     )
                 } catch (error: IllegalStateException) {
-                    if (error.message?.contains("não gerou texto") == true) {
+                    if (
+                        error.message?.contains("não gerou texto") == true ||
+                        error.message?.contains("sequência UTF-8 inválida") == true
+                    ) {
                         ""
                     } else {
                         throw error
