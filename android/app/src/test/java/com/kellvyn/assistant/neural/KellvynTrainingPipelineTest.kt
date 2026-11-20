@@ -188,6 +188,15 @@ class KellvynTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun rejectsPersonalContactDataInDocumentText() {
+        val docs = sampleDocuments().toMutableList()
+        docs[0] = docs[0].copy(
+            text = "Entre em contato pelo endereço suporte@example.com para obter ajuda."
+        )
+        KellvynTrainingPipeline.train(docs)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun rejectsCredentialBearingInstructionProvenanceMetadata() {
         val train = instruction(
             "train-secret-metadata", "Pergunta: olá.", "Olá.", KellvynTrainingSplit.TRAIN
