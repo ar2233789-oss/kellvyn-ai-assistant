@@ -132,7 +132,7 @@ class KellvynNeuralTrainingControllerTest {
         val source = (0 until 10).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
             input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
-            expectedSourceSha256 = sha256(source),
+            expectedAudit = auditJsonl(source, smallTrainingConfig(), maxExamples = 50, minimumTrainExamples = 10, minimumValidationExamples = 5, minimumTestExamples = 5),
             config = smallTrainingConfig(),
             maxExamples = 50,
             minimumTrainExamples = 10,
@@ -167,7 +167,7 @@ class KellvynNeuralTrainingControllerTest {
         val tooSmallSource = (0 until 10).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val outcome = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
             input = ByteArrayInputStream(tooSmallSource.toByteArray(Charsets.UTF_8)),
-            expectedSourceSha256 = sha256(tooSmallSource),
+            expectedAudit = auditJsonl(tooSmallSource, smallTrainingConfig(), maxExamples = 50, minimumTrainExamples = 10, minimumValidationExamples = 5, minimumTestExamples = 5),
             config = smallTrainingConfig(),
             maxExamples = 50,
             minimumTrainExamples = 10,
@@ -199,7 +199,7 @@ class KellvynNeuralTrainingControllerTest {
         try {
             KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
                 input = ByteArrayInputStream(changedSource.toByteArray(Charsets.UTF_8)),
-                expectedSourceSha256 = audit.sourceSha256,
+                expectedAudit = audit,
                 config = smallTrainingConfig(),
                 maxExamples = 300,
                 minimumTrainExamples = 100,
@@ -218,7 +218,7 @@ class KellvynNeuralTrainingControllerTest {
         val source = (0 until 30).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
             input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
-            expectedSourceSha256 = sha256(source),
+            expectedAudit = auditJsonl(source, smallTrainingConfig(), maxExamples = 50, minimumTrainExamples = 10, minimumValidationExamples = 5, minimumTestExamples = 5),
             config = smallTrainingConfig(),
             maxExamples = 50,
             minimumTrainExamples = 10,
@@ -250,10 +250,23 @@ class KellvynNeuralTrainingControllerTest {
         weightDecay = 0.0f
     )
 
-    private fun sha256(text: String): String =
-        java.security.MessageDigest.getInstance("SHA-256")
-            .digest(text.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it.toInt() and 0xff) }
+    private fun auditJsonl(
+        source: String,
+        config: KellvynMultiBlockTrainingConfig,
+        maxExamples: Int,
+        minimumTrainExamples: Int,
+        minimumValidationExamples: Int,
+        minimumTestExamples: Int
+    ) = kotlinx.coroutines.runBlocking {
+        KellvynNeuralTrainingController(store).auditJsonl(
+            input = ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            config = config,
+            maxExamples = maxExamples,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples
+        )
+    }
 
     private fun jsonlRecord(index: Int): String =
         """{"id":"controller-corpus-$index","prompt":"Pergunta: diga o número $index.","completion":"A resposta é $index.","permission":"OWNER_CREATED","licenseId":"owner-created","sourceReference":"owner://controller-corpus/$index","rightsEvidence":"Texto sintético criado para teste local."}"""
