@@ -230,7 +230,7 @@ internal class KellvynRuntime(context: Context) {
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynMultiBlockTrainingManifest {
         val modelConfig = KellvynMultiBlockTransformer.Config(
-            vocabularySize = 256 + config.maxMerges,
+            vocabularySize = 256 + config.maxMerges + 1,
             contextLength = config.contextLength,
             embeddingSize = config.embeddingSize,
             headCount = config.headCount,
