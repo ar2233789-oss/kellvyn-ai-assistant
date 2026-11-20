@@ -79,6 +79,18 @@ class KellvynMultiBlockTrainingPipelineTest {
         KellvynMultiBlockTrainingPipeline.train(examples)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesPersonalIdentifiersInTrainingText() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = instruction(
+            "train-personal",
+            "Pergunta: como contato suporte@example.com?",
+            "Responda com cuidado.",
+            KellvynTrainingSplit.TRAIN
+        )
+        KellvynMultiBlockTrainingPipeline.train(examples)
+    }
+
     @Test
     fun configurationIsDepthAware() {
         assertEquals(2, KellvynMultiBlockTrainingConfig().depth)
