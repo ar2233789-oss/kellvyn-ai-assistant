@@ -312,6 +312,12 @@ internal class KellvynRuntime(context: Context) {
                 )
             }
         }
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(trained.manifest)
+        require(quality.eligibleForProtocolBenchmark) {
+            "Treino KN-004 concluído, mas o checkpoint não foi instalado porque o gate numérico recusou: " +
+                quality.reasons.joinToString(" ")
+        }
+
         withContext(Dispatchers.IO) {
             neuralModelStore.saveMultiBlock(trained)
         }
