@@ -8,6 +8,8 @@ import android.graphics.Paint
 import android.graphics.RectF
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -79,8 +81,12 @@ internal class KellvynAnimationStudio private constructor(
         val backgroundPaint = Paint().apply { color = timeline.background }
         try {
             for (frameIndex in 0 until timeline.frameCount) {
+                currentCoroutineContext().ensureActive()
                 val frameTime = if (timeline.frameCount <= 1) 0 else {
-                    (frameIndex * 1_000.0 / timeline.fps).roundToInt()
+                    minOf(
+                        timeline.durationMillis,
+                        (frameIndex * 1_000.0 / timeline.fps).roundToInt()
+                    )
                 }
                 val column = frameIndex % timeline.columns
                 val row = frameIndex / timeline.columns
