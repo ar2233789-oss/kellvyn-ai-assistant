@@ -167,11 +167,24 @@ internal object KellvynAutomationTools {
                 return KellvynToolResult(false, "O cancelamento exige somente task_id.")
             }
             return try {
-                val cancelled = cancelQueuedTask(arguments.getValue("task_id"))
+                val taskId = arguments.getValue("task_id")
+                val task = taskStatusProvider(taskId)
+                    ?: return KellvynToolResult(false, "Tarefa não encontrada.")
+                if (task.handlerId != KellvynResourceSnapshotTaskHandler.HANDLER_ID) {
+                    return KellvynToolResult(false, "Esta ferramenta só controla probes internos de recursos.")
+                }
+                if (task.state !in setOf(
+                        KellvynQueuedTaskState.QUEUED,
+                        KellvynQueuedTaskState.WAITING_RESOURCES
+                    )
+                ) {
+                    return KellvynToolResult(false, "A tarefa já saiu da fila; nenhuma execução foi interrompida.")
+                }
+                val cancelled = cancelQueuedTask(taskId)
                 KellvynToolResult(
                     cancelled,
                     if (cancelled) "Tarefa cancelada antes do início."
-                    else "A tarefa não existe ou já foi iniciada; nenhum trabalho em execução foi interrompido."
+                    else "A tarefa deixou a fila antes do cancelamento."
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
