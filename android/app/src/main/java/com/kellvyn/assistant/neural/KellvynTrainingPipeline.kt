@@ -219,8 +219,12 @@ internal object KellvynTrainingPipeline {
             partition.map { example ->
                 cancellationCheck()
                 val promptTokens = tokenizer.encode(example.prompt)
-                val completionTokens = tokenizer.encode(example.completion)
-                require(promptTokens.isNotEmpty() && completionTokens.isNotEmpty()) {
+                val completionTextTokens = tokenizer.encode(example.completion)
+                val endOfSequenceTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
+                    "O tokenizer KN-003 não reservou o token de encerramento."
+                }
+                val completionTokens = completionTextTokens + intArrayOf(endOfSequenceTokenId)
+                require(promptTokens.isNotEmpty() && completionTextTokens.isNotEmpty()) {
                     "O exemplo " + example.id + " não produziu tokens para prompt e resposta."
                 }
                 require(promptTokens.size.toLong() + completionTokens.size.toLong() <= 100_000L) {
@@ -363,18 +367,22 @@ internal object KellvynTrainingPipeline {
             maxMerges = config.maxMerges,
             cancellationCheck = cancellationCheck
         )
-        val trainingTokens = trainDocs.map { document ->
-            cancellationCheck()
-            document.id to tokenizer.encode(document.text)
+        val endOfSequenceTokenId = requireNotNull(tokenizer.endOfSequenceTokenId) {
+            "O tokenizer KN-003 não reservou o token de encerramento."
         }
-        val validationTokens = validationDocs.map { document ->
-            cancellationCheck()
-            document.id to tokenizer.encode(document.text)
-        }
-        val testTokens = testDocs.map { document ->
-            cancellationCheck()
-            document.id to tokenizer.encode(document.text)
-        }
+        fun encodeDocuments(partition: List<KellvynTrainingDocument>): List<Pair<String, IntArray>> =
+            partition.map { document ->
+                cancellationCheck()
+                val textTokens = tokenizer.encode(document.text)
+                require(textTokens.isNotEmpty()) {
+                    "O documento " + document.id + " não produziu tokens."
+                }
+                document.id to (textTokens + intArrayOf(endOfSequenceTokenId))
+            }
+
+        val trainingTokens = encodeDocuments(trainDocs)
+        val validationTokens = encodeDocuments(validationDocs)
+        val testTokens = encodeDocuments(testDocs)
 
         fun checkSequence(id: String, tokens: IntArray) {
             require(tokens.size in 2..100_000) {
