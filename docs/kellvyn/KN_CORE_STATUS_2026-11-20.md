@@ -123,3 +123,10 @@ Commits desta otimização:
 
 A validação estática confirmou que o bundle não contém mais o buffer `modelBytes` nem o `payloadBuffer` integral e que o writer do modelo usa `DigestOutputStream`. Foi compilado isoladamente um pequeno snippet Kotlin/JVM para confirmar disponibilidade das APIs/constantes de tamanho usadas (`Int.SIZE_BYTES`, `Float.SIZE_BYTES`, `DigestOutputStream`); isso **não** compila o pacote real.
 A execução do CI associada ao commit `de451897...` voltou a falhar antes dos steps (Build APK run `44690047015`, laboratório `44690047029`). O commit mais recente `2f59eef...` ainda não apresentava workflow na consulta. Portanto, o teste real de round-trip/Gradle permanece **NOT_RUN**.
+
+
+## Proteção de metadados do corpus — 20/11/2026
+
+Os dois pipelines agora verificam os campos textuais persistidos no manifesto: identificador, licença, referência da fonte e evidência de direitos, além do conteúdo de treinamento. Foram incluídos testes negativos para campos de proveniência e identificadores com padrões semelhantes a credenciais.
+
+A checagem é heurística e baseada em padrões conhecidos; não é garantia formal de ausência de dados sensíveis nem comprovação jurídica da autorização de uso. Os testes foram adicionados, mas ainda não executados pelo Gradle.
