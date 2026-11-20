@@ -22,6 +22,23 @@ internal object KellvynJsonlCorpusReader {
     data class Report(
         val sourceSha256: String,
         val sourceUtf8Bytes: Long,
+        val splitPolicyVersion: String,
+        val samplingSeed: Long,
+        val maximumSelectedExamples: Int,
+        val maximumRetainedUtf8Bytes: Long,
+        val maximumSourceUtf8Bytes: Long,
+        val maximumSourceLines: Long,
+        val minimumTrainExamples: Int,
+        val minimumValidationExamples: Int,
+        val minimumTestExamples: Int,
+        val configuredContextLength: Int,
+        val configuredEmbeddingSize: Int,
+        val configuredHeadCount: Int,
+        val configuredFeedForwardSize: Int,
+        val configuredDepth: Int,
+        val configuredMaxMerges: Int,
+        val configuredEpochsPerExample: Int,
+        val configuredMaxTrainingSteps: Long,
         val totalLines: Long,
         val validRecords: Long,
         val validTrainRecords: Long,
@@ -372,6 +389,23 @@ internal object KellvynJsonlCorpusReader {
             report = Report(
                 sourceSha256 = sourceSha256,
                 sourceUtf8Bytes = countedInput.bytesRead,
+                splitPolicyVersion = SPLIT_POLICY_VERSION,
+                samplingSeed = samplingSeed,
+                maximumSelectedExamples = maxExamples,
+                maximumRetainedUtf8Bytes = maxRetainedUtf8Bytes,
+                maximumSourceUtf8Bytes = maxSourceUtf8Bytes,
+                maximumSourceLines = maxLines,
+                minimumTrainExamples = minimumTrainExamples,
+                minimumValidationExamples = minimumValidationExamples,
+                minimumTestExamples = minimumTestExamples,
+                configuredContextLength = config.contextLength,
+                configuredEmbeddingSize = config.embeddingSize,
+                configuredHeadCount = config.headCount,
+                configuredFeedForwardSize = config.feedForwardSize,
+                configuredDepth = config.depth,
+                configuredMaxMerges = config.maxMerges,
+                configuredEpochsPerExample = config.epochsPerExample,
+                configuredMaxTrainingSteps = config.maxTotalTrainingSteps,
                 totalLines = totalLines,
                 validRecords = validRecords,
                 validTrainRecords = validTrainRecords,
@@ -543,6 +577,7 @@ internal object KellvynJsonlCorpusReader {
         }
     }
 
+    private const val SPLIT_POLICY_VERSION = "sha256-normalized-prompt-80-10-10-v1"
     private const val MAX_JSONL_LINE_CHARS = 500_000
     private const val MAX_EXAMPLE_BYTES = 65_536
     private const val BASE_VOCABULARY_SIZE = 256
