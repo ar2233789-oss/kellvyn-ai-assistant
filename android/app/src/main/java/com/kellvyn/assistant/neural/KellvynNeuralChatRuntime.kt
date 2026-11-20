@@ -328,6 +328,9 @@ internal class KellvynNeuralChatRuntime(
         val manifestTest = active.manifest.entries
             .filter { it.split == KellvynTrainingSplit.TEST }
             .associateBy { it.id }
+        require(examples.map { it.id }.toSet() == manifestTest.keys) {
+            "O benchmark precisa usar a partição TEST completa, sem selecionar apenas os exemplos mais fáceis."
+        }
         require(examples.all { example ->
             val entry = manifestTest[example.id] ?: return@all false
             val digest = java.security.MessageDigest.getInstance("SHA-256")
