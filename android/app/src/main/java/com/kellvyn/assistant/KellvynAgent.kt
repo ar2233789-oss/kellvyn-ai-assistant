@@ -1435,7 +1435,7 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
         KellvynStudioCapability.WORKFLOW_AUTOMATION to setOf("automacao", "agendar", "rotina", "workflow"),
         KellvynStudioCapability.RASTER_IMAGE_EDIT to setOf("imagem", "foto", "png", "jpeg", "webp", "redimensionar", "recortar", "editar"),
         KellvynStudioCapability.IMAGE_GENERATION to setOf("gerar", "imagem", "ilustracao", "arte"),
-        KellvynStudioCapability.VISUAL_ANALYSIS to setOf("imagem", "visual", "foto", "design", "layout"),
+        KellvynStudioCapability.VISUAL_ANALYSIS to setOf("visual", "analise", "design", "layout"),
         KellvynStudioCapability.VECTOR_GRAPHICS to setOf("vetor", "svg", "desenho", "ilustracao"),
         KellvynStudioCapability.ANIMATION to setOf("animacao", "animar", "movimento", "quadro", "keyframe", "spritesheet"),
         KellvynStudioCapability.SCENE_3D to setOf("3d", "cena", "malha", "mesh", "modelo"),
@@ -1446,7 +1446,7 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
         KellvynStudioCapability.AUDIO_GENERATION to setOf("audio", "voz", "som", "gerar"),
         KellvynStudioCapability.NEURAL_TRAINING to setOf("treinar", "treinamento", "corpus", "checkpoint", "kn"),
         KellvynStudioCapability.NEURAL_INFERENCE to setOf("modelo", "inferencia", "resposta", "cerebro", "kn"),
-        KellvynStudioCapability.ARTIFACT_STORAGE to setOf("artefato", "arquivo", "exportar", "resultado", "imagem", "png", "apk"),
+        KellvynStudioCapability.ARTIFACT_STORAGE to setOf("artefato", "arquivo", "exportar", "resultado", "anexo"),
         KellvynStudioCapability.MEMORY_READ to setOf("memoria", "lembrar", "historico", "preferencia")
     )
 
