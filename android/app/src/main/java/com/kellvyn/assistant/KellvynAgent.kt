@@ -1347,6 +1347,104 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
     fun names(): Set<String> = registered.keys
     fun descriptions(): List<KellvynToolSpec> = registered.values.map { it.spec }
 
+    /**
+     * Returns a bounded, deterministic tool shortlist for the single neural decision loop.
+     * The complete registry remains available to execution; only the prompt catalogue is
+     * reduced so a growing studio does not consume the model's entire context window.
+     * Tool retrieval is lexical metadata matching, never another reasoning component.
+     */
+    fun descriptionsForPrompt(
+        history: List<KellvynAgentMessage>,
+        maxTools: Int = 8
+    ): List<KellvynToolSpec> {
+        require(maxTools in 1..32)
+        val latestUserIndex = history.indexOfLast { it.role == KellvynMessageRole.USER }
+        val queryParts = buildList {
+            if (latestUserIndex >= 0) add(history[latestUserIndex].content)
+            if (latestUserIndex >= 0) {
+                history.drop(latestUserIndex + 1)
+                    .filter { it.role == KellvynMessageRole.TOOL }
+                    .takeLast(2)
+                    .forEach { add(it.content) }
+            }
+        }
+        val query = normalizeToolSearchText(queryParts.joinToString(" "))
+        val queryTerms = query.split(Regex("\\s+")).filter { it.length >= 2 }.toSet()
+        val selected = LinkedHashMap<String, KellvynToolSpec>()
+
+        registered["studio_capability_inventory"]?.spec?.let {
+            selected[it.name] = it
+        }
+
+        val ranked = registered.values.map { tool ->
+            val spec = tool.spec
+            val nameText = normalizeToolSearchText(spec.name.replace('_', ' '))
+            val argumentText = normalizeToolSearchText(
+                (spec.requiredArguments + spec.optionalArguments).joinToString(" ")
+            )
+            val descriptionText = normalizeToolSearchText(spec.description)
+            var score = 0
+            queryTerms.forEach { term ->
+                if (term in nameText.split(Regex("\\s+"))) score += 5
+                if (term in argumentText.split(Regex("\\s+"))) score += 2
+                if (descriptionText.contains(term)) score += 1
+            }
+            spec.capabilities.forEach { capability ->
+                val hints = TOOL_CAPABILITY_HINTS[capability].orEmpty()
+                if (hints.any { hint -> query.contains(hint) }) score += 8
+            }
+            if (spec.name == "memory_search" &&
+                listOf("memoria", "lembrar", "historico", "preferencia").any { query.contains(it) }
+            ) score += 12
+            spec to score
+        }.filter { (spec, score) ->
+            score > 0 && spec.name !in selected
+        }.sortedWith(
+            compareByDescending<Pair<KellvynToolSpec, Int>> { it.second }
+                .thenBy { it.first.name }
+        )
+
+        ranked.forEach { (spec, _) ->
+            if (selected.size < maxTools) selected[spec.name] = spec
+        }
+
+        return selected.values.take(maxTools)
+    }
+
+    private fun normalizeToolSearchText(value: String): String =
+        java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+
+    private val TOOL_CAPABILITY_HINTS = mapOf(
+        KellvynStudioCapability.CODE_NAVIGATION to setOf("codigo", "kotlin", "java", "arquivo", "projeto", "simbolo", "referencia"),
+        KellvynStudioCapability.CODE_EDITING to setOf("editar", "corrigir", "alterar", "escrever", "patch", "codigo"),
+        KellvynStudioCapability.SECURITY_AUDIT to setOf("seguranca", "vulnerabilidade", "risco", "auditoria"),
+        KellvynStudioCapability.DATA_MODELING to setOf("dados", "json", "csv", "schema", "banco", "sql"),
+        KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS to setOf("android", "apk", "gradle", "compilar", "build", "erro"),
+        KellvynStudioCapability.WEB_RESEARCH to setOf("pesquisar", "pesquisa", "web", "site", "internet", "fonte"),
+        KellvynStudioCapability.DEVICE_DIAGNOSTICS to setOf("recursos", "ram", "memoria", "bateria", "temperatura", "cpu", "dispositivo"),
+        KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS to setOf("fila", "tarefa", "agendamento", "status"),
+        KellvynStudioCapability.BOT_DIAGNOSTICS to setOf("bot", "discord", "telegram", "whatsapp"),
+        KellvynStudioCapability.WORKFLOW_AUTOMATION to setOf("automacao", "agendar", "rotina", "workflow"),
+        KellvynStudioCapability.RASTER_IMAGE_EDIT to setOf("imagem", "foto", "png", "jpeg", "webp", "redimensionar", "recortar", "editar"),
+        KellvynStudioCapability.IMAGE_GENERATION to setOf("gerar", "imagem", "ilustracao", "arte"),
+        KellvynStudioCapability.VISUAL_ANALYSIS to setOf("imagem", "visual", "foto", "design", "layout"),
+        KellvynStudioCapability.VECTOR_GRAPHICS to setOf("vetor", "svg", "desenho", "ilustracao"),
+        KellvynStudioCapability.ANIMATION to setOf("animacao", "animar", "movimento", "quadro", "keyframe", "spritesheet"),
+        KellvynStudioCapability.SCENE_3D to setOf("3d", "cena", "malha", "mesh", "modelo"),
+        KellvynStudioCapability.CAD_PARAMETRIC to setOf("cad", "parametrico", "geometria", "medida"),
+        KellvynStudioCapability.VIDEO_EDITING to setOf("video", "mp4", "corte", "transicao", "render"),
+        KellvynStudioCapability.VIDEO_GENERATION to setOf("video", "mp4", "animacao"),
+        KellvynStudioCapability.AUDIO_PERCEPTION to setOf("audio", "voz", "transcrever", "som"),
+        KellvynStudioCapability.AUDIO_GENERATION to setOf("audio", "voz", "som", "gerar"),
+        KellvynStudioCapability.NEURAL_TRAINING to setOf("treinar", "treinamento", "corpus", "checkpoint", "kn"),
+        KellvynStudioCapability.NEURAL_INFERENCE to setOf("modelo", "inferencia", "resposta", "cerebro", "kn"),
+        KellvynStudioCapability.ARTIFACT_STORAGE to setOf("artefato", "arquivo", "exportar", "resultado", "imagem", "png", "apk"),
+        KellvynStudioCapability.MEMORY_READ to setOf("memoria", "lembrar", "historico", "preferencia")
+    )
+
     /** Creates an isolated specialist registry; network reads require the owner switch. */
     fun specialistSubset(
         requestedNames: Set<String>,
