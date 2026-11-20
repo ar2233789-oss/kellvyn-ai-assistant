@@ -155,4 +155,57 @@ class KellvynMultiBlockTransformerTest {
     fun configurationRejectsZeroDepth() {
         KellvynMultiBlockTransformer.Config(depth = 0)
     }
+    @Test
+    fun perLayerKvCacheMatchesFullForwardAcrossContextWindowEviction() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val prefix = tokenizer.encode("Oi")
+        val session = model.newGenerationSession(prefix)
+
+        repeat(48) { step ->
+            val cached = session.nextTokenProbabilities()
+            val reference = model.evaluateNextTokenProbabilities(session.contextTokenIds())
+            assertEquals(reference.size, cached.size)
+            for (token in reference.indices) {
+                assertTrue(
+                    "KV mismatch at step $step token $token: " +
+                        "full=${reference[token]} cached=${cached[token]}",
+                    kotlin.math.abs(reference[token] - cached[token]) < 0.00002f
+                )
+            }
+
+            val next = cached.indices.maxBy { cached[it] }
+            session.appendToken(next)
+            for (layer in 0 until model.config.depth) {
+                assertEquals(
+                    session.contextTokenIds().size,
+                    session.cachedTokenCount(layer)
+                )
+                assertTrue(session.cachedTokenCount(layer) <= model.config.contextLength)
+            }
+        }
+
+        assertEquals(prefix.size + 48, session.processedTokenCount())
+        assertEquals(model.config.contextLength, session.contextTokenIds().size)
+        assertEquals(model.config.contextLength, session.cachedTokenCount(0))
+        assertEquals(model.config.contextLength, session.cachedTokenCount(1))
+    }
+
+    @Test
+    fun cachedGreedyGenerationMatchesFullPrefixReference() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val prefix = tokenizer.encode("Oi")
+        val expected = prefix.toMutableList()
+
+        repeat(24) {
+            val context = expected.takeLast(model.config.contextLength).toIntArray()
+            expected += model.predictNext(context)
+        }
+
+        val actual = model.generate(prefix, maxNewTokens = 24)
+        assertArrayEquals(expected.toIntArray(), actual)
+    }
+
+
 }
