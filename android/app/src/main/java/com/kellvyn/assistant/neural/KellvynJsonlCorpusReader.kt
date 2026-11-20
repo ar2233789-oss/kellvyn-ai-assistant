@@ -24,6 +24,9 @@ internal object KellvynJsonlCorpusReader {
         val sourceUtf8Bytes: Long,
         val totalLines: Long,
         val validRecords: Long,
+        val validTrainRecords: Long,
+        val validValidationRecords: Long,
+        val validTestRecords: Long,
         val malformedRecords: Long,
         val sensitiveRecords: Long,
         val selectedOutByBudget: Long,
@@ -32,6 +35,8 @@ internal object KellvynJsonlCorpusReader {
         val selectedValidation: Int,
         val selectedTest: Int,
         val selectedUtf8Bytes: Long,
+        val selectedTokenizerTrainingBytes: Long,
+        val tokenizerTrainingBudgetBytes: Long,
         val trainingTargetTokenUpperBound: Long,
         val readyForTraining: Boolean,
         val reasons: List<String>
@@ -140,6 +145,9 @@ internal object KellvynJsonlCorpusReader {
         var validRecords = 0L
         var malformedRecords = 0L
         var sensitiveRecords = 0L
+        var validTrainRecords = 0L
+        var validValidationRecords = 0L
+        var validTestRecords = 0L
         var tokenizerWorkRejectedRecords = 0L
         var perExampleStepRejectedRecords = 0L
 
@@ -217,6 +225,11 @@ internal object KellvynJsonlCorpusReader {
             }
 
             validRecords++
+            when (record.split) {
+                KellvynTrainingSplit.TRAIN -> validTrainRecords++
+                KellvynTrainingSplit.VALIDATION -> validValidationRecords++
+                KellvynTrainingSplit.TEST -> validTestRecords++
+            }
             val promptHash = sha256(normalizePrompt(record.prompt))
             val contentHash = sha256(record.prompt + "\u0000" + record.completion)
             val retainedBytes = listOf(
@@ -329,6 +342,9 @@ internal object KellvynJsonlCorpusReader {
                 sourceUtf8Bytes = countedInput.bytesRead,
                 totalLines = totalLines,
                 validRecords = validRecords,
+                validTrainRecords = validTrainRecords,
+                validValidationRecords = validValidationRecords,
+                validTestRecords = validTestRecords,
                 malformedRecords = malformedRecords,
                 sensitiveRecords = sensitiveRecords,
                 selectedOutByBudget = (validRecords - selected.size.toLong()).coerceAtLeast(0L),
@@ -337,6 +353,8 @@ internal object KellvynJsonlCorpusReader {
                 selectedValidation = validationCount,
                 selectedTest = testCount,
                 selectedUtf8Bytes = selectedBytes,
+                selectedTokenizerTrainingBytes = tokenizerTrainingBytes,
+                tokenizerTrainingBudgetBytes = tokenizerTrainingBudget,
                 trainingTargetTokenUpperBound = targetUpperBound,
                 readyForTraining = readyForTraining,
                 reasons = reasons
