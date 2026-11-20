@@ -57,7 +57,8 @@ internal enum class KellvynStudioPermission {
     ACCESSIBILITY_CONTROL,
     CAMERA_CAPTURE,
     MICROPHONE_CAPTURE,
-    USER_MEDIA_READ
+    USER_MEDIA_READ,
+    PRIVATE_ARTIFACT_WRITE
 }
 
 internal data class KellvynStudioModuleManifest(
