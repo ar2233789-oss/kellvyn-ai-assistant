@@ -445,13 +445,15 @@ internal class KellvynRuntime(context: Context) {
         val memoryAddresses = memoryAddressesFor(activeProjectId)
         val memoryTools = KellvynMemoryTools.create(localMemory) { memoryAddresses }
         val artifactTools = KellvynArtifactTools.create(resourceRuntime.artifacts)
-        val coreTools = workspaceTools + resourceTools + automationTools + studioTools +
-            memoryTools + artifactTools
+        // Keep lazy module adapters separate from true central tools so the inventory
+        // can report REGISTERED_LAZY modules without counting them as core engines.
+        val centralTools = workspaceTools + resourceTools + automationTools + memoryTools + artifactTools
+        val allTools = centralTools + studioTools
         val catalogTool = KellvynInvisibleStudioCatalogTool.create(
             moduleManager = resourceRuntime.studioModules,
-            coreToolSpecs = coreTools.map { it.spec }
+            coreToolSpecs = centralTools.map { it.spec }
         )
-        return KellvynToolRegistry(coreTools + catalogTool)
+        return KellvynToolRegistry(allTools + catalogTool)
     }
 
     /**
