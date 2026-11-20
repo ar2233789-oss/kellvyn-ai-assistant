@@ -339,9 +339,14 @@ internal class KellvynNeuralChatRuntime(
             val digest = java.security.MessageDigest.getInstance("SHA-256")
                 .digest((example.prompt + "\u0000" + example.completion).toByteArray(Charsets.UTF_8))
                 .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
-            digest == entry.contentSha256
+            val provenanceMatches =
+                example.provenance.permission == entry.permission &&
+                    example.provenance.licenseId == entry.licenseId &&
+                    example.provenance.sourceReference == entry.sourceReference &&
+                    example.provenance.rightsEvidence == entry.rightsEvidence
+            digest == entry.contentSha256 && provenanceMatches
         }) {
-            "O benchmark só pode usar exemplos TEST originais registrados no manifesto do checkpoint."
+            "O benchmark só pode usar os exemplos TEST originais, com texto e proveniência idênticos ao manifesto do checkpoint."
         }
 
         val fingerprint = active.model.parameterFingerprint()
