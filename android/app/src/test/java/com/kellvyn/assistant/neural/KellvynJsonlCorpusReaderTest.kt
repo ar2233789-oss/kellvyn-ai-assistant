@@ -205,6 +205,46 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun acceptsTheFinalJsonlRecordWithoutATrailingNewline() {
+        val source = jsonRecord(901)
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+            maxExamples = 30,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 1
+        )
+
+        assertEquals(1L, result.report.totalLines)
+        assertEquals(1L, result.report.validRecords)
+        assertEquals("ptbr-sample-901", result.examples.single().id)
+    }
+
+    @Test
+    fun preflightChecksCancellationBetweenPhysicalLines() {
+        val source = (0 until 20).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+        var cancellationChecks = 0
+        try {
+            KellvynJsonlCorpusReader.read(
+                ByteArrayInputStream(source.toByteArray(Charsets.UTF_8)),
+                maxExamples = 30,
+                minimumTrainExamples = 1,
+                minimumValidationExamples = 1,
+                minimumTestExamples = 1,
+                cancellationCheck = {
+                    cancellationChecks++
+                    if (cancellationChecks == 4) {
+                        throw java.util.concurrent.CancellationException("teste cancelado")
+                    }
+                }
+            )
+            throw AssertionError("A leitura precisa respeitar o cancelamento.")
+        } catch (expected: java.util.concurrent.CancellationException) {
+            assertEquals(4, cancellationChecks)
+        }
+    }
+
+    @Test
     fun doesNotCloseCallerOwnedInputStream() {
         val bytes = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
             .toByteArray(Charsets.UTF_8)
