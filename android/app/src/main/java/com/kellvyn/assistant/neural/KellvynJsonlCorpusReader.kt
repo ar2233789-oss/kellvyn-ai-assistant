@@ -202,6 +202,9 @@ internal object KellvynJsonlCorpusReader {
                 val promptBytes = prompt.toByteArray(Charsets.UTF_8).size.toLong()
                 val completionBytes = completion.toByteArray(Charsets.UTF_8).size.toLong()
                 require(prompt.isNotBlank() && completion.isNotBlank())
+                require(normalizePrompt(prompt).isNotBlank()) {
+                    "O prompt não contém letras ou números após normalização."
+                }
                 require(promptBytes + completionBytes in 2L..MAX_EXAMPLE_BYTES.toLong())
                 if (promptBytes > maxTokenizerInputBytes || completionBytes > maxTokenizerInputBytes) {
                     tokenizerWorkRejectedRecords++
