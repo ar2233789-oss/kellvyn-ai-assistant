@@ -254,6 +254,7 @@ class KellvynMultiBlockTransformerTest {
         model.trainCompletion(prompt, completion, epochs = 3, weightDecay = 0.0f)
 
         val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        assertEquals(model.checkpointEncodedSizeBytes(), checkpoint.size.toLong())
         val restored = KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(checkpoint))
 
         assertEquals(config, restored.config)
