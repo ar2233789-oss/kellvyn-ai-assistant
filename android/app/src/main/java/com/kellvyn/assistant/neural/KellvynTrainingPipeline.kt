@@ -135,13 +135,6 @@ internal object KellvynTrainingPipeline {
     private const val MAX_DOCUMENT_BYTES = 65_536
     private const val MAX_TOTAL_CORPUS_BYTES = 500_000L
     private const val MAX_STEPS_PER_MODEL_CALL = 50_000L
-    private val SECRET_ASSIGNMENT = Regex(
-        """(?i)\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\b\s*[:=]\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
-    )
-    private val BEARER_TOKEN = Regex("""(?i)\bauthorization\s*:\s*bearer\s+[A-Za-z0-9._~+/=-]{12,}""")
-    private val PRIVATE_KEY = Regex("""-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----""")
-    private val KNOWN_TOKEN = Regex("""\b(?:gh[pousr]_[A-Za-z0-9]{20,}|sk-[A-Za-z0-9_-]{20,}|xox[baprs]-[A-Za-z0-9-]{16,})\b""")
-
     /**
      * Supervised training for instruction/decision examples. Only completion tokens
      * contribute to the objective; prompts condition the response but are not targets.
@@ -172,15 +165,15 @@ internal object KellvynTrainingPipeline {
                 "O exemplo " + example.id + " excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(example.id) &&
-                    !containsSecretMaterial(example.prompt) &&
-                    !containsSecretMaterial(example.completion) &&
-                    !containsSecretMaterial(example.provenance.licenseId) &&
-                    !containsSecretMaterial(example.provenance.sourceReference) &&
-                    !containsSecretMaterial(example.provenance.rightsEvidence)
+                !KellvynTrainingInputGuard.containsSensitiveMaterial(example.id) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.prompt) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.completion) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.licenseId) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.sourceReference) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(example.provenance.rightsEvidence)
             ) {
                 "O exemplo " + example.id +
-                    " contém credenciais em conteúdo ou proveniência; foi recusado."
+                    " contém credenciais ou dados pessoais identificáveis; foi recusado."
             }
             totalBytes += sampleBytes
             require(totalBytes <= MAX_TOTAL_CORPUS_BYTES) {
@@ -337,11 +330,11 @@ internal object KellvynTrainingPipeline {
                 "O documento ${document.id} excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(document.id) &&
-                    !containsSecretMaterial(document.text) &&
-                    !containsSecretMaterial(document.provenance.licenseId) &&
-                    !containsSecretMaterial(document.provenance.sourceReference) &&
-                    !containsSecretMaterial(document.provenance.rightsEvidence)
+                !KellvynTrainingInputGuard.containsSensitiveMaterial(document.id) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(document.text) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(document.provenance.licenseId) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(document.provenance.sourceReference) &&
+                    !KellvynTrainingInputGuard.containsSensitiveMaterial(document.provenance.rightsEvidence)
             ) {
                 "O documento ${document.id} contém credenciais em conteúdo ou proveniência; foi recusado."
             }
@@ -471,12 +464,6 @@ internal object KellvynTrainingPipeline {
         )
         return KellvynTrainingResult(tokenizer, model, manifest)
     }
-
-    private fun containsSecretMaterial(text: String): Boolean =
-        SECRET_ASSIGNMENT.containsMatchIn(text) ||
-            BEARER_TOKEN.containsMatchIn(text) ||
-            PRIVATE_KEY.containsMatchIn(text) ||
-            KNOWN_TOKEN.containsMatchIn(text)
 
     private fun sha256(value: String): String =
         MessageDigest.getInstance("SHA-256")
