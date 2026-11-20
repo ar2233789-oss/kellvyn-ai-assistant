@@ -9,8 +9,8 @@
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
 
-- Keep native inference lifecycle and model-download validation in the Android brain layer, separate from MainActivity's approved layout, so brain corrections cannot redesign the interface.
-- Pin the native model to an immutable upstream revision and validate exact size, SHA-256 and resumed ranges; keep the pure download policy covered by Android unit tests before APK packaging.
+- Keep the native KN inference lifecycle separate from MainActivity's approved layout, so brain corrections cannot redesign the interface.
+- Never download, load, bundle, or fall back to third-party language-model weights, checkpoints, adapters, or hosted inference. The only conversational brain is the original KN model.
 
 
 ## KN — obrigatório para qualquer tarefa no cérebro neural
