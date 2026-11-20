@@ -49,9 +49,18 @@ internal class KellvynMultiBlockInferenceEngine(
         val coroutine = currentCoroutineContext()
         coroutine.ensureActive()
         // The inference adapter enforces its own final prompt budget even when a
-        // caller configured a larger registry shortlist.
-        val promptTools = availableTools.take(config.maxToolsInPrompt)
-        val prompt = buildBoundedPrompt(history, promptTools)
+        // caller configured a larger registry shortlist. If the actual tokenizer window is
+        // still too small, remove lower-ranked tools while preserving the inventory first.
+        var promptTools = availableTools.take(config.maxToolsInPrompt)
+        var prompt: String? = null
+        while (prompt == null) {
+            try {
+                prompt = buildBoundedPrompt(history, promptTools)
+            } catch (error: IllegalArgumentException) {
+                if (promptTools.isEmpty()) throw error
+                promptTools = promptTools.dropLast(1)
+            }
+        }
         val prefix = tokenizer.encode(prompt)
         val promptBudget = model.config.contextLength - config.maxGenerationTokens
         require(prefix.isNotEmpty() && prefix.size <= promptBudget) {
