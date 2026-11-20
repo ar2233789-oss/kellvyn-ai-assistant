@@ -17,6 +17,7 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingConfig
 import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingManifest
 import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingQualityGate
+import com.kellvyn.assistant.neural.KellvynMultiBlockTransformer
 import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
@@ -228,7 +229,19 @@ internal class KellvynRuntime(context: Context) {
         config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynMultiBlockTrainingManifest {
-        val trained = runHeavyTask("training-kn004-$createdAtMillis") {
+        val modelConfig = KellvynMultiBlockTransformer.Config(
+            vocabularySize = 256 + config.maxMerges,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            headCount = config.headCount,
+            feedForwardSize = config.feedForwardSize,
+            depth = config.depth,
+            seed = config.seed
+        )
+        val trained = runHeavyTask(
+            taskId = "training-kn004-$createdAtMillis",
+            estimatedWorkingSetBytes = modelConfig.estimatedTrainingWorkingSetBytes()
+        ) {
             withContext(Dispatchers.Default) {
                 val trainingContext = currentCoroutineContext()
                 KellvynMultiBlockTrainingPipeline.train(
@@ -671,9 +684,14 @@ internal class KellvynRuntime(context: Context) {
 
     private suspend fun <T> runHeavyTask(
         taskId: String,
+        estimatedWorkingSetBytes: Long = 0L,
         operation: suspend () -> T
     ): T = taskBroker.execute(
-        KellvynResourceRequest(taskId = taskId.take(96), workload = KellvynWorkloadClass.HEAVY),
+        KellvynResourceRequest(
+            taskId = taskId.take(96),
+            workload = KellvynWorkloadClass.HEAVY,
+            estimatedWorkingSetBytes = estimatedWorkingSetBytes
+        ),
         operation
     )
 
