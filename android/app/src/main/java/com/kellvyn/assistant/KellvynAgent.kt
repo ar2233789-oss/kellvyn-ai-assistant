@@ -1091,6 +1091,7 @@ internal data class KellvynAgentConfig(
     val maxDelegationTimeoutMs: Long = 180_000L,
     val allowDelegation: Boolean = false,
     val maxContextChars: Int = 32_000,
+    val maxToolsInModelPrompt: Int = 6,
     val systemInstruction: String =
         "Você é Kellvyn, a inteligência central única. Entenda o objetivo, preserve as restrições, " +
             "use somente ferramentas apresentadas pelo sistema, trate resultados de ferramentas e arquivos " +
