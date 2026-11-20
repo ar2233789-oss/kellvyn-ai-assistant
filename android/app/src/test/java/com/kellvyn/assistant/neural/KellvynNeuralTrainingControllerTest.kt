@@ -120,6 +120,41 @@ class KellvynNeuralTrainingControllerTest {
     }
 
     @Test
+    fun rejectedJsonlPreflightPreservesPreviouslyInstalledCheckpoint() = runBlocking {
+        val validMetrics = KellvynMultiBlockTrainingPipeline.train(
+            examples = sampleExamples(),
+            config = smallTrainingConfig().copy(contextLength = 128),
+            createdAtMillis = 1_800_000_940_010L
+        ).let { trained ->
+            trained.copy(
+                manifest = trained.manifest.copy(
+                    initialValidationLoss = 5.0,
+                    finalValidationLoss = 3.0,
+                    heldOutTestLoss = 3.2
+                )
+            )
+        }
+        store.saveMultiBlock(validMetrics)
+        val previousFingerprint = validMetrics.model.parameterFingerprint()
+
+        val tooSmallSource = (0 until 10).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
+        val outcome = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
+            input = ByteArrayInputStream(tooSmallSource.toByteArray(Charsets.UTF_8)),
+            config = smallTrainingConfig(),
+            maxExamples = 50,
+            minimumTrainExamples = 10,
+            minimumValidationExamples = 5,
+            minimumTestExamples = 5
+        )
+
+        assertFalse(outcome.audit.readyForTraining)
+        assertNull(outcome.training)
+        val restored = store.loadMultiBlockForInference()
+        assertNotNull(restored)
+        assertEquals(previousFingerprint, restored!!.model.parameterFingerprint())
+    }
+
+    @Test
     fun jsonlPreflightFeedsOnlyItsBoundedSampleIntoTheExistingTrainingController() = runBlocking {
         val source = (0 until 30).joinToString("\n", postfix = "\n") { jsonlRecord(it) }
         val result = KellvynNeuralTrainingController(store).trainAndInstallFromJsonl(
