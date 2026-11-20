@@ -172,7 +172,8 @@ internal object KellvynTrainingPipeline {
                 "O exemplo " + example.id + " excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(example.prompt) &&
+                !containsSecretMaterial(example.id) &&
+                    !containsSecretMaterial(example.prompt) &&
                     !containsSecretMaterial(example.completion) &&
                     !containsSecretMaterial(example.provenance.licenseId) &&
                     !containsSecretMaterial(example.provenance.sourceReference) &&
@@ -332,7 +333,8 @@ internal object KellvynTrainingPipeline {
                 "O documento ${document.id} excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(document.text) &&
+                !containsSecretMaterial(document.id) &&
+                    !containsSecretMaterial(document.text) &&
                     !containsSecretMaterial(document.provenance.licenseId) &&
                     !containsSecretMaterial(document.provenance.sourceReference) &&
                     !containsSecretMaterial(document.provenance.rightsEvidence)
