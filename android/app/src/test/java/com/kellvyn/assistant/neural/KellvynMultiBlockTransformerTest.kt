@@ -155,6 +155,29 @@ class KellvynMultiBlockTransformerTest {
     fun configurationRejectsZeroDepth() {
         KellvynMultiBlockTransformer.Config(depth = 0)
     }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun configurationRejectsAttentionAllocationAboveMemoryBudget() {
+        KellvynMultiBlockTransformer.Config(
+            contextLength = 2_048,
+            embeddingSize = 32,
+            headCount = 4,
+            feedForwardSize = 64,
+            depth = 8
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun configurationRejectsParameterAndOptimizerStateAboveMemoryBudget() {
+        KellvynMultiBlockTransformer.Config(
+            vocabularySize = 8_192,
+            contextLength = 128,
+            embeddingSize = 256,
+            headCount = 8,
+            feedForwardSize = 1_024,
+            depth = 8
+        )
+    }
     @Test
     fun perLayerKvCacheMatchesFullForwardAcrossContextWindowEviction() {
         val tokenizer = smallTokenizer()
