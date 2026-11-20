@@ -270,6 +270,13 @@ internal object KellvynJsonlCorpusReader {
             reasons += "$duplicateSelectedRecords registros duplicados foram removidos da amostra."
         }
 
+        val readyForTraining =
+            trainCount >= minimumTrainExamples &&
+                validationCount >= minimumValidationExamples &&
+                testCount >= minimumTestExamples &&
+                targetUpperBound <= trainTargetBudget &&
+                selectedBytes <= maxRetainedUtf8Bytes
+
         return Selection(
             examples = selectedExamples,
             report = Report(
@@ -286,10 +293,7 @@ internal object KellvynJsonlCorpusReader {
                 selectedTest = testCount,
                 selectedUtf8Bytes = selectedBytes,
                 trainingTargetTokenUpperBound = targetUpperBound,
-                readyForTraining = reasons.none {
-                    it.startsWith("A amostra selecionada") ||
-                        it.startsWith("A amostra excederia")
-                },
+                readyForTraining = readyForTraining,
                 reasons = reasons
             )
         )
