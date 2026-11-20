@@ -321,6 +321,23 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test
+    fun trainingWorkingSetEstimateGrowsWithDepthAndIncludesTrainingBuffers() {
+        val tokenizer = smallTokenizer()
+        val oneBlock = smallConfig(tokenizer, depth = 1)
+        val twoBlocks = smallConfig(tokenizer, depth = 2)
+
+        val oneBlockBytes = oneBlock.estimatedTrainingWorkingSetBytes()
+        val twoBlockBytes = twoBlocks.estimatedTrainingWorkingSetBytes()
+
+        assertTrue(oneBlockBytes > 0L)
+        assertTrue(twoBlockBytes > oneBlockBytes)
+        assertTrue(
+            twoBlockBytes >
+                KellvynTransformerCapacityEstimator.estimate(twoBlocks).residentLowerBoundBytes
+        )
+    }
+
+    @Test
     fun cachedGreedyGenerationMatchesFullPrefixReference() {
         val tokenizer = smallTokenizer()
         val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
