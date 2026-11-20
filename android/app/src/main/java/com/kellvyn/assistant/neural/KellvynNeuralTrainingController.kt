@@ -102,7 +102,7 @@ internal class KellvynNeuralTrainingController(
         )
         trainingContext.ensureActive()
         require(selection.report == expectedAudit) {
-            "O arquivo ou os parâmetros JSONL mudaram desde a auditoria; faça uma nova auditoria antes de treinar."
+            "O arquivo ou parâmetros JSONL mudaram desde a auditoria; faça uma nova auditoria antes de treinar."
         }
         if (!selection.report.readyForTraining) {
             return@withContext CorpusOutcome(
