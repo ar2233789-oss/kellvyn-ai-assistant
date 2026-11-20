@@ -49,6 +49,50 @@ class KellvynJsonlCorpusReaderTest {
     }
 
     @Test
+    fun keepsAlternateTrainingAnswersButDeduplicatesNormalizedTestPrompts() {
+        val initialSource = (0 until 300).joinToString("\n", postfix = "\n") { jsonRecord(it) }
+        val initial = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(initialSource.toByteArray(Charsets.UTF_8)),
+            maxExamples = 1_000,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 20
+        )
+        val testPrompt = initial.examples.first { it.split == KellvynTrainingSplit.TEST }.prompt
+        val records = (0 until 300).map(::jsonRecord).toMutableList()
+        records += jsonRecord(
+            301,
+            completion = "Uma resposta alternativa para o mesmo prompt de treino.",
+            prompt = "Pergunta: diga o número 1."
+        )
+        records += jsonRecord(
+            302,
+            completion = "Resposta duplicada do teste.",
+            prompt = "$testPrompt?"
+        )
+        val result = KellvynJsonlCorpusReader.read(
+            ByteArrayInputStream(records.joinToString("\n", postfix = "\n").toByteArray(Charsets.UTF_8)),
+            maxExamples = 1_000,
+            minimumTrainExamples = 1,
+            minimumValidationExamples = 1,
+            minimumTestExamples = 20
+        )
+
+        assertEquals(
+            2,
+            result.examples.count { it.prompt == "Pergunta: diga o número 1." }
+        )
+        assertEquals(
+            1,
+            result.examples.count {
+                it.split == KellvynTrainingSplit.TEST &&
+                    it.prompt.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim() ==
+                    testPrompt.lowercase().replace(Regex("[^\\p{L}\\p{N}]+"), " ").trim()
+            }
+        )
+    }
+
+    @Test
     fun rejectsSensitiveAndMalformedRecordsWithoutRetainingTheirText() {
         val lines = (0 until 300).map(::jsonRecord).toMutableList()
         lines += jsonRecord(
@@ -114,11 +158,12 @@ class KellvynJsonlCorpusReaderTest {
 
     private fun jsonRecord(
         index: Int,
-        completion: String = "A resposta para o número $index é $index."
+        completion: String = "A resposta para o número $index é $index.",
+        prompt: String = "Pergunta: diga o número $index."
     ): String {
         val fields = linkedMapOf(
             "id" to "ptbr-sample-$index",
-            "prompt" to "Pergunta: diga o número $index.",
+            "prompt" to prompt,
             "completion" to completion,
             "permission" to "OWNER_CREATED",
             "licenseId" to "owner-created",
