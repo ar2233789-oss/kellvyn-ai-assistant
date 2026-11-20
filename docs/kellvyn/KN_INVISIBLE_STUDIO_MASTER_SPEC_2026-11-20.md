@@ -88,6 +88,7 @@ O KN recebe apenas descrições compactas e referências aos artefatos. Não car
 
 - `KellvynResourceGovernor`, `KellvynTaskBroker`, `KellvynAndroidResourceMonitor` e `KellvynResourceRuntime`: admissão de recursos, snapshots, gestão sob demanda e fila persistente.
 - `KellvynPersistentTaskScheduler` e `KellvynAutomationDrainWorker`: fila durável e drenagem WorkManager de tarefas leves/padrão; o Worker não assume tarefas HEAVY.
+- Ferramentas de automação desta branch: `automation_schedule_resource_snapshot` agenda somente o handler interno fixo (atraso máximo de 7 dias), `automation_task_status` consulta sem revelar payload e `automation_cancel_queued_task` cancela apenas tarefas QUEUED/WAITING_RESOURCES. Não aceita scripts, comandos ou handlers fornecidos pelo modelo.
 - `KellvynStudioModuleManager`: manifestos, construção lazy de módulos, leases, timeout, admissão de memória e descarte de módulos ociosos.
 - `KellvynArtifactStore` (fundação adicionada nesta branch): armazenamento privado endereçado por SHA-256, objetos binários deduplicados, registros vinculados a tarefa/produtor, gravação atômica e leitura/cópia verificadas.
 - `KellvynImageStudio` (motor raster inicial adicionado nesta branch): inspeção de dimensões/formato e redimensionamento/exportação PNG/JPEG/WebP sobre artefatos privados, com limites de pixels, admissão HEAVY, autorização append-only e saída imutável verificada. Não é um gerador neural de imagens; ainda faltam recorte, composição, camadas, máscaras, edição vetorial, importação de anexos pelo chat e testes executados no aparelho.
