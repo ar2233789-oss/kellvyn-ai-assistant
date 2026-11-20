@@ -75,9 +75,17 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
         }
     }
 
-    /** Queue a safe read-only probe through the same persistent path used by scheduled work. */
-    suspend fun enqueueResourceSnapshotProbe(): String {
+    /**
+     * Queue the single built-in read-only probe supported by model-facing automation.
+     * The model selects a delay but cannot provide a handler ID or executable payload.
+     */
+    suspend fun enqueueResourceSnapshotProbe(delayMillis: Long = 0L): String {
+        require(delayMillis in 0L..MAX_AUTOMATION_DELAY_MILLIS)
         ensureBuiltInScheduledTaskHandlers()
+        val notBefore = if (delayMillis == 0L) 0L else Math.addExact(
+            System.currentTimeMillis(),
+            delayMillis
+        )
         return enqueueScheduledTask(
             KellvynQueuedTaskSpec(
                 handlerId = KellvynResourceSnapshotTaskHandler.HANDLER_ID,
@@ -85,7 +93,8 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
                 priority = 60,
                 workloadClass = KellvynWorkloadClass.LIGHT,
                 estimatedWorkingSetBytes = 16L * MEBIBYTE,
-                maxAttempts = 2
+                maxAttempts = 2,
+                notBeforeMillis = notBefore
             )
         )
     }
@@ -93,6 +102,10 @@ internal class KellvynResourceRuntime private constructor(context: Context) : Co
     /** Bounded status read for audit, diagnostics and tests; never exposes decrypted payloads. */
     suspend fun scheduledTaskStatus(taskId: String): KellvynQueuedTask? =
         withContext(Dispatchers.IO) { taskQueue.get(taskId) }
+
+    /** Only QUEUED tasks can be cancelled; running work is left to finish or cooperatively stop. */
+    suspend fun cancelQueuedScheduledTask(taskId: String): Boolean =
+        taskScheduler.cancelQueuedTask(taskId)
 
     suspend fun registerScheduledTaskHandler(
         handlerId: String,
