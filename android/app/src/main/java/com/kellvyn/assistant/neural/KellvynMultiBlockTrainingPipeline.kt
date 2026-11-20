@@ -145,7 +145,8 @@ internal object KellvynMultiBlockTrainingPipeline {
                 "O exemplo KN-004 excede o limite individual de bytes."
             }
             require(
-                !containsSecretMaterial(example.prompt) &&
+                !containsSecretMaterial(example.id) &&
+                    !containsSecretMaterial(example.prompt) &&
                     !containsSecretMaterial(example.completion) &&
                     !containsSecretMaterial(example.provenance.licenseId) &&
                     !containsSecretMaterial(example.provenance.sourceReference) &&
