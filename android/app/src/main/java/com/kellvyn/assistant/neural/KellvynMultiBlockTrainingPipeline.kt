@@ -85,8 +85,28 @@ internal data class KellvynRestoredMultiBlockBundle(
 internal object KellvynMultiBlockTrainingPipeline {
     private const val MAX_EXAMPLES = 1_000
     private const val MAX_EXAMPLE_BYTES = 65_536
-    private const val MAX_TOTAL_BYTES = 500_000L
+    private const val MAX_TOTAL_BYTES = 2_000_000L
     private const val MAX_STEPS_PER_EXAMPLE = 50_000L
+
+    /**
+     * Conservative total training admission estimate, including model tensors, boxed BPE
+     * sequences, encoded examples and tokenizer tables. BPE is memory-heavy beyond the model.
+     */
+    internal fun estimatedWorkingSetBytes(
+        modelConfig: KellvynMultiBlockTransformer.Config,
+        tokenizerCorpusBytes: Long,
+        totalCorpusBytes: Long
+    ): Long {
+        require(tokenizerCorpusBytes in 1L..MAX_TOTAL_BYTES)
+        require(totalCorpusBytes in 1L..MAX_TOTAL_BYTES)
+        val tokenizerSequenceBytes = Math.multiplyExact(tokenizerCorpusBytes, 32L)
+        val encodedExampleBytes = Math.multiplyExact(totalCorpusBytes, 4L)
+        val auxiliaryBytes = Math.addExact(
+            Math.addExact(tokenizerSequenceBytes, encodedExampleBytes),
+            8L * 1024L * 1024L
+        )
+        return Math.addExact(modelConfig.estimatedTrainingWorkingSetBytes(), auxiliaryBytes)
+    }
 
     internal fun effectiveMaxMerges(
         requestedMerges: Int,
@@ -183,13 +203,32 @@ internal object KellvynMultiBlockTrainingPipeline {
         require(tokenizerCorpusBytes in 1L..MAX_TOTAL_BYTES) {
             "O corpus TRAIN formatado excede o orçamento de bytes do tokenizer KN-004."
         }
-        val effectiveMaxMerges = effectiveMaxMerges(
+        val effectiveMerges = effectiveMaxMerges(
             requestedMerges = config.maxMerges,
             tokenizerCorpusBytes = tokenizerCorpusBytes
         )
+        val preflightModelConfig = KellvynMultiBlockTransformer.Config(
+            vocabularySize = 256 + effectiveMerges + 1,
+            contextLength = config.contextLength,
+            embeddingSize = config.embeddingSize,
+            headCount = config.headCount,
+            feedForwardSize = config.feedForwardSize,
+            depth = config.depth,
+            seed = config.seed
+        )
+        val preflightWorkingSetBytes = estimatedWorkingSetBytes(
+            modelConfig = preflightModelConfig,
+            tokenizerCorpusBytes = tokenizerCorpusBytes,
+            totalCorpusBytes = totalBytes
+        )
+        require(preflightWorkingSetBytes <= config.maxTrainingWorkingSetBytes) {
+            "Treino KN-004 recusado antes do tokenizer: estimativa total de " +
+                preflightWorkingSetBytes + " bytes excede o orçamento de " +
+                config.maxTrainingWorkingSetBytes + " bytes."
+        }
         val tokenizer = KellvynBpeTokenizer.train(
             corpus = tokenizerCorpus,
-            maxMerges = effectiveMaxMerges,
+            maxMerges = effectiveMerges,
             cancellationCheck = cancellationCheck
         )
 
@@ -249,9 +288,13 @@ internal object KellvynMultiBlockTrainingPipeline {
             depth = config.depth,
             seed = config.seed
         )
-        val estimatedWorkingSetBytes = modelConfig.estimatedTrainingWorkingSetBytes()
+        val estimatedWorkingSetBytes = estimatedWorkingSetBytes(
+            modelConfig = modelConfig,
+            tokenizerCorpusBytes = tokenizerCorpusBytes,
+            totalCorpusBytes = totalBytes
+        )
         require(estimatedWorkingSetBytes <= config.maxTrainingWorkingSetBytes) {
-            "Treinamento KN-004 recusado antes da alocação: estimativa de " +
+            "Treinamento KN-004 recusado antes da alocação: estimativa total de " +
                 estimatedWorkingSetBytes + " bytes excede o orçamento de " +
                 config.maxTrainingWorkingSetBytes + " bytes."
         }
