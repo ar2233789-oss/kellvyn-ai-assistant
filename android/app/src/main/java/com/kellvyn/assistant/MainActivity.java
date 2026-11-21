@@ -118,6 +118,20 @@ public class MainActivity extends Activity {
         for (String item : transcript) addMessageView(!item.startsWith("S|"), item.substring(2));
         if (transcript.isEmpty()) showWelcome();
         updateStatus();
+        brain.initializeConversation(result -> {
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (result.getBehaviorApprovedForConversation()) {
+                    engineLabel = "MOTOR LOCAL KN-004";
+                } else if (result.getQualityApprovedForBenchmark()) {
+                    engineLabel = "KN-004 AGUARDANDO TESTE";
+                } else {
+                    engineLabel = "KELLVYN EM CONSTRUÇÃO";
+                }
+                updateStatus();
+            });
+            return kotlin.Unit.INSTANCE;
+        });
     }
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -574,15 +588,102 @@ public class MainActivity extends Activity {
             return;
         }
 
+        if (fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".jsonl")) {
+            startDecisionCorpusTraining(displayText, fileUri, fileName);
+            return;
+        }
+
         if (!brain.isReady()) {
             new AlertDialog.Builder(this)
                     .setTitle("Cérebro Kellvyn em construção")
-                    .setMessage("O núcleo neural próprio da Kellvyn ainda está em desenvolvimento. Nenhum modelo de outra IA será baixado como substituto. Esta mensagem não foi enviada.")
+                    .setMessage("O cérebro local próprio da Kellvyn ainda está em desenvolvimento. Nenhum modelo de outra IA será baixado como substituto. Esta mensagem não foi enviada.")
                     .setPositiveButton("Entendi", null)
                     .show();
             return;
         }
         startBrainRequest(displayText, prompt, fileUri, fileName);
+    }
+
+    private void startDecisionCorpusTraining(String displayText, Uri corpusUri, String corpusName) {
+        if (corpusUri == null) {
+            toast("Não foi possível abrir o corpus JSONL selecionado.");
+            return;
+        }
+        waitingForReply = true;
+        transcript.add("U|" + displayText);
+        addMessageView(true, displayText);
+        composer.setText("");
+        selectedAttachment = null;
+        selectedAttachmentUri = null;
+        saveTranscript();
+
+        activeReplyBubble = addMessageView(false, "Preparando a auditoria local do corpus KN…");
+        showThinkingIndicator();
+        engineLabel = "AUDITORIA KN-004";
+        updateStatus();
+
+        brain.trainDecisionBrainFromJsonl(
+                corpusUri,
+                corpusName,
+                message -> {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        engineLabel = message.startsWith("BENCHMARK")
+                                ? "BENCHMARK KN-004"
+                                : message.startsWith("TREINO")
+                                ? "TREINO KN-004"
+                                : "AUDITORIA KN-004";
+                        updateStatus();
+                        if (activeReplyBubble != null) activeReplyBubble.setText(message);
+                    });
+                    return kotlin.Unit.INSTANCE;
+                },
+                result -> {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        waitingForReply = false;
+                        hideThinkingIndicator();
+
+                        StringBuilder summary = new StringBuilder();
+                        summary.append(result.getDetail());
+                        summary.append("\n\nLinhas examinadas: ").append(result.getTotalLines());
+                        summary.append("\nTRAIN: ").append(result.getTrainExamples());
+                        summary.append("\nVALIDATION: ").append(result.getValidationExamples());
+                        summary.append("\nTEST: ").append(result.getTestExamples());
+                        if (result.getTrainingSteps() > 0L) {
+                            summary.append("\nPassos de treino: ").append(result.getTrainingSteps());
+                        }
+                        if (result.getBenchmarkMatchRate() != null) {
+                            summary.append("\nCorrespondência no TEST: ")
+                                    .append(String.format(Locale.ROOT, "%.1f%%",
+                                            result.getBenchmarkMatchRate() * 100.0));
+                        }
+                        if (result.getReasons() != null && !result.getReasons().isEmpty()) {
+                            summary.append("\n\nItens que precisam de atenção:");
+                            int limit = Math.min(10, result.getReasons().size());
+                            for (int i = 0; i < limit; i++) {
+                                summary.append("\n• ").append(result.getReasons().get(i));
+                            }
+                        }
+
+                        String finalText = summary.toString();
+                        if (activeReplyBubble != null) activeReplyBubble.setText(finalText);
+                        transcript.add("S|" + finalText);
+                        saveTranscript();
+                        activeReplyBubble = null;
+                        engineLabel = result.getReady()
+                                ? "MOTOR LOCAL CPU"
+                                : result.getCompleted()
+                                ? "KN-004 TESTE REPROVADO"
+                                : "CORPUS NÃO APROVADO";
+                        updateStatus();
+                        if (result.getReady()) {
+                            toast("Cérebro KN-004 aprovado e liberado.");
+                        }
+                    });
+                    return kotlin.Unit.INSTANCE;
+                }
+        );
     }
 
     private void startBrainRequest(String displayText, String prompt, Uri attachmentUri, String attachmentName) {
@@ -601,7 +702,7 @@ public class MainActivity extends Activity {
         selectedAttachmentUri = null;
         saveTranscript();
 
-        activeReplyBubble = addMessageView(false, "Preparando o núcleo neural da Kellvyn…");
+        activeReplyBubble = addMessageView(false, "Preparando o cérebro local da Kellvyn…");
         showThinkingIndicator();
         engineLabel = "KELLVYN EM CONSTRUÇÃO";
         updateStatus();
@@ -1043,7 +1144,7 @@ public class MainActivity extends Activity {
     private String botStatusText(String platform, boolean enabled, boolean tokenPresent) {
         String runtime = prefs.getString("bot_status_" + platform, "");
         if (!tokenPresent) return "Sem token. Configure pelo chat principal.";
-        if (!brain.isReady()) return "O núcleo neural próprio da Kellvyn ainda está em construção.";
+        if (!brain.isReady()) return "O cérebro local próprio da Kellvyn ainda está em construção.";
         if (!enabled) return "Desativado";
         if (runtime == null || runtime.isEmpty() || runtime.equals("Desativado")) return "Iniciando…";
         return runtime;
@@ -1115,7 +1216,7 @@ public class MainActivity extends Activity {
                 toggle.setOnCheckedChangeListener((button, checked) -> {
                     if (checked && !brain.isReady()) {
                         toggle.setChecked(false);
-                        toast("O núcleo neural próprio ainda não foi conectado; os bots permanecem desativados até a validação do agente.");
+                        toast("O cérebro local ainda não foi conectado; os bots permanecem desativados até a validação das funções.");
                         return;
                     }
                     if (checked && !BotTokenStore.hasToken(MainActivity.this, platform)) {

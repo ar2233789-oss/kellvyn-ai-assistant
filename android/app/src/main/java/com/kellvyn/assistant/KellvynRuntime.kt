@@ -19,23 +19,46 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingPipeline
 import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingQualityGate
 import com.kellvyn.assistant.neural.KellvynMultiBlockTransformer
 import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
+import com.kellvyn.assistant.neural.KellvynNeuralTrainingController
+import com.kellvyn.assistant.neural.KellvynJsonlCorpusReader
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.Locale
 
+internal data class KellvynDecisionBrainStatus(
+    val ready: Boolean,
+    val detail: String,
+    val qualityApprovedForBenchmark: Boolean,
+    val behaviorApprovedForConversation: Boolean
+)
+
+internal data class KellvynDecisionCorpusStatus(
+    val completed: Boolean,
+    val ready: Boolean,
+    val detail: String,
+    val totalLines: Long = 0L,
+    val trainExamples: Int = 0,
+    val validationExamples: Int = 0,
+    val testExamples: Int = 0,
+    val trainingSteps: Long = 0L,
+    val benchmarkMatchRate: Double? = null,
+    val reasons: List<String> = emptyList()
+)
+
 /**
- * Temporary application boundary while the original Kellvyn neural backend is built.
+ * Local Android runtime for the single KN brain.
  *
- * This class intentionally contains no downloaded model and no hidden fallback provider.
- * It reports that inference is unavailable instead of pretending the agent is ready.
- * The real runtime will be connected only after the neural model and runtime gates pass.
+ * Owns the locally trained KN-004 checkpoint, encrypted memory, resource controls and
+ * deterministic studio tools. Conversation remains disabled until the exact model and
+ * held-out KELLVYN/1 decision set pass the authenticated behavior gate.
  */
 internal class KellvynRuntime(context: Context) {
     interface Listener {
@@ -103,6 +126,58 @@ internal class KellvynRuntime(context: Context) {
     private val neuralModelStore = KellvynNeuralModelStore(
         File(appContext.filesDir, "neural")
     )
+    private val neuralTrainingController by lazy {
+        KellvynNeuralTrainingController(neuralModelStore) { examples, config, createdAtMillis, cancellationCheck ->
+            val modelConfig = KellvynMultiBlockTransformer.Config(
+                vocabularySize = 256 + config.maxMerges + 1,
+                contextLength = config.contextLength,
+                embeddingSize = config.embeddingSize,
+                headCount = config.headCount,
+                feedForwardSize = config.feedForwardSize,
+                depth = config.depth,
+                seed = config.seed
+            )
+            val tokenizerCorpusBytes = examples
+                .filter { it.split == KellvynTrainingSplit.TRAIN }
+                .sumOf {
+                    it.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                        it.completion.toByteArray(Charsets.UTF_8).size.toLong()
+                }
+            val totalCorpusBytes = examples.sumOf {
+                it.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                    it.completion.toByteArray(Charsets.UTF_8).size.toLong()
+            }
+            runHeavyTask(
+                taskId = "training-kn004-jsonl-$createdAtMillis",
+                estimatedWorkingSetBytes = KellvynMultiBlockTrainingPipeline.estimatedWorkingSetBytes(
+                    modelConfig = modelConfig,
+                    tokenizerCorpusBytes = tokenizerCorpusBytes,
+                    totalCorpusBytes = totalCorpusBytes
+                )
+            ) {
+                withContext(Dispatchers.Default) {
+                    KellvynMultiBlockTrainingPipeline.train(
+                        examples = examples,
+                        config = config,
+                        createdAtMillis = createdAtMillis,
+                        cancellationCheck = cancellationCheck
+                    )
+                }
+            }
+        }
+    }
+    private val decisionProtocolApprovalStore = KellvynDecisionProtocolApprovalStore(
+        File(appContext.filesDir, "neural/decision-protocol.approval"),
+        KellvynAndroidTaskCheckpointCipher("kellvyn.kn004.decision-protocol-approval.aes-gcm.v1")
+    )
+    @Volatile
+    private var neuralInitializationThread: Thread? = null
+    @Volatile
+    private var activeNeuralReplyThread: Thread? = null
+    @Volatile
+    private var activeSingleBrain: KellvynSingleBrain? = null
+    @Volatile
+    private var activeDecisionTrainingThread: Thread? = null
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
@@ -313,15 +388,549 @@ internal class KellvynRuntime(context: Context) {
             }
         }
         withContext(Dispatchers.IO) {
-            neuralModelStore.saveMultiBlock(trained)
+            neuralModelStore.saveMultiBlockIfQualityApproved(trained)
         }
+        invalidateDecisionBrainAfterCheckpointReplacement()
         return trained.manifest
+    }
+
+    /**
+     * Audits a caller-owned local JSONL training source without retaining the source or
+     * allocating model weights. The caller remains responsible for closing the input stream.
+     */
+    suspend fun auditOwnMultiBlockCorpus(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynJsonlCorpusReader.Report = neuralTrainingController.auditJsonl(
+        input = input,
+        config = config,
+        samplingSeed = samplingSeed,
+        maxExamples = maxExamples,
+        minimumTrainExamples = minimumTrainExamples,
+        minimumValidationExamples = minimumValidationExamples,
+        minimumTestExamples = minimumTestExamples
+    )
+
+    /**
+     * Audits a local corpus with the 1024-token context required by formatted KELLVYN/1 prompts.
+     * Use this report with trainOwnMultiBlockDecisionFromAuditedCorpus and the same config.
+     */
+    suspend fun auditOwnMultiBlockDecisionCorpus(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynJsonlCorpusReader.Report = neuralTrainingController.auditJsonl(
+        input = input,
+        config = config,
+        samplingSeed = samplingSeed,
+        maxExamples = maxExamples,
+        minimumTrainExamples = minimumTrainExamples,
+        minimumValidationExamples = minimumValidationExamples,
+        minimumTestExamples = minimumTestExamples
+    )
+
+    /**
+     * Trains only the exact source/configuration that passed the previous read-only audit.
+     * The caller must reopen the same local file; changed bytes or parameters are rejected.
+     */
+    suspend fun trainOwnMultiBlockFromAuditedCorpus(
+        input: InputStream,
+        expectedAudit: KellvynJsonlCorpusReader.Report,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynNeuralTrainingController.CorpusOutcome {
+        val outcome = neuralTrainingController.trainAndInstallFromJsonl(
+            input = input,
+            expectedAudit = expectedAudit,
+            config = config,
+            createdAtMillis = createdAtMillis,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples
+        )
+        if (outcome.training?.installed == true) invalidateDecisionBrainAfterCheckpointReplacement()
+        return outcome
+    }
+
+    /**
+     * Audits, formats and trains a decision-protocol corpus for the single KN brain.
+     * Completion targets must be valid KELLVYN/1 FINAL, CALL_TOOL or PLAN decisions.
+     * Raw user prompts are wrapped with the exact system/tool format used at inference time.
+     */
+    suspend fun trainOwnMultiBlockDecisionFromAuditedCorpus(
+        input: InputStream,
+        expectedAudit: KellvynJsonlCorpusReader.Report,
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynNeuralTrainingController.CorpusOutcome {
+        val registry = createProjectWorkspaceToolRegistry()
+        val prepareExamples: (List<KellvynInstructionTrainingExample>) -> List<KellvynInstructionTrainingExample> =
+            { examples ->
+                KellvynDecisionProtocolTrainingGate.requireReady(
+                    examples,
+                    registry,
+                    minimumTrainExamples,
+                    minimumValidationExamples,
+                    minimumTestExamples
+                )
+                examples.map { example ->
+                    val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
+                    val history = listOf(
+                        KellvynAgentMessage(
+                            role = KellvynMessageRole.SYSTEM,
+                            trust = KellvynTrustLevel.TRUSTED,
+                            source = "kellvyn-core",
+                            content = systemInstruction
+                        ),
+                        KellvynAgentMessage(
+                            role = KellvynMessageRole.USER,
+                            trust = KellvynTrustLevel.USER_PROVIDED,
+                            source = "user",
+                            content = example.prompt
+                        )
+                    )
+                    val selectedTools = registry.descriptionsForPrompt(history, maxTools = KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT)
+                    requireDecisionToolsVisible(example, selectedTools)
+                    val formatted = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
+                        userPrompt = example.prompt,
+                        availableTools = selectedTools,
+                        systemInstruction = systemInstruction
+                    )
+                    require(formatted.length <= 12_000) {
+                        "O prompt de treino KN-004 excedeu o limite do motor de inferência."
+                    }
+                    example.copy(prompt = formatted)
+                }
+            }
+        val outcome = neuralTrainingController.trainAndInstallFromJsonl(
+            input = input,
+            expectedAudit = expectedAudit,
+            config = config,
+            createdAtMillis = createdAtMillis,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples,
+            prepareExamples = prepareExamples
+        )
+        if (outcome.training?.installed == true) invalidateDecisionBrainAfterCheckpointReplacement()
+        return outcome
+    }
+
+    /**
+     * Same decision-protocol training gate for already audited in-memory examples.
+     * Only prompt formatting changes; target, split and rights provenance are preserved.
+     */
+    suspend fun trainOwnMultiBlockDecisionModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynNeuralTrainingController.Outcome {
+        val registry = createProjectWorkspaceToolRegistry()
+        KellvynDecisionProtocolTrainingGate.requireReady(examples, registry)
+        val prepared = examples.map { example ->
+            val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
+            val history = listOf(
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.SYSTEM,
+                    trust = KellvynTrustLevel.TRUSTED,
+                    source = "kellvyn-core",
+                    content = systemInstruction
+                ),
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.USER,
+                    trust = KellvynTrustLevel.USER_PROVIDED,
+                    source = "user",
+                    content = example.prompt
+                )
+            )
+            val selectedTools = registry.descriptionsForPrompt(history, maxTools = KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT)
+            requireDecisionToolsVisible(example, selectedTools)
+            example.copy(
+                prompt = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
+                    userPrompt = example.prompt,
+                    availableTools = selectedTools,
+                    systemInstruction = systemInstruction
+                )
+            )
+        }
+        require(prepared.all { it.prompt.length <= 12_000 }) {
+            "O prompt de treino KN-004 excedeu o limite do motor de inferência."
+        }
+        val outcome = neuralTrainingController.trainAndInstall(
+            examples = prepared,
+            config = config,
+            createdAtMillis = createdAtMillis
+        )
+        if (outcome.installed) invalidateDecisionBrainAfterCheckpointReplacement()
+        return outcome
+    }
+
+    /**
+     * Initializes the local KN-004 checkpoint off the UI thread. Readiness is granted only
+     * when the numeric gate and the persisted authenticated behavior approval both match.
+     */
+    fun initializeConversation(
+        onInitialized: (KellvynDecisionBrainStatus) -> Unit = {}
+    ) {
+        synchronized(this) {
+            if (activeDecisionTrainingThread?.isAlive == true) {
+                onInitialized(
+                    KellvynDecisionBrainStatus(
+                        ready = false,
+                        detail = "O cérebro KN está treinando um novo checkpoint.",
+                        qualityApprovedForBenchmark = false,
+                        behaviorApprovedForConversation = false
+                    )
+                )
+                return
+            }
+            if (activeSingleBrain != null) {
+                onInitialized(
+                    KellvynDecisionBrainStatus(
+                        ready = true,
+                        detail = "Cérebro KN-004 carregado com aprovação do protocolo de decisões.",
+                        qualityApprovedForBenchmark = true,
+                        behaviorApprovedForConversation = true
+                    )
+                )
+                return
+            }
+            val current = neuralInitializationThread
+            if (current?.isAlive == true) return
+            val worker = Thread({
+                val result = try {
+                    runBlocking { initializeSingleBrainStatus() }
+                } catch (error: Exception) {
+                    KellvynDecisionBrainStatus(
+                        ready = false,
+                        detail = error.message?.take(400)
+                            ?: "Falha ao validar o cérebro KN-004.",
+                        qualityApprovedForBenchmark = false,
+                        behaviorApprovedForConversation = false
+                    )
+                }
+                onInitialized(result)
+            }, "kellvyn-kn004-initialize").apply { isDaemon = true }
+            neuralInitializationThread = worker
+            worker.start()
+        }
+    }
+
+    /**
+     * Runs the full local JSONL path: audit -> decision training -> held-out TEST benchmark.
+     * Nothing is downloaded. No checkpoint is approved from corpus metadata alone.
+     */
+    @Synchronized
+    fun trainDecisionBrainFromJsonl(
+        uri: Uri,
+        displayName: String,
+        onStatus: (String) -> Unit,
+        onFinished: (KellvynDecisionCorpusStatus) -> Unit
+    ) {
+        if (activeDecisionTrainingThread?.isAlive == true) {
+            onFinished(
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = "Já existe um treino local do KN em execução."
+                )
+            )
+            return
+        }
+        if (activeNeuralReplyThread?.isAlive == true) {
+            onFinished(
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = "Aguarde a resposta atual do KN terminar antes de treinar."
+                )
+            )
+            return
+        }
+        if (!displayName.lowercase(Locale.ROOT).endsWith(".jsonl")) {
+            onFinished(
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = "O treino do KN aceita apenas um corpus JSONL."
+                )
+            )
+            return
+        }
+
+        neuralInitializationThread?.interrupt()
+        val worker = Thread({
+            val result = try {
+                runBlocking {
+                    trainDecisionBrainFromJsonlInternal(uri, onStatus)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = "Treino local do KN cancelado."
+                )
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = "Treino local do KN interrompido."
+                )
+            } catch (error: Exception) {
+                KellvynDecisionCorpusStatus(
+                    completed = false,
+                    ready = isReady(),
+                    detail = error.message?.take(800)
+                        ?: "Falha no fluxo local de treino do KN."
+                )
+            }
+            activeDecisionTrainingThread = null
+            onFinished(result)
+        }, "kellvyn-kn004-jsonl-training").apply { isDaemon = true }
+        activeDecisionTrainingThread = worker
+        worker.start()
+    }
+
+    private suspend fun trainDecisionBrainFromJsonlInternal(
+        uri: Uri,
+        onStatus: (String) -> Unit
+    ): KellvynDecisionCorpusStatus {
+        val config = KellvynDecisionTrainingProfile.requireWithinBudget()
+        val resolver = appContext.contentResolver
+
+        onStatus("AUDITORIA LOCAL DO CORPUS JSONL")
+        val audit = resolver.openInputStream(uri)?.use { input ->
+            auditOwnMultiBlockDecisionCorpus(
+                input = input,
+                config = config,
+                samplingSeed = config.seed,
+                maxExamples = MAX_DECISION_CORPUS_EXAMPLES,
+                minimumTrainExamples = MIN_DECISION_TRAIN_EXAMPLES,
+                minimumValidationExamples = MIN_DECISION_VALIDATION_EXAMPLES,
+                minimumTestExamples = MIN_DECISION_TEST_EXAMPLES
+            )
+        } ?: throw IOException("Não foi possível abrir o arquivo JSONL selecionado.")
+
+        if (!audit.readyForTraining) {
+            return KellvynDecisionCorpusStatus(
+                completed = false,
+                ready = isReady(),
+                detail = "A auditoria recusou o corpus. Corrija os itens indicados e selecione o arquivo novamente.",
+                totalLines = audit.totalLines,
+                trainExamples = audit.selectedTrain,
+                validationExamples = audit.selectedValidation,
+                testExamples = audit.selectedTest,
+                reasons = audit.reasons.take(20)
+            )
+        }
+
+        onStatus(
+            "TREINO KN-004 — TRAIN=" + audit.selectedTrain +
+                " VALIDATION=" + audit.selectedValidation +
+                " TEST=" + audit.selectedTest
+        )
+        val corpusOutcome = resolver.openInputStream(uri)?.use { input ->
+            trainOwnMultiBlockDecisionFromAuditedCorpus(
+                input = input,
+                expectedAudit = audit,
+                config = config,
+                samplingSeed = config.seed,
+                maxExamples = MAX_DECISION_CORPUS_EXAMPLES,
+                minimumTrainExamples = MIN_DECISION_TRAIN_EXAMPLES,
+                minimumValidationExamples = MIN_DECISION_VALIDATION_EXAMPLES,
+                minimumTestExamples = MIN_DECISION_TEST_EXAMPLES
+            )
+        } ?: throw IOException("O corpus JSONL não pôde ser reaberto para o treino.")
+
+        val training = corpusOutcome.training
+            ?: return KellvynDecisionCorpusStatus(
+                completed = false,
+                ready = isReady(),
+                detail = "A segunda leitura do corpus não passou pela auditoria.",
+                totalLines = audit.totalLines,
+                trainExamples = audit.selectedTrain,
+                validationExamples = audit.selectedValidation,
+                testExamples = audit.selectedTest,
+                reasons = corpusOutcome.audit.reasons.take(20)
+            )
+
+        if (!training.installed) {
+            return KellvynDecisionCorpusStatus(
+                completed = false,
+                ready = isReady(),
+                detail = training.detail,
+                totalLines = audit.totalLines,
+                trainExamples = audit.selectedTrain,
+                validationExamples = audit.selectedValidation,
+                testExamples = audit.selectedTest,
+                trainingSteps = training.trainingSteps,
+                reasons = training.qualityGate.reasons.take(20)
+            )
+        }
+
+        require(training.heldOutTestExamples.size == audit.selectedTest) {
+            "A partição TEST devolvida pelo treino diverge da quantidade auditada."
+        }
+        onStatus("BENCHMARK KELLVYN/1 — TESTANDO DECISÕES DO CHECKPOINT INSTALADO")
+        val benchmark = benchmarkOwnMultiBlockDecisionProtocol(training.heldOutTestExamples)
+        val ready = benchmark.eligibleForConversationReview && isReady()
+        return KellvynDecisionCorpusStatus(
+            completed = true,
+            ready = ready,
+            detail = if (ready) {
+                "Treino instalado e benchmark KELLVYN/1 aprovado. O cérebro local está liberado."
+            } else {
+                "O checkpoint foi instalado, mas o benchmark KELLVYN/1 não aprovou a conversa. O chat permanece bloqueado."
+            },
+            totalLines = audit.totalLines,
+            trainExamples = audit.selectedTrain,
+            validationExamples = audit.selectedValidation,
+            testExamples = audit.selectedTest,
+            trainingSteps = training.trainingSteps,
+            benchmarkMatchRate = benchmark.decisionMatchRate,
+            reasons = benchmark.reasons.take(20)
+        )
+    }
+
+    private suspend fun initializeSingleBrainStatus(): KellvynDecisionBrainStatus {
+        val bundle = loadOwnMultiBlockModelForInference()
+            ?: return KellvynDecisionBrainStatus(
+                ready = false,
+                detail = "Nenhum checkpoint KN-004 válido está instalado.",
+                qualityApprovedForBenchmark = false,
+                behaviorApprovedForConversation = false
+            )
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
+        if (!quality.eligibleForProtocolBenchmark) {
+            return KellvynDecisionBrainStatus(
+                ready = false,
+                detail = "O checkpoint KN-004 não passou pelo gate numérico.",
+                qualityApprovedForBenchmark = false,
+                behaviorApprovedForConversation = false
+            )
+        }
+        val modelFingerprint = bundle.model.parameterFingerprint()
+        val testFingerprint = KellvynDecisionProtocolBehaviorBenchmark
+            .testSetFingerprintFromManifest(bundle.manifest.entries)
+        val heldOutCount = bundle.manifest.entries.count {
+            it.split == com.kellvyn.assistant.neural.KellvynTrainingSplit.TEST
+        }
+        val approval = decisionProtocolApprovalStore.load(
+            modelFingerprint = modelFingerprint,
+            testSetFingerprint = testFingerprint,
+            expectedSampleCount = heldOutCount
+        )
+        if (approval == null) {
+            return KellvynDecisionBrainStatus(
+                ready = false,
+                detail = "Checkpoint numérico aprovado; falta aprovação do benchmark KELLVYN/1.",
+                qualityApprovedForBenchmark = true,
+                behaviorApprovedForConversation = false
+            )
+        }
+        val contextLength = bundle.model.config.contextLength
+        val generationTokens = minOf(256, maxOf(64, contextLength / 4), contextLength - 1)
+        val inference = KellvynMultiBlockInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = KellvynMultiBlockInferenceEngine.Config(
+                maxGenerationTokens = generationTokens
+            )
+        )
+        activeSingleBrain = createSingleBrain(inference)
+        return KellvynDecisionBrainStatus(
+            ready = true,
+            detail = "Cérebro KN-004 aprovado pelo benchmark de decisões e carregado localmente.",
+            qualityApprovedForBenchmark = true,
+            behaviorApprovedForConversation = true
+        )
+    }
+
+    /**
+     * Tests the exact KELLVYN/1 outputs on the immutable held-out TEST partition.
+     * A passing report is encrypted and bound to this model fingerprint and TEST manifest.
+     */
+    suspend fun benchmarkOwnMultiBlockDecisionProtocol(
+        heldOutTestExamples: List<KellvynInstructionTrainingExample>
+    ): KellvynDecisionProtocolBehaviorBenchmark.Report = withContext(Dispatchers.Default) {
+        val bundle = loadOwnMultiBlockModelForInference()
+            ?: throw IllegalStateException("Não há checkpoint KN-004 disponível para benchmark.")
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
+        require(quality.eligibleForProtocolBenchmark) {
+            "O checkpoint não passou pelo gate numérico."
+        }
+        require(
+            KellvynDecisionProtocolBehaviorBenchmark.matchesTestManifest(
+                heldOutTestExamples,
+                bundle.manifest.entries
+            )
+        ) {
+            "Os exemplos fornecidos não correspondem exatamente ao conjunto TEST instalado."
+        }
+        val contextLength = bundle.model.config.contextLength
+        val inference = KellvynMultiBlockInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = KellvynMultiBlockInferenceEngine.Config(
+                maxGenerationTokens = minOf(256, maxOf(64, contextLength / 4), contextLength - 1)
+            )
+        )
+        val report = KellvynDecisionProtocolBehaviorBenchmark.evaluate(
+            modelFingerprint = bundle.model.parameterFingerprint(),
+            examples = heldOutTestExamples,
+            generate = { example -> inference.nextFromFormattedPrompt(example.prompt) }
+        )
+        val manifestFingerprint = KellvynDecisionProtocolBehaviorBenchmark
+            .testSetFingerprintFromManifest(bundle.manifest.entries)
+        require(report.testSetFingerprint == manifestFingerprint) {
+            "O fingerprint do TEST divergiu do manifesto instalado."
+        }
+        if (report.eligibleForConversationReview) {
+            decisionProtocolApprovalStore.save(
+                report = report,
+                approvedAtMillis = System.currentTimeMillis()
+            )
+            activeSingleBrain = createSingleBrain(inference)
+        } else {
+            decisionProtocolApprovalStore.delete()
+        }
+        report
     }
 
     /** Loads the independently versioned KN-004 tokenizer, model and provenance bundle. */
     suspend fun loadOwnMultiBlockModel(): KellvynRestoredMultiBlockBundle? =
         withContext(Dispatchers.IO) {
             neuralModelStore.loadMultiBlock()
+        }
+
+    /** Loads the verified KN-004 weights for inference without the AdamW training arrays. */
+    suspend fun loadOwnMultiBlockModelForInference(): KellvynRestoredMultiBlockBundle? =
+        withContext(Dispatchers.IO) {
+            neuralModelStore.loadMultiBlockForInference()
         }
 
     /**
@@ -331,7 +940,7 @@ internal class KellvynRuntime(context: Context) {
     suspend fun createOwnMultiBlockInferenceEngine(
         config: KellvynMultiBlockInferenceEngine.Config? = null
     ): KellvynMultiBlockInferenceEngine? {
-        val bundle = loadOwnMultiBlockModel() ?: return null
+        val bundle = loadOwnMultiBlockModelForInference() ?: return null
         val contextLength = bundle.model.config.contextLength
         if (contextLength < 128) return null
         val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
@@ -339,7 +948,7 @@ internal class KellvynRuntime(context: Context) {
         val safeDefault = KellvynMultiBlockInferenceEngine.Config(
             maxGenerationTokens = minOf(
                 256,
-                maxOf(64, contextLength / 8),
+                maxOf(64, contextLength / 4),
                 contextLength - 1
             )
         )
@@ -364,6 +973,24 @@ internal class KellvynRuntime(context: Context) {
             inference = inference,
             activeProjectId = activeProjectId,
             config = agentConfig
+        )
+    }
+
+    /**
+     * Connects the trained KN-004 model to the direct single-brain tool loop.
+     * This returns null unless the neural checkpoint passes the current numerical gate.
+     * Conversation activation still requires decision-protocol and device validation.
+     */
+    suspend fun createOwnMultiBlockSingleBrain(
+        activeProjectId: String? = null,
+        inferenceConfig: KellvynMultiBlockInferenceEngine.Config? = null,
+        brainConfig: KellvynAgentConfig = KellvynDecisionPromptContext.defaultConfig()
+    ): KellvynSingleBrain? {
+        val inference = createOwnMultiBlockInferenceEngine(inferenceConfig) ?: return null
+        return createSingleBrain(
+            inference = inference,
+            activeProjectId = activeProjectId,
+            config = brainConfig
         )
     }
 
@@ -484,6 +1111,39 @@ internal class KellvynRuntime(context: Context) {
             taskCheckpoints = taskCheckpointRepository,
             taskBroker = taskBroker,
             networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            },
+            resourceSnapshotProvider = { resourceRuntime.snapshot() }
+        )
+    }
+
+    /**
+     * Builds the direct single-brain execution path over a supplied KN-004 decision model.
+     * The model chooses every action; registered local tools only execute bounded operations.
+     */
+    fun createSingleBrain(
+        inference: KellvynInferenceEngine,
+        activeProjectId: String? = null,
+        config: KellvynAgentConfig = KellvynDecisionPromptContext.defaultConfig()
+    ): KellvynSingleBrain {
+        val addresses = memoryAddressesFor(activeProjectId)
+        val workspaceAuthorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate)
+        return KellvynSingleBrain(
+            inference = inference,
+            tools = createProjectWorkspaceToolRegistry(activeProjectId),
+            authorization = KellvynNetworkReadAuthorization(
+                delegate = workspaceAuthorization,
+                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+            ),
+            config = config,
+            memory = localMemory,
+            memoryAddresses = addresses,
+            projectContextRetriever = projectContextRetriever,
+            activeProjectId = activeProjectId,
+            skillRegistry = KellvynSkillRegistry.default(),
+            taskCheckpoints = taskCheckpointRepository,
+            taskBroker = taskBroker,
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
             },
@@ -761,6 +1421,49 @@ internal class KellvynRuntime(context: Context) {
     private suspend fun activeSpecialistProfileRegistry(): KellvynSpecialistProfileRegistry =
         KellvynSpecialistProfileRegistry(activeSpecialistProfiles())
 
+    /**
+     * A trained tool target must be visible in the same six-tool shortlist that live inference gets.
+     * Otherwise the model would be trained to choose a capability it cannot see at runtime.
+     */
+    private fun requireDecisionToolsVisible(
+        example: KellvynInstructionTrainingExample,
+        selectedTools: List<KellvynToolSpec>
+    ) {
+        val decision = when (
+            val parsed = KellvynDecisionProtocol.parse(example.completion)
+        ) {
+            is KellvynDecisionProtocol.ParseResult.Accepted -> parsed.decision
+            is KellvynDecisionProtocol.ParseResult.Rejected ->
+                throw IllegalArgumentException(
+                    "Exemplo ${example.id} não contém uma decisão KELLVYN/1 válida: ${parsed.reason}"
+                )
+        }
+        val required = when (decision) {
+            is KellvynModelDecision.Final -> emptySet()
+            is KellvynModelDecision.CallTool -> setOf(decision.name)
+            is KellvynModelDecision.Plan -> decision.plan.steps.flatMap { it.requiredTools }.toSet()
+            is KellvynModelDecision.Delegate -> throw IllegalArgumentException(
+                "Exemplo ${example.id} tenta transferir uma decisão para fora do cérebro KN."
+            )
+        }
+        val available = selectedTools.map { it.name }.toSet()
+        val missing = required - available
+        require(missing.isEmpty()) {
+            "Exemplo ${example.id} exige ferramentas fora da seleção que o KN recebe ao vivo: " +
+                missing.sorted().joinToString() +
+                ". Corrija a solicitação ou o catálogo para que o KN consiga descobrir essa capacidade."
+        }
+    }
+
+    /**
+     * Any successful checkpoint replacement invalidates the in-memory brain and its approval.
+     * The next load must pass the numerical gate and a fresh held-out KELLVYN/1 benchmark.
+     */
+    private fun invalidateDecisionBrainAfterCheckpointReplacement() {
+        activeSingleBrain = null
+        decisionProtocolApprovalStore.delete()
+    }
+
     private fun memoryAddressesFor(activeProjectId: String?): List<KellvynMemoryAddress> {
         val addresses = mutableListOf(KellvynMemoryAddress.global())
         if (!activeProjectId.isNullOrBlank()) {
@@ -788,23 +1491,96 @@ internal class KellvynRuntime(context: Context) {
         operation
     )
 
-    fun isReady(): Boolean = false
+    // Free-text approval is not decision-protocol approval; the main chat stays locked.
+    fun isReady(): Boolean = activeSingleBrain != null && activeDecisionTrainingThread?.isAlive != true
 
+    /** The KN-004 path is stateless; MainActivity supplies the saved transcript as context. */
     fun hasActiveConversation(): Boolean = false
 
+    @Synchronized
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        listener.onStatus("NÚCLEO NEURAL KELLVYN EM CONSTRUÇÃO")
-        listener.onError(
-            "O cérebro neural próprio da Kellvyn ainda não está conectado. " +
-                "Nenhum modelo de terceiros será baixado ou usado como substituto."
-        )
+        if (activeDecisionTrainingThread?.isAlive == true) {
+            listener.onError("O cérebro KN está treinando e verificando um novo checkpoint.")
+            return
+        }
+        if (attachmentUri != null || !attachmentName.isNullOrBlank()) {
+            listener.onError("O cérebro KN ainda não recebeu um caminho de análise de anexos validado.")
+            return
+        }
+        val brain = activeSingleBrain
+        if (brain == null) {
+            listener.onStatus("KN-004 AGUARDANDO VALIDAÇÃO DE DECISÕES")
+            listener.onError(
+                "O cérebro KN só libera a conversa após o benchmark KELLVYN/1 no conjunto TEST."
+            )
+            return
+        }
+        val previous = activeNeuralReplyThread
+        if (previous?.isAlive == true) {
+            listener.onError("A resposta anterior do KN ainda está em execução.")
+            return
+        }
+        val worker = Thread({
+            try {
+                listener.onStatus("MOTOR LOCAL CPU — CÉREBRO KN-004")
+                when (val result = runBlocking { brain.run(prompt) }) {
+                    is KellvynBrainResult.Completed ->
+                        listener.onComplete(result.answer, "KN-004 CPU")
+                    is KellvynBrainResult.Failed ->
+                        listener.onError(result.reason)
+                    is KellvynBrainResult.LimitReached ->
+                        listener.onError(result.reason)
+                    is KellvynBrainResult.Planned -> {
+                        val summary = buildString {
+                            append("Plano KN salvo: ").append(result.state.plan.goal).append("\n")
+                            append("ID: ").append(result.state.plan.id).append("\n")
+                            result.state.plan.steps.forEach { step ->
+                                append("• ").append(step.title).append(": ")
+                                    .append(result.state.statuses[step.id]).append("\n")
+                            }
+                            append("Checkpoint: ").append(result.checkpoint.sha256.take(16))
+                        }
+                        listener.onComplete(summary, "KN-004 CPU")
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                if (!Thread.currentThread().isInterrupted) {
+                    listener.onError(cancelled.message ?: "Execução do KN cancelada.")
+                }
+            } catch (error: Exception) {
+                listener.onError(
+                    error.message?.takeIf { it.isNotBlank() }
+                        ?: "O cérebro KN não conseguiu concluir a solicitação."
+                )
+            }
+        }, "kellvyn-kn004-brain").apply { isDaemon = true }
+        activeNeuralReplyThread = worker
+        worker.start()
     }
 
-    fun resetConversation() = Unit
+    fun resetConversation() {
+        activeNeuralReplyThread?.interrupt()
+        activeNeuralReplyThread = null
+    }
 
-    fun resetConversationAndWait() = Unit
+    fun resetConversationAndWait() {
+        val worker = activeNeuralReplyThread
+        worker?.interrupt()
+        if (worker != null && worker !== Thread.currentThread()) {
+            try {
+                worker.join(2_000L)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        activeNeuralReplyThread = null
+    }
 
     fun close() {
+        resetConversationAndWait()
+        neuralInitializationThread?.interrupt()
+        activeDecisionTrainingThread?.interrupt()
+        activeSingleBrain = null
         memoryRepository.close()
     }
 
@@ -835,5 +1611,9 @@ internal class KellvynRuntime(context: Context) {
 
     private companion object {
         const val MAX_IMPORTED_IMAGE_BYTES = 64L * 1024L * 1024L
+        const val MAX_DECISION_CORPUS_EXAMPLES = 1_000
+        const val MIN_DECISION_TRAIN_EXAMPLES = 100
+        const val MIN_DECISION_VALIDATION_EXAMPLES = 20
+        const val MIN_DECISION_TEST_EXAMPLES = 20
     }
 }

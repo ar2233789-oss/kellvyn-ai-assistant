@@ -63,14 +63,39 @@ class KellvynInvisibleStudioCatalogToolTest {
     }
 
     @Test
-    fun inventoryRejectsUnexpectedArguments() = runBlocking {
+    fun inventoryQueryReturnsOnlyRelevantCapabilitiesAndCoreTools() = runBlocking {
+        val sceneTool = KellvynToolSpec(
+            name = "scene_3d_create",
+            description = "Gera uma cena 3D paramétrica local.",
+            risk = KellvynToolRisk.ARTIFACT_CREATE,
+            capabilities = setOf(KellvynStudioCapability.SCENE_3D)
+        )
         val result = KellvynInvisibleStudioCatalogTool.create(
             moduleManager = manager(),
-            coreToolSpecs = emptyList()
-        ).execute(mapOf("include_hidden" to "true"))
+            coreToolSpecs = listOf(sceneTool)
+        ).execute(mapOf("query" to "cena 3D"))
 
-        assertFalse(result.success)
-        assertTrue(result.content.contains("não aceita argumentos"))
+        assertTrue(result.success)
+        assertTrue(result.content.contains("consulta=cena 3D"))
+        assertTrue(result.content.contains("SCENE_3D status=REGISTERED_CORE"))
+        assertTrue(result.content.contains("scene_3d_create"))
+        assertFalse(result.content.contains("CODE_NAVIGATION"))
+        assertFalse(result.content.contains("code_probe"))
+    }
+
+    @Test
+    fun inventoryRejectsUnknownArgumentsButAcceptsQuery() = runBlocking {
+        val tool = KellvynInvisibleStudioCatalogTool.create(
+            moduleManager = manager(),
+            coreToolSpecs = emptyList()
+        )
+        val unexpected = tool.execute(mapOf("include_hidden" to "true"))
+        val filtered = tool.execute(mapOf("query" to "animação"))
+
+        assertFalse(unexpected.success)
+        assertTrue(unexpected.content.contains("somente o argumento opcional query"))
+        assertTrue(filtered.success)
+        assertTrue(filtered.content.contains("ANIMATION status=NOT_REGISTERED"))
     }
 
     private fun manager() = KellvynStudioModuleManager(

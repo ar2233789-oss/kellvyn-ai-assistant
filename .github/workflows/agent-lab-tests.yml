@@ -2,6 +2,9 @@ name: Kellvyn agent laboratory tests
 
 on:
   workflow_dispatch:
+  pull_request:
+    branches:
+      - 'kellvyn-rnd/**'
   push:
     branches:
       - lab/kellvyn-intelligence-core-20261116
