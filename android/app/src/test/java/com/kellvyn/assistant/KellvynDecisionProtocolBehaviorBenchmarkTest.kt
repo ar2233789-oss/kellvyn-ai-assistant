@@ -61,6 +61,36 @@ class KellvynDecisionProtocolBehaviorBenchmarkTest {
         assertTrue(report.reasons.isNotEmpty())
     }
 
+    @Test
+    fun anyDelegatedModelDecisionIsAnAbsoluteBenchmarkFailure() = runBlocking {
+        val examples = samples()
+        val report = KellvynDecisionProtocolBehaviorBenchmark.evaluate(
+            modelFingerprint = "c".repeat(64),
+            examples = examples,
+            generate = { example ->
+                if (example.id == "tool-0") parse(delegateTarget()) else parse(example.completion)
+            }
+        )
+
+        assertFalse(report.eligibleForConversationReview)
+        assertTrue(report.decisionMatchRate >= KellvynDecisionProtocolBehaviorBenchmark.MINIMUM_DECISION_MATCH_RATE)
+        assertTrue(report.reasons.any { it.contains("transferir uma decisão") })
+    }
+
+    @Test
+    fun delegatedTargetInHeldOutTestSetIsRejected() = runBlocking {
+        val examples = samples().toMutableList()
+        examples[0] = examples[0].copy(completion = delegateTarget())
+        val report = KellvynDecisionProtocolBehaviorBenchmark.evaluate(
+            modelFingerprint = "d".repeat(64),
+            examples = examples,
+            generate = { parse(it.completion) }
+        )
+
+        assertFalse(report.eligibleForConversationReview)
+        assertTrue(report.reasons.any { it.contains("alvo TEST tenta transferir") })
+    }
+
     private fun samples(): List<KellvynInstructionTrainingExample> =
         (0 until 8).flatMap { index ->
             listOf(
@@ -73,6 +103,13 @@ class KellvynDecisionProtocolBehaviorBenchmarkTest {
     private fun parse(completion: String): KellvynModelDecision =
         (KellvynDecisionProtocol.parse(completion, nowMillis = 1_800_000_000_000L)
             as KellvynDecisionProtocol.ParseResult.Accepted).decision
+
+    private fun delegateTarget() = buildString {
+        append("KELLVYN/1\\nDELEGATE\\n")
+        append("ROLE\\tRESEARCHER\\n")
+        append("TASK\\t").append(KellvynDecisionProtocol.encodeText("Pesquisar o assunto.")).append("\\n")
+        append("CONTEXT\\t").append(KellvynDecisionProtocol.encodeText("Contexto de teste.")).append("\\nEND")
+    }
 
     private fun finalTarget(text: String) =
         "KELLVYN/1\nFINAL\nTEXT\t${KellvynDecisionProtocol.encodeText(text)}\nEND"
