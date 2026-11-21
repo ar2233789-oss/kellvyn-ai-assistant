@@ -22,6 +22,7 @@ import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
 import com.kellvyn.assistant.neural.KellvynNeuralTrainingController
 import com.kellvyn.assistant.neural.KellvynJsonlCorpusReader
 import com.kellvyn.assistant.neural.KellvynNeuralChatRuntime
+import com.kellvyn.assistant.neural.KellvynNeuralBehaviorApprovalStore
 import com.kellvyn.assistant.neural.KellvynNeuralBehaviorBenchmark
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
@@ -133,9 +134,17 @@ internal class KellvynRuntime(context: Context) {
             }
         }
     }
+    private val neuralBehaviorApprovalStore = KellvynNeuralBehaviorApprovalStore(
+        File(appContext.filesDir, "neural/behavior.approval"),
+        KellvynAndroidTaskCheckpointCipher("kellvyn.kn004.behavior-approval.aes-gcm.v1")
+    )
     private val neuralChatRuntime by lazy {
-        KellvynNeuralChatRuntime(neuralModelStore)
+        KellvynNeuralChatRuntime(neuralModelStore, neuralBehaviorApprovalStore)
     }
+    @Volatile
+    private var neuralInitializationThread: Thread? = null
+    @Volatile
+    private var activeNeuralReplyThread: Thread? = null
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
@@ -401,9 +410,36 @@ internal class KellvynRuntime(context: Context) {
         )
 
     /**
-     * Initializes the local free-text KN-004 runtime from the verified compact checkpoint.
-     * This is an internal controlled API; it does not change MainActivity readiness or UI.
+     * Initializes the local KN-004 checkpoint off the UI thread. Readiness is granted only
+     * when the numeric gate and the persisted authenticated behavior approval both match.
      */
+    fun initializeConversation(
+        onInitialized: (KellvynNeuralChatRuntime.Status) -> Unit = {}
+    ) {
+        synchronized(this) {
+            if (neuralChatRuntime.isConversationReady) {
+                onInitialized(
+                    KellvynNeuralChatRuntime.Status(
+                        ready = true,
+                        detail = "KN-004 local carregado e aprovado para conversa.",
+                        qualityApprovedForBenchmark = true,
+                        behaviorApprovedForConversation = true
+                    )
+                )
+                return
+            }
+            val current = neuralInitializationThread
+            if (current?.isAlive == true) return
+            val worker = Thread({
+                val result = neuralChatRuntime.initialize()
+                onInitialized(result)
+            }, "kellvyn-kn004-initialize").apply { isDaemon = true }
+            neuralInitializationThread = worker
+            worker.start()
+        }
+    }
+
+    /** Controlled API retained for explicit training/benchmark workflows. */
     suspend fun initializeOwnMultiBlockChat(): KellvynNeuralChatRuntime.Status =
         withContext(Dispatchers.IO) { neuralChatRuntime.initialize() }
 
@@ -917,23 +953,81 @@ internal class KellvynRuntime(context: Context) {
         operation
     )
 
-    fun isReady(): Boolean = false
+    fun isReady(): Boolean = neuralChatRuntime.isConversationReady
 
+    /** The KN-004 path is stateless; MainActivity supplies the saved transcript as context. */
     fun hasActiveConversation(): Boolean = false
 
+    @Synchronized
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        listener.onStatus("NÚCLEO NEURAL KELLVYN EM CONSTRUÇÃO")
-        listener.onError(
-            "O cérebro neural próprio da Kellvyn ainda não está conectado. " +
-                "Nenhum modelo de terceiros será baixado ou usado como substituto."
-        )
+        if (attachmentUri != null || !attachmentName.isNullOrBlank()) {
+            listener.onError(
+                "O caminho de conversa KN-004 atual aceita texto. O anexo não foi lido nem analisado."
+            )
+            return
+        }
+        if (!neuralChatRuntime.isConversationReady) {
+            listener.onStatus("KN-004 LOCAL AGUARDANDO APROVAÇÃO")
+            listener.onError(
+                "O checkpoint KN-004 ainda não passou pelos gates numérico e comportamental. " +
+                    "Nenhum outro modelo será usado como substituto."
+            )
+            return
+        }
+        val previous = activeNeuralReplyThread
+        if (previous?.isAlive == true) {
+            listener.onError("A geração KN-004 anterior ainda está ativa.")
+            return
+        }
+        val worker = Thread({
+            try {
+                listener.onStatus("MOTOR LOCAL KN-004")
+                val answer = neuralChatRuntime.generateContinuation(
+                    prompt = prompt,
+                    cancellationCheck = {
+                        if (Thread.currentThread().isInterrupted) {
+                            throw kotlinx.coroutines.CancellationException("Geração KN-004 cancelada.")
+                        }
+                    },
+                    onPartial = listener::onPartial
+                )
+                listener.onComplete(answer, "KN-004 CPU")
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                if (!Thread.currentThread().isInterrupted) {
+                    listener.onError(cancelled.message ?: "Geração KN-004 cancelada.")
+                }
+            } catch (error: Exception) {
+                listener.onError(
+                    error.message?.takeIf { it.isNotBlank() }
+                        ?: "O motor KN-004 não conseguiu concluir a resposta."
+                )
+            }
+        }, "kellvyn-kn004-reply").apply { isDaemon = true }
+        activeNeuralReplyThread = worker
+        worker.start()
     }
 
-    fun resetConversation() = Unit
+    fun resetConversation() {
+        activeNeuralReplyThread?.interrupt()
+        activeNeuralReplyThread = null
+    }
 
-    fun resetConversationAndWait() = Unit
+    fun resetConversationAndWait() {
+        val worker = activeNeuralReplyThread
+        worker?.interrupt()
+        if (worker != null && worker !== Thread.currentThread()) {
+            try {
+                worker.join(2_000L)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        activeNeuralReplyThread = null
+    }
 
     fun close() {
+        resetConversationAndWait()
+        neuralInitializationThread?.interrupt()
         neuralChatRuntime.unload()
         memoryRepository.close()
     }
