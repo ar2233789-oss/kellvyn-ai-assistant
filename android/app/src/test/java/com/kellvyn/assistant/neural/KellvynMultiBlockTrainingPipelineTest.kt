@@ -44,6 +44,8 @@ class KellvynMultiBlockTrainingPipelineTest {
         assertEquals(config.headCount, result.manifest.headCount)
         assertEquals(config.feedForwardSize, result.manifest.feedForwardSize)
         assertEquals(result.tokenizer.vocabularySize, result.manifest.vocabularySize)
+        assertEquals(result.tokenizer.mergeCount, result.manifest.maxMerges)
+        assertTrue(result.manifest.maxMerges <= config.maxMerges)
         assertEquals(expectedSteps, result.model.trainingSteps)
         assertEquals(expectedSteps, result.manifest.totalTrainingSteps)
         assertNotNull(result.tokenizer.endOfSequenceTokenId)
@@ -58,6 +60,31 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    @Test
+    fun capsBpeMergesUsingTheActualFormattedTrainCorpusByteCount() {
+        assertEquals(
+            768,
+            KellvynMultiBlockTrainingPipeline.effectiveMaxMerges(
+                requestedMerges = 768,
+                tokenizerCorpusBytes = 40_000L
+            )
+        )
+        assertEquals(
+            160,
+            KellvynMultiBlockTrainingPipeline.effectiveMaxMerges(
+                requestedMerges = 768,
+                tokenizerCorpusBytes = 250_000L
+            )
+        )
+        assertEquals(
+            0,
+            KellvynMultiBlockTrainingPipeline.effectiveMaxMerges(
+                requestedMerges = 768,
+                tokenizerCorpusBytes = 50_000_000L
+            )
+        )
+    }
+
     fun refusesTrainingExamplesWhosePromptCannotFitTheLiveContextWindow() {
         val examples = sampleExamples().toMutableList()
         examples[0] = examples[0].copy(prompt = "P".repeat(80))
