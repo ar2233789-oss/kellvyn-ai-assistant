@@ -24,7 +24,7 @@ class KellvynDecisionProtocolBehaviorBenchmarkTest {
 
         assertTrue(report.eligibleForConversationReview)
         assertEquals(1.0, report.decisionMatchRate, 0.0001)
-        assertEquals(8, report.matched.final)
+        assertEquals(8, report.matched.finalDecision)
         assertEquals(8, report.matched.callTool)
         assertEquals(8, report.matched.plan)
         assertEquals(
