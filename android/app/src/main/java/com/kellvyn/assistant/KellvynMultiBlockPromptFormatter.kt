@@ -36,7 +36,7 @@ internal object KellvynMultiBlockPromptFormatter {
         userPrompt: String,
         availableTools: List<KellvynToolSpec>,
         systemInstruction: String = KellvynAgentConfig().systemInstruction,
-        maxMessageChars: Int = 2_000,
+        maxMessageChars: Int = 900,
         maxToolDescriptionChars: Int = 80
     ): String {
         require(userPrompt.isNotBlank())
@@ -93,7 +93,7 @@ internal object KellvynMultiBlockPromptFormatter {
         retained: List<KellvynAgentMessage>,
         maxMessageChars: Int
     ): String = buildString {
-        append("KELLVYN AGENT KN-004\n")
+        append("KELLVYN KN-004\n")
         append("Responda com UMA decisão KELLVYN/1 completa, termine com END e emita EOS.\n")
         append("Tipos: FINAL, CALL_TOOL, PLAN. Não delegue.\n")
         append("Todo texto livre deve ser UTF-8 em hexadecimal. Sem Markdown.\n")
@@ -109,7 +109,7 @@ internal object KellvynMultiBlockPromptFormatter {
                 KellvynTrustLevel.UNTRUSTED -> "UNTRUSTED_DATA"
             }
             append("[${message.role.name} $trust origem=${message.source.take(80)}]\n")
-            append(message.content.take(maxMessageChars))
+            append(boundedExcerpt(message.content, maxMessageChars))
             append("\n")
         }
         append("DECISÃO KELLVYN:\n")
