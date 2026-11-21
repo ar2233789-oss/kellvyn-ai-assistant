@@ -9,8 +9,9 @@ import java.io.InputStream
 /**
  * Installs only a KN-004 checkpoint that clears the numeric quality gate.
  *
- * The CPU-heavy training pipeline always runs on Dispatchers.IO. The previous installed
- * bundle is untouched when training is cancelled or the quality gate rejects the result.
+ * Corpus scanning and checkpoint persistence use Dispatchers.IO. CPU-heavy training is delegated
+ * to an injected executor; KellvynRuntime routes it through the resource broker and Dispatchers.Default.
+ * The previous installed bundle is untouched when training is cancelled or the quality gate rejects it.
  * This controller does not fetch data, use a cloud model, create agents, or change the UI.
  */
 internal class KellvynNeuralTrainingController(
