@@ -16,7 +16,7 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
     const val MINIMUM_EXAMPLES = 20
     const val MINIMUM_DECISION_MATCH_RATE = 0.80
 
-    data class Counts(val final: Int, val callTool: Int, val plan: Int)
+    data class Counts(val finalDecision: Int, val callTool: Int, val plan: Int)
 
     data class Report(
         val eligibleForConversationReview: Boolean,
@@ -110,10 +110,10 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
         }
 
         val rate = matches.toDouble() / examples.size.toDouble()
-        if (expected.final == 0 || expected.callTool == 0 || expected.plan == 0) {
+        if (expected.finalDecision == 0 || expected.callTool == 0 || expected.plan == 0) {
             reasons += "O conjunto TEST precisa cobrir FINAL, CALL_TOOL e PLAN."
         }
-        if (finalMatches < minimumClassMatches(expected.final) ||
+        if (finalMatches < minimumClassMatches(expected.finalDecision) ||
             toolMatches < minimumClassMatches(expected.callTool) ||
             planMatches < minimumClassMatches(expected.plan)
         ) {
