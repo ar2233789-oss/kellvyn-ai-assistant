@@ -208,7 +208,7 @@ internal class KellvynDecisionProtocolApprovalStore(
             overall >= KellvynDecisionProtocolBehaviorBenchmark.MINIMUM_DECISION_MATCH_RATE &&
             overall <= 1.0
         )
-        require(listOf(finalRate, toolRate, planRate).all { it.isFinite() && it in 0.60..1.0 })
+        require(listOf(finalRate, toolRate, planRate).all { it.isFinite() && it in 0.80..1.0 })
         return Approval(
             modelFingerprint = modelFingerprint,
             testSetFingerprint = testSetFingerprint,
@@ -254,6 +254,6 @@ internal class KellvynDecisionProtocolApprovalStore(
         const val MAX_ENCRYPTED_BYTES = 4_096
         const val MAX_FILE_BYTES = 8_192
         const val MIN_FILE_BYTES = 4 + 4 + 2 + 64 + 2 + 64 + 4 + 4 + 1
-        const val MINIMUM_PER_CLASS_RATE = 0.60
+        const val MINIMUM_PER_CLASS_RATE = 0.80
     }
 }
