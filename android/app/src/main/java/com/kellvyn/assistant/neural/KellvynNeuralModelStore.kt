@@ -239,7 +239,7 @@ internal class KellvynNeuralModelStore(
             }
         }
         if (backup.isFile) {
-            val restored = readMultiBlockBundle(backup)
+            val restored = readMultiBlockBundle(backup, inferenceOnly)
             if (!backup.renameTo(target)) return@synchronized restored
             return@synchronized restored
         }
