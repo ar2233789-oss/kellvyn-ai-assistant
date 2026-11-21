@@ -1,8 +1,8 @@
 package com.kellvyn.assistant
 
 import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
-import com.kellvyn.assistant.neural.KellvynTrainingSplit
 import com.kellvyn.assistant.neural.KellvynTrainingManifestEntry
+import com.kellvyn.assistant.neural.KellvynTrainingSplit
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
@@ -10,14 +10,22 @@ import kotlin.math.ceil
 import kotlinx.coroutines.CancellationException
 
 /**
- * Held-out verification for the exact KELLVYN/1 decisions used by the live brain.
- * It runs only against TEST examples whose prompts were prepared by the canonical formatter.
+ * Held-out verification for the exact KELLVYN/1 decisions used by the live KN brain.
+ *
+ * Every sample must belong to the installed TEST split. The benchmark runs the actual
+ * Transformer inference adapter and compares structured decisions, not a second text model.
+ * Any output that attempts to transfer a decision is a hard failure.
  */
 internal object KellvynDecisionProtocolBehaviorBenchmark {
     const val MINIMUM_EXAMPLES = 20
     const val MINIMUM_DECISION_MATCH_RATE = 0.90
+    const val MINIMUM_PER_CLASS_MATCH_RATE = 0.80
 
-    data class Counts(val finalDecision: Int, val callTool: Int, val plan: Int)
+    data class Counts(
+        val finalDecision: Int,
+        val callTool: Int,
+        val plan: Int
+    )
 
     data class Report(
         val eligibleForConversationReview: Boolean,
@@ -28,7 +36,129 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
         val matched: Counts,
         val expected: Counts,
         val reasons: List<String>
-    ) {fun testSetFingerprint(examples: List<KellvynInstructionTrainingExample>): String {
+    )
+
+    suspend fun evaluate(
+        modelFingerprint: String,
+        examples: List<KellvynInstructionTrainingExample>,
+        generate: suspend (KellvynInstructionTrainingExample) -> KellvynModelDecision
+    ): Report {
+        require(modelFingerprint.matches(Regex("[a-f0-9]{64}"))) {
+            "Fingerprint do modelo inválido para o benchmark de decisões."
+        }
+        require(examples.all { it.split == KellvynTrainingSplit.TEST }) {
+            "O benchmark de decisões aceita somente exemplos TEST."
+        }
+        require(examples.map { it.id }.distinct().size == examples.size) {
+            "O benchmark de decisões contém IDs duplicados."
+        }
+        require(examples.map { normalize(it.prompt) }.distinct().size == examples.size) {
+            "O benchmark de decisões contém prompts repetidos."
+        }
+
+        val fingerprint = testSetFingerprint(examples)
+        val reasons = mutableListOf<String>()
+        if (examples.size < MINIMUM_EXAMPLES) {
+            reasons += "O benchmark exige pelo menos $MINIMUM_EXAMPLES exemplos TEST."
+        }
+        if (examples.any {
+                it.prompt.isBlank() || it.completion.isBlank() ||
+                    it.provenance.licenseId.isBlank() ||
+                    it.provenance.sourceReference.isBlank() ||
+                    it.provenance.rightsEvidence.isBlank()
+            }) {
+            reasons += "Há exemplos TEST vazios ou sem proveniência."
+        }
+        val expected = expectedCounts(examples)
+        if (reasons.isNotEmpty()) {
+            return Report(
+                eligibleForConversationReview = false,
+                modelFingerprint = modelFingerprint,
+                testSetFingerprint = fingerprint,
+                sampleCount = examples.size,
+                decisionMatchRate = 0.0,
+                matched = Counts(0, 0, 0),
+                expected = expected,
+                reasons = reasons.distinct()
+            )
+        }
+
+        var matches = 0
+        var finalMatches = 0
+        var toolMatches = 0
+        var planMatches = 0
+
+        for (example in examples) {
+            val expectedDecision = when (
+                val parsed = KellvynDecisionProtocol.parse(
+                    example.completion,
+                    nowMillis = PROTOCOL_VALIDATION_TIME_MILLIS
+                )
+            ) {
+                is KellvynDecisionProtocol.ParseResult.Accepted -> parsed.decision
+                is KellvynDecisionProtocol.ParseResult.Rejected -> {
+                    reasons += "${example.id}: alvo TEST deixou de ser uma decisão KELLVYN/1 válida."
+                    continue
+                }
+            }
+
+            if (expectedDecision is KellvynModelDecision.Delegate) {
+                reasons += "${example.id}: o alvo TEST tenta transferir uma decisão para fora do cérebro KN."
+                continue
+            }
+
+            val actualDecision = try {
+                generate(example)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                reasons += "${example.id}: inferência de decisão falhou (${safeMessage(error)})."
+                continue
+            }
+
+            if (actualDecision is KellvynModelDecision.Delegate) {
+                reasons += "${example.id}: o modelo tentou transferir uma decisão; esse comportamento reprova o benchmark."
+                continue
+            }
+
+            if (equivalent(expectedDecision, actualDecision)) {
+                matches++
+                when (expectedDecision) {
+                    is KellvynModelDecision.Final -> finalMatches++
+                    is KellvynModelDecision.CallTool -> toolMatches++
+                    is KellvynModelDecision.Plan -> planMatches++
+                    is KellvynModelDecision.Delegate -> Unit
+                }
+            }
+        }
+
+        val rate = matches.toDouble() / examples.size.toDouble()
+        if (expected.finalDecision == 0 || expected.callTool == 0 || expected.plan == 0) {
+            reasons += "O conjunto TEST precisa cobrir FINAL, CALL_TOOL e PLAN."
+        }
+        if (finalMatches < minimumClassMatches(expected.finalDecision) ||
+            toolMatches < minimumClassMatches(expected.callTool) ||
+            planMatches < minimumClassMatches(expected.plan)
+        ) {
+            reasons += "Uma ou mais classes de decisão não atingiram $MINIMUM_PER_CLASS_MATCH_RATE de correspondência exata."
+        }
+        if (rate < MINIMUM_DECISION_MATCH_RATE) {
+            reasons += "A correspondência exata geral de decisões ficou abaixo de $MINIMUM_DECISION_MATCH_RATE."
+        }
+
+        return Report(
+            eligibleForConversationReview = reasons.isEmpty(),
+            modelFingerprint = modelFingerprint,
+            testSetFingerprint = fingerprint,
+            sampleCount = examples.size,
+            decisionMatchRate = rate,
+            matched = Counts(finalMatches, toolMatches, planMatches),
+            expected = expected,
+            reasons = reasons.distinct()
+        )
+    }
+
+    fun testSetFingerprint(examples: List<KellvynInstructionTrainingExample>): String {
         require(examples.all { it.split == KellvynTrainingSplit.TEST })
         val records = examples.map { example ->
             TestRecord(
@@ -108,11 +238,6 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
         return digest.digest(bytes.toByteArray()).joinToString("") { "%02x".format(it) }
     }
 
-    private fun sha256(value: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-
     private fun expectedCounts(examples: List<KellvynInstructionTrainingExample>): Counts {
         var finals = 0
         var calls = 0
@@ -140,7 +265,8 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
         expected is KellvynModelDecision.Final && actual is KellvynModelDecision.Final ->
             normalize(expected.text) == normalize(actual.text)
         expected is KellvynModelDecision.CallTool && actual is KellvynModelDecision.CallTool ->
-            expected.name == actual.name && expected.arguments.toSortedMap() == actual.arguments.toSortedMap()
+            expected.name == actual.name &&
+                expected.arguments.toSortedMap() == actual.arguments.toSortedMap()
         expected is KellvynModelDecision.Plan && actual is KellvynModelDecision.Plan ->
             samePlan(expected.plan, actual.plan)
         else -> false
@@ -175,7 +301,7 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
             .take(240)
 
     private fun minimumClassMatches(expected: Int): Int =
-        if (expected == 0) 0 else ceil(expected * 0.80).toInt()
+        if (expected == 0) 0 else ceil(expected * MINIMUM_PER_CLASS_MATCH_RATE).toInt()
 
     private const val PROTOCOL_VALIDATION_TIME_MILLIS = 1_800_000_000_000L
 }
