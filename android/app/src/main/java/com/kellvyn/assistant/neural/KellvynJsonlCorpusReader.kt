@@ -1,5 +1,7 @@
 package com.kellvyn.assistant.neural
 
+import com.kellvyn.assistant.KellvynDecisionProtocolBehaviorBenchmark
+
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.PushbackReader
@@ -119,7 +121,7 @@ internal object KellvynJsonlCorpusReader {
         maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
-        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES,
+        minimumTestExamples: Int = KellvynDecisionProtocolBehaviorBenchmark.MINIMUM_EXAMPLES,
         cancellationCheck: () -> Unit = {}
     ): Selection {
         require(maxExamples in 3..1_000)
