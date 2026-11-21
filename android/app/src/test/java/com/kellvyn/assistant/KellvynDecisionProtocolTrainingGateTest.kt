@@ -77,6 +77,52 @@ class KellvynDecisionProtocolTrainingGateTest {
         assertTrue(report.reasons.any { it.contains("ferramenta não registrada") })
     }
 
+    @Test
+    fun rejectsPlansThatReferenceToolsOutsideTheLocalRegistry() {
+        val examples = sampleExamples().toMutableList()
+        examples[2] = examples[2].copy(completion = planDecision("missing_tool"))
+
+        val report = KellvynDecisionProtocolTrainingGate.evaluate(
+            examples = examples,
+            tools = registry(),
+            minimumTrainExamples = 3,
+            minimumValidationExamples = 3,
+            minimumTestExamples = 3,
+            minimumTrainPerDecision = 1,
+            minimumValidationPerDecision = 1,
+            minimumTestPerDecision = 1
+        )
+
+        assertFalse(report.readyForDecisionTraining)
+        assertEquals(1, report.rejectedExamples)
+        assertTrue(report.reasons.any { it.contains("Ferramentas não registradas") })
+    }
+
+    @Test
+    fun rejectsDecisionTargetsThatTryToTransferReasoning() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(
+            completion = "KELLVYN/1\nDELEGATE\nROLE\tRESEARCHER\n" +
+                "TASK\t\${KellvynDecisionProtocol.encodeText("Pesquisar")}\n" +
+                "CONTEXT\t\${KellvynDecisionProtocol.encodeText("Nenhum contexto")}\nEND"
+        )
+
+        val report = KellvynDecisionProtocolTrainingGate.evaluate(
+            examples = examples,
+            tools = registry(),
+            minimumTrainExamples = 3,
+            minimumValidationExamples = 3,
+            minimumTestExamples = 3,
+            minimumTrainPerDecision = 1,
+            minimumValidationPerDecision = 1,
+            minimumTestPerDecision = 1
+        )
+
+        assertFalse(report.readyForDecisionTraining)
+        assertEquals(1, report.rejectedExamples)
+        assertTrue(report.reasons.any { it.contains("transfere raciocínio") })
+    }
+
     private fun sampleExamples(): List<KellvynInstructionTrainingExample> =
         KellvynTrainingSplit.values().flatMap { split ->
             listOf(
@@ -91,13 +137,13 @@ class KellvynDecisionProtocolTrainingGateTest {
 
     private fun toolDecision() = buildString {
         append("KELLVYN/1\nCALL_TOOL\n")
-        append("NAME\t").append(KellvynDecisionProtocol.encodeText("local_lookup")).append("\n")
+        append("NAME\t").append(KellvynDecisionProtocol.encodeText(toolName)).append("\n")
         append("ARG\t").append(KellvynDecisionProtocol.encodeText("query"))
             .append("\t").append(KellvynDecisionProtocol.encodeText("KN")).append("\n")
         append("END")
     }
 
-    private fun planDecision(): String {
+    private fun planDecision(toolName: String = "local_lookup"): String {
         val stepId = "inspect"
         return buildString {
             append("KELLVYN/1\nPLAN\n")
