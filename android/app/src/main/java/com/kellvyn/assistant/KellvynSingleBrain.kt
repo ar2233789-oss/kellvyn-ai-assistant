@@ -132,7 +132,7 @@ internal class KellvynSingleBrain(
         }
 
         val registeredRisks = tools.descriptions().associate { spec ->
-            spec.name to KellvynStepRisk.valueOf(spec.risk.name)
+            spec.name to spec.risk.toStepRisk()
         }
         val planErrors = taskPlanner.validate(state.plan, registeredRisks)
         if (planErrors.isNotEmpty()) {
@@ -670,7 +670,7 @@ internal class KellvynSingleBrain(
                         continue
                     }
                     val registeredRisks = tools.descriptions().associate { spec ->
-                        spec.name to KellvynStepRisk.valueOf(spec.risk.name)
+                        spec.name to spec.risk.toStepRisk()
                     }
                     val errors = taskPlanner.validate(decision.plan, registeredRisks)
                     if (errors.isNotEmpty()) {
