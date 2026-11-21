@@ -59,7 +59,7 @@ internal object KellvynMultiBlockPromptFormatter {
 
     private fun boundedExcerpt(value: String, maxChars: Int): String {
         if (value.length <= maxChars) return value
-        val marker = "\\n[conteúdo intermediário omitido para caber no contexto KN]\\n"
+        val marker = "\n[conteúdo intermediário omitido para caber no contexto KN]\n"
         val usable = (maxChars - marker.length).coerceAtLeast(0)
         val head = (usable * 3) / 4
         val tail = usable - head
