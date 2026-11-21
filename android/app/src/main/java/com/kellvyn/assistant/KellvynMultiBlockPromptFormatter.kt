@@ -9,7 +9,7 @@ internal object KellvynMultiBlockPromptFormatter {
     fun build(
         history: List<KellvynAgentMessage>,
         availableTools: List<KellvynToolSpec>,
-        maxMessageChars: Int = 2_000,
+        maxMessageChars: Int = 900,
         maxToolDescriptionChars: Int = 80
     ): String {
         require(maxMessageChars in 128..8_000)
@@ -26,7 +26,7 @@ internal object KellvynMultiBlockPromptFormatter {
                 KellvynTrustLevel.UNTRUSTED -> "UNTRUSTED_DATA"
             }
             "[SYSTEM $trustLabel origem=${message.source.take(80)}]\n" +
-                message.content.take(maxMessageChars)
+                boundedExcerpt(message.content, maxMessageChars)
         }
         val toolCatalog = renderTools(availableTools, maxToolDescriptionChars)
         return render(systemContext, toolCatalog, otherMessages, maxMessageChars)
@@ -55,6 +55,15 @@ internal object KellvynMultiBlockPromptFormatter {
             )
         )
         return build(history, availableTools, maxMessageChars, maxToolDescriptionChars)
+    }
+
+    private fun boundedExcerpt(value: String, maxChars: Int): String {
+        if (value.length <= maxChars) return value
+        val marker = "\\n[conteúdo intermediário omitido para caber no contexto KN]\\n"
+        val usable = (maxChars - marker.length).coerceAtLeast(0)
+        val head = (usable * 3) / 4
+        val tail = usable - head
+        return value.take(head) + marker + value.takeLast(tail)
     }
 
     private fun renderTools(
