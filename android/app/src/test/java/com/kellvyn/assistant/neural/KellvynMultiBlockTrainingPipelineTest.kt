@@ -58,6 +58,40 @@ class KellvynMultiBlockTrainingPipelineTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun refusesTrainingExamplesWhosePromptCannotFitTheLiveContextWindow() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(prompt = "P".repeat(80))
+        KellvynMultiBlockTrainingPipeline.train(
+            examples = examples,
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 48,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 0
+            )
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun refusesTrainingDecisionsLongerThanTheLiveGenerationBudget() {
+        val examples = sampleExamples().toMutableList()
+        examples[0] = examples[0].copy(completion = "D".repeat(30))
+        KellvynMultiBlockTrainingPipeline.train(
+            examples = examples,
+            config = KellvynMultiBlockTrainingConfig(
+                contextLength = 48,
+                embeddingSize = 8,
+                headCount = 2,
+                feedForwardSize = 12,
+                depth = 2,
+                maxMerges = 0
+            )
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun rejectsTheSamePromptAcrossDifferentSplits() {
         val examples = listOf(
             instruction("train", "Pergunta repetida", "Resposta A", KellvynTrainingSplit.TRAIN),
