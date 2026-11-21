@@ -310,21 +310,49 @@ internal object KellvynMultiBlockTrainingQualityGate {
         require(maximumGeneralizationGap in 0.0..5.0)
         val reasons = mutableListOf<String>()
         val baseline = ln(manifest.vocabularySize.toDouble())
-        val improvement = (manifest.initialValidationLoss - manifest.finalValidationLoss) /
-            manifest.initialValidationLoss
-        val gap = manifest.heldOutTestLoss - manifest.finalValidationLoss
+        val initial = manifest.initialValidationLoss
+        val validation = manifest.finalValidationLoss
+        val heldOut = manifest.heldOutTestLoss
 
-        if (manifest.contextLength < 128) reasons += "A janela é pequena para benchmark KELLVYN/1."
+        if (!initial.isFinite() || initial <= 0.0) {
+            reasons += "A loss de validação inicial não é positiva e finita."
+        }
+        if (!validation.isFinite() || validation <= 0.0) {
+            reasons += "A loss de validação final não é positiva e finita."
+        }
+        if (!heldOut.isFinite() || heldOut <= 0.0) {
+            reasons += "A loss do conjunto de teste não é positiva e finita."
+        }
+        if (manifest.contextLength < 128) {
+            reasons += "A janela do KN-004 é pequena demais para o benchmark de protocolo."
+        }
+        if (manifest.depth !in 1..8 || manifest.totalTrainingSteps <= 0L) {
+            reasons += "Profundidade ou quantidade de passos do KN-004 inválida."
+        }
+
+        val improvement = if (initial.isFinite() && initial > 0.0 &&
+            validation.isFinite() && validation > 0.0
+        ) {
+            (initial - validation) / initial
+        } else {
+            Double.NEGATIVE_INFINITY
+        }
+        val gap = if (validation.isFinite() && heldOut.isFinite()) {
+            heldOut - validation
+        } else {
+            Double.POSITIVE_INFINITY
+        }
+
         if (improvement < minimumRelativeImprovement) {
             reasons += "A validação não melhorou o mínimo relativo exigido."
         }
-        if (manifest.finalValidationLoss >= baseline * 0.90) {
+        if (!baseline.isFinite() || validation >= baseline * 0.90) {
             reasons += "A loss de validação permanece próxima da previsão uniforme."
         }
         if (gap > maximumGeneralizationGap) {
             reasons += "A diferença validação/teste sugere generalização insuficiente."
         }
-        if (manifest.heldOutTestLoss >= baseline * 0.90) {
+        if (heldOut > baseline * 0.90) {
             reasons += "A loss do teste permanece próxima da previsão uniforme."
         }
         if (manifest.entries.none { it.split == KellvynTrainingSplit.TRAIN } ||
