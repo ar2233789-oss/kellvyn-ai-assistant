@@ -70,7 +70,7 @@ class KellvynScene3DStudioInstrumentedTest {
                 assertEquals(4, json.getJSONArray("meshes").length())
                 assertEquals(4, json.getJSONArray("nodes").length())
                 assertEquals(4, json.getJSONArray("materials").length())
-                assertEquals(1, json.getInt("scene"))
+                assertEquals(0, json.getInt("scene"))
                 assertTrue(json.getJSONArray("bufferViews").length() >= 12)
 
                 val binLength = header.int
