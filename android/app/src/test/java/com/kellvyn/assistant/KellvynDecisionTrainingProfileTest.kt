@@ -14,7 +14,7 @@ class KellvynDecisionTrainingProfileTest {
         assertEquals(4, config.headCount)
         assertEquals(512, config.feedForwardSize)
         assertEquals(2, config.depth)
-        assertEquals(64, config.maxMerges)
+        assertEquals(768, config.maxMerges)
         assertTrue(
             KellvynDecisionTrainingProfile.estimatedWorkingSetBytes() <=
                 KellvynDecisionTrainingProfile.MAX_WORKING_SET_BYTES
