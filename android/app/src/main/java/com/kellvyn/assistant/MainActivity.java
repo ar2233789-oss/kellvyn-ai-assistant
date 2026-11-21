@@ -588,6 +588,11 @@ public class MainActivity extends Activity {
             return;
         }
 
+        if (fileName != null && fileName.toLowerCase(Locale.ROOT).endsWith(".jsonl")) {
+            startDecisionCorpusTraining(displayText, fileUri, fileName);
+            return;
+        }
+
         if (!brain.isReady()) {
             new AlertDialog.Builder(this)
                     .setTitle("Cérebro Kellvyn em construção")
@@ -597,6 +602,88 @@ public class MainActivity extends Activity {
             return;
         }
         startBrainRequest(displayText, prompt, fileUri, fileName);
+    }
+
+    private void startDecisionCorpusTraining(String displayText, Uri corpusUri, String corpusName) {
+        if (corpusUri == null) {
+            toast("Não foi possível abrir o corpus JSONL selecionado.");
+            return;
+        }
+        waitingForReply = true;
+        transcript.add("U|" + displayText);
+        addMessageView(true, displayText);
+        composer.setText("");
+        selectedAttachment = null;
+        selectedAttachmentUri = null;
+        saveTranscript();
+
+        activeReplyBubble = addMessageView(false, "Preparando a auditoria local do corpus KN…");
+        showThinkingIndicator();
+        engineLabel = "AUDITORIA KN-004";
+        updateStatus();
+
+        brain.trainDecisionBrainFromJsonl(
+                corpusUri,
+                corpusName,
+                message -> {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        engineLabel = message.startsWith("BENCHMARK")
+                                ? "BENCHMARK KN-004"
+                                : message.startsWith("TREINO")
+                                ? "TREINO KN-004"
+                                : "AUDITORIA KN-004";
+                        updateStatus();
+                        if (activeReplyBubble != null) activeReplyBubble.setText(message);
+                    });
+                    return kotlin.Unit.INSTANCE;
+                },
+                result -> {
+                    runOnUiThread(() -> {
+                        if (isFinishing() || isDestroyed()) return;
+                        waitingForReply = false;
+                        hideThinkingIndicator();
+
+                        StringBuilder summary = new StringBuilder();
+                        summary.append(result.getDetail());
+                        summary.append("\n\nLinhas examinadas: ").append(result.getTotalLines());
+                        summary.append("\nTRAIN: ").append(result.getTrainExamples());
+                        summary.append("\nVALIDATION: ").append(result.getValidationExamples());
+                        summary.append("\nTEST: ").append(result.getTestExamples());
+                        if (result.getTrainingSteps() > 0L) {
+                            summary.append("\nPassos de treino: ").append(result.getTrainingSteps());
+                        }
+                        if (result.getBenchmarkMatchRate() != null) {
+                            summary.append("\nCorrespondência no TEST: ")
+                                    .append(String.format(Locale.ROOT, "%.1f%%",
+                                            result.getBenchmarkMatchRate() * 100.0));
+                        }
+                        if (result.getReasons() != null && !result.getReasons().isEmpty()) {
+                            summary.append("\n\nItens que precisam de atenção:");
+                            int limit = Math.min(10, result.getReasons().size());
+                            for (int i = 0; i < limit; i++) {
+                                summary.append("\n• ").append(result.getReasons().get(i));
+                            }
+                        }
+
+                        String finalText = summary.toString();
+                        if (activeReplyBubble != null) activeReplyBubble.setText(finalText);
+                        transcript.add("S|" + finalText);
+                        saveTranscript();
+                        activeReplyBubble = null;
+                        engineLabel = result.getReady()
+                                ? "MOTOR LOCAL CPU"
+                                : result.getCompleted()
+                                ? "KN-004 TESTE REPROVADO"
+                                : "CORPUS NÃO APROVADO";
+                        updateStatus();
+                        if (result.getReady()) {
+                            toast("Cérebro KN-004 aprovado e liberado.");
+                        }
+                    });
+                    return kotlin.Unit.INSTANCE;
+                }
+        );
     }
 
     private void startBrainRequest(String displayText, String prompt, Uri attachmentUri, String attachmentName) {
