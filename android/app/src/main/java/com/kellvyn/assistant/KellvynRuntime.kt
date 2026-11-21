@@ -142,7 +142,7 @@ internal class KellvynRuntime(context: Context) {
     private val neuralChatRuntime by lazy {
         KellvynNeuralChatRuntime(neuralModelStore, neuralBehaviorApprovalStore)
     }
-    private val decisionProtocolApprovalStore = KellvynNeuralBehaviorApprovalStore(
+    private val decisionProtocolApprovalStore = KellvynDecisionProtocolApprovalStore(
         File(appContext.filesDir, "neural/decision-protocol.approval"),
         KellvynAndroidTaskCheckpointCipher("kellvyn.kn004.decision-protocol-approval.aes-gcm.v1")
     )
@@ -626,13 +626,15 @@ internal class KellvynRuntime(context: Context) {
         val modelFingerprint = bundle.model.parameterFingerprint()
         val testFingerprint = KellvynDecisionProtocolBehaviorBenchmark
             .testSetFingerprintFromManifest(bundle.manifest.entries)
-        val approval = decisionProtocolApprovalStore.load(modelFingerprint, testFingerprint)
         val heldOutCount = bundle.manifest.entries.count {
             it.split == com.kellvyn.assistant.neural.KellvynTrainingSplit.TEST
         }
-        if (approval == null || !approval.eligibleForIntegrationReview ||
-            approval.sampleCount != heldOutCount
-        ) {
+        val approval = decisionProtocolApprovalStore.load(
+            modelFingerprint = modelFingerprint,
+            testSetFingerprint = testFingerprint,
+            expectedSampleCount = heldOutCount
+        )
+        if (approval == null) {
             return KellvynNeuralChatRuntime.Status(
                 ready = false,
                 detail = "Checkpoint numérico aprovado; falta aprovação do benchmark KELLVYN/1.",
@@ -717,9 +719,8 @@ internal class KellvynRuntime(context: Context) {
         }
         if (report.eligibleForConversationReview) {
             decisionProtocolApprovalStore.save(
-                modelFingerprint = report.modelFingerprint,
-                testSetFingerprint = manifestFingerprint,
-                report = report.asEncryptedApprovalReport()
+                report = report,
+                approvedAtMillis = System.currentTimeMillis()
             )
             activeSingleBrain = createSingleBrain(inference)
         } else {
