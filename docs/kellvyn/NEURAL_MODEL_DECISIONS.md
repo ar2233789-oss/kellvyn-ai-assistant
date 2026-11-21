@@ -16,7 +16,7 @@
 
 O cérebro da Kellvyn será original. A arquitetura neural, o tokenizer, a inicialização, o código de treino, os pesos aprendidos e os checkpoints serão criados e mantidos neste repositório.
 
-**Não usar como cérebro:** pesos pré-treinados de ChatGPT, Claude, Gemini/Android Studio, Replit, Gemma, Qwen, Llama ou de qualquer outro modelo externo. Não baixar um modelo alheio e apresentá-lo como se fosse o cérebro criado pela Kellvyn. Não fazer fine-tuning ou LoRA de pesos externos como substituto desta decisão.
+**Não usar como cérebro:** pesos pré-treinados ou checkpoints de qualquer modelo externo. Não baixar, embutir, chamar por SDK nem apresentar um modelo alheio como se fosse cérebro desenvolvido pela Kellvyn. Não usar fine-tuning ou adapters de pesos externos como substituto desta decisão.
 
 A Kellvyn pode estudar modelos e agentes conhecidos para entender técnicas publicamente documentadas. Referências de arquitetura não são autorização para copiar código privado, pesos, prompts internos ou mecanismos proprietários.
 
