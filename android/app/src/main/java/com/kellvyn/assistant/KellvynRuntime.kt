@@ -656,7 +656,7 @@ internal class KellvynRuntime(context: Context) {
             )
             return
         }
-        require(displayName.lowercase(Locale.ROOT).endsWith(".jsonl")) {
+        if (!displayName.lowercase(Locale.ROOT).endsWith(".jsonl")) {
             onFinished(
                 KellvynDecisionCorpusStatus(
                     completed = false,
