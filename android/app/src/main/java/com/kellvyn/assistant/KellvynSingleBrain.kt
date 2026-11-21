@@ -596,6 +596,7 @@ internal class KellvynSingleBrain(
         )
         val repeatedCalls = mutableMapOf<String, Int>()
         var toolCalls = 0
+        var hasExecutedMutation = false
 
         for (step in 1..config.maxSteps) {
             val contextMessages = when (
@@ -646,9 +647,9 @@ internal class KellvynSingleBrain(
                 }
 
                 is KellvynModelDecision.Plan -> {
-                    if (step != 1 || toolCalls != 0) {
+                    if (hasExecutedMutation) {
                         return KellvynBrainResult.Failed(
-                            "Um plano estruturado só pode ser proposto antes de qualquer execução.",
+                            "Um plano estruturado não pode substituir uma alteração já executada.",
                             step,
                             toolCalls
                         )
@@ -663,12 +664,14 @@ internal class KellvynSingleBrain(
                         .toSet()
                     val unavailablePlanTools = requiredPlanTools - presentedToolNames
                     if (unavailablePlanTools.isNotEmpty()) {
-                        return KellvynBrainResult.Failed(
-                            "Plano recusado: estas ferramentas não estavam disponíveis para a decisão " +
-                                "que o gerou: ${unavailablePlanTools.sorted().joinToString()}.",
-                            step,
-                            toolCalls
+                        messages += observation(
+                            source = "task-plan:unavailable-tools",
+                            success = false,
+                            content = "Plano recusado porque estas ferramentas não estavam no catálogo " +
+                                "apresentado nesta decisão: ${unavailablePlanTools.sorted().joinToString()}. " +
+                                "Consulte o inventário local e reformule o plano apenas com ferramentas apresentadas."
                         )
+                        continue
                     }
                     val registeredRisks = tools.descriptions().associate { spec ->
                         spec.name to KellvynStepRisk.valueOf(spec.risk.name)
@@ -800,6 +803,13 @@ internal class KellvynSingleBrain(
                         continue
                     }
 
+                    if (tool.spec.risk !in setOf(
+                            KellvynToolRisk.READ_ONLY,
+                            KellvynToolRisk.NETWORK_READ
+                        )
+                    ) {
+                        hasExecutedMutation = true
+                    }
                     val result = try {
                         executeTool(
                             tool = tool,
