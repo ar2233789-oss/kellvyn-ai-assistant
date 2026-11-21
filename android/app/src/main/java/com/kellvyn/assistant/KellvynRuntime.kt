@@ -332,39 +332,36 @@ internal class KellvynRuntime(context: Context) {
                 )
             }
         }
+        // Test the candidate in memory first. The currently installed checkpoint remains
+        // untouched unless both the numeric quality gate and held-out TEST benchmark pass.
+        val status = withContext(Dispatchers.Default) {
+            neuralChatRuntime.initializeCandidate(trained)
+        }
+        if (!status.ready || !status.qualityApprovedForBenchmark || status.modelFingerprint == null) {
+            neuralChatRuntime.unload()
+            return trained.manifest
+        }
+        val behavior = withContext(Dispatchers.Default) {
+            neuralChatRuntime.runBehaviorBenchmark(
+                examples = examples.filter {
+                    it.split == com.kellvyn.assistant.neural.KellvynTrainingSplit.TEST
+                }
+            )
+        }
+        if (!behavior.eligibleForIntegrationReview) {
+            neuralChatRuntime.unload()
+            return trained.manifest
+        }
         withContext(Dispatchers.IO) {
             neuralModelStore.saveMultiBlock(trained)
         }
-
-        // Installing weights is not sufficient: require the numeric gate and a held-out
-        // behavioral benchmark on this exact checkpoint before enabling the main chat.
-        val status = withContext(Dispatchers.IO) { neuralChatRuntime.initialize() }
-        if (status.ready && status.qualityApprovedForBenchmark && status.modelFingerprint != null) {
-            val behavior = withContext(Dispatchers.Default) {
-                neuralChatRuntime.runBehaviorBenchmark(
-                    examples = examples.filter {
-                        it.split == com.kellvyn.assistant.neural.KellvynTrainingSplit.TEST
-                    }
-                )
-            }
-            val editor = readinessPreferences.edit()
-            if (behavior.eligibleForIntegrationReview) {
-                editor.putString(KEY_APPROVED_FINGERPRINT, behavior.modelFingerprint)
-                    .putInt(KEY_APPROVED_TEST_COUNT, behavior.sampleCount)
-                    .putFloat(KEY_APPROVED_EXACT_RATE, behavior.exactMatchRate.toFloat())
-                    .putFloat(KEY_APPROVED_TOKEN_F1, behavior.meanTokenF1.toFloat())
-                    .putLong(KEY_APPROVED_AT_MILLIS, System.currentTimeMillis())
-            } else {
-                editor.remove(KEY_APPROVED_FINGERPRINT)
-                    .remove(KEY_APPROVED_TEST_COUNT)
-                    .remove(KEY_APPROVED_EXACT_RATE)
-                    .remove(KEY_APPROVED_TOKEN_F1)
-                    .remove(KEY_APPROVED_AT_MILLIS)
-            }
-            editor.apply()
-        } else {
-            readinessPreferences.edit().remove(KEY_APPROVED_FINGERPRINT).apply()
-        }
+        readinessPreferences.edit()
+            .putString(KEY_APPROVED_FINGERPRINT, behavior.modelFingerprint)
+            .putInt(KEY_APPROVED_TEST_COUNT, behavior.sampleCount)
+            .putFloat(KEY_APPROVED_EXACT_RATE, behavior.exactMatchRate.toFloat())
+            .putFloat(KEY_APPROVED_TOKEN_F1, behavior.meanTokenF1.toFloat())
+            .putLong(KEY_APPROVED_AT_MILLIS, System.currentTimeMillis())
+            .apply()
         neuralChatRuntime.unload()
         refreshCentralKernel()
         return trained.manifest

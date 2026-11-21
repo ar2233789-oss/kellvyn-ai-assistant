@@ -183,6 +183,56 @@ internal class KellvynNeuralChatRuntime(
         }
     }
 
+    /**
+     * Loads a just-trained candidate directly from memory for the held-out benchmark.
+     * No checkpoint is written or replaced until the benchmark approves this exact model.
+     */
+    @Synchronized
+    fun initializeCandidate(candidate: KellvynMultiBlockTrainingResult): Status {
+        behaviorApprovedFingerprint = null
+        return try {
+            require(candidate.tokenizer.vocabularySize == candidate.model.config.vocabularySize) {
+                "O tokenizer e o Transformer candidato usam vocabulários diferentes."
+            }
+            val endTokenId = candidate.tokenizer.endOfSequenceTokenId
+                ?: return Status(
+                    ready = false,
+                    detail = "O candidato KN-004 não possui token EOS dedicado."
+                )
+            val qualityGate = KellvynMultiBlockTrainingQualityGate.evaluate(candidate.manifest)
+            val fingerprint = candidate.model.parameterFingerprint()
+            loadedModel = LoadedModel(
+                tokenizer = candidate.tokenizer,
+                model = candidate.model,
+                endTokenId = endTokenId,
+                fingerprint = fingerprint,
+                qualityGate = qualityGate,
+                manifest = candidate.manifest
+            )
+            Status(
+                ready = true,
+                detail = if (qualityGate.eligibleForProtocolBenchmark) {
+                    "Candidato KN-004 em memória aprovado no gate numérico; pronto para benchmark TEST."
+                } else {
+                    "Candidato KN-004 recusado pelo gate numérico; checkpoint anterior preservado."
+                },
+                qualityApprovedForBenchmark = qualityGate.eligibleForProtocolBenchmark,
+                qualityReasons = qualityGate.reasons,
+                depth = candidate.model.config.depth,
+                contextLength = candidate.model.config.contextLength,
+                vocabularySize = candidate.tokenizer.vocabularySize,
+                modelFingerprint = fingerprint
+            )
+        } catch (error: Exception) {
+            loadedModel = null
+            Status(
+                ready = false,
+                detail = error.message?.takeIf { it.isNotBlank() }
+                    ?: "Não foi possível validar o candidato KN-004."
+            )
+        }
+    }
+
     /** Releases the in-memory model reference; the verified checkpoint remains on disk. */
     @Synchronized
     fun unload() {
