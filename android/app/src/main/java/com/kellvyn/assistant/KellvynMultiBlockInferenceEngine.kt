@@ -22,7 +22,7 @@ internal class KellvynMultiBlockInferenceEngine(
         val maxPromptChars: Int = 12_000,
         val maxToolsInPrompt: Int = 6,
         val maxToolDescriptionChars: Int = 80,
-        val maxMessageChars: Int = 2_000
+        val maxMessageChars: Int = 900
     ) {
         init {
             require(maxGenerationTokens in 1..256)
@@ -48,20 +48,13 @@ internal class KellvynMultiBlockInferenceEngine(
     ): KellvynModelDecision = withContext(Dispatchers.Default) {
         val coroutine = currentCoroutineContext()
         coroutine.ensureActive()
-        // The inference adapter enforces its own final prompt budget even when a
-        // caller configured a larger registry shortlist. If the actual tokenizer window is
-        // still too small, remove lower-ranked tools while preserving the inventory first.
-        var promptTools = availableTools.take(config.maxToolsInPrompt)
-        var prompt: String? = null
-        while (prompt == null) {
-            try {
-                prompt = buildBoundedPrompt(history, promptTools)
-            } catch (error: IllegalArgumentException) {
-                if (promptTools.isEmpty()) throw error
-                promptTools = promptTools.dropLast(1)
-            }
+        // The presented tool list is part of the authorization contract. Never silently
+        // remove tools here: the central brain must know exactly which capabilities the
+        // model received before it may execute a CALL_TOOL decision.
+        require(availableTools.size <= config.maxToolsInPrompt) {
+            "O catálogo de ferramentas excedeu o limite do prompt KN-004."
         }
-        val boundedPrompt = requireNotNull(prompt)
+        val boundedPrompt = buildBoundedPrompt(history, availableTools)
         val prefix = tokenizer.encode(boundedPrompt)
         val promptBudget = model.config.contextLength - config.maxGenerationTokens
         require(prefix.isNotEmpty() && prefix.size <= promptBudget) {
