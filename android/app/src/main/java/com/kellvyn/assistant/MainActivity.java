@@ -591,7 +591,7 @@ public class MainActivity extends Activity {
         if (!brain.isReady()) {
             new AlertDialog.Builder(this)
                     .setTitle("Cérebro Kellvyn em construção")
-                    .setMessage("O núcleo neural próprio da Kellvyn ainda está em desenvolvimento. Nenhum modelo de outra IA será baixado como substituto. Esta mensagem não foi enviada.")
+                    .setMessage("O cérebro local próprio da Kellvyn ainda está em desenvolvimento. Nenhum modelo de outra IA será baixado como substituto. Esta mensagem não foi enviada.")
                     .setPositiveButton("Entendi", null)
                     .show();
             return;
@@ -615,7 +615,7 @@ public class MainActivity extends Activity {
         selectedAttachmentUri = null;
         saveTranscript();
 
-        activeReplyBubble = addMessageView(false, "Preparando o núcleo neural da Kellvyn…");
+        activeReplyBubble = addMessageView(false, "Preparando o cérebro local da Kellvyn…");
         showThinkingIndicator();
         engineLabel = "KELLVYN EM CONSTRUÇÃO";
         updateStatus();
@@ -1057,7 +1057,7 @@ public class MainActivity extends Activity {
     private String botStatusText(String platform, boolean enabled, boolean tokenPresent) {
         String runtime = prefs.getString("bot_status_" + platform, "");
         if (!tokenPresent) return "Sem token. Configure pelo chat principal.";
-        if (!brain.isReady()) return "O núcleo neural próprio da Kellvyn ainda está em construção.";
+        if (!brain.isReady()) return "O cérebro local próprio da Kellvyn ainda está em construção.";
         if (!enabled) return "Desativado";
         if (runtime == null || runtime.isEmpty() || runtime.equals("Desativado")) return "Iniciando…";
         return runtime;
@@ -1129,7 +1129,7 @@ public class MainActivity extends Activity {
                 toggle.setOnCheckedChangeListener((button, checked) -> {
                     if (checked && !brain.isReady()) {
                         toggle.setChecked(false);
-                        toast("O núcleo neural próprio ainda não foi conectado; os bots permanecem desativados até a validação do agente.");
+                        toast("O cérebro local ainda não foi conectado; os bots permanecem desativados até a validação das funções.");
                         return;
                     }
                     if (checked && !BotTokenStore.hasToken(MainActivity.this, platform)) {
