@@ -97,7 +97,8 @@ internal class KellvynNeuralTrainingController(
         maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
-        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
+        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES,
+        prepareExamples: ((List<KellvynInstructionTrainingExample>) -> List<KellvynInstructionTrainingExample>)? = null
     ): CorpusOutcome = withContext(Dispatchers.IO) {
         val trainingContext = currentCoroutineContext()
         require(expectedAudit.sourceSha256.matches(Regex("[a-f0-9]{64}"))) {
@@ -126,8 +127,21 @@ internal class KellvynNeuralTrainingController(
                 training = null
             )
         }
+        val preparedExamples = prepareExamples?.invoke(selection.examples) ?: selection.examples
+        require(preparedExamples.size == selection.examples.size) {
+            "A preparação do corpus não pode remover nem acrescentar exemplos."
+        }
+        require(preparedExamples.zip(selection.examples).all { (prepared, original) ->
+            prepared.id == original.id &&
+                prepared.completion == original.completion &&
+                prepared.split == original.split &&
+                prepared.provenance == original.provenance &&
+                prepared.prompt.isNotBlank()
+        }) {
+            "A preparação do corpus só pode transformar o prompt e preservar alvos, partições e proveniência."
+        }
         val outcome = trainAndInstall(
-            examples = selection.examples,
+            examples = preparedExamples,
             config = config,
             createdAtMillis = createdAtMillis
         )
