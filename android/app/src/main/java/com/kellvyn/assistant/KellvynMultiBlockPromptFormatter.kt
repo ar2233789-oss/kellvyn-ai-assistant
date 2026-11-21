@@ -9,8 +9,8 @@ internal object KellvynMultiBlockPromptFormatter {
     fun build(
         history: List<KellvynAgentMessage>,
         availableTools: List<KellvynToolSpec>,
-        maxMessageChars: Int = 900,
-        maxToolDescriptionChars: Int = 100
+        maxMessageChars: Int = KellvynDecisionPromptContext.MAX_MESSAGE_CHARS,
+        maxToolDescriptionChars: Int = KellvynDecisionPromptContext.MAX_TOOL_DESCRIPTION_CHARS
     ): String {
         require(maxMessageChars in 128..8_000)
         require(maxToolDescriptionChars in 16..400)
