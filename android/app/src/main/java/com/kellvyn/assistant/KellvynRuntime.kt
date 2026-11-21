@@ -487,6 +487,7 @@ internal class KellvynRuntime(context: Context) {
                         )
                     )
                     val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+                    requireDecisionToolsVisible(example, selectedTools)
                     val formatted = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
                         userPrompt = example.prompt,
                         availableTools = selectedTools,
@@ -544,6 +545,7 @@ internal class KellvynRuntime(context: Context) {
                 )
             )
             val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+            requireDecisionToolsVisible(example, selectedTools)
             example.copy(
                 prompt = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
                     userPrompt = example.prompt,
@@ -1245,6 +1247,40 @@ internal class KellvynRuntime(context: Context) {
 
     private suspend fun activeSpecialistProfileRegistry(): KellvynSpecialistProfileRegistry =
         KellvynSpecialistProfileRegistry(activeSpecialistProfiles())
+
+    /**
+     * A trained tool target must be visible in the same six-tool shortlist that live inference gets.
+     * Otherwise the model would be trained to choose a capability it cannot see at runtime.
+     */
+    private fun requireDecisionToolsVisible(
+        example: KellvynInstructionTrainingExample,
+        selectedTools: List<KellvynToolSpec>
+    ) {
+        val decision = when (
+            val parsed = KellvynDecisionProtocol.parse(example.completion)
+        ) {
+            is KellvynDecisionProtocol.ParseResult.Accepted -> parsed.decision
+            is KellvynDecisionProtocol.ParseResult.Rejected ->
+                throw IllegalArgumentException(
+                    "Exemplo ${example.id} não contém uma decisão KELLVYN/1 válida: ${parsed.reason}"
+                )
+        }
+        val required = when (decision) {
+            is KellvynModelDecision.Final -> emptySet()
+            is KellvynModelDecision.CallTool -> setOf(decision.name)
+            is KellvynModelDecision.Plan -> decision.plan.steps.flatMap { it.requiredTools }.toSet()
+            is KellvynModelDecision.Delegate -> throw IllegalArgumentException(
+                "Exemplo ${example.id} tenta transferir uma decisão para fora do cérebro KN."
+            )
+        }
+        val available = selectedTools.map { it.name }.toSet()
+        val missing = required - available
+        require(missing.isEmpty()) {
+            "Exemplo ${example.id} exige ferramentas fora da seleção que o KN recebe ao vivo: " +
+                missing.sorted().joinToString() +
+                ". Corrija a solicitação ou o catálogo para que o KN consiga descobrir essa capacidade."
+        }
+    }
 
     /**
      * Any successful checkpoint replacement invalidates the in-memory brain and its approval.
