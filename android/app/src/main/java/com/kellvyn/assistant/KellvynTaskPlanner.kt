@@ -315,6 +315,21 @@ internal enum class KellvynStepRisk {
     DESTRUCTIVE
 }
 
+/**
+ * Maps every executable tool risk into the task planner's coarser approval categories.
+ * Artifact creation and queued-task changes are writes, so they always require owner review.
+ */
+internal fun KellvynToolRisk.toStepRisk(): KellvynStepRisk = when (this) {
+    KellvynToolRisk.READ_ONLY -> KellvynStepRisk.READ_ONLY
+    KellvynToolRisk.NETWORK_READ -> KellvynStepRisk.NETWORK_READ
+    KellvynToolRisk.REVERSIBLE_WRITE -> KellvynStepRisk.REVERSIBLE_WRITE
+    KellvynToolRisk.DEVICE_CONTROL -> KellvynStepRisk.DEVICE_CONTROL
+    KellvynToolRisk.DESTRUCTIVE -> KellvynStepRisk.DESTRUCTIVE
+    KellvynToolRisk.ARTIFACT_CREATE,
+    KellvynToolRisk.APPEND_ONLY_TASK_CREATE,
+    KellvynToolRisk.CANCEL_QUEUED_TASK -> KellvynStepRisk.REVERSIBLE_WRITE
+}
+
 internal enum class KellvynStepStatus {
     WAITING,
     READY,
