@@ -20,5 +20,17 @@ class KellvynDecisionTrainingProfileTest {
             KellvynDecisionTrainingProfile.estimatedWorkingSetBytes() <=
                 KellvynDecisionTrainingProfile.MAX_WORKING_SET_BYTES
         )
+        assertTrue(
+            KellvynDecisionTrainingProfile.estimatedWorkingSetBytes() >
+                com.kellvyn.assistant.neural.KellvynMultiBlockTransformer.Config(
+                    vocabularySize = 256 + config.maxMerges + 1,
+                    contextLength = config.contextLength,
+                    embeddingSize = config.embeddingSize,
+                    headCount = config.headCount,
+                    feedForwardSize = config.feedForwardSize,
+                    depth = config.depth,
+                    seed = config.seed
+                ).estimatedTrainingWorkingSetBytes()
+        )
     }
 }
