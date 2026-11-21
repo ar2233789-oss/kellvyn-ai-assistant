@@ -538,14 +538,14 @@ internal class KellvynScene3DStudio private constructor(
     private fun floatsToBytes(values: FloatArray): ByteArray {
         val output = ByteBuffer.allocate(values.size * java.lang.Float.BYTES)
             .order(ByteOrder.LITTLE_ENDIAN)
-        values.forEach(output::putFloat)
+        values.forEach { output.putFloat(it) }
         return output.array()
     }
 
     private fun intsToBytes(values: IntArray): ByteArray {
         val output = ByteBuffer.allocate(values.size * Integer.BYTES)
             .order(ByteOrder.LITTLE_ENDIAN)
-        values.forEach(output::putInt)
+        values.forEach { output.putInt(it) }
         return output.array()
     }
 
