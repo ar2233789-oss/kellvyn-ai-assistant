@@ -168,6 +168,15 @@ internal object KellvynMultiBlockTrainingPipeline {
 
         data class EncodedExample(val prompt: IntArray, val completion: IntArray)
 
+        // The live inference engine uses the same deterministic reserve. Training refuses
+        // examples that would only work by silently truncating the prompt or completion.
+        val generationTokenBudget = minOf(
+            256,
+            maxOf(64, config.contextLength / 4),
+            config.contextLength - 1
+        )
+        val promptTokenBudget = config.contextLength - generationTokenBudget
+
         fun encode(partition: List<KellvynInstructionTrainingExample>): List<EncodedExample> =
             partition.map { example ->
                 cancellationCheck()
@@ -176,6 +185,14 @@ internal object KellvynMultiBlockTrainingPipeline {
                 val eos = requireNotNull(tokenizer.endOfSequenceTokenId)
                 val completion = completionText + intArrayOf(eos)
                 require(prompt.isNotEmpty() && completionText.isNotEmpty())
+                require(prompt.size <= promptTokenBudget) {
+                    "O prompt do exemplo ${example.id} ocupa ${prompt.size} tokens; " +
+                        "o orçamento de contexto é $promptTokenBudget."
+                }
+                require(completion.size <= generationTokenBudget) {
+                    "A decisão do exemplo ${example.id} ocupa ${completion.size} tokens; " +
+                        "o orçamento de geração é $generationTokenBudget."
+                }
                 require(prompt.size.toLong() + completion.size.toLong() <= MAX_TOKENIZED_EXAMPLE)
                 EncodedExample(prompt, completion)
             }
