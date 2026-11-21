@@ -6,7 +6,7 @@ import {
   ChevronDown, ChevronRight, Sparkles, TerminalSquare, Brain, Search, ListChecks, Bot, Puzzle,
 } from "lucide-react";
 import { DigitalRain } from "./DigitalRain";
-import { askLocalBrain, textFromAttachment } from "./localBrain";
+
 import {
   DEFAULT_SETTINGS, EFFECTS, PALETTES, normalizeHex, storage, toggleEffectSelection, uid,
   type Attachment, type Conversation, type Memory, type Msg, type Settings,
@@ -165,7 +165,7 @@ export function KellvynApp() {
   };
   const openConversation = (id: string) => { setActiveId(id); storage.saveActiveId(id); setPanel(null); };
 
-  const send = async () => {
+  const send = () => {
     const text = input.trim();
     if ((!text && !attachment) || !active || status === "Executando") return;
 
@@ -173,67 +173,23 @@ export function KellvynApp() {
     const submittedAttachment = attachment ?? undefined;
     const userMsg: Msg = { id: uid(), role: "user", text, attachment: submittedAttachment };
     const replyId = uid();
-    const reply: Msg = { id: replyId, role: "assistant", text: "" };
-    const history = messages
-      .filter((m) => !m.error && m.text.trim())
-      .slice(-12)
-      .map((m) => ({ role: m.role, text: m.text, error: m.error }));
-
-    let prompt = text;
-    try {
-      if (submittedAttachment) {
-        const fileText = textFromAttachment(submittedAttachment);
-        prompt = [
-          text || "Analise o conteúdo textual do arquivo anexado.",
-          "",
-          `Arquivo anexado: ${submittedAttachment.name}`,
-          "Conteúdo do arquivo:",
-          fileText,
-        ].join("\n");
-      }
-    } catch (error) {
-      const explanation = error instanceof Error ? error.message : "Não foi possível ler o anexo.";
-      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-        ...c,
-        updatedAt: Date.now(),
-        title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
-        messages: [...c.messages, userMsg, { ...reply, error: true, text: explanation }],
-      }).sort((a, b) => b.updatedAt - a.updatedAt));
-      setInput(""); setAttachment(null); setStatus("Erro");
-      taRef.current?.focus();
-      return;
-    }
+    const unavailable = "A prévia web foi desativada para inferência. Ela não baixa nem executa modelos de terceiros. O modelo neural próprio ainda não está conectado ao chat; por isso, esta prévia não pode responder nem analisar anexos.";
 
     updateConvs((p) => p.map((c) => c.id !== cid ? c : {
       ...c,
       updatedAt: Date.now(),
       title: c.messages.length === 0 && text ? text.slice(0, 40) : c.title,
-      messages: [...c.messages, userMsg, reply],
+      messages: [
+        ...c.messages,
+        userMsg,
+        { id: replyId, role: "assistant", text: unavailable, error: true },
+      ],
     }).sort((a, b) => b.updatedAt - a.updatedAt));
-    setInput(""); setAttachment(null); setStatus("Executando");
 
-    try {
-      const answer = await askLocalBrain(cid, prompt, history, (partial) => {
-        updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-          ...c,
-          messages: c.messages.map((m) => m.id === replyId ? { ...m, text: partial, error: false } : m),
-        }));
-      });
-      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-        ...c,
-        messages: c.messages.map((m) => m.id === replyId ? { ...m, text: answer, error: false } : m),
-      }));
-      setStatus("Pronta");
-    } catch (error) {
-      const explanation = error instanceof Error ? error.message : "Falha inesperada ao iniciar a IA local.";
-      updateConvs((p) => p.map((c) => c.id !== cid ? c : {
-        ...c,
-        messages: c.messages.map((m) => m.id === replyId ? { ...m, text: explanation, error: true } : m),
-      }));
-      setStatus("Erro");
-    } finally {
-      taRef.current?.focus();
-    }
+    setInput("");
+    setAttachment(null);
+    setStatus("Erro");
+    taRef.current?.focus();
   };
 
   const toggleMic = () => {
