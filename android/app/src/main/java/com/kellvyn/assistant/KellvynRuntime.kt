@@ -1478,7 +1478,7 @@ internal class KellvynRuntime(context: Context) {
     )
 
     // Free-text approval is not decision-protocol approval; the main chat stays locked.
-    fun isReady(): Boolean = activeSingleBrain != null
+    fun isReady(): Boolean = activeSingleBrain != null && activeDecisionTrainingThread?.isAlive != true
 
     /** The KN-004 path is stateless; MainActivity supplies the saved transcript as context. */
     fun hasActiveConversation(): Boolean = false
