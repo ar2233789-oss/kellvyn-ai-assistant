@@ -108,7 +108,30 @@ internal class KellvynRuntime(context: Context) {
         File(appContext.filesDir, "neural")
     )
     private val neuralTrainingController by lazy {
-        KellvynNeuralTrainingController(neuralModelStore)
+        KellvynNeuralTrainingController(neuralModelStore) { examples, config, createdAtMillis, cancellationCheck ->
+            val modelConfig = KellvynMultiBlockTransformer.Config(
+                vocabularySize = 256 + config.maxMerges + 1,
+                contextLength = config.contextLength,
+                embeddingSize = config.embeddingSize,
+                headCount = config.headCount,
+                feedForwardSize = config.feedForwardSize,
+                depth = config.depth,
+                seed = config.seed
+            )
+            runHeavyTask(
+                taskId = "training-kn004-jsonl-$createdAtMillis",
+                estimatedWorkingSetBytes = modelConfig.estimatedTrainingWorkingSetBytes()
+            ) {
+                withContext(Dispatchers.Default) {
+                    KellvynMultiBlockTrainingPipeline.train(
+                        examples = examples,
+                        config = config,
+                        createdAtMillis = createdAtMillis,
+                        cancellationCheck = cancellationCheck
+                    )
+                }
+            }
+        }
     }
     private val neuralChatRuntime by lazy {
         KellvynNeuralChatRuntime(neuralModelStore)
