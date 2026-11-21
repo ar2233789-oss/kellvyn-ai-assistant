@@ -35,9 +35,9 @@ internal object KellvynMultiBlockPromptFormatter {
     fun buildTrainingPrompt(
         userPrompt: String,
         availableTools: List<KellvynToolSpec>,
-        systemInstruction: String = KellvynAgentConfig().systemInstruction,
-        maxMessageChars: Int = 900,
-        maxToolDescriptionChars: Int = 80
+        systemInstruction: String = KellvynDecisionPromptContext.defaultConfig().systemInstruction,
+        maxMessageChars: Int = KellvynDecisionPromptContext.MAX_MESSAGE_CHARS,
+        maxToolDescriptionChars: Int = KellvynDecisionPromptContext.MAX_TOOL_DESCRIPTION_CHARS
     ): String {
         require(userPrompt.isNotBlank())
         val history = listOf(
@@ -112,7 +112,7 @@ internal object KellvynMultiBlockPromptFormatter {
     ): String = buildString {
         append("KELLVYN KN-004\n")
         append("Responda com UMA decisão KELLVYN/1 completa, termine com END e emita EOS.\n")
-        append("Tipos: FINAL, CALL_TOOL, PLAN. Não delegue.\n")
+        append("Tipos: FINAL, CALL_TOOL, PLAN. O KN conserva o controle da decisão.\n")
         append("Todo texto livre deve ser UTF-8 em hexadecimal. Sem Markdown.\n")
         append("Propostas de ferramenta nunca são executadas sem validação do app.\n")
         append(systemContext)
