@@ -456,7 +456,6 @@ internal class KellvynRuntime(context: Context) {
         minimumTestExamples: Int = 20
     ): KellvynNeuralTrainingController.CorpusOutcome {
         val registry = createProjectWorkspaceToolRegistry()
-        val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
         val prepareExamples: (List<KellvynInstructionTrainingExample>) -> List<KellvynInstructionTrainingExample> =
             { examples ->
                 KellvynDecisionProtocolTrainingGate.requireReady(
@@ -467,6 +466,7 @@ internal class KellvynRuntime(context: Context) {
                     minimumTestExamples
                 )
                 examples.map { example ->
+                    val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
                     val history = listOf(
                         KellvynAgentMessage(
                             role = KellvynMessageRole.SYSTEM,
@@ -520,9 +520,9 @@ internal class KellvynRuntime(context: Context) {
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynNeuralTrainingController.Outcome {
         val registry = createProjectWorkspaceToolRegistry()
-        val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
         KellvynDecisionProtocolTrainingGate.requireReady(examples, registry)
         val prepared = examples.map { example ->
+            val systemInstruction = KellvynDecisionPromptContext.build(example.prompt)
             val history = listOf(
                 KellvynAgentMessage(
                     role = KellvynMessageRole.SYSTEM,
