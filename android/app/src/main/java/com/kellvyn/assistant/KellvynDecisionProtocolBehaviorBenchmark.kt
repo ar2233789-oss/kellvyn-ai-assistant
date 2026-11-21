@@ -7,6 +7,7 @@ import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
 import kotlin.math.ceil
+import kotlinx.coroutines.CancellationException
 
 /**
  * Held-out verification for the exact KELLVYN/1 decisions used by the live brain.
@@ -94,6 +95,8 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
             }
             val actualDecision = try {
                 generate(example)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 reasons += "${example.id}: inferência de decisão falhou (${safeMessage(error)})."
                 continue
