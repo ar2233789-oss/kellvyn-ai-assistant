@@ -71,10 +71,10 @@ class KellvynDecisionProtocolApprovalStoreTest {
             eligibleForConversationReview = true,
             modelFingerprint = "1".repeat(64),
             testSetFingerprint = "2".repeat(64),
-            sampleCount = 102,
-            decisionMatchRate = 100.0 / 102.0,
-            matched = KellvynDecisionProtocolBehaviorBenchmark.Counts(0, 50, 50),
-            expected = KellvynDecisionProtocolBehaviorBenchmark.Counts(1, 50, 51),
+            sampleCount = 24,
+            decisionMatchRate = 22.0 / 24.0,
+            matched = KellvynDecisionProtocolBehaviorBenchmark.Counts(6, 8, 8),
+            expected = KellvynDecisionProtocolBehaviorBenchmark.Counts(8, 8, 8),
             reasons = emptyList()
         )
         try {
