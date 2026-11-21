@@ -195,7 +195,7 @@ class KellvynDecisionProtocolTrainingGateTest {
                 .append(KellvynDecisionProtocol.encodeText("Ler o registro local KN.")).append("\t")
                 .append("READ_ONLY\tfalse\t-\tV1\n")
             append("TOOL\t").append(KellvynDecisionProtocol.encodeText(stepId)).append("\t")
-                .append(KellvynDecisionProtocol.encodeText("local_lookup")).append("\n")
+                .append(KellvynDecisionProtocol.encodeText(toolName)).append("\n")
             append("CRITERION\t").append(KellvynDecisionProtocol.encodeText(stepId)).append("\t")
                 .append(KellvynDecisionProtocol.encodeText("O resultado contém o registro KN.")).append("\n")
             append("END")
