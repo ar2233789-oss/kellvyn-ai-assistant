@@ -3,14 +3,7 @@ package com.kellvyn.assistant
 import android.content.Context
 import android.net.Uri
 
-/**
- * Compatibility boundary only.
- *
- * The former local neural implementation was removed. This class deliberately
- * contains no model, tokenizer, weights, inference, remote provider, or training.
- * It keeps the existing chat UI source-compatible and reports that no engine is
- * connected until a separately audited original implementation is supplied.
- */
+/** Compatibility boundary; the original inference engine was removed and is not connected. */
 class LocalBrain(context: Context) : AutoCloseable {
     interface Listener {
         fun onStatus(message: String)
@@ -24,7 +17,13 @@ class LocalBrain(context: Context) : AutoCloseable {
     fun resetConversation() = Unit
 
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        listener.onError("O mecanismo neural anterior foi removido. Nenhum modelo substituto está conectado.")
+        val identityReply = KellvynPersona.creatorAnswer(prompt)
+        if (identityReply != null) {
+            listener.onPartial(identityReply)
+            listener.onComplete(identityReply, "IDENTIDADE DO PROJETO")
+            return
+        }
+        listener.onError("O mecanismo neural não está conectado. Nenhum modelo substituto está disponível.")
     }
 
     override fun close() = Unit

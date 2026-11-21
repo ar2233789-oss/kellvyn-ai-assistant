@@ -1,9 +1,10 @@
 import type { Attachment, Msg } from "./store";
+import { creatorAnswer, unavailableBrainMessage } from "./persona";
 
 /**
- * Compatibility adapter only. The previous inference implementation was
- * removed; this module contains no model, weights, tokenizer, provider, or
- * network inference. It preserves the existing interface and UI build.
+ * Compatibility adapter. General inference and attachment extraction are not
+ * connected in the web build. A small project-identity response is deterministic
+ * and must not be mistaken for general model inference.
  */
 export function textFromAttachment(_attachment: Attachment): string {
   return "";
@@ -11,9 +12,14 @@ export function textFromAttachment(_attachment: Attachment): string {
 
 export async function askLocalBrain(
   _conversationId: string,
-  _prompt: string,
+  prompt: string,
   _history: Msg[],
-  _onPartial?: (partial: string) => void,
+  onPartial?: (partial: string) => void,
 ): Promise<string> {
-  throw new Error("O mecanismo neural anterior foi removido. Nenhum modelo substituto está conectado.");
+  const identityReply = creatorAnswer(prompt);
+  if (identityReply) {
+    onPartial?.(identityReply);
+    return identityReply;
+  }
+  throw new Error(unavailableBrainMessage());
 }
