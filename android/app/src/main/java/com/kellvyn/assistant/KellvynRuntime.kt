@@ -390,6 +390,28 @@ internal class KellvynRuntime(context: Context) {
     )
 
     /**
+     * Audits a local corpus with the 1024-token context required by formatted KELLVYN/1 prompts.
+     * Use this report with trainOwnMultiBlockDecisionFromAuditedCorpus and the same config.
+     */
+    suspend fun auditOwnMultiBlockDecisionCorpus(
+        input: InputStream,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynJsonlCorpusReader.Report = neuralTrainingController.auditJsonl(
+        input = input,
+        config = config,
+        samplingSeed = samplingSeed,
+        maxExamples = maxExamples,
+        minimumTrainExamples = minimumTrainExamples,
+        minimumValidationExamples = minimumValidationExamples,
+        minimumTestExamples = minimumTestExamples
+    )
+
+    /**
      * Trains only the exact source/configuration that passed the previous read-only audit.
      * The caller must reopen the same local file; changed bytes or parameters are rejected.
      */
