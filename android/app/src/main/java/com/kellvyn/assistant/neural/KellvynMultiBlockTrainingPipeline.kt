@@ -170,9 +170,10 @@ internal object KellvynMultiBlockTrainingPipeline {
 
         // The live inference engine uses the same deterministic reserve. Training refuses
         // examples that would only work by silently truncating the prompt or completion.
+        val minimumGenerationBudget = if (config.contextLength < 128) 8 else 64
         val generationTokenBudget = minOf(
             256,
-            maxOf(64, config.contextLength / 4),
+            maxOf(minimumGenerationBudget, config.contextLength / 4),
             config.contextLength - 1
         )
         val promptTokenBudget = config.contextLength - generationTokenBudget
