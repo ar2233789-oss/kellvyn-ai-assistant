@@ -84,7 +84,7 @@ public class MainActivity extends Activity {
     private String pendingDownloadText = "";
     private LocalBrain brain;
     private boolean waitingForReply = false;
-    private String engineLabel = "MOTOR LOCAL PENDENTE";
+    private String engineLabel = "INFERÊNCIA PRÓPRIA PENDENTE";
     private int accent = EMERALD;
 
     @Override public void onCreate(Bundle state) {
@@ -548,16 +548,6 @@ public class MainActivity extends Activity {
             prompt = promptWithProjectGuidelines(userText + "\n\nO arquivo anexado se chama " + fileName + ". Analise somente o conteúdo que o aplicativo conseguir extrair e enviar; se não recebeu o conteúdo real, diga isso claramente e não invente.");
         }
 
-        if (!brain.hasModel()) {
-            new AlertDialog.Builder(this)
-                    .setTitle("Preparar o cérebro local")
-                    .setMessage("Para ativar respostas reais no aparelho, é necessário baixar o modelo Gemma local (aproximadamente 2,01 GB). O download usa a conexão atual do celular e pode ser retomado se for interrompido. Depois de instalado, as respostas são processadas no aparelho, sem enviar suas mensagens a um serviço de IA na nuvem. Libere pelo menos 2,2 GB de espaço livre. Deseja baixar o modelo e enviar esta mensagem?")
-                    .setNegativeButton("Agora não", null)
-                    .setPositiveButton("Baixar e enviar", (dialog, which) ->
-                            startBrainRequest(displayText, prompt, fileUri, fileName))
-                    .show();
-            return;
-        }
         startBrainRequest(displayText, prompt, fileUri, fileName);
     }
 
@@ -577,23 +567,15 @@ public class MainActivity extends Activity {
         selectedAttachmentUri = null;
         saveTranscript();
 
-        activeReplyBubble = addMessageView(false, "Preparando o cérebro local…");
+        activeReplyBubble = addMessageView(false, "Verificando disponibilidade da inferência própria…");
         showThinkingIndicator();
-        engineLabel = "PREPARANDO MOTOR";
+        engineLabel = "INFERÊNCIA PRÓPRIA PENDENTE";
         updateStatus();
 
         brain.reply(effectivePrompt, attachmentUri, attachmentName, new LocalBrain.Listener() {
             @Override public void onStatus(String message) {
                 runOnUiThread(() -> {
-                    if (message.startsWith("BAIXANDO MODELO LOCAL")) {
-                        engineLabel = "BAIXANDO MODELO";
-                    } else if (message.contains("MOTOR LOCAL GPU")) {
-                        engineLabel = "MOTOR LOCAL GPU";
-                    } else if (message.contains("MOTOR LOCAL CPU")) {
-                        engineLabel = "MOTOR LOCAL CPU";
-                    } else {
-                        engineLabel = "PREPARANDO MOTOR";
-                    }
+                    engineLabel = "INFERÊNCIA PRÓPRIA";
                     updateStatus();
                     if (activeReplyBubble != null) activeReplyBubble.setText(message);
                 });
@@ -620,7 +602,7 @@ public class MainActivity extends Activity {
                     if (activeReplyBubble != null) activeReplyBubble.setText(finalAnswer);
                     transcript.add("S|" + finalAnswer);
                     saveTranscript();
-                    engineLabel = "MOTOR LOCAL " + backend;
+                    engineLabel = "INFERÊNCIA PRÓPRIA";
                     updateStatus();
                     activeReplyBubble = null;
                 });
@@ -964,7 +946,7 @@ public class MainActivity extends Activity {
     private String botStatusText(String platform, boolean enabled, boolean tokenPresent) {
         String runtime = prefs.getString("bot_status_" + platform, "");
         if (!tokenPresent) return "Sem token. Configure pelo chat principal.";
-        if (!brain.hasModel()) return "O cérebro local precisa ser preparado no chat principal.";
+        if (!brain.hasModel()) return "A inferência neural própria ainda não está conectada.";
         if (!enabled) return "Desativado";
         if (runtime == null || runtime.isEmpty() || runtime.equals("Desativado")) return "Iniciando…";
         return runtime;
@@ -982,7 +964,7 @@ public class MainActivity extends Activity {
         TextView instructions = text(
                 "Configure os tokens pelo chat principal. Telegram: /bot telegram token SEU_TOKEN. " +
                 "Discord: /bot discord token SEU_TOKEN (ative Message Content Intent no portal do Discord). " +
-                "O modelo local precisa estar baixado antes de ativar um bot. O WhatsApp exige uma integração pública de webhook e permanece indisponível neste APK.",
+                "A inferência neural própria precisa estar conectada antes de ativar bots. O WhatsApp exige uma integração pública de webhook e permanece indisponível neste APK.",
                 12, uiMutedColor(), false);
         instructions.setLineSpacing(dp(3), 1f);
         layout.addView(instructions, new LinearLayout.LayoutParams(-1, -2));
@@ -1036,7 +1018,7 @@ public class MainActivity extends Activity {
                 toggle.setOnCheckedChangeListener((button, checked) -> {
                     if (checked && !brain.hasModel()) {
                         toggle.setChecked(false);
-                        toast("Abra o chat principal, autorize e conclua o download do cérebro local antes de ativar bots.");
+                        toast("A inferência neural própria ainda não está conectada; os bots permanecem desativados.");
                         return;
                     }
                     if (checked && !BotTokenStore.hasToken(MainActivity.this, platform)) {
