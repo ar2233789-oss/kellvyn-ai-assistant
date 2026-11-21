@@ -126,7 +126,7 @@ internal class KellvynBpeTokenizer private constructor(
         private const val CHECKPOINT_VERSION = 2
         private const val CHECKSUM_BYTES = 32
         private const val MAX_MERGES = 4096
-        private const val MAX_CORPUS_BYTES = 1_000_000
+        private const val MAX_CORPUS_BYTES = 2_000_000
         private const val MAX_ENCODE_BYTES = 65_536
         private const val MAX_DECODE_BYTES = 1_000_000
         private const val MAX_TOKEN_BYTES = 16_384
