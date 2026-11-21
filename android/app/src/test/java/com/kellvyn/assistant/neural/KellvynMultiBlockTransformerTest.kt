@@ -44,6 +44,21 @@ class KellvynMultiBlockTransformerTest {
     }
 
     @Test
+    fun rotaryAttentionIsInvariantToUniformAbsolutePositionShift() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val context = tokenizer.encode("Kellvyn Oi!")
+
+        val relativePositions = model.evaluateNextTokenProbabilities(context)
+        val shiftedPositions = model.evaluateNextTokenProbabilities(
+            contextTokenIds = context,
+            firstAbsolutePosition = 37
+        )
+
+        assertArrayEquals(relativePositions, shiftedPositions, 0.00002f)
+    }
+
+    @Test
     fun twoBlockBackpropagationMatchesFiniteDifferencesForEveryLayerAndGroup() {
         val tokenizer = smallTokenizer()
         val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
@@ -222,6 +237,11 @@ class KellvynMultiBlockTransformerTest {
             2L * config.depth * config.contextLength * config.embeddingSize * 4L,
             report.generationKvCacheBytes
         )
+        assertTrue(report.inferenceResidentLowerBoundBytes < report.residentLowerBoundBytes)
+        assertEquals(
+            report.optimizerStateBytes,
+            report.residentLowerBoundBytes - report.inferenceResidentLowerBoundBytes
+        )
     }
 
     @Test
@@ -234,6 +254,7 @@ class KellvynMultiBlockTransformerTest {
         model.trainCompletion(prompt, completion, epochs = 3, weightDecay = 0.0f)
 
         val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        assertEquals(model.checkpointEncodedSizeBytes(), checkpoint.size.toLong())
         val restored = KellvynMultiBlockTransformer.readCheckpoint(ByteArrayInputStream(checkpoint))
 
         assertEquals(config, restored.config)
@@ -243,6 +264,48 @@ class KellvynMultiBlockTransformerTest {
             model.evaluateNextTokenProbabilities(prompt),
             restored.evaluateNextTokenProbabilities(prompt),
             0.0f
+        )
+    }
+
+    @Test
+    fun inferenceCheckpointCanBeReadFromAnOffsetWithoutCopyingTheModelSlice() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer, depth = 2))
+        val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val prefix = ByteArray(17) { 0x5A.toByte() }
+        val suffix = ByteArray(13) { 0x6B.toByte() }
+        val wrapped = ByteArrayOutputStream().apply {
+            write(prefix)
+            write(checkpoint)
+            write(suffix)
+        }.toByteArray()
+
+        val restored = KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+            bytes = wrapped,
+            offset = prefix.size,
+            length = checkpoint.size
+        )
+
+        assertFalse(restored.hasTrainingState())
+        assertEquals(model.parameterFingerprint(), restored.parameterFingerprint())
+        assertEquals(model.config, restored.config)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun inferenceSliceRejectsCorruptedModelBytesWithoutReadingNeighboringBytes() {
+        val tokenizer = smallTokenizer()
+        val model = KellvynMultiBlockTransformer.create(smallConfig(tokenizer))
+        val checkpoint = ByteArrayOutputStream().also(model::writeCheckpoint).toByteArray()
+        val prefixSize = 9
+        val wrapped = ByteArray(prefixSize + checkpoint.size + 7)
+        checkpoint.copyInto(wrapped, destinationOffset = prefixSize)
+        wrapped[prefixSize + checkpoint.size / 2] =
+            (wrapped[prefixSize + checkpoint.size / 2].toInt() xor 0x01).toByte()
+
+        KellvynMultiBlockTransformer.readInferenceCheckpointBytes(
+            bytes = wrapped,
+            offset = prefixSize,
+            length = checkpoint.size
         )
     }
 
