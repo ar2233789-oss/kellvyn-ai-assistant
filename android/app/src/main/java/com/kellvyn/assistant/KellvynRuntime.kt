@@ -636,7 +636,7 @@ internal class KellvynRuntime(context: Context) {
             )
         }
         val contextLength = bundle.model.config.contextLength
-        val generationTokens = minOf(256, maxOf(64, contextLength / 8), contextLength - 1)
+        val generationTokens = minOf(256, maxOf(64, contextLength / 4), contextLength - 1)
         val inference = KellvynMultiBlockInferenceEngine(
             model = bundle.model,
             tokenizer = bundle.tokenizer,
@@ -679,7 +679,7 @@ internal class KellvynRuntime(context: Context) {
             model = bundle.model,
             tokenizer = bundle.tokenizer,
             config = KellvynMultiBlockInferenceEngine.Config(
-                maxGenerationTokens = minOf(256, maxOf(64, contextLength / 8), contextLength - 1)
+                maxGenerationTokens = minOf(256, maxOf(64, contextLength / 4), contextLength - 1)
             )
         )
         val report = KellvynDecisionProtocolBehaviorBenchmark.evaluate(
@@ -731,7 +731,7 @@ internal class KellvynRuntime(context: Context) {
         val safeDefault = KellvynMultiBlockInferenceEngine.Config(
             maxGenerationTokens = minOf(
                 256,
-                maxOf(64, contextLength / 8),
+                maxOf(64, contextLength / 4),
                 contextLength - 1
             )
         )
