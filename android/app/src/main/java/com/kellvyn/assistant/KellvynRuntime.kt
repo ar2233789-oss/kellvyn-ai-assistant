@@ -533,6 +533,24 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
+     * Connects the trained KN-004 model to the direct single-brain tool loop.
+     * This returns null unless the neural checkpoint passes the current numerical gate.
+     * Conversation activation still requires decision-protocol and device validation.
+     */
+    suspend fun createOwnMultiBlockSingleBrain(
+        activeProjectId: String? = null,
+        inferenceConfig: KellvynMultiBlockInferenceEngine.Config? = null,
+        brainConfig: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynSingleBrain? {
+        val inference = createOwnMultiBlockInferenceEngine(inferenceConfig) ?: return null
+        return createSingleBrain(
+            inference = inference,
+            activeProjectId = activeProjectId,
+            config = brainConfig
+        )
+    }
+
+    /**
      * Restores a locally trained KN-003 model and wraps it in the strict inference adapter.
      * This makes the adapter available to controlled tests; it does not enable MainActivity chat.
      */
@@ -649,6 +667,38 @@ internal class KellvynRuntime(context: Context) {
             taskCheckpoints = taskCheckpointRepository,
             taskBroker = taskBroker,
             networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) },
+            traceSessionFactory = {
+                KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
+            },
+            resourceSnapshotProvider = { resourceRuntime.snapshot() }
+        )
+    }
+
+    /**
+     * Builds the real single-brain execution path over the approved KN-004 decision model.
+     * The model chooses every action; registered local tools only execute bounded operations.
+     */
+    fun createSingleBrain(
+        inference: KellvynInferenceEngine,
+        activeProjectId: String? = null,
+        config: KellvynAgentConfig = KellvynAgentConfig()
+    ): KellvynSingleBrain {
+        val addresses = memoryAddressesFor(activeProjectId)
+        val workspaceAuthorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate)
+        return KellvynSingleBrain(
+            inference = inference,
+            tools = createProjectWorkspaceToolRegistry(activeProjectId),
+            authorization = KellvynNetworkReadAuthorization(
+                delegate = workspaceAuthorization,
+                networkReadEnabled = { KellvynWebAccessGate.isEnabled(appContext) }
+            ),
+            config = config,
+            memory = localMemory,
+            memoryAddresses = addresses,
+            projectContextRetriever = projectContextRetriever,
+            activeProjectId = activeProjectId,
+            taskCheckpoints = taskCheckpointRepository,
+            taskBroker = taskBroker,
             traceSessionFactory = {
                 KellvynAgentLabTraceSession.create(agentLabTraceRecorder)
             },
