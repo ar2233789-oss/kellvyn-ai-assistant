@@ -1,0 +1,581 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Studio de Produção — Kellvyn Lab</title>
+<style>
+:root{--bg:#080d11;--panel:#10191f;--panel2:#14232a;--line:#243a43;--text:#e4f0f0;--muted:#8fa7ac;--accent:#38e6bc;--accent2:#49a9ff;--danger:#ff6978;--ok:#5ee2a0;--radius:15px;font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 80% -10%,#153432 0,transparent 42%),var(--bg);color:var(--text);min-height:100vh}button,input,textarea,select{font:inherit}button{cursor:pointer;color:var(--text);background:#17272d;border:1px solid var(--line);border-radius:10px;padding:9px 12px}button:hover{border-color:var(--accent);background:#1b3035}button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}button.primary{background:var(--accent);color:#051713;border-color:var(--accent);font-weight:750}button.danger{border-color:#663039;color:#ff9aa4}.app{display:grid;grid-template-columns:246px minmax(0,1fr);min-height:100vh}.side{position:sticky;top:0;height:100vh;overflow:auto;padding:20px 14px;background:#0a1116dc;border-right:1px solid var(--line);backdrop-filter:blur(12px)}.brand{display:flex;align-items:center;gap:11px;padding:8px 9px 20px;border-bottom:1px solid var(--line);margin-bottom:17px}.mark{width:38px;height:38px;border:1px solid var(--accent);border-radius:12px;display:grid;place-items:center;color:var(--accent);font-size:22px;box-shadow:0 0 20px #38e6bc22}.brand strong{display:block;letter-spacing:.06em;font-size:13px}.brand small{display:block;color:var(--muted);font-size:11px;margin-top:4px}.group{font-size:10px;letter-spacing:.17em;color:#6f9299;padding:13px 10px 7px;text-transform:uppercase}.nav{display:flex;align-items:center;gap:10px;width:100%;text-align:left;border-color:transparent;background:transparent;padding:11px 10px;color:#a9c0c3}.nav .ico{width:22px;text-align:center;color:var(--accent);font-size:16px}.nav.active{background:#18332e;border-color:#2d7968;color:#f2fffc}.side-note{margin:20px 5px 0;padding:12px;border:1px solid var(--line);border-radius:12px;background:#0e191e;color:var(--muted);font-size:11px;line-height:1.6}.main{min-width:0;padding:24px clamp(14px,3vw,38px) 60px}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:22px}.eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);font-weight:800}.top h1{font-size:clamp(22px,3vw,31px);margin:6px 0 0;letter-spacing:-.025em}.topmeta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}.pill{border:1px solid var(--line);background:#101c21;color:#bad0d2;border-radius:99px;padding:7px 10px;font-size:11px;white-space:nowrap}.dot{display:inline-block;width:7px;height:7px;background:var(--ok);border-radius:50%;margin-right:6px;box-shadow:0 0 10px #5ee2a060}.page{display:none}.page.active{display:block}.intro{color:var(--muted);font-size:13px;line-height:1.7;max-width:850px;margin:0 0 20px}.grid{display:grid;gap:14px}.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}.card{border:1px solid var(--line);background:linear-gradient(145deg,#132129f2,#0e171df2);border-radius:var(--radius);padding:16px;min-width:0;box-shadow:0 14px 32px #00000015}.card h2,.card h3{font-size:14px;letter-spacing:.02em;margin:0 0 12px}.card h2{font-size:16px}.sub{font-size:11px;color:var(--muted);line-height:1.6}.stat{font-size:27px;font-weight:750;letter-spacing:-.03em;margin:7px 0 3px}.statlabel{font-size:11px;color:var(--muted)}.tile{display:flex;align-items:flex-start;gap:12px;padding:14px;border:1px solid var(--line);background:#101a20;border-radius:13px;cursor:pointer}.tile:hover{border-color:#3d9985;transform:translateY(-1px)}.tileicon{height:38px;min-width:38px;display:grid;place-items:center;color:var(--accent);background:#17352e;border-radius:11px;font-size:20px}.tile strong{display:block;font-size:13px;margin:2px 0 5px}.tile span{display:block;color:var(--muted);font-size:11px;line-height:1.55}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.between{display:flex;align-items:center;justify-content:space-between;gap:10px}.control{display:flex;flex-direction:column;gap:6px;min-width:0;margin:9px 0}.control label,.label{font-size:11px;color:#b2c6c9}.control input[type="text"],.control input[type="number"],.control textarea,.control select,input.field,textarea.field,select.field{width:100%;min-width:0;background:#091116;border:1px solid #2a424a;color:var(--text);padding:10px;border-radius:9px}.control textarea,textarea.field{min-height:100px;resize:vertical}.control input[type="range"]{width:100%;accent-color:var(--accent)}.canvaswrap{overflow:auto;border:1px solid var(--line);border-radius:12px;background-color:#0a1217;background-image:linear-gradient(#22364040 1px,transparent 1px),linear-gradient(90deg,#22364040 1px,transparent 1px);background-size:20px 20px;min-height:180px;display:flex;align-items:center;justify-content:center;padding:10px}.canvaswrap canvas{display:block;max-width:100%;height:auto;background:transparent;touch-action:pan-y}.canvaswrap.dark{background-image:linear-gradient(#22364022 1px,transparent 1px),linear-gradient(90deg,#22364022 1px,transparent 1px)}.result{background:#081116;border:1px solid #253941;border-radius:10px;padding:12px;font:11px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre-wrap;overflow:auto;max-height:250px;color:#c8dfe0}.note{border-left:3px solid var(--accent);padding:9px 12px;background:#102321;color:#b4d2ce;border-radius:0 9px 9px 0;font-size:11px;line-height:1.6}.swatches{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}.swatch{min-width:0;overflow:hidden;padding:0;background:#0a1217}.swatch .color{display:block;height:35px;border-radius:8px 8px 0 0}.swatch small{display:block;padding:6px 3px;font-size:9px}.colorbox{border:1px solid var(--line);border-radius:10px;height:42px;width:55px;flex:none}.phoneframe{width:min(100%,360px);aspect-ratio:444/913;padding:10px;border-radius:31px;border:2px solid #42616a;background:#05080a;box-shadow:0 18px 40px #0007;margin:auto;overflow:hidden}.phoneinner{height:100%;width:100%;border-radius:22px;overflow:hidden;background:#0b1413;position:relative}.phonestatus{height:4%;font-size:8px;padding:7px 12px;color:#b9cac7;display:flex;justify-content:space-between}.phonehead{height:5%;border-bottom:1px solid #265347;padding:0 10px;display:flex;align-items:center;font-size:10px;color:#38e6bc}.phonechat{height:76%;padding:12px 9px;position:relative}.phonebubble{background:#111b19;border:1px solid #3f675b;border-radius:10px;padding:8px;font-size:8px;max-width:94%;margin:7px 0;line-height:1.6}.phonebubble.user{margin-left:auto;background:#1b3d31}.phoneactions{display:flex;gap:15px;font-size:9px;color:#8fa7ac;padding:3px 4px}.phonecomposer{height:9%;margin:0 8px;border:1px solid #45a98988;border-radius:12px;padding:9px;font-size:8px;color:#90aaa4}.phonenav{height:6%;display:flex;align-items:center;justify-content:space-around;font-size:8px;color:#8fa7ac}.phoneoverlay{position:absolute;inset:0;background:#0000;pointer-events:none}.comparegrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.imagebox{min-height:180px;background:#070c10;border:1px dashed #3c545c;border-radius:12px;display:grid;place-items:center;overflow:hidden}.imagebox img{display:block;max-width:100%;max-height:360px;object-fit:contain}.compareCanvas{width:100%;max-height:500px;object-fit:contain}.metricgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.metric{background:#0b1419;border:1px solid var(--line);border-radius:10px;padding:10px}.metric b{font-size:18px;display:block;margin:5px 0}.metric small{font-size:10px;color:var(--muted)}.shapegrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px}.shapegrid button{padding:8px 5px;font-size:11px}.stage3d{height:310px;display:grid;place-items:center;perspective:900px;overflow:hidden;background:radial-gradient(ellipse,#18343a 0,transparent 60%),#091217;border:1px solid var(--line);border-radius:12px}.cube{position:relative;width:116px;height:116px;transform-style:preserve-3d;transform:rotateX(-23deg) rotateY(32deg);transition:transform .12s linear}.face{position:absolute;inset:0;border:1px solid #c3fff2a8;background:#38e6bc32;box-shadow:inset 0 0 25px #38e6bc1c}.front{transform:translateZ(58px)}.back{transform:rotateY(180deg) translateZ(58px)}.right{transform:rotateY(90deg) translateZ(58px)}.left{transform:rotateY(-90deg) translateZ(58px)}.topface{transform:rotateX(90deg) translateZ(58px)}.bottomface{transform:rotateX(-90deg) translateZ(58px)}.tesseract{width:100%;max-width:600px}.timeline{height:56px;position:relative;background:repeating-linear-gradient(90deg,#213640 0 1px,transparent 1px 10%);border:1px solid var(--line);border-radius:8px;margin:12px 0;overflow:hidden}.playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);left:0;box-shadow:0 0 12px var(--accent)}.keyframe{position:absolute;width:10px;height:10px;border-radius:3px;background:var(--accent2);top:23px;transform:translateX(-50%) rotate(45deg);box-shadow:0 0 10px #49a9ff66}.animateobj{width:84px;height:84px;border-radius:22px;background:var(--accent);box-shadow:0 0 42px color-mix(in srgb,var(--accent) 30%,transparent);margin:28px auto;transform:translateX(0) rotate(0deg);opacity:1}.logline{padding:7px 9px;border-bottom:1px solid #1c2d34;font:11px/1.45 ui-monospace,monospace;word-break:break-word}.logline.error{color:#ff9aa4;background:#3218204f}.logline.warn{color:#ffd28c;background:#3d2e1440}.logline.ok{color:#93ecc1}.logline.info{color:#a8c5ff}.badge{font-size:10px;border:1px solid var(--line);border-radius:99px;padding:4px 7px;color:var(--muted)}.foot{border-top:1px solid var(--line);margin-top:30px;padding-top:15px;color:#607c82;font-size:10px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}.file{font-size:11px;color:var(--muted)}.hidden{display:none!important}
+@media(max-width:1050px){.app{grid-template-columns:205px minmax(0,1fr)}.cols3{grid-template-columns:repeat(2,minmax(0,1fr))}.main{padding:20px 16px 50px}}
+@media(max-width:760px){.app{display:block}.side{position:relative;height:auto;padding:12px;border-right:0;border-bottom:1px solid var(--line)}.brand{padding-bottom:10px;margin-bottom:6px}.navlist{display:flex;gap:6px;overflow-x:auto;padding:6px 0}.group,.side-note{display:none}.nav{width:auto;white-space:nowrap;padding:8px 10px;font-size:11px}.nav .ico{width:auto}.main{padding:16px 12px 38px}.top{align-items:flex-start;flex-direction:column}.topmeta{justify-content:flex-start}.cols2,.cols3,.comparegrid{grid-template-columns:1fr}.swatches{grid-template-columns:repeat(5,minmax(0,1fr))}.metricgrid{grid-template-columns:repeat(3,minmax(0,1fr))}.stage3d{height:250px}.phoneframe{max-width:300px}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside class="side">
+  <div class="brand"><div class="mark">✣</div><div><strong>STUDIO DE PRODUÇÃO</strong><small>POCO F6 · LAB OFFLINE</small></div></div>
+  <div class="group">Central de trabalho</div>
+  <div class="navlist">
+  <button class="nav active" data-page="home"><span class="ico">⌂</span> Visão geral</button>
+  <button class="nav" data-page="compare"><span class="ico">▧</span> Comparar telas</button>
+  <button class="nav" data-page="motion-audit"><span class="ico">ϟ</span> Efeitos animados</button>
+  <button class="nav" data-page="palette"><span class="ico">◉</span> Paleta e luz</button>
+  <button class="nav" data-page="art"><span class="ico">▤</span> Prancheta 2D</button>
+  <button class="nav" data-page="space"><span class="ico">◇</span> 3D / 4D</button>
+  <button class="nav" data-page="motion"><span class="ico">▷</span> Animação</button>
+  <button class="nav" data-page="logs"><span class="ico">⌘</span> Logs e dependências</button>
+  <button class="nav" data-page="report"><span class="ico">▥</span> Relatórios</button>
+  </div>
+  <div class="group">Ambiente de testes</div>
+  <div class="side-note"><span class="dot"></span> Ferramentas locais, sem serviços externos. As capturas e os relatórios são processados no navegador deste aparelho. O código da IA não é executado nem alterado por esta oficina.<br><br><span id="lastsave">Nenhum projeto salvo nesta sessão.</span></div>
+</aside>
+<main class="main">
+  <header class="top">
+    <div><div class="eyebrow">KELLVYN · FERRAMENTAS INTERNAS</div><h1 id="pagetitle">Visão geral da oficina</h1></div>
+    <div class="topmeta"><span class="pill"><span class="dot"></span>Modo local</span><span class="pill">Viewport: 444 × 913 dp</span><span class="pill" id="sessionstate">Sessão nova</span></div>
+  </header>
+  <section class="page active" id="page-home">
+    <p class="intro">Uma bancada separada para inspeção visual, testes de interface, criação de recursos gráficos e diagnóstico de builds. Abra uma ferramenta pela navegação; as exportações e análises são feitas localmente.</p>
+    <div class="grid cols3">
+      <div class="card"><div class="eyebrow">01 · Inspeção</div><div class="stat" id="dashshots">0</div><div class="statlabel">imagens carregadas</div><p class="sub">Coloque a captura web e a captura nativa lado a lado, sobreponha-as e veja as diferenças em pixels.</p><button data-goto="compare">Abrir comparador ↗</button></div>
+      <div class="card"><div class="eyebrow">02 · Design</div><div class="stat" id="dashshapes">0</div><div class="statlabel">elementos na prancheta</div><p class="sub">Rascunhe vetores 2D, teste paletas, iluminação e gere imagens sem tocar no app real.</p><button data-goto="art">Abrir prancheta ↗</button></div>
+      <div class="card"><div class="eyebrow">03 · Diagnóstico</div><div class="stat" id="dasherrors">0</div><div class="statlabel">linhas de erro reconhecidas</div><p class="sub">Cole os logs de Gradle, Android, JavaScript ou testes e separe erros, avisos e possíveis dependências.</p><button data-goto="logs">Analisar logs ↗</button></div>
+    </div>
+    <div class="grid cols2" style="margin-top:14px">
+      <div class="card"><h2>Ferramentas prontas para uso</h2><div class="grid">
+        <div class="tile" data-goto="compare"><div class="tileicon">▧</div><div><strong>Comparação de interface</strong><span>Sobreposição com opacidade ajustável, diferença amplificada, tamanho, porcentagem de pixels diferentes e exportação de evidências.</span></div></div>
+        <div class="tile" data-goto="space"><div class="tileicon">◇</div><div><strong>Modelagem 3D e projeção 4D</strong><span>Cubo com rotação, luz e materiais de teste; tesserato projetado em 2D com rotação nos planos.</span></div></div>
+        <div class="tile" data-goto="logs"><div class="tileicon">⌘</div><div><strong>Investigação de falhas</strong><span>Filtro de erros e avisos, extração de linhas relevantes, inventário de versões e resumo de diagnóstico.</span></div></div>
+      </div></div>
+      <div class="card"><h2>Simulador visual — Poco F6</h2><p class="sub">Estrutura de referência para planejar uma captura 444 × 913 dp. É um mockup estático, não substitui o emulador Android 15 nem afirma que um APK foi executado.</p>
+        <div class="phoneframe"><div class="phoneinner"><div class="phonestatus"><span>9:41</span><span>●●●  ▰</span></div><div class="phonehead">☰　 Kellvyn Assistente　 ⋮</div><div class="phonechat"><div class="phonebubble user">Testar uma resposta longa</div><div class="phonebubble">Resposta de referência. Use o laboratório para conferir espaçamento, rolagem e ações sem alterar o app real.</div><div class="phoneactions">▢　♫　↓　↗</div><div class="phonebubble">Mais conteúdo de exemplo para testar o fluxo da conversa.</div></div><div class="phonecomposer">Pergunte qualquer coisa...　＋　♩　↑</div><div class="phonenav">✦　⌕　‹/›　>_　♧　▦</div></div></div>
+      </div>
+    </div>
+    <div class="note" style="margin-top:14px">Regra do laboratório: arquivos de interface/IA não são editados daqui. Esta página serve para experimentar, comparar e gerar evidências; mudanças no aplicativo exigem um passo separado, revisado e testado.</div>
+  </section>
+  <section class="page" id="page-compare">
+    <p class="intro">Carregue duas imagens de referência. A comparação não redimensiona as imagens automaticamente: tamanhos incompatíveis são informados para que uma diferença de escala não fique escondida.</p>
+    <div class="card">
+      <div class="comparegrid">
+        <div><div class="between"><h3>Referência Web</h3><span class="badge" id="labelA">sem arquivo</span></div><input class="field" type="file" id="fileA" accept="image/*"><div class="imagebox" style="margin-top:8px" id="boxA"><span class="sub">Selecione web-reference.png</span></div></div>
+        <div><div class="between"><h3>Captura Nativa</h3><span class="badge" id="labelB">sem arquivo</span></div><input class="field" type="file" id="fileB" accept="image/*"><div class="imagebox" style="margin-top:8px" id="boxB"><span class="sub">Selecione native-screen.png</span></div></div>
+      </div>
+      <div class="row" style="margin:13px 0"><button class="primary" id="compareBtn">Comparar pixels</button><button id="downloadCompare" disabled>Exportar diferença PNG</button><button id="downloadOverlay" disabled>Exportar sobreposição</button><label class="label">Modo <select class="field" id="compMode" style="width:auto;display:inline-block"><option value="overlay">Sobreposição</option><option value="diff">Diferença amplificada</option><option value="side">Lado a lado</option></select></label></div>
+      <div class="control"><label>Opacidade da imagem nativa sobre a referência: <span id="opacityLabel">50%</span></label><input type="range" id="opacity" min="0" max="100" value="50"></div>
+      <h3>Aprovação rigorosa</h3>
+      <div class="grid cols2" style="margin-top:12px">
+        <div class="control"><label for="channelThreshold">Tolerância por canal RGB</label><input class="field" type="number" id="channelThreshold" min="0" max="255" step="1" value="16"><span class="sub">Quanto cada canal pode variar antes de contar como pixel diferente.</span></div>
+        <div class="control"><label for="maxChangedPercent">Máximo de pixels diferentes para aprovação (%)</label><input class="field" type="number" id="maxChangedPercent" min="0" max="100" step="0.01" value="0"><span class="sub">Padrão: 0%. Qualquer diferença reprova até que um limite explícito seja escolhido.</span></div>
+      </div>
+      <div class="row" style="margin:8px 0"><button id="exportParityReport" disabled>Exportar relatório de aprovação JSON</button><span class="sub">O relatório registra dimensões, tolerância, diferença medida e critério usado.</span><span class="sub" id="exportStatus" aria-live="polite">Nenhuma exportação nesta sessão.</span></div>
+      <pre class="result" id="parityReportPreview">O relatório de aprovação aparecerá aqui após comparar duas capturas.</pre>
+      <div class="imagebox" style="min-height:260px"><canvas id="compareCanvas" class="compareCanvas" width="1000" height="600"></canvas></div>
+      <div class="metricgrid" style="margin-top:12px">
+        <div class="metric"><small>Dimensões Web</small><b id="dimA">—</b></div><div class="metric"><small>Dimensões Nativo</small><b id="dimB">—</b></div><div class="metric"><small>Pixels > limiar</small><b id="changed">—</b></div>
+        <div class="metric"><small>Erro médio absoluto</small><b id="mae">—</b></div><div class="metric"><small>Raiz do erro quadrático</small><b id="rmse">—</b></div><div class="metric"><small>Estado</small><b id="compStatus" style="font-size:13px">Aguardando</b></div>
+      </div>
+      <p class="sub">O limiar de diferença é 16 por canal RGB. As métricas só comparam pixels correspondentes quando as imagens possuem o mesmo tamanho; não são, sozinhas, uma aprovação visual.</p>
+    </div>
+  </section>
+  <section class="page" id="page-motion-audit">
+    <p class="intro">Analise gravações reais da referência e do APK nativo. O Studio amostra quadros no mesmo intervalo, mede movimento entre quadros e identifica aumentos súbitos de luminosidade compatíveis com flashes. Isso verifica atividade visual; a inspeção dos quadros continua necessária para julgar a aparência dos efeitos.</p>
+    <div class="grid cols2">
+      <div class="card">
+        <div class="between"><h2>Gravação de referência</h2><span class="badge" id="videoWebMeta">sem vídeo</span></div>
+        <input class="field" type="file" id="videoWebFile" accept="video/*">
+        <video id="videoWebPreview" controls muted playsinline preload="metadata" style="width:100%;max-height:260px;margin-top:10px;background:#05080a;border:1px solid var(--line);border-radius:10px"></video>
+        <p class="sub">Grave chuva/raios na interface original, com o mesmo estado e duração usados no APK.</p>
+      </div>
+      <div class="card">
+        <div class="between"><h2>Gravação do APK nativo</h2><span class="badge" id="videoNativeMeta">sem vídeo</span></div>
+        <input class="field" type="file" id="videoNativeFile" accept="video/*">
+        <video id="videoNativePreview" controls muted playsinline preload="metadata" style="width:100%;max-height:260px;margin-top:10px;background:#05080a;border:1px solid var(--line);border-radius:10px"></video>
+        <p class="sub">Use uma gravação feita no AVD ou no Poco F6 físico. O ADB pode capturar vídeo com screenrecord.</p>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px">
+      <h2>Parâmetros da análise</h2>
+      <div class="grid cols3">
+        <div class="control"><label for="videoSampleStep">Intervalo entre quadros (ms)</label><input class="field" id="videoSampleStep" type="number" min="100" max="1000" step="50" value="200"></div>
+        <div class="control"><label for="videoMotionThreshold">Variação mínima por pixel para contar movimento</label><input class="field" id="videoMotionThreshold" type="number" min="1" max="100" value="18"></div>
+        <div class="control"><label for="videoFlashThreshold">Aumento de luminosidade para sinalizar flash</label><input class="field" id="videoFlashThreshold" type="number" min="1" max="100" value="18"></div>
+      </div>
+      <div class="grid cols2">
+        <div class="control"><label for="videoMinActiveFrames">Mínimo de quadros com movimento (%)</label><input class="field" id="videoMinActiveFrames" type="number" min="0" max="100" step="1" value="20"></div>
+        <label class="row" style="align-items:center;margin:12px 0"><input type="checkbox" id="requireVideoFlash"> Exigir flashes nesta captura (ative ao testar raios)</label>
+      </div>
+      <div class="row"><button class="primary" id="analyzeEffectsBtn">Analisar movimento e flashes</button><button id="exportVideoAudit" disabled>Exportar relatório de animação JSON</button><span class="badge" id="videoAuditStatus">Aguardando gravações</span></div>
+      <div class="grid cols2" style="margin-top:14px">
+        <div class="metric"><small>Referência — atividade dos quadros</small><b id="videoWebActivity">—</b><small id="videoWebFlashes">Flashes: —</small></div>
+        <div class="metric"><small>APK — atividade dos quadros</small><b id="videoNativeActivity">—</b><small id="videoNativeFlashes">Flashes: —</small></div>
+      </div>
+      <div class="imagebox" style="margin-top:14px;padding:8px"><canvas id="videoAuditChart" width="960" height="300" style="width:100%;max-height:320px"></canvas></div>
+      <div class="grid cols2" style="margin-top:12px">
+        <div><h3>Resumo da referência</h3><pre class="result" id="videoWebResults">Nenhuma análise executada.</pre></div>
+        <div><h3>Resumo do APK</h3><pre class="result" id="videoNativeResults">Nenhuma análise executada.</pre></div>
+      </div>
+      <p class="sub">A análise limita-se a 30 segundos por gravação e no máximo 151 amostras. Um resultado sem movimento indica possível congelamento, não uma aprovação automática do desenho. Um flash detectado é um sinal de luminosidade, não uma classificação semântica de raio.</p>
+    </div>
+  </section>
+  <section class="page" id="page-palette">
+    <p class="intro">Crie combinações de cor e teste valores de iluminação sem mudar a aparência do aplicativo em desenvolvimento. Exporte a paleta em JSON ou CSS.</p>
+    <div class="grid cols2">
+      <div class="card"><h2>Editor de paleta</h2>
+        <div class="row"><div class="colorbox" id="colorpreview"></div><div style="flex:1"><div class="eyebrow">Cor ativa</div><div class="stat" style="font-size:20px" id="hexLabel">#38E6BC</div><div class="sub" id="rgbLabel">RGB 56, 230, 188</div></div></div>
+        <div class="control"><label for="hexInput">HEX</label><div class="row"><input class="field" type="text" id="hexInput" value="#38E6BC" maxlength="9"><button id="applyHex">Aplicar</button></div></div>
+        <div class="control"><label>Hue / matiz</label><input type="range" id="hue" min="0" max="360" value="165"></div>
+        <div class="control"><label>Saturação</label><input type="range" id="sat" min="0" max="100" value="76"></div>
+        <div class="control"><label>Brilho</label><input type="range" id="val" min="0" max="100" value="90"></div>
+        <div class="control"><label>Intensidade da luz</label><input type="range" id="light" min="0" max="100" value="45"></div>
+        <div class="row"><button id="addSwatch" class="primary">Guardar amostra</button><button id="exportPalette">Exportar JSON</button><button id="exportCss">Exportar CSS</button></div>
+      </div>
+      <div class="card"><h2>Visualizador de iluminação</h2>
+        <div id="lightStage" style="height:220px;border:1px solid var(--line);border-radius:12px;display:grid;place-items:center;background:radial-gradient(circle at 25% 20%,#38e6bc35,transparent 48%),#071015;overflow:hidden">
+          <div id="lightObject" style="width:100px;height:100px;border-radius:28px;background:#38E6BC;box-shadow:0 0 45px #38E6BC73, inset -12px -13px 25px #0004,inset 10px 8px 22px #ffffff30;transform:rotate(-9deg)"></div>
+        </div><p class="sub">Ajuste a luz para ver o que o brilho faz em painéis escuros, sem alterar o código-fonte da interface.</p>
+        <h3>Amostras salvas</h3><div class="swatches" id="swatchList"></div>
+        <div class="control"><label>Fundo de teste</label><input type="color" id="bgPick" value="#081116" style="height:40px;width:100%;background:#081116;border:1px solid var(--line);border-radius:9px;padding:3px"></div>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="page-art">
+    <p class="intro">Prancheta 2D vetorial simplificada para protótipos de ícones, materiais e formas. O desenho pode ser exportado em PNG; as formas vetoriais também podem ser exportadas como SVG.</p>
+    <div class="grid cols2">
+      <div class="card"><h2>Controles da prancheta</h2>
+        <div class="shapegrid" id="toolgrid"><button class="primary" data-tool="pen">✎ Caneta</button><button data-tool="rect">□ Retângulo</button><button data-tool="circle">○ Círculo</button><button data-tool="line">／ Linha</button></div>
+        <div class="control"><label>Cor do traço/preenchimento</label><input class="field" type="color" id="artColor" value="#38E6BC" style="height:42px;padding:4px"></div>
+        <div class="control"><label>Espessura: <span id="strokeVal">4</span> px</label><input type="range" id="strokeWidth" min="1" max="28" value="4"></div>
+        <div class="control"><label>Texto a inserir</label><input class="field" id="artText" type="text" value="K" maxlength="50"></div>
+        <div class="row"><button id="addText">Inserir texto</button><button id="undoArt">Desfazer</button><button class="danger" id="clearArt">Limpar</button><button class="primary" id="savePng">PNG</button><button id="saveSvg">SVG</button></div>
+        <p class="sub">Desenhe com toque ou mouse. O canvas usa proporção fixa 720 × 440; zoom de exibição não altera o tamanho exportado.</p>
+      </div>
+      <div class="card"><div class="between"><h2>Prancheta 720 × 440</h2><span id="artCount" class="badge">0 objetos</span></div><div class="canvaswrap"><canvas id="artCanvas" width="720" height="440"></canvas></div></div>
+    </div>
+  </section>
+  <section class="page" id="page-space">
+    <p class="intro">Laboratório de geometria e luz. O cubo 3D é uma prévia CSS interativa; o tesserato 4D é projetado matematicamente em um canvas 2D. Não substitui um renderizador de produção, mas ajuda a experimentar formas, cores e transformações.</p>
+    <div class="grid cols2">
+      <div class="card"><h2>Visualizador 3D</h2>
+        <div class="stage3d"><div class="cube" id="cube"><div class="face front"></div><div class="face back"></div><div class="face right"></div><div class="face left"></div><div class="face topface"></div><div class="face bottomface"></div></div></div>
+        <div class="control"><label>Rotação X</label><input id="rotX" type="range" min="-180" max="180" value="-23"></div>
+        <div class="control"><label>Rotação Y</label><input id="rotY" type="range" min="-180" max="180" value="32"></div>
+        <div class="control"><label>Rotação Z</label><input id="rotZ" type="range" min="-180" max="180" value="0"></div>
+        <div class="control"><label>Cor do material</label><input id="matColor" type="color" value="#38E6BC" style="width:100%;height:35px;padding:3px"></div>
+        <div class="control"><label>Luz direcional</label><input id="matLight" type="range" min="0" max="100" value="35"></div>
+        <div class="row"><button id="spin3d">Rotacionar</button><button id="reset3d">Resetar</button></div>
+      </div>
+      <div class="card"><h2>Projeção 4D — Tesserato</h2><div class="canvaswrap dark"><canvas id="tesseract" class="tesseract" width="600" height="430"></canvas></div>
+        <div class="control"><label>Rotação XW: <span id="angleXW">25°</span></label><input id="angle1" type="range" min="-180" max="180" value="25"></div>
+        <div class="control"><label>Rotação YW: <span id="angleYW">35°</span></label><input id="angle2" type="range" min="-180" max="180" value="35"></div>
+        <div class="control"><label>Rotação ZW: <span id="angleZW">10°</span></label><input id="angle3" type="range" min="-180" max="180" value="10"></div>
+        <div class="row"><button id="animate4d">Animar rotação</button><button id="reset4d">Resetar</button><button id="save4d">Exportar PNG</button></div>
+        <p class="sub">Oito vértices ligados formam o hipercubo projetado. Ajuste os ângulos para explorar como a dimensão extra muda a projeção.</p>
+      </div>
+    </div>
+  </section>
+  <section class="page" id="page-motion">
+    <p class="intro">Teste trajetórias, rotação, escala e opacidade em uma linha do tempo simples. Crie keyframes, reproduza a prévia e exporte a descrição da animação em JSON para documentação.</p>
+    <div class="grid cols2">
+      <div class="card"><h2>Linha do tempo</h2>
+        <div class="control"><label>Duração: <span id="durationLabel">3.0 s</span></label><input id="duration" type="range" min="0.5" max="10" step="0.5" value="3"></div>
+        <div class="control"><label>Deslocamento X: <span id="dxLabel">140 px</span></label><input id="dx" type="range" min="-240" max="240" value="140"></div>
+        <div class="control"><label>Rotação: <span id="drLabel">180°</span></label><input id="dr" type="range" min="-720" max="720" value="180"></div>
+        <div class="control"><label>Escala final: <span id="scaleLabel">1.20×</span></label><input id="motionScale" type="range" min="30" max="220" value="120"></div>
+        <div class="control"><label>Opacidade final: <span id="opacity2Label">100%</span></label><input id="opacity2" type="range" min="0" max="100" value="100"></div>
+        <div class="row"><button id="addKey">Adicionar keyframe</button><button class="primary" id="playMotion">▶ Reproduzir</button><button id="resetMotion">Resetar</button><button id="exportMotion">Exportar JSON</button></div>
+        <div class="timeline" id="timeline"><div id="playhead" class="playhead"></div></div><div id="keySummary" class="sub">0 keyframes locais</div>
+      </div>
+      <div class="card"><h2>Prévia de movimento</h2><div style="height:250px;border:1px solid var(--line);border-radius:12px;background:radial-gradient(ellipse at center,#163139,transparent 68%),#081116;overflow:hidden;position:relative"><div id="motionObject" class="animateobj"></div></div><p class="sub">A linha do tempo serve para ajustar e documentar o movimento. Ela não aplica a animação ao app automaticamente.</p></div>
+    </div>
+  </section>
+  <section class="page" id="page-logs">
+    <p class="intro">Cole saídas de Gradle, ADB/logcat, TypeScript, testes ou gerenciadores de pacote. O analisador separa linhas de erro/aviso e encontra referências comuns a dependências e versões. Não envia logs para um serviço externo.</p>
+    <div class="card"><div class="between"><h2>Analizador local de logs</h2><span class="badge" id="logCounts">0 linhas</span></div>
+      <div class="row"><button id="loadLogSample">Carregar exemplo</button><button id="analyzeLog" class="primary">Analisar</button><button id="clearLog">Limpar</button><button id="exportLog">Exportar relatório</button><label class="file">Abrir arquivo <input type="file" id="logFile" accept=".log,.txt,.json,.xml,.gradle,.kts"></label></div>
+      <div class="control"><label>Logs / saída do build</label><textarea class="field" id="logInput" style="min-height:240px" placeholder="Cole aqui o log completo do teste ou da compilação…"></textarea></div>
+      <div class="metricgrid"><div class="metric"><small>Erros</small><b id="logErrorN">0</b></div><div class="metric"><small>Avisos</small><b id="logWarnN">0</b></div><div class="metric"><small>Referências de dependências</small><b id="logDepN">0</b></div></div>
+      <h3 style="margin-top:16px">Linhas de diagnóstico</h3><div class="result" id="logResults" style="padding:0;max-height:360px">Nenhum log analisado.</div>
+      <h3 style="margin-top:16px">Dependências encontradas</h3><div class="result" id="depResults">Nenhuma dependência encontrada.</div>
+      <div class="note" style="margin-top:12px">A oficina identifica padrões de log e versão, não confirma vulnerabilidades nem substitui testes de segurança. Para confirmar compatibilidade, execute o build e testes apropriados.</div>
+    </div>
+  </section>
+  <section class="page" id="page-report">
+    <p class="intro">Carregue um JSON produzido pelo laboratório de comparação para ler as métricas e o inventário de evidências sem percorrer os logs do Actions manualmente.</p>
+    <div class="card"><div class="row"><input class="field" type="file" id="reportFile" accept=".json,application/json" style="max-width:430px"><button id="loadReport" class="primary">Ler relatório JSON</button><button id="exportSession">Exportar projeto local</button><button id="importSession">Importar projeto local</button><input type="file" id="sessionFile" class="hidden" accept="application/json"></div>
+      <div class="grid cols2" style="margin-top:16px"><div><h3>Resumo da execução</h3><div id="reportSummary" class="result">Nenhum relatório carregado.</div></div><div><h3>Métricas e evidências</h3><div id="reportResults" class="result">Carregue parity-metrics.json.</div></div></div>
+      <div class="row" style="margin-top:14px"><button id="downloadSessionReport" disabled>Baixar resumo de sessão</button></div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>Manifesto do ambiente</h2><p class="sub">Pode carregar lab-environment.json gerado pelo workflow ou qualquer JSON de metadados.</p><input type="file" id="envFile" accept=".json,application/json"><div class="result" id="envResults" style="margin-top:10px">Nenhum manifesto carregado.</div></div>
+  </section>
+  <footer class="foot"><span>STUDIO LAB · offline-first · nenhuma alteração automática no app</span><span>Versão 1.0 · comparações sem redimensionamento</span></footer>
+</main>
+</div>
+<script>
+(function(){
+"use strict";
+const $=function(id){return document.getElementById(id)};
+const safeText=function(v){return String(v==null?"":v)};
+const download=function(name,blob){const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url)},1000)};
+const downloadText=function(name,text,type){download(name,new Blob([text],{type:type||"text/plain;charset=utf-8"}))};
+const pages={home:"Visão geral da oficina",compare:"Comparador visual", "motion-audit":"Analisador de efeitos animados",palette:"Paleta e iluminação",art:"Prancheta 2D",space:"Laboratório 3D / 4D",motion:"Linha do tempo de animação",logs:"Logs e dependências",report:"Relatórios do laboratório"};
+function goto(name){document.querySelectorAll(".page").forEach(function(p){p.classList.toggle("active",p.id==="page-"+name)});document.querySelectorAll(".nav[data-page]").forEach(function(b){b.classList.toggle("active",b.dataset.page===name)});$("pagetitle").textContent=pages[name]||"Studio";if(name==="space")draw4d();if(name==="art")renderArt()}
+document.querySelectorAll(".nav[data-page]").forEach(function(b){b.addEventListener("click",function(){goto(b.dataset.page)})});
+document.querySelectorAll("[data-goto]").forEach(function(b){b.addEventListener("click",function(){goto(b.dataset.goto)})});
+function noteSaved(label){$("lastsave").textContent=label;$("sessionstate").textContent="Atividade local";}
+
+/* COLOR PALETTE / LIGHTING */
+let accent="#38E6BC";const swatches=["#38E6BC","#2DD4BF","#4C9AFF","#A78BFA","#F472B6","#D4AF37","#E5484D","#C9CED6","#F08A4B","#9BCB5A"];
+function validHex(s){return /^#?(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(s.trim())}
+function normalizeHex(s){s=s.trim().replace(/^#/,"");if(s.length===3)s=s.split("").map(function(c){return c+c}).join("");return "#"+s.toUpperCase()}
+function rgb(hex){const h=normalizeHex(hex);return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+function hsvToHex(h,s,v){s/=100;v/=100;const c=v*s,x=c*(1-Math.abs((h/60)%2-1)),m=v-c;let rr=0,gg=0,bb=0;if(h<60){rr=c;gg=x}else if(h<120){rr=x;gg=c}else if(h<180){gg=c;bb=x}else if(h<240){gg=x;bb=c}else if(h<300){rr=x;bb=c}else{rr=c;bb=x}return "#"+[rr,gg,bb].map(function(a){return Math.round((a+m)*255).toString(16).padStart(2,"0")}).join("").toUpperCase()}
+function hexToHsv(hex){const arr=rgb(hex).map(function(v){return v/255}),r=arr[0],g=arr[1],b=arr[2],max=Math.max(r,g,b),min=Math.min(r,g,b),d=max-min;let h=0;if(d){if(max===r)h=60*(((g-b)/d)%6);else if(max===g)h=60*((b-r)/d+2);else h=60*((r-g)/d+4)}if(h<0)h+=360;return [Math.round(h),Math.round(max?d/max*100:0),Math.round(max*100)]}
+function renderColor(){const r=rgb(accent);$("hexLabel").textContent=accent;$("rgbLabel").textContent="RGB "+r.join(", ");$("hexInput").value=accent;$("colorpreview").style.background=accent;$("lightObject").style.background=accent;const light=Number($("light").value);$("lightObject").style.boxShadow="0 0 "+Math.round(8+light*.65)+"px "+accent+Math.round(25+light*1.45).toString(16).slice(-2)+", inset -12px -13px 25px #0004, inset 10px 8px 22px #ffffff30";$("lightStage").style.background="radial-gradient(circle at "+(15+light*.6)+"% "+(15+light*.25)+"%, "+accent+"55, transparent 52%), "+$("bgPick").value;$("dashshots").textContent=(imgA?1:0)+(imgB?1:0);renderArt()}
+function renderSwatches(){const list=$("swatchList");list.innerHTML="";swatches.forEach(function(c){const b=document.createElement("button");b.className="swatch";b.innerHTML='<span class="color" style="background:'+c+'"></span><small>'+c+'</small>';b.addEventListener("click",function(){setColor(c)});list.appendChild(b)})}
+function setColor(hex){if(!validHex(hex))return;accent=normalizeHex(hex);const hsv=hexToHsv(accent);$("hue").value=hsv[0];$("sat").value=hsv[1];$("val").value=hsv[2];renderColor();noteSaved("Paleta atualizada "+accent)}
+$("applyHex").addEventListener("click",function(){if(!validHex($("hexInput").value)){alert("HEX inválido. Use #38E6BC.");return}setColor($("hexInput").value)});
+["hue","sat","val"].forEach(function(id){$(id).addEventListener("input",function(){accent=hsvToHex(Number($("hue").value),Number($("sat").value),Number($("val").value));renderColor()})});
+$("light").addEventListener("input",renderColor);$("bgPick").addEventListener("input",renderColor);
+$("addSwatch").addEventListener("click",function(){if(!swatches.includes(accent))swatches.unshift(accent);renderSwatches();noteSaved("Amostra guardada "+accent)});
+$("exportPalette").addEventListener("click",function(){downloadText("kellvyn-palette.json",JSON.stringify({accent:accent,background:$("bgPick").value,light:Number($("light").value),swatches:swatches},null,2),"application/json")});
+$("exportCss").addEventListener("click",function(){downloadText("kellvyn-palette.css",":root {\n  --accent: "+accent+";\n  --background-test: "+$("bgPick").value+";\n  --light-intensity: "+$("light").value+"%;\n}\n","text/css")});
+
+
+/* SCREENSHOT COMPARATOR */
+let imgA=null,imgB=null,diffCanvas=null,overlayCanvas=null;
+function loadImageFile(file,side){if(!file)return;if(!file.type.startsWith("image/")){alert("Selecione um arquivo de imagem.");return}const url=URL.createObjectURL(file),im=new Image();im.onload=function(){if(side==="A")imgA=im;else imgB=im;const box=$("box"+side);box.innerHTML="";const preview=document.createElement("img");preview.src=url;preview.alt=side==="A"?"Captura web":"Captura nativa";box.appendChild(preview);$("label"+side).textContent=file.name;$("dim"+side).textContent=im.naturalWidth+" × "+im.naturalHeight;$("dashshots").textContent=(imgA?1:0)+(imgB?1:0);$("compStatus").textContent=(imgA&&imgB)?"Prontas":"1 imagem";if(imgA&&imgB)runCompare()};im.onerror=function(){URL.revokeObjectURL(url);alert("Não foi possível abrir a imagem.")};im.src=url}
+$("fileA").addEventListener("change",function(e){loadImageFile(e.target.files[0],"A")});$("fileB").addEventListener("change",function(e){loadImageFile(e.target.files[0],"B")});
+function imageToCanvas(im){const c=document.createElement("canvas");c.width=im.naturalWidth;c.height=im.naturalHeight;c.getContext("2d").drawImage(im,0,0);return c}
+let lastParityReport=null;
+function drawCompareView(){
+  const canvas=$("compareCanvas"),ctx=canvas.getContext("2d"),mode=$("compMode").value;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  if(!imgA||!imgB){
+    ctx.fillStyle="#8fa7ac";ctx.font="16px system-ui";ctx.textAlign="center";
+    ctx.fillText("Carregue as duas capturas para comparar",canvas.width/2,canvas.height/2);
+    return;
+  }
+  const same=imgA.naturalWidth===imgB.naturalWidth&&imgA.naturalHeight===imgB.naturalHeight;
+  if(!same){
+    ctx.fillStyle="#ff9aa4";ctx.font="16px system-ui";ctx.textAlign="center";
+    ctx.fillText("Dimensões incompatíveis — não há comparação pixel a pixel",canvas.width/2,canvas.height/2);
+    return;
+  }
+  const w=imgA.naturalWidth,h=imgA.naturalHeight;
+  const scale=Math.min(canvas.width/w,canvas.height/h);
+  const drawW=w*scale,drawH=h*scale,x=(canvas.width-drawW)/2,y=(canvas.height-drawH)/2;
+  if(mode==="side"){
+    const gap=12,sideScale=Math.min((canvas.width-gap)/(2*w),canvas.height/h);
+    const sideW=w*sideScale,sideH=h*sideScale,left=(canvas.width-(2*sideW+gap))/2,top=(canvas.height-sideH)/2;
+    ctx.drawImage(imgA,left,top,sideW,sideH);
+    ctx.drawImage(imgB,left+sideW+gap,top,sideW,sideH);
+    return;
+  }
+  if(mode==="diff"&&diffCanvas){
+    ctx.drawImage(diffCanvas,x,y,drawW,drawH);
+  }else{
+    ctx.globalAlpha=1;ctx.drawImage(imgA,x,y,drawW,drawH);
+    ctx.globalAlpha=Number($("opacity").value)/100;
+    ctx.drawImage(imgB,x,y,drawW,drawH);
+    ctx.globalAlpha=1;
+  }
+}
+function runCompare(){
+  if(!imgA||!imgB){$("compStatus").textContent="Faltam imagens";$("exportParityReport").disabled=true;$("downloadCompare").disabled=true;$("downloadOverlay").disabled=true;return}
+  if(imgA.naturalWidth!==imgB.naturalWidth||imgA.naturalHeight!==imgB.naturalHeight){
+    $("compStatus").textContent="REPROVADO — dimensões diferentes";
+    $("compStatus").style.color="var(--danger)";
+    $("changed").textContent="—";$("mae").textContent="—";$("rmse").textContent="—";
+    $("exportParityReport").disabled=true;$("downloadCompare").disabled=true;$("downloadOverlay").disabled=true;lastParityReport=null;drawCompareView();return
+  }
+  const a=imageToCanvas(imgA),b=imageToCanvas(imgB),w=a.width,h=a.height;
+  const ac=a.getContext("2d").getImageData(0,0,w,h).data;
+  const bc=b.getContext("2d").getImageData(0,0,w,h).data;
+  const out=document.createElement("canvas");out.width=w;out.height=h;
+  const ctx=out.getContext("2d"),od=ctx.createImageData(w,h);
+  const channelThreshold=Math.max(0,Math.min(255,Number($("channelThreshold").value)||0));
+  const maxChangedPercent=Math.max(0,Math.min(100,Number($("maxChangedPercent").value)||0));
+  let total=0,sq=0,changed=0,pixels=w*h;
+  for(let i=0;i<ac.length;i+=4){
+    let different=false;
+    for(let k=0;k<3;k++){
+      const d=Math.abs(ac[i+k]-bc[i+k]);total+=d;sq+=d*d;
+      od.data[i+k]=Math.min(255,d*4);
+      if(d>channelThreshold)different=true;
+    }
+    od.data[i+3]=255;if(different)changed++;
+  }
+  ctx.putImageData(od,0,0);diffCanvas=out;
+  overlayCanvas=document.createElement("canvas");overlayCanvas.width=w;overlayCanvas.height=h;
+  const ox=overlayCanvas.getContext("2d");ox.drawImage(a,0,0);ox.globalAlpha=.5;ox.drawImage(b,0,0);ox.globalAlpha=1;
+  $("downloadCompare").disabled=false;$("downloadOverlay").disabled=false;
+  const changedPercent=changed/pixels*100,mae=total/(pixels*3),rmse=Math.sqrt(sq/(pixels*3));
+  const passed=changedPercent<=maxChangedPercent;
+  $("changed").textContent=changedPercent.toFixed(3)+"%";
+  $("mae").textContent=mae.toFixed(3);$("rmse").textContent=rmse.toFixed(3);
+  $("compStatus").textContent=passed
+    ?(changed===0?"APROVADO — igualdade pixel a pixel":"APROVADO — dentro do limite configurado")
+    :"REPROVADO — diferença acima do limite";
+  $("compStatus").style.color=passed?"var(--ok)":"var(--danger)";
+  lastParityReport={
+    schema:"kellvyn-studio-parity-v2",createdAt:new Date().toISOString(),
+    status:passed?"passed":"failed",
+    method:"same-size pixel comparison; no resize or interpolation",
+    images:{reference:{name:$("labelA").textContent,width:w,height:h},native:{name:$("labelB").textContent,width:imgB.naturalWidth,height:imgB.naturalHeight}},
+    criteria:{channelThreshold:channelThreshold,maxChangedPercent:maxChangedPercent},
+    metrics:{changedPixels:changed,totalPixels:pixels,changedPixelsPercent:Number(changedPercent.toFixed(4)),meanAbsoluteError:Number(mae.toFixed(4)),rootMeanSquareError:Number(rmse.toFixed(4))},
+    exactPixelMatch:changed===0,
+    approvalNote:passed?(changed===0?"Exact pixel equality at the selected image dimensions.":"Within the user-configured tolerance; not exact pixel equality."):"Rejected by the configured changed-pixel limit."
+  };
+  $("parityReportPreview").textContent=JSON.stringify(lastParityReport,null,2);
+  $("exportParityReport").disabled=false;
+  drawCompareView();noteSaved("Comparação concluída: "+(passed?"aprovada":"reprovada"));
+}
+$("compareBtn").addEventListener("click",runCompare);$("compMode").addEventListener("change",drawCompareView);$("opacity").addEventListener("input",function(){$("opacityLabel").textContent=this.value+"%";drawCompareView()});
+function canvasPngBlob(canvas){
+  const dataUrl=canvas.toDataURL("image/png");
+  const comma=dataUrl.indexOf(",");
+  if(comma<0)throw new Error("Canvas não produziu uma imagem PNG.");
+  const binary=atob(dataUrl.slice(comma+1));
+  const bytes=new Uint8Array(binary.length);
+  for(let i=0;i<binary.length;i++)bytes[i]=binary.charCodeAt(i);
+  return new Blob([bytes],{type:"image/png"});
+}
+$("downloadCompare").addEventListener("click",function(){
+  if(!diffCanvas){$("exportStatus").textContent="Não há diferença calculada para exportar.";return}
+  $("exportStatus").textContent="Gerando PNG de diferença…";
+  try{
+    const blob=canvasPngBlob(diffCanvas);
+    download("poco-f6-difference.png",blob);
+    $("exportStatus").textContent="Diferença PNG exportada.";
+  }catch(error){$("exportStatus").textContent="Falha ao exportar diferença: "+error.message}
+});
+$("downloadOverlay").addEventListener("click",function(){
+  if(!overlayCanvas){$("exportStatus").textContent="Não há sobreposição calculada para exportar.";return}
+  $("exportStatus").textContent="Gerando PNG de sobreposição…";
+  try{
+    const blob=canvasPngBlob(overlayCanvas);
+    download("poco-f6-overlay.png",blob);
+    $("exportStatus").textContent="Sobreposição PNG exportada.";
+  }catch(error){$("exportStatus").textContent="Falha ao exportar sobreposição: "+error.message}
+});
+$("exportParityReport").addEventListener("click",function(){
+  if(!lastParityReport){$("exportStatus").textContent="Não há relatório para exportar.";return}
+  downloadText("kellvyn-parity-report.json",JSON.stringify(lastParityReport,null,2),"application/json");
+  $("exportStatus").textContent="Relatório JSON exportado.";
+});
+$("channelThreshold").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
+$("maxChangedPercent").addEventListener("change",function(){if(imgA&&imgB)runCompare()});
+$("compareCanvas").width=1000;$("compareCanvas").height=600;drawCompareView();
+
+
+/* ANIMATED EFFECT AUDIT — local video sampling, no external services */
+let videoAuditUrls={web:null,native:null},lastVideoAudit=null;
+function bindAuditVideo(file,side){
+  if(!file)return;
+  const video=side==="web"?$("videoWebPreview"):$("videoNativePreview");
+  const meta=side==="web"?$("videoWebMeta"):$("videoNativeMeta");
+  if(videoAuditUrls[side])URL.revokeObjectURL(videoAuditUrls[side]);
+  const url=URL.createObjectURL(file);videoAuditUrls[side]=url;video.src=url;video.load();
+  meta.textContent=file.name;
+  $("videoAuditStatus").textContent="Carregando "+(side==="web"?"referência":"APK")+"…";
+}
+$("videoWebFile").addEventListener("change",e=>bindAuditVideo(e.target.files[0],"web"));
+$("videoNativeFile").addEventListener("change",e=>bindAuditVideo(e.target.files[0],"native"));
+function waitVideoReady(video){
+  if(video.readyState>=2&&Number.isFinite(video.duration))return Promise.resolve();
+  return new Promise((resolve,reject)=>{
+    const timer=setTimeout(()=>{cleanup();reject(new Error("Vídeo não carregou ou não possui duração legível."))},12000);
+    function cleanup(){clearTimeout(timer);video.removeEventListener("loadeddata",ready);video.removeEventListener("error",failed)}
+    function ready(){cleanup();resolve()}
+    function failed(){cleanup();reject(new Error("Falha ao decodificar a gravação."))}
+    video.addEventListener("loadeddata",ready,{once:true});video.addEventListener("error",failed,{once:true});
+  });
+}
+function grabVideoFrame(video,time,canvas){
+  return new Promise((resolve,reject)=>{
+    const target=Math.max(0,Math.min(time,Math.max(0,video.duration-0.025)));
+    const draw=()=>{try{const ctx=canvas.getContext("2d",{willReadFrequently:true});ctx.drawImage(video,0,0,canvas.width,canvas.height);resolve(ctx.getImageData(0,0,canvas.width,canvas.height).data)}catch(error){reject(error)}};
+    if(Math.abs(video.currentTime-target)<0.01&&video.readyState>=2){draw();return}
+    const timer=setTimeout(()=>{video.removeEventListener("seeked",onSeek);reject(new Error("Tempo esgotado ao extrair quadro do vídeo."))},8000);
+    function onSeek(){clearTimeout(timer);video.removeEventListener("seeked",onSeek);draw()}
+    video.addEventListener("seeked",onSeek,{once:true});
+    try{video.currentTime=target}catch(error){clearTimeout(timer);video.removeEventListener("seeked",onSeek);reject(error)}
+  });
+}
+function frameLuminance(data){
+  let sum=0,bright=0;
+  for(let i=0;i<data.length;i+=4){const y=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];sum+=y;if(y>=210)bright++}
+  const pixels=data.length/4;return{mean:sum/pixels,brightPercent:bright/pixels*100};
+}
+async function auditOneVideo(video,stepMs,motionThreshold,flashThreshold){
+  await waitVideoReady(video);
+  const duration=Math.min(30,video.duration);
+  if(!Number.isFinite(duration)||duration<=0.15)throw new Error("Gravação curta demais para analisar.");
+  const w=120,h=68,canvas=document.createElement("canvas");canvas.width=w;canvas.height=h;
+  const samples=[];let previous=null,previousLight=null,flashes=0;
+  const count=Math.min(151,Math.floor(duration*1000/stepMs)+1);
+  for(let index=0;index<count;index++){
+    const time=Math.min(index*stepMs/1000,Math.max(0,duration-.03));
+    const data=await grabVideoFrame(video,time,canvas);
+    const light=frameLuminance(data);
+    let motionPercent=0,flash=false;
+    if(previous){
+      let changed=0,pixels=data.length/4;
+      for(let i=0;i<data.length;i+=4){
+        const l1=.2126*previous[i]+.7152*previous[i+1]+.0722*previous[i+2];
+        const l2=.2126*data[i]+.7152*data[i+1]+.0722*data[i+2];
+        if(Math.abs(l2-l1)>=motionThreshold)changed++;
+      }
+      motionPercent=changed/pixels*100;
+      const meanJump=light.mean-previousLight.mean;
+      const brightJump=light.brightPercent-previousLight.brightPercent;
+      flash=meanJump>=flashThreshold&&brightJump>=0.25;
+      if(flash)flashes++;
+    }
+    samples.push({timeSeconds:Number(time.toFixed(3)),motionPercent:Number(motionPercent.toFixed(3)),meanLuminance:Number(light.mean.toFixed(2)),brightPixelPercent:Number(light.brightPercent.toFixed(3)),flash});
+    previous=data;previousLight=light;
+  }
+  const active=samples.filter(s=>s.motionPercent>=0.35);
+  const motionValues=samples.slice(1).map(s=>s.motionPercent);
+  const avg=motionValues.length?motionValues.reduce((a,b)=>a+b,0)/motionValues.length:0;
+  return{
+    durationSeconds:Number(duration.toFixed(3)),sampleIntervalMs:stepMs,sampleCount:samples.length,
+    activeFramePercent:Number((active.length/Math.max(1,samples.length-1)*100).toFixed(2)),
+    averageMotionPercent:Number(avg.toFixed(3)),
+    peakMotionPercent:Number(Math.max(0,...motionValues).toFixed(3)),
+    averageLuminance:Number((samples.reduce((a,s)=>a+s.meanLuminance,0)/samples.length).toFixed(2)),
+    flashesDetected:flashes,
+    movementDetected:active.length>0,
+    samples
+  };
+}
+function drawVideoAuditChart(web,native){
+  const canvas=$("videoAuditChart"),ctx=canvas.getContext("2d"),w=canvas.width,h=canvas.height;
+  ctx.clearRect(0,0,w,h);ctx.fillStyle="#081116";ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle="#263b44";ctx.lineWidth=1;
+  for(let y=0;y<=4;y++){const py=16+y*(h-48)/4;ctx.beginPath();ctx.moveTo(46,py);ctx.lineTo(w-18,py);ctx.stroke();ctx.fillStyle="#8fa7ac";ctx.font="12px system-ui";ctx.fillText(String(100-y*25)+"%",8,py+4)}
+  const maxDuration=Math.max(web.durationSeconds,native.durationSeconds,.1);
+  function draw(series,color){
+    ctx.strokeStyle=color;ctx.lineWidth=2.5;ctx.beginPath();
+    series.samples.forEach((s,i)=>{const x=46+(w-64)*(s.timeSeconds/maxDuration),y=h-32-(h-48)*Math.min(100,s.motionPercent)/100;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)});
+    ctx.stroke();
+  }
+  draw(web,"#38e6bc");draw(native,"#f0b35a");
+  ctx.fillStyle="#38e6bc";ctx.fillRect(54,h-17,14,4);ctx.fillStyle="#c8dfe0";ctx.fillText("Referência",74,h-13);
+  ctx.fillStyle="#f0b35a";ctx.fillRect(178,h-17,14,4);ctx.fillStyle="#c8dfe0";ctx.fillText("APK nativo",198,h-13);
+  ctx.fillStyle="#8fa7ac";ctx.fillText("Movimento entre quadros",w-220,15);
+}
+function renderVideoSummary(id,result,minActive,requireFlash){
+  const passed=result.activeFramePercent>=minActive&&(!requireFlash||result.flashesDetected>0);
+  const status=passed?"ATIVIDADE DETECTADA":"FALHA NO CRITÉRIO";
+  const summary={...result,gate:{minimumActiveFramePercent:minActive,flashRequired:requireFlash,passed},status};
+  $(id==="web"?"videoWebActivity":"videoNativeActivity").textContent=result.activeFramePercent.toFixed(1)+"% · "+status;
+  $(id==="web"?"videoWebFlashes":"videoNativeFlashes").textContent="Flashes: "+result.flashesDetected+" · pico de movimento: "+result.peakMotionPercent.toFixed(2)+"%";
+  $(id==="web"?"videoWebResults":"videoNativeResults").textContent=JSON.stringify(summary,null,2);
+  return summary;
+}
+$("analyzeEffectsBtn").addEventListener("click",async function(){
+  const webVideo=$("videoWebPreview"),nativeVideo=$("videoNativePreview");
+  if(!webVideo.src||!nativeVideo.src){$("videoAuditStatus").textContent="Faltam gravações";return}
+  this.disabled=true;$("videoAuditStatus").textContent="Analisando quadros…";
+  try{
+    const step=Math.max(100,Math.min(1000,Number($("videoSampleStep").value)||200));
+    const motion=Math.max(1,Math.min(100,Number($("videoMotionThreshold").value)||18));
+    const flash=Math.max(1,Math.min(100,Number($("videoFlashThreshold").value)||18));
+    const minActive=Math.max(0,Math.min(100,Number($("videoMinActiveFrames").value)||0));
+    const requireFlash=$("requireVideoFlash").checked;
+    const web=await auditOneVideo(webVideo,step,motion,flash);
+    const native=await auditOneVideo(nativeVideo,step,motion,flash);
+    const webSummary=renderVideoSummary("web",web,minActive,requireFlash);
+    const nativeSummary=renderVideoSummary("native",native,minActive,requireFlash);
+    drawVideoAuditChart(web,native);
+    const passed=webSummary.gate.passed&&nativeSummary.gate.passed;
+    lastVideoAudit={schema:"kellvyn-studio-motion-audit-v1",createdAt:new Date().toISOString(),status:passed?"passed":"failed",criteria:{sampleIntervalMs:step,pixelLuminanceDelta:motion,flashMeanLuminanceIncrease:flash,minimumActiveFramePercent:minActive,flashRequired:requireFlash},reference:webSummary,native:nativeSummary,limits:{maxDurationSeconds:30,maxSamples:151},warning:"Motion and luminance are objective activity signals, not semantic proof that the visual effect is correct."};
+    $("videoAuditStatus").textContent=passed?"ANÁLISE APROVADA":"ANÁLISE REPROVADA";
+    $("videoAuditStatus").style.color=passed?"var(--ok)":"var(--danger)";
+    $("exportVideoAudit").disabled=false;noteSaved("Gravações analisadas");
+  }catch(error){lastVideoAudit=null;$("videoAuditStatus").textContent="ERRO: "+error.message;$("videoAuditStatus").style.color="var(--danger)";$("exportVideoAudit").disabled=true}
+  finally{this.disabled=false}
+});
+$("exportVideoAudit").addEventListener("click",function(){if(lastVideoAudit)downloadText("kellvyn-motion-audit.json",JSON.stringify(lastVideoAudit,null,2),"application/json")});
+$("videoAuditChart").width=960;$("videoAuditChart").height=300;
+
+/* 2D ARTBOARD */
+const art=$("artCanvas"),actx=art.getContext("2d");let tool="pen",objects=[],draft=null,down=false,start=null;
+function renderArt(){actx.clearRect(0,0,art.width,art.height);actx.fillStyle="#071015";actx.fillRect(0,0,art.width,art.height);actx.strokeStyle="#203640";actx.lineWidth=1;for(let x=0;x<art.width;x+=20){actx.beginPath();actx.moveTo(x,0);actx.lineTo(x,art.height);actx.stroke()}for(let y=0;y<art.height;y+=20){actx.beginPath();actx.moveTo(0,y);actx.lineTo(art.width,y);actx.stroke()}objects.forEach(drawObject);if(draft)drawObject(draft);$("artCount").textContent=objects.length+" objetos";$("dashshapes").textContent=objects.length}
+function drawObject(o){actx.save();actx.strokeStyle=o.color||accent;actx.fillStyle=o.color||accent;actx.lineWidth=o.width||4;actx.lineCap="round";actx.lineJoin="round";if(o.kind==="pen"){actx.beginPath();o.points.forEach(function(p,i){if(i===0)actx.moveTo(p.x,p.y);else actx.lineTo(p.x,p.y)});actx.stroke()}else if(o.kind==="rect"){actx.strokeRect(o.x,o.y,o.w,o.h)}else if(o.kind==="circle"){actx.beginPath();actx.ellipse(o.x+o.w/2,o.y+o.h/2,Math.abs(o.w/2),Math.abs(o.h/2),0,0,Math.PI*2);actx.stroke()}else if(o.kind==="line"){actx.beginPath();actx.moveTo(o.x,o.y);actx.lineTo(o.x+o.w,o.y+o.h);actx.stroke()}else if(o.kind==="text"){actx.font="bold "+(o.width*5+18)+"px system-ui";actx.fillText(o.text,o.x,o.y)}actx.restore()}
+function artPos(e){const r=art.getBoundingClientRect();return{x:(e.clientX-r.left)/r.width*art.width,y:(e.clientY-r.top)/r.height*art.height}}
+art.addEventListener("pointerdown",function(e){down=true;art.setPointerCapture(e.pointerId);start=artPos(e);draft={kind:tool,x:start.x,y:start.y,w:0,h:0,color:$("artColor").value,width:Number($("strokeWidth").value),points:tool==="pen"?[start]:[]};renderArt()});
+art.addEventListener("pointermove",function(e){if(!down||!draft)return;const p=artPos(e);if(tool==="pen")draft.points.push(p);else{draft.w=p.x-start.x;draft.h=p.y-start.y;draft.x=Math.min(start.x,p.x);draft.y=Math.min(start.y,p.y);if(tool==="line"){draft.x=start.x;draft.y=start.y;draft.w=p.x-start.x;draft.h=p.y-start.y}}renderArt()});
+function endArt(){if(!down)return;down=false;if(draft&&((draft.kind==="pen"&&draft.points.length>1)||(draft.kind!=="pen"&&(Math.abs(draft.w)>1||Math.abs(draft.h)>1))))objects.push(draft);draft=null;renderArt();noteSaved("Prancheta atualizada")}
+art.addEventListener("pointerup",endArt);art.addEventListener("pointercancel",endArt);
+document.querySelectorAll("[data-tool]").forEach(function(b){b.addEventListener("click",function(){tool=b.dataset.tool;document.querySelectorAll("[data-tool]").forEach(function(x){x.classList.toggle("primary",x===b)});})});
+$("strokeWidth").addEventListener("input",function(){$("strokeVal").textContent=this.value});
+$("addText").addEventListener("click",function(){const txt=$("artText").value.trim();if(!txt)return;objects.push({kind:"text",x:40+Math.random()*90,y:70+Math.random()*60,text:txt,color:$("artColor").value,width:Number($("strokeWidth").value)});renderArt();noteSaved("Texto inserido")});
+$("undoArt").addEventListener("click",function(){objects.pop();renderArt()});$("clearArt").addEventListener("click",function(){if(confirm("Limpar a prancheta desta sessão?")){objects=[];draft=null;renderArt()}});
+$("savePng").addEventListener("click",function(){const c=document.createElement("canvas");c.width=art.width;c.height=art.height;const cx=c.getContext("2d");cx.drawImage(art,0,0);c.toBlob(function(b){if(b)download("studio-2d.png",b)})});
+$("saveSvg").addEventListener("click",function(){let body='<rect width="720" height="440" fill="#071015"/>';objects.forEach(function(o){const col=o.color||accent,w=o.width||4;if(o.kind==="rect")body+='<rect x="'+o.x+'" y="'+o.y+'" width="'+o.w+'" height="'+o.h+'" fill="none" stroke="'+col+'" stroke-width="'+w+'"/>';else if(o.kind==="circle")body+='<ellipse cx="'+(o.x+o.w/2)+'" cy="'+(o.y+o.h/2)+'" rx="'+Math.abs(o.w/2)+'" ry="'+Math.abs(o.h/2)+'" fill="none" stroke="'+col+'" stroke-width="'+w+'"/>';else if(o.kind==="line")body+='<line x1="'+o.x+'" y1="'+o.y+'" x2="'+(o.x+o.w)+'" y2="'+(o.y+o.h)+'" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round"/>';else if(o.kind==="text")body+='<text x="'+o.x+'" y="'+o.y+'" fill="'+col+'" font-family="sans-serif" font-size="'+(w*5+18)+'" font-weight="bold">'+safeText(o.text).replace(/[&<>"]/g,function(c){return({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"})[c]})+'</text>';else if(o.kind==="pen")body+='<polyline points="'+o.points.map(function(p){return p.x+","+p.y}).join(" ")+'" fill="none" stroke="'+col+'" stroke-width="'+w+'" stroke-linecap="round" stroke-linejoin="round"/>'});downloadText("studio-2d.svg",'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 440">'+body+"</svg>","image/svg+xml")});
+renderArt();
+
+/* 3D CUBE */
+let spinTimer=null;function updateCube(){const x=Number($("rotX").value),y=Number($("rotY").value),z=Number($("rotZ").value),col=$("matColor").value,light=Number($("matLight").value);$("cube").style.transform="rotateX("+x+"deg) rotateY("+y+"deg) rotateZ("+z+"deg)";document.querySelectorAll(".face").forEach(function(f,i){f.style.background=col+Math.round(18+light*.42).toString(16).padStart(2,"0");f.style.borderColor=col;f.style.boxShadow="inset 0 0 "+Math.round(8+light*.55)+"px "+col+"33"});$("cube").style.filter="drop-shadow(0 0 "+Math.round(light/8)+"px "+col+")"}
+["rotX","rotY","rotZ","matLight","matColor"].forEach(function(id){$(id).addEventListener("input",updateCube)});$("reset3d").addEventListener("click",function(){$("rotX").value=-23;$("rotY").value=32;$("rotZ").value=0;$("matColor").value=accent;$("matLight").value=35;updateCube()});
+$("spin3d").addEventListener("click",function(){if(spinTimer){clearInterval(spinTimer);spinTimer=null;this.textContent="Rotacionar";return}this.textContent="Parar rotação";spinTimer=setInterval(function(){$("rotY").value=Number($("rotY").value)+2;if(Number($("rotY").value)>180)$("rotY").value=-180;updateCube()},40)});
+updateCube();
+
+/* 4D TESSERACT */
+const tc=$("tesseract"),tx=tc.getContext("2d");let anim4=false,raf4=0;
+function draw4d(){const w=tc.width,h=tc.height;tx.clearRect(0,0,w,h);tx.fillStyle="#091217";tx.fillRect(0,0,w,h);tx.strokeStyle="#243a43";tx.lineWidth=1;for(let x=0;x<w;x+=30){tx.beginPath();tx.moveTo(x,0);tx.lineTo(x,h);tx.stroke()}for(let y=0;y<h;y+=30){tx.beginPath();tx.moveTo(0,y);tx.lineTo(w,y);tx.stroke()}
+const a=Number($("angle1").value)*Math.PI/180,b=Number($("angle2").value)*Math.PI/180,c=Number($("angle3").value)*Math.PI/180;
+let points=[];for(let i=0;i<16;i++){let v=[i&1?1:-1,i&2?1:-1,i&4?1:-1,i&8?1:-1];let x=v[0],y=v[1],z=v[2],q=v[3];
+let x1=x*Math.cos(a)-q*Math.sin(a),q1=x*Math.sin(a)+q*Math.cos(a);x=x1;q=q1;
+let y1=y*Math.cos(b)-q*Math.sin(b),q2=y*Math.sin(b)+q*Math.cos(b);y=y1;q=q2;
+let z1=z*Math.cos(c)-q*Math.sin(c),q3=z*Math.sin(c)+q*Math.cos(c);z=z1;q=q3;
+const d=3.5/(3.5-q*.42);const px=w/2+(x*.65+y*.16)*w*.34*d,py=h/2+(z*.5-y*.28)*h*.36*d;points.push({x:px,y:py,inner:(i>>3)&1})}
+tx.lineWidth=1.6;for(let i=0;i<16;i++)for(let bit=1;bit<=8;bit*=2){const j=i^bit;if(j>i){tx.strokeStyle=((i&8)===(j&8))?"#38e6bcaa":"#49a9ffaa";tx.beginPath();tx.moveTo(points[i].x,points[i].y);tx.lineTo(points[j].x,points[j].y);tx.stroke()}}points.forEach(function(p){tx.fillStyle=p.inner?"#49a9ff":"#b5fff0";tx.beginPath();tx.arc(p.x,p.y,p.inner?4:3,0,Math.PI*2);tx.fill()});$("angleXW").textContent=$("angle1").value+"°";$("angleYW").textContent=$("angle2").value+"°";$("angleZW").textContent=$("angle3").value+"°"}
+["angle1","angle2","angle3"].forEach(function(id){$(id).addEventListener("input",draw4d)});
+$("animate4d").addEventListener("click",function(){anim4=!anim4;this.textContent=anim4?"Parar animação":"Animar rotação";if(anim4){const tick=function(){if(!anim4)return;$("angle1").value=(Number($("angle1").value)+1)%360-180;$("angle2").value=(Number($("angle2").value)+.7)%360-180;$("angle3").value=(Number($("angle3").value)+.4)%360-180;draw4d();raf4=requestAnimationFrame(tick)};raf4=requestAnimationFrame(tick)}else cancelAnimationFrame(raf4)});
+$("reset4d").addEventListener("click",function(){anim4=false;cancelAnimationFrame(raf4);$("animate4d").textContent="Animar rotação";$("angle1").value=25;$("angle2").value=35;$("angle3").value=10;draw4d()});
+$("save4d").addEventListener("click",function(){tc.toBlob(function(b){if(b)download("tesseract-4d-projection.png",b)})});draw4d();
+
+/* ANIMATION TIMELINE */
+let keyframes=[],motionRaf=0,motionStart=0,motionRunning=false;
+function readMotion(){return{time:0,duration:Number($("duration").value),x:Number($("dx").value),rotation:Number($("dr").value),scale:Number($("motionScale").value)/100,opacity:Number($("opacity2").value)/100}}
+function updateMotionLabels(){$("durationLabel").textContent=Number($("duration").value).toFixed(1)+" s";$("dxLabel").textContent=$("dx").value+" px";$("drLabel").textContent=$("dr").value+"°";$("scaleLabel").textContent=(Number($("motionScale").value)/100).toFixed(2)+"×";$("opacity2Label").textContent=$("opacity2").value+"%"}
+["duration","dx","dr","motionScale","opacity2"].forEach(function(id){$(id).addEventListener("input",function(){updateMotionLabels();if(!motionRunning)renderMotion(.0)})});
+function renderMotion(t){const m=readMotion(),p=Math.max(0,Math.min(1,t)),el=$("motionObject");el.style.transform="translateX("+m.x*p+"px) rotate("+m.rotation*p+"deg) scale("+(1+(m.scale-1)*p)+")";el.style.opacity=String(1+(m.opacity-1)*p);$("playhead").style.left=(p*100)+"%"}
+function drawTimeline(){const lane=$("timeline");lane.querySelectorAll(".keyframe").forEach(function(n){n.remove()});keyframes.forEach(function(k){const el=document.createElement("span");el.className="keyframe";el.style.left=(k.time*100)+"%";el.title=(k.time*100).toFixed(0)+"%";lane.appendChild(el)});$("keySummary").textContent=keyframes.length+" keyframe(s): "+(keyframes.map(function(k){return Math.round(k.time*100)+"%"}).join(", ")||"nenhum");}
+function addKey(){keyframes.push({time:Math.max(0,Math.min(1,Number($("playhead").style.left.replace("%","")||0)/100)),state:readMotion()});keyframes.sort(function(a,b){return a.time-b.time});drawTimeline();noteSaved("Keyframe adicionado")}
+$("addKey").addEventListener("click",addKey);
+function stopMotion(){motionRunning=false;cancelAnimationFrame(motionRaf);$("playMotion").textContent="▶ Reproduzir"}
+function playMotion(){if(motionRunning){stopMotion();return}motionRunning=true;$("playMotion").textContent="Ⅱ Pausar";motionStart=performance.now();const duration=Number($("duration").value)*1000;function tick(now){if(!motionRunning)return;const p=Math.min(1,(now-motionStart)/duration);renderMotion(p);if(p<1)motionRaf=requestAnimationFrame(tick);else stopMotion()}motionRaf=requestAnimationFrame(tick)}
+$("playMotion").addEventListener("click",playMotion);$("resetMotion").addEventListener("click",function(){stopMotion();keyframes=[];renderMotion(0);drawTimeline()});$("exportMotion").addEventListener("click",function(){downloadText("studio-animation.json",JSON.stringify({version:1,duration:Number($("duration").value),keyframes:keyframes,finalState:readMotion()},null,2),"application/json")});$("timeline").addEventListener("pointerdown",function(e){const r=this.getBoundingClientRect(),p=(e.clientX-r.left)/r.width;$("playhead").style.left=(Math.max(0,Math.min(1,p))*100)+"%"});updateMotionLabels();renderMotion(0);drawTimeline();
+
+/* LOG / DEPENDENCY INSPECTOR */
+let lastLogReport=null;
+function classify(line){if(/\b(error|fatal|exception|failed|failure|cannot find symbol|unresolved reference|could not resolve|no matching variant|process completed with exit code [1-9]|e:\s|panic)\b/i.test(line))return"error";if(/\b(warn|warning|deprecated|out of date|incompatible|not recommended|unable to)\b/i.test(line))return"warn";if(/\b(pass|passed|success|successful|build successful|test files.*passed)\b/i.test(line))return"ok";return"info"}
+function analyzeLogs(){const lines=$("logInput").value.split(/\r?\n/).filter(function(x){return x.trim()});const findings=[],deps=[],seen=new Set();lines.forEach(function(line,i){const type=classify(line);if(type==="error"||type==="warn"||type==="ok")findings.push({n:i+1,type,text:line});const patterns=[/([A-Za-z0-9_.-]+)\s*:\s*([A-Za-z0-9_.-]+)\s*:\s*([0-9][A-Za-z0-9_.+-]*)/g,/([A-Za-z0-9_.-]+)\s*@\s*([0-9][A-Za-z0-9_.+-]*)/g,/npm ERR!\s*(.*)/g,/Could not resolve\s+([^\s]+)/ig,/Duplicate class\s+([^\s]+)/ig];patterns.forEach(function(re){let m;while((m=re.exec(line))!==null){const val=m[0].trim();if(!seen.has(val)){seen.add(val);deps.push({line:i+1,value:val})}}})});
+const errorN=findings.filter(function(x){return x.type==="error"}).length,warnN=findings.filter(function(x){return x.type==="warn"}).length;const depRefs=deps.length;$("dasherrors").textContent=errorN;$("logCounts").textContent=lines.length+" linhas";$("logErrorN").textContent=errorN;$("logWarnN").textContent=warnN;$("logDepN").textContent=depRefs;
+const result=$("logResults");result.innerHTML="";findings.slice(0,400).forEach(function(f){const div=document.createElement("div");div.className="logline "+f.type;div.textContent="L"+f.n+" · "+f.text;result.appendChild(div)});if(!findings.length)result.textContent="Nenhuma linha marcada como erro/aviso/sucesso.";const d=$("depResults");d.innerHTML="";deps.forEach(function(v){const div=document.createElement("div");div.className="logline info";div.textContent="L"+v.line+" · "+v.value;d.appendChild(div)});if(!deps.length)d.textContent="Nenhuma dependência com versão reconhecida. Veja referências explícitas no Gradle/npm.";lastLogReport={totalLines:lines.length,errors:errorN,warnings:warnN,dependencyReferences:deps,findings:findings,createdAt:new Date().toISOString()};noteSaved("Logs analisados: "+errorN+" erro(s) reconhecido(s)")}
+$("analyzeLog").addEventListener("click",analyzeLogs);$("clearLog").addEventListener("click",function(){$("logInput").value="";analyzeLogs()});
+$("loadLogSample").addEventListener("click",function(){$("logInput").value=["BUILD FAILED in 14s","> Task :app:compileDebugJavaWithJavac FAILED","MainActivity.java:418: error: cannot find symbol","Could not resolve com.example:demo:1.2.0","Warning: deprecated API is being used","PASS: screenshot capture completed"].join("\n");analyzeLogs()});
+$("logFile").addEventListener("change",function(e){const f=e.target.files[0];if(!f)return;const reader=new FileReader();reader.onload=function(){ $("logInput").value=String(reader.result||"");analyzeLogs()};reader.readAsText(f)});
+$("exportLog").addEventListener("click",function(){if(!lastLogReport)analyzeLogs();downloadText("kellvyn-log-diagnostic.json",JSON.stringify(lastLogReport,null,2),"application/json")});
+/* REPORTS & PROJECT SESSION */
+let reportData=null,envData=null;
+$("loadReport").addEventListener("click",function(){const f=$("reportFile").files[0];if(!f){alert("Selecione um JSON de relatório.");return}const reader=new FileReader();reader.onload=function(){try{reportData=JSON.parse(String(reader.result||"{}"));$("reportSummary").textContent="Estado: "+(reportData.status||"sem estado")+"\nComparação de paleta: "+(reportData.paletteComparison||"não informada")+"\nMétodo: "+(reportData.method||"não informado");$("reportResults").textContent=JSON.stringify({results:reportData.results,evidence:reportData.evidence},null,2);$("downloadSessionReport").disabled=false;noteSaved("Relatório importado")}catch(e){alert("JSON inválido: "+e.message)}};reader.readAsText(f)});
+$("envFile").addEventListener("change",function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(){try{envData=JSON.parse(String(r.result||"{}"));$("envResults").textContent=JSON.stringify(envData,null,2)}catch(e){$("envResults").textContent="JSON inválido: "+e.message}};r.readAsText(f)});
+function sessionData(){return{schema:"kellvyn-studio-session-v1",createdAt:new Date().toISOString(),palette:{accent:accent,background:$("bgPick").value,light:Number($("light").value),swatches:swatches},artboard:{width:art.width,height:art.height,objects:objects},motion:{duration:Number($("duration").value),keyframes:keyframes,finalState:readMotion()},report:reportData,environment:envData,diagnostics:lastLogReport}}
+$("exportSession").addEventListener("click",function(){downloadText("kellvyn-studio-session.json",JSON.stringify(sessionData(),null,2),"application/json")});
+$("importSession").addEventListener("click",function(){$("sessionFile").click()});
+$("sessionFile").addEventListener("change",function(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=function(){try{const d=JSON.parse(String(r.result||"{}"));if(d.schema!=="kellvyn-studio-session-v1")throw new Error("Não é uma sessão deste Studio");if(d.palette){swatches.splice(0,swatches.length,...(d.palette.swatches||swatches));setColor(d.palette.accent||accent);$("bgPick").value=d.palette.background||"#081116";$("light").value=d.palette.light||45;renderSwatches();renderColor()}if(d.artboard&&Array.isArray(d.artboard.objects)){objects=d.artboard.objects;renderArt()}if(d.motion){keyframes=d.motion.keyframes||[];$("duration").value=d.motion.duration||3;updateMotionLabels();drawTimeline()}reportData=d.report||null;envData=d.environment||null;lastLogReport=d.diagnostics||null;noteSaved("Sessão importada") }catch(err){alert("Não foi possível importar sessão: "+err.message)}};r.readAsText(f)});
+$("downloadSessionReport").addEventListener("click",function(){const summary={title:"Kellvyn Studio — resumo da sessão",sessionCreatedAt:new Date().toISOString(),report:reportData,environment:envData,localDiagnostics:lastLogReport};downloadText("kellvyn-studio-summary.json",JSON.stringify(summary,null,2),"application/json")});
+// Initialize cross-tool values only after each backing canvas and its state exist.
+renderSwatches();renderColor();renderArt();updateCube();draw4d();renderMotion(0);
+})();
+</script>
+</body>
+</html>
