@@ -430,8 +430,8 @@ internal class KellvynRuntime(context: Context) {
         maxNewTokens: Int = 96,
         onPartial: (String) -> Unit = {}
     ): String = withContext(Dispatchers.Default) {
-        neuralChatRuntime.generateReply(
-            userText = prompt,
+        neuralChatRuntime.generateContinuation(
+            prompt = prompt,
             maxNewTokens = maxNewTokens,
             onPartial = onPartial
         )
