@@ -87,7 +87,20 @@ internal object KellvynMultiBlockTrainingPipeline {
     private const val MAX_EXAMPLE_BYTES = 65_536
     private const val MAX_TOTAL_BYTES = 500_000L
     private const val MAX_STEPS_PER_EXAMPLE = 50_000L
+
+    internal fun effectiveMaxMerges(
+        requestedMerges: Int,
+        tokenizerCorpusBytes: Long
+    ): Int {
+        require(requestedMerges in 0..4096)
+        require(tokenizerCorpusBytes > 0L)
+        val workBound = (MAX_TOKENIZER_TRAINING_WORK / tokenizerCorpusBytes)
+            .coerceAtMost(Int.MAX_VALUE.toLong())
+            .toInt()
+        return minOf(requestedMerges, workBound)
+    }
     private const val MAX_TOKENIZED_EXAMPLE = 100_000L
+    private const val MAX_TOKENIZER_TRAINING_WORK = 40_000_000L
 
     private val SECRET_ASSIGNMENT = Regex(
         """(?i)\b(?:api[_ -]?key|access[_ -]?token|refresh[_ -]?token|password|passwd|client[_ -]?secret)\b\s*[:=]\s*['"]?[A-Za-z0-9._~+/=-]{8,}"""
@@ -160,9 +173,23 @@ internal object KellvynMultiBlockTrainingPipeline {
             "As três partições TRAIN, VALIDATION e TEST são obrigatórias."
         }
 
+        // Prompt formatting adds trusted rules, procedural context and the live tool
+        // catalogue after the raw JSONL audit. Derive the effective merge count from the
+        // actual formatted TRAIN bytes so the BPE work budget cannot be exceeded.
+        val tokenizerCorpus = train.flatMap { listOf(it.prompt, it.completion) }
+        val tokenizerCorpusBytes = tokenizerCorpus.sumOf {
+            it.toByteArray(Charsets.UTF_8).size.toLong()
+        }
+        require(tokenizerCorpusBytes in 1L..MAX_TOTAL_BYTES) {
+            "O corpus TRAIN formatado excede o orçamento de bytes do tokenizer KN-004."
+        }
+        val effectiveMaxMerges = effectiveMaxMerges(
+            requestedMerges = config.maxMerges,
+            tokenizerCorpusBytes = tokenizerCorpusBytes
+        )
         val tokenizer = KellvynBpeTokenizer.train(
-            corpus = train.flatMap { listOf(it.prompt, it.completion) },
-            maxMerges = config.maxMerges,
+            corpus = tokenizerCorpus,
+            maxMerges = effectiveMaxMerges,
             cancellationCheck = cancellationCheck
         )
 
