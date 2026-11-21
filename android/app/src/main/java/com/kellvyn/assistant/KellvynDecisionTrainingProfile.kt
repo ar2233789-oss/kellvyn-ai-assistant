@@ -20,7 +20,7 @@ internal object KellvynDecisionTrainingProfile {
             headCount = 4,
             feedForwardSize = 512,
             depth = 2,
-            maxMerges = 64,
+            maxMerges = 768,
             epochsPerExample = 1,
             maxTotalTrainingSteps = 100_000L,
             maxTrainingWorkingSetBytes = MAX_WORKING_SET_BYTES
