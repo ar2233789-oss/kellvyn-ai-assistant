@@ -109,9 +109,9 @@ class KellvynDecisionProtocolBehaviorBenchmarkTest {
         return listOf(
             "KELLVYN/1",
             "DELEGATE",
-            "ROLE\${tab}RESEARCHER",
-            "TASK\${tab}\${KellvynDecisionProtocol.encodeText("Pesquisar o assunto.")}",
-            "CONTEXT\${tab}\${KellvynDecisionProtocol.encodeText("Contexto de teste.")}",
+            "ROLE" + tab + "RESEARCHER",
+            "TASK" + tab + KellvynDecisionProtocol.encodeText("Pesquisar o assunto."),
+            "CONTEXT" + tab + KellvynDecisionProtocol.encodeText("Contexto de teste."),
             "END"
         ).joinToString("\n")
     }
