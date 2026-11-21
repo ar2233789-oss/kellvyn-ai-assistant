@@ -60,7 +60,7 @@ class KellvynTrainingInputGuardTest {
     fun retainsCredentialAndPrivateKeyDetection() {
         assertTrue(
             KellvynTrainingInputGuard.containsSensitiveMaterial(
-                "api_key = \\"ghp_abcdefghijklmnopqrstuvwxyz1234567890\\""
+                "api_key = 'ghp_abcdefghijklmnopqrstuvwxyz1234567890'"
             )
         )
         assertTrue(
