@@ -2,6 +2,7 @@ package com.kellvyn.assistant
 
 import com.kellvyn.assistant.neural.KellvynInstructionTrainingExample
 import com.kellvyn.assistant.neural.KellvynTrainingSplit
+import com.kellvyn.assistant.neural.KellvynTrainingManifestEntry
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
@@ -135,23 +136,88 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
 
     fun testSetFingerprint(examples: List<KellvynInstructionTrainingExample>): String {
         require(examples.all { it.split == KellvynTrainingSplit.TEST })
+        val records = examples.map { example ->
+            TestRecord(
+                id = example.id,
+                split = example.split.name,
+                contentSha256 = sha256(example.prompt + "\u0000" + example.completion),
+                permission = example.provenance.permission.name,
+                licenseId = example.provenance.licenseId,
+                sourceReference = example.provenance.sourceReference,
+                rightsEvidence = example.provenance.rightsEvidence
+            )
+        }
+        return fingerprintRecords(records)
+    }
+
+    fun testSetFingerprintFromManifest(entries: List<KellvynTrainingManifestEntry>): String {
+        val testEntries = entries.filter { it.split == KellvynTrainingSplit.TEST }
+        require(testEntries.isNotEmpty())
+        return fingerprintRecords(testEntries.map { entry ->
+            TestRecord(
+                id = entry.id,
+                split = entry.split.name,
+                contentSha256 = entry.contentSha256,
+                permission = entry.permission.name,
+                licenseId = entry.licenseId,
+                sourceReference = entry.sourceReference,
+                rightsEvidence = entry.rightsEvidence
+            )
+        })
+    }
+
+    fun matchesTestManifest(
+        examples: List<KellvynInstructionTrainingExample>,
+        manifestEntries: List<KellvynTrainingManifestEntry>
+    ): Boolean {
+        if (examples.any { it.split != KellvynTrainingSplit.TEST }) return false
+        val expected = manifestEntries.filter { it.split == KellvynTrainingSplit.TEST }
+            .associateBy { it.id }
+        if (expected.size != examples.size || examples.map { it.id }.distinct().size != examples.size) {
+            return false
+        }
+        return examples.all { example ->
+            val entry = expected[example.id] ?: return@all false
+            entry.contentSha256 == sha256(example.prompt + "\u0000" + example.completion) &&
+                entry.permission == example.provenance.permission &&
+                entry.licenseId == example.provenance.licenseId &&
+                entry.sourceReference == example.provenance.sourceReference &&
+                entry.rightsEvidence == example.provenance.rightsEvidence
+        }
+    }
+
+    private data class TestRecord(
+        val id: String,
+        val split: String,
+        val contentSha256: String,
+        val permission: String,
+        val licenseId: String,
+        val sourceReference: String,
+        val rightsEvidence: String
+    )
+
+    private fun fingerprintRecords(records: List<TestRecord>): String {
         val digest = MessageDigest.getInstance("SHA-256")
         val bytes = ByteArrayOutputStream()
         DataOutputStream(bytes).use { output ->
             output.writeUTF("KELLVYN-DECISION-TEST-v1")
-            examples.sortedBy { it.id }.forEach { example ->
-                output.writeUTF(example.id)
-                output.writeUTF(example.split.name)
-                output.writeUTF(example.prompt)
-                output.writeUTF(example.completion)
-                output.writeUTF(example.provenance.permission.name)
-                output.writeUTF(example.provenance.licenseId)
-                output.writeUTF(example.provenance.sourceReference)
-                output.writeUTF(example.provenance.rightsEvidence)
+            records.sortedBy { it.id }.forEach { record ->
+                output.writeUTF(record.id)
+                output.writeUTF(record.split)
+                output.writeUTF(record.contentSha256)
+                output.writeUTF(record.permission)
+                output.writeUTF(record.licenseId)
+                output.writeUTF(record.sourceReference)
+                output.writeUTF(record.rightsEvidence)
             }
         }
         return digest.digest(bytes.toByteArray()).joinToString("") { "%02x".format(it) }
     }
+
+    private fun sha256(value: String): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(value.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
 
     private fun expectedCounts(examples: List<KellvynInstructionTrainingExample>): Counts {
         var finals = 0
