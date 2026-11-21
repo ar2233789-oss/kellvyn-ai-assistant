@@ -1,0 +1,336 @@
+{
+  "source_branch": "kellvyn-rnd/kn004-invisible-studio-foundation-20261120",
+  "source_commit": "6a90530c104ef267a9937caa612d5c31097c882c",
+  "extracted_at": "2026-11-21",
+  "status": "source-preservation-only; not independently buildable or tested",
+  "entries": [
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/BotRuntimeService.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/01_BOTS/BotRuntimeService.kt",
+      "sha": "0d1ef8b746355fd6dae20421f9821aa8c9b1d5d4"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/BotTokenStore.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/01_BOTS/BotTokenStore.kt",
+      "sha": "e883ad6f764e30a85baf9aa4a0482d52e0295c96"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynBotOperationsStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/01_BOTS/KellvynBotOperationsStudio.kt",
+      "sha": "0c34e1f95844558486debb1f96161688e8b74a6e"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynHeartbeatWatchdog.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/01_BOTS/KellvynHeartbeatWatchdog.kt",
+      "sha": "32761f041111ebf2c25fec411263841ddad4c465"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynBotOperationsStudioTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/01_BOTS/KellvynBotOperationsStudioTest.kt",
+      "sha": "41fe121b5fb3d54c3d6947e04f62f45b8bea7b49"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynAutomationDrainWorker.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynAutomationDrainWorker.kt",
+      "sha": "2c03174219db99dd638341cf2ed86be45619d616"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynAutomationTools.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynAutomationTools.kt",
+      "sha": "307b7a7c0533e4b879b267f9ddaf1ec9a2d26922"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynPersistentTaskScheduler.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynPersistentTaskScheduler.kt",
+      "sha": "1a34925c7366b10264aa877abc2aa84e1460adcf"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynResourceSnapshotTaskHandler.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynResourceSnapshotTaskHandler.kt",
+      "sha": "913e5697ebb67555c11c0934cb987dfeaaaf7cde"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynAndroidResourceMonitor.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynAndroidResourceMonitor.kt",
+      "sha": "28a48cf18f5b907a17372be7c7c4f3265f072637"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynResourceTools.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynResourceTools.kt",
+      "sha": "cdab9342905d32390d3a0cee0c497c0fd162237e"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynResourceRuntime.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynResourceRuntime.kt",
+      "sha": "0387f4915b6b4e585139213af00b0cb804aad7f1"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynResourceGovernor.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynResourceGovernor.kt",
+      "sha": "ce0efdaf34613fba133b14a815343a0b7a831e22"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynResourceCacheRegistry.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynResourceCacheRegistry.kt",
+      "sha": "180127566f4cda38c4aa10299d085387e9a2e589"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynTaskCheckpointRepository.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynTaskCheckpointRepository.kt",
+      "sha": "06b2b595518250d933b348afb921ec4e6044b473"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynTaskCheckpointStore.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynTaskCheckpointStore.kt",
+      "sha": "c8359726e7591d16afdaf782adc4aa10c77fed9d"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynThermalHeadroomSampler.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynThermalHeadroomSampler.kt",
+      "sha": "2fa5c8943e4161db3a34e9c6c271dfce69bb72d2"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynAutomationToolsTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynAutomationToolsTest.kt",
+      "sha": "ae71a84b50e8d566c5c6747bfdcc1f9e6d2e1707"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynAutomationDrainWorkerInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/02_AUTOMATION/KellvynAutomationDrainWorkerInstrumentedTest.kt",
+      "sha": "8282023700ed6f48bd844174b8cbdd69eaa710a7"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynImageStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynImageStudio.kt",
+      "sha": "95ed9836730c3f7abd304cd0ab309014099b34a6"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynArtifactStore.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynArtifactStore.kt",
+      "sha": "fc50c5d3cd89bb4f97646d6d7ba8b38a143ffe85"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynArtifactTools.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynArtifactTools.kt",
+      "sha": "bbfd7e79523db5c196e163e8250a8d8cbfa00057"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynImageStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynImageStudioInstrumentedTest.kt",
+      "sha": "ad17a9edcbfaadc99a650d6f5426b608e9558bbc"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynArtifactCreateAuthorizationTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynArtifactCreateAuthorizationTest.kt",
+      "sha": "c8dff8b56d82e259ce9ebfb652fe85e4e8cfa307"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynArtifactStoreTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynArtifactStoreTest.kt",
+      "sha": "e9d291b6eec1e6b9feda1cb45a705d39febfe043"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynArtifactToolsTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/03_IMAGE_PROCESSING/KellvynArtifactToolsTest.kt",
+      "sha": "876487e77a42380b209e781b8cb7024d5e1b3c7b"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynAnimationStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/04_ANIMATION/KellvynAnimationStudio.kt",
+      "sha": "a40a581121ad1fb6b5059e85f7b74eee45d70148"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynAnimationStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/04_ANIMATION/KellvynAnimationStudioInstrumentedTest.kt",
+      "sha": "f583846482ed3951719e46f82fb9a1e7bc61b18a"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynScene3DStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/05_3D_SCENE/KellvynScene3DStudio.kt",
+      "sha": "e96cd0187683e715fb8d7ab3abf3f61c151d270e"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynVectorStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/06_VECTOR_ART/KellvynVectorStudio.kt",
+      "sha": "24170f5bf4c2e1a74d312f1753048b96a3edf0cb"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynVectorStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/06_VECTOR_ART/KellvynVectorStudioInstrumentedTest.kt",
+      "sha": "9df2dc2c1d07b47d05256043d48a41441d09012e"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynWebResearchStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/07_WEB_RESEARCH/KellvynWebResearchStudio.kt",
+      "sha": "0bc906983d24693eb1a46fd1ad01a4fdbc49cccd"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/WebLookupPolicy.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/07_WEB_RESEARCH/WebLookupPolicy.kt",
+      "sha": "1d888bab0b8c4f203916539d60085f4a61d6dc3b"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynWebResearchStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/07_WEB_RESEARCH/KellvynWebResearchStudioInstrumentedTest.kt",
+      "sha": "43c4b0e912d6fa8d7642c2e73e8682ca4b11ce3b"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/WebLookupPolicyTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/07_WEB_RESEARCH/WebLookupPolicyTest.kt",
+      "sha": "e86ed82178b45d0384bd0e68f38f11b75aec6a68"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/LocalProjectBuilderBridge.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/LocalProjectBuilderBridge.kt",
+      "sha": "a204e22d122c665acfaacd0a4c4e086aef011b5e"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/AndroidBuildVersions.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/AndroidBuildVersions.kt",
+      "sha": "cc7043d1647351c9fb408c287ce7aa29b207fa60"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/BinaryAndroidManifest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/BinaryAndroidManifest.kt",
+      "sha": "f381dca05476930aba8f123a8a6b43b85f9ecddf"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/GeneratedAndroidProjectValidator.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/GeneratedAndroidProjectValidator.kt",
+      "sha": "a054f92b299f9595411ff55b9a74895f954478c8"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/GeneratedProjectOutputParser.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/GeneratedProjectOutputParser.kt",
+      "sha": "65fb21e6424ea31bce36006d89f5c917e3c015c2"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/LocalAndroidCompiler.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/LocalAndroidCompiler.kt",
+      "sha": "1a1cc0b86971d287dcfedf2398d06ff1287e55a7"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/LocalProjectBuilder.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/LocalProjectBuilder.kt",
+      "sha": "a5ef5388b16ae634987dc10f2ca49030da634de5"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/workspace/ProjectWorkspaceStore.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/ProjectWorkspaceStore.kt",
+      "sha": "6260d45a12c0d64e66ff210badcbfd8df0f51039"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/workspace/BinaryAndroidManifestTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/BinaryAndroidManifestTest.kt",
+      "sha": "83fdae17b35cb5f33d7877890c20319878191c37"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/workspace/GeneratedAndroidProjectValidatorTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/GeneratedAndroidProjectValidatorTest.kt",
+      "sha": "57ffc0712cabbb44b30a25762f0b5ff43744dd0f"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/workspace/GeneratedProjectOutputParserTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/GeneratedProjectOutputParserTest.kt",
+      "sha": "374f9e209c94ab652a1afe15b603af72ba9a9ba3"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/workspace/GeneratedAppBuildSmokeTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/08_ANDROID_PROJECT_BUILDER/GeneratedAppBuildSmokeTest.kt",
+      "sha": "9a68788831802c6366b2176899cd479b8f1a0f9c"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynAndroidBuildStatusStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynAndroidBuildStatusStudio.kt",
+      "sha": "b907ea3934af881b4bd2c10ba5688d2cf376e83f"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynCodeNavigationStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynCodeNavigationStudio.kt",
+      "sha": "5fab695016a496fe37355e8b24a894e552758477"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynDataArchitectureStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynDataArchitectureStudio.kt",
+      "sha": "db60c7a45f3c64a14a6803619f9ec638f96b9a08"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynProjectCodeIndexer.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectCodeIndexer.kt",
+      "sha": "cb24c67475e655c5bc67f474d056faf78b9c8475"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynProjectContextRetriever.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectContextRetriever.kt",
+      "sha": "b03fc737a14ae18d531df75486c66c919f98526f"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynProjectWorkspaceTools.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectWorkspaceTools.kt",
+      "sha": "2e3593ebf9e762a412671025397984b835e24bd4"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynSecurityAuditStudio.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynSecurityAuditStudio.kt",
+      "sha": "8b6447afb85f2dc16e3713f6f5b7a3441761089d"
+    },
+    {
+      "source": "android/app/src/main/java/com/kellvyn/assistant/KellvynStudioModuleManager.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynStudioModuleManager.kt",
+      "sha": "455c8a2fd77e22b9c2c98d4ba51a0f893c3d742e"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynAndroidBuildStatusStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynAndroidBuildStatusStudioInstrumentedTest.kt",
+      "sha": "df52f8e3da455685875fb9f7317ba6cafe2659c4"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynCodeNavigationStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynCodeNavigationStudioInstrumentedTest.kt",
+      "sha": "17a732372bc8793f9977e569d8256d14b7247a85"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynDataArchitectureStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynDataArchitectureStudioInstrumentedTest.kt",
+      "sha": "4a2ccb3c17d8a42551cdb4c83307b4df5f79da60"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynProjectWorkspaceToolsInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectWorkspaceToolsInstrumentedTest.kt",
+      "sha": "e82e1a8a1cf2e0074ef59a2e1502c7c4b9436be5"
+    },
+    {
+      "source": "android/app/src/androidTest/java/com/kellvyn/assistant/KellvynSecurityAuditStudioInstrumentedTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynSecurityAuditStudioInstrumentedTest.kt",
+      "sha": "015deecd4ad3e6c155cfba3cd187eb7611bd0e4e"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynProjectCodeIndexerTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectCodeIndexerTest.kt",
+      "sha": "10afe58573c6de1dac17fd69f70698b9c7358bea"
+    },
+    {
+      "source": "android/app/src/test/java/com/kellvyn/assistant/KellvynProjectContextRetrieverTest.kt",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/09_DEVELOPER_STUDIOS/KellvynProjectContextRetrieverTest.kt",
+      "sha": "20db7679474848697ba184250d5deeb686500676"
+    },
+    {
+      "source": "src/components/kellvyn/ColorStudio.tsx",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/10_VISUAL_INTERFACE/ColorStudio.tsx",
+      "sha": "6d4a46b6b9462078a97efdf505bfc7e9f4c276b3"
+    },
+    {
+      "source": "src/components/kellvyn/DigitalRain.tsx",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/10_VISUAL_INTERFACE/DigitalRain.tsx",
+      "sha": "8e1b01d0f3e77a95f920e5a52048770f9b2aaf40"
+    },
+    {
+      "source": "src/test/effect-selection.test.ts",
+      "destination": "ANDROID_STUDIO_FUNCTIONS/10_VISUAL_INTERFACE/effect-selection.test.ts",
+      "sha": "780f29e83dea1d2dd1887c924b6fe4f059fe468e"
+    }
+  ],
+  "missing_source_paths": [
+    "android/app/src/main/java/com/kellvyn/assistant/KellvynTaskCheckpointCipher.kt"
+  ]
+}
