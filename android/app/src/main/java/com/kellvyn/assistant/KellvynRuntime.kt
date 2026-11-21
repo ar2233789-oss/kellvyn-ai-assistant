@@ -410,6 +410,114 @@ internal class KellvynRuntime(context: Context) {
         )
 
     /**
+     * Audits, formats and trains a decision-protocol corpus for the single KN brain.
+     * Completion targets must be valid KELLVYN/1 FINAL, CALL_TOOL or PLAN decisions.
+     * Raw user prompts are wrapped with the exact system/tool format used at inference time.
+     */
+    suspend fun trainOwnMultiBlockDecisionFromAuditedCorpus(
+        input: InputStream,
+        expectedAudit: KellvynJsonlCorpusReader.Report,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        createdAtMillis: Long = System.currentTimeMillis(),
+        samplingSeed: Long = config.seed,
+        maxExamples: Int = 1_000,
+        minimumTrainExamples: Int = 100,
+        minimumValidationExamples: Int = 20,
+        minimumTestExamples: Int = 20
+    ): KellvynNeuralTrainingController.CorpusOutcome {
+        val registry = createProjectWorkspaceToolRegistry()
+        val systemInstruction = KellvynAgentConfig().systemInstruction
+        val prepareExamples: (List<KellvynInstructionTrainingExample>) -> List<KellvynInstructionTrainingExample> =
+            { examples ->
+                KellvynDecisionProtocolTrainingGate.requireReady(examples, registry)
+                examples.map { example ->
+                    val history = listOf(
+                        KellvynAgentMessage(
+                            role = KellvynMessageRole.SYSTEM,
+                            trust = KellvynTrustLevel.TRUSTED,
+                            source = "kellvyn-core",
+                            content = systemInstruction
+                        ),
+                        KellvynAgentMessage(
+                            role = KellvynMessageRole.USER,
+                            trust = KellvynTrustLevel.USER_PROVIDED,
+                            source = "user",
+                            content = example.prompt
+                        )
+                    )
+                    val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+                    val formatted = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
+                        userPrompt = example.prompt,
+                        availableTools = selectedTools,
+                        systemInstruction = systemInstruction
+                    )
+                    require(formatted.length <= 12_000) {
+                        "O prompt de treino KN-004 excedeu o limite do motor de inferência."
+                    }
+                    example.copy(prompt = formatted)
+                }
+            }
+        return neuralTrainingController.trainAndInstallFromJsonl(
+            input = input,
+            expectedAudit = expectedAudit,
+            config = config,
+            createdAtMillis = createdAtMillis,
+            samplingSeed = samplingSeed,
+            maxExamples = maxExamples,
+            minimumTrainExamples = minimumTrainExamples,
+            minimumValidationExamples = minimumValidationExamples,
+            minimumTestExamples = minimumTestExamples,
+            prepareExamples = prepareExamples
+        )
+    }
+
+    /**
+     * Same decision-protocol training gate for already audited in-memory examples.
+     * Only prompt formatting changes; target, split and rights provenance are preserved.
+     */
+    suspend fun trainOwnMultiBlockDecisionModel(
+        examples: List<KellvynInstructionTrainingExample>,
+        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        createdAtMillis: Long = System.currentTimeMillis()
+    ): KellvynNeuralTrainingController.Outcome {
+        val registry = createProjectWorkspaceToolRegistry()
+        val systemInstruction = KellvynAgentConfig().systemInstruction
+        KellvynDecisionProtocolTrainingGate.requireReady(examples, registry)
+        val prepared = examples.map { example ->
+            val history = listOf(
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.SYSTEM,
+                    trust = KellvynTrustLevel.TRUSTED,
+                    source = "kellvyn-core",
+                    content = systemInstruction
+                ),
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.USER,
+                    trust = KellvynTrustLevel.USER_PROVIDED,
+                    source = "user",
+                    content = example.prompt
+                )
+            )
+            val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+            example.copy(
+                prompt = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
+                    userPrompt = example.prompt,
+                    availableTools = selectedTools,
+                    systemInstruction = systemInstruction
+                )
+            )
+        }
+        require(prepared.all { it.prompt.length <= 12_000 }) {
+            "O prompt de treino KN-004 excedeu o limite do motor de inferência."
+        }
+        return neuralTrainingController.trainAndInstall(
+            examples = prepared,
+            config = config,
+            createdAtMillis = createdAtMillis
+        )
+    }
+
+    /**
      * Initializes the local KN-004 checkpoint off the UI thread. Readiness is granted only
      * when the numeric gate and the persisted authenticated behavior approval both match.
      */
