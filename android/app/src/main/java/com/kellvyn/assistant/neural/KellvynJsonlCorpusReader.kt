@@ -158,7 +158,7 @@ internal object KellvynJsonlCorpusReader {
         // Use the maximum vocabulary implied by maxMerges so admission cannot underestimate
         // model memory merely because this corpus happens to produce fewer BPE merges.
         val estimatedTrainingWorkingSetBytes = try {
-            KellvynMultiBlockTransformer.Config(
+            val modelConfig = KellvynMultiBlockTransformer.Config(
                 vocabularySize = BASE_VOCABULARY_SIZE + config.maxMerges + 1,
                 contextLength = config.contextLength,
                 embeddingSize = config.embeddingSize,
@@ -166,7 +166,14 @@ internal object KellvynJsonlCorpusReader {
                 feedForwardSize = config.feedForwardSize,
                 depth = config.depth,
                 seed = config.seed
-            ).estimatedTrainingWorkingSetBytes()
+            )
+            // Conservative upper bound after runtime prompt formatting: TRAIN receives 80%
+            // of the 2 MB formatted-corpus ceiling; VALIDATION and TEST make up the rest.
+            KellvynMultiBlockTrainingPipeline.estimatedWorkingSetBytes(
+                modelConfig = modelConfig,
+                tokenizerCorpusBytes = MAX_FORMATTED_TRAIN_BYTES,
+                totalCorpusBytes = MAX_FORMATTED_TOTAL_BYTES
+            )
         } catch (_: IllegalArgumentException) {
             Long.MAX_VALUE
         }
@@ -622,6 +629,8 @@ internal object KellvynJsonlCorpusReader {
     private const val BASE_VOCABULARY_SIZE = 256
     private const val MAX_STEPS_PER_EXAMPLE = 50_000L
     private const val MAX_TOKENIZER_TRAINING_WORK = 40_000_000L
+    private const val MAX_FORMATTED_TOTAL_BYTES = 2_000_000L
+    private const val MAX_FORMATTED_TRAIN_BYTES = MAX_FORMATTED_TOTAL_BYTES * 80L / 100L
     private val REQUIRED_FIELDS = setOf(
         "id", "prompt", "completion", "permission",
         "licenseId", "sourceReference", "rightsEvidence"
