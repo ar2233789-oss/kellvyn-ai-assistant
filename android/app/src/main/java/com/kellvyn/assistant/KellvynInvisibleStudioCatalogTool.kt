@@ -68,6 +68,31 @@ internal object KellvynInvisibleStudioCatalogTool {
         }
     }
 
+    private val QUERY_ALIASES = mapOf(
+        "animacao" to setOf("animation", "motion", "spritesheet", "keyframe"),
+        "cena" to setOf("scene", "3d", "mesh", "model"),
+        "malha" to setOf("mesh", "scene", "3d"),
+        "modelo" to setOf("model", "scene", "3d"),
+        "codigo" to setOf("code", "kotlin", "java", "navigation", "editing"),
+        "arquivo" to setOf("file", "workspace", "code", "artifact"),
+        "imagem" to setOf("image", "raster", "vector", "visual"),
+        "vetor" to setOf("vector", "svg", "graphics"),
+        "video" to setOf("video", "editing", "generation"),
+        "audio" to setOf("audio", "perception", "generation"),
+        "voz" to setOf("audio", "speech", "perception", "generation"),
+        "pesquisa" to setOf("research", "web", "internet"),
+        "internet" to setOf("web", "research", "network"),
+        "seguranca" to setOf("security", "audit"),
+        "automacao" to setOf("automation", "workflow"),
+        "dispositivo" to setOf("device", "diagnostics", "android"),
+        "memoria" to setOf("memory", "storage"),
+        "dados" to setOf("data", "modeling", "database"),
+        "treinamento" to setOf("training", "neural"),
+        "treinar" to setOf("training", "neural"),
+        "compilar" to setOf("build", "android", "gradle"),
+        "apk" to setOf("build", "android", "install")
+    )
+
     private fun normalizeQuery(value: String): String =
         java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
             .replace(Regex("\\p{M}+"), "")
@@ -82,7 +107,11 @@ internal object KellvynInvisibleStudioCatalogTool {
         val allManifests = moduleManager.manifests().sortedBy { it.moduleId }
         val allCore = coreToolSpecs.distinctBy { it.name }.sortedBy { it.name }
         val loaded = moduleManager.loadedModuleIds()
-        val queryTerms = normalizeQuery(query).split(Regex("\\s+")).filter { it.length >= 2 }
+        val rawQueryTerms = normalizeQuery(query).split(Regex("\\s+")).filter { it.length >= 2 }
+        val queryTerms = buildSet {
+            addAll(rawQueryTerms)
+            rawQueryTerms.forEach { addAll(QUERY_ALIASES[it].orEmpty()) }
+        }
         fun matches(vararg fields: String): Boolean {
             if (queryTerms.isEmpty()) return true
             val haystack = normalizeQuery(fields.joinToString(" "))
