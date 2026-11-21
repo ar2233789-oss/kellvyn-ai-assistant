@@ -102,9 +102,10 @@ class KellvynDecisionProtocolTrainingGateTest {
     fun rejectsDecisionTargetsThatTryToTransferReasoning() {
         val examples = sampleExamples().toMutableList()
         examples[0] = examples[0].copy(
-            completion = "KELLVYN/1\nDELEGATE\nROLE\tRESEARCHER\n" +
-                "TASK\t\${KellvynDecisionProtocol.encodeText("Pesquisar")}\n" +
-                "CONTEXT\t\${KellvynDecisionProtocol.encodeText("Nenhum contexto")}\nEND"
+            completion =
+                "KELLVYN/1\nDELEGATE\nROLE\tRESEARCHER\n" +
+                    "TASK\t" + KellvynDecisionProtocol.encodeText("Pesquisar") + "\n" +
+                    "CONTEXT\t" + KellvynDecisionProtocol.encodeText("Nenhum contexto") + "\nEND"
         )
 
         val report = KellvynDecisionProtocolTrainingGate.evaluate(
