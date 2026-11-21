@@ -119,7 +119,7 @@ internal class KellvynNeuralBehaviorApprovalStore(
     }
 
     fun delete() = synchronized(lock) {
-        val parent = file.parentFile
+        val parent = requireNotNull(file.parentFile)
         listOf(file, File(parent, file.name + ".tmp"), File(parent, file.name + ".bak"))
             .forEach { candidate ->
                 if (candidate.exists() && !candidate.delete()) {
