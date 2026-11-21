@@ -134,6 +134,27 @@ class KellvynNeuralModelStoreTest {
     }
 
     @Test
+    fun loadMultiBlockForInferenceOmitsOptimizerStateAndKeepsModelOutput() {
+        val trained = trainMultiBlockSample(seed = 8404L)
+        store.saveMultiBlock(trained)
+
+        val restored = store.loadMultiBlockForInference()
+
+        assertNotNull(restored)
+        val model = restored!!.model
+        assertFalse(model.hasTrainingState())
+        assertEquals(
+            trained.model.parameterFingerprint(),
+            model.parameterFingerprint()
+        )
+        val prompt = trained.tokenizer.encode("Pergunta: diga olá.")
+        assertEquals(
+            trained.model.predictNext(prompt),
+            model.predictNext(prompt)
+        )
+    }
+
+    @Test
     fun verifiedKn004BackupRecoversWhenCurrentBundleIsCorrupted() {
         val first = trainMultiBlockSample(seed = 8402L)
         val second = trainMultiBlockSample(seed = 8403L)
