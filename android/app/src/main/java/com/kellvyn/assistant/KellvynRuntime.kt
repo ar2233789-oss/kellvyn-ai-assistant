@@ -420,10 +420,10 @@ internal class KellvynRuntime(context: Context) {
             if (neuralChatRuntime.isConversationReady) {
                 onInitialized(
                     KellvynNeuralChatRuntime.Status(
-                        ready = true,
-                        detail = "KN-004 local carregado e aprovado para conversa.",
+                        ready = false,
+                        detail = "O teste de texto livre passou, mas falta validar o protocolo de decisões do KN.",
                         qualityApprovedForBenchmark = true,
-                        behaviorApprovedForConversation = true
+                        behaviorApprovedForConversation = false
                     )
                 )
                 return
@@ -431,7 +431,20 @@ internal class KellvynRuntime(context: Context) {
             val current = neuralInitializationThread
             if (current?.isAlive == true) return
             val worker = Thread({
-                val result = neuralChatRuntime.initialize()
+                val loaded = neuralChatRuntime.initialize()
+                val result = if (loaded.ready || loaded.qualityApprovedForBenchmark) {
+                    loaded.copy(
+                        ready = false,
+                        detail = if (loaded.qualityApprovedForBenchmark) {
+                            "Checkpoint KN-004 carregado; geração textual avaliada, mas o protocolo de decisões ainda não foi aprovado."
+                        } else {
+                            loaded.detail
+                        },
+                        behaviorApprovedForConversation = false
+                    )
+                } else {
+                    loaded
+                }
                 onInitialized(result)
             }, "kellvyn-kn004-initialize").apply { isDaemon = true }
             neuralInitializationThread = worker
@@ -675,7 +688,7 @@ internal class KellvynRuntime(context: Context) {
     }
 
     /**
-     * Builds the real single-brain execution path over the approved KN-004 decision model.
+     * Builds the direct single-brain execution path over a supplied KN-004 decision model.
      * The model chooses every action; registered local tools only execute bounded operations.
      */
     fun createSingleBrain(
@@ -1003,58 +1016,20 @@ internal class KellvynRuntime(context: Context) {
         operation
     )
 
-    fun isReady(): Boolean = neuralChatRuntime.isConversationReady
+    // Free-text approval is not decision-protocol approval; the main chat stays locked.
+    fun isReady(): Boolean = false
 
     /** The KN-004 path is stateless; MainActivity supplies the saved transcript as context. */
     fun hasActiveConversation(): Boolean = false
 
     @Synchronized
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        if (attachmentUri != null || !attachmentName.isNullOrBlank()) {
-            listener.onError(
-                "O caminho de conversa KN-004 atual aceita texto. O anexo não foi lido nem analisado."
-            )
-            return
-        }
-        if (!neuralChatRuntime.isConversationReady) {
-            listener.onStatus("KN-004 LOCAL AGUARDANDO APROVAÇÃO")
-            listener.onError(
-                "O checkpoint KN-004 ainda não passou pelos gates numérico e comportamental. " +
-                    "Nenhum outro modelo será usado como substituto."
-            )
-            return
-        }
-        val previous = activeNeuralReplyThread
-        if (previous?.isAlive == true) {
-            listener.onError("A geração KN-004 anterior ainda está ativa.")
-            return
-        }
-        val worker = Thread({
-            try {
-                listener.onStatus("MOTOR LOCAL KN-004")
-                val answer = neuralChatRuntime.generateContinuation(
-                    prompt = prompt,
-                    cancellationCheck = {
-                        if (Thread.currentThread().isInterrupted) {
-                            throw kotlinx.coroutines.CancellationException("Geração KN-004 cancelada.")
-                        }
-                    },
-                    onPartial = listener::onPartial
-                )
-                listener.onComplete(answer, "KN-004 CPU")
-            } catch (cancelled: kotlinx.coroutines.CancellationException) {
-                if (!Thread.currentThread().isInterrupted) {
-                    listener.onError(cancelled.message ?: "Geração KN-004 cancelada.")
-                }
-            } catch (error: Exception) {
-                listener.onError(
-                    error.message?.takeIf { it.isNotBlank() }
-                        ?: "O motor KN-004 não conseguiu concluir a resposta."
-                )
-            }
-        }, "kellvyn-kn004-reply").apply { isDaemon = true }
-        activeNeuralReplyThread = worker
-        worker.start()
+        listener.onStatus("KN-004 AGUARDANDO VALIDAÇÃO DE DECISÕES")
+        listener.onError(
+            "A geração de texto livre já foi testada separadamente, mas ainda não comprova que o KN " +
+                "interpreta decisões KELLVYN/1, executa ferramentas e confere resultados. " +
+                "O chat principal permanece bloqueado até esse teste específico passar."
+        )
     }
 
     fun resetConversation() {
