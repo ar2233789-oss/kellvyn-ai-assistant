@@ -623,10 +623,10 @@ internal class KellvynSingleBrain(
                     )
                 }
             }
-            val decision = try {
+            val inferenceResult = try {
                 executeInference(
                     history = contextMessages,
-                    requestId = "agent-inference-$step",
+                    requestId = "kn-inference-$step",
                     traceSession = traceSession,
                     step = step
                 )
@@ -645,6 +645,8 @@ internal class KellvynSingleBrain(
                     toolCalls
                 )
             }
+            val decision = inferenceResult.decision
+            val presentedToolNames = inferenceResult.presentedToolNames
 
             when (decision) {
                 is KellvynModelDecision.Delegate -> {
@@ -668,6 +670,18 @@ internal class KellvynSingleBrain(
                         step,
                         toolCalls
                     )
+                    val requiredPlanTools = decision.plan.steps
+                        .flatMap { it.requiredTools }
+                        .toSet()
+                    val unavailablePlanTools = requiredPlanTools - presentedToolNames
+                    if (unavailablePlanTools.isNotEmpty()) {
+                        return KellvynBrainResult.Failed(
+                            "Plano recusado: estas ferramentas não estavam disponíveis para a decisão " +
+                                "que o gerou: ${unavailablePlanTools.sorted().joinToString()}.",
+                            step,
+                            toolCalls
+                        )
+                    }
                     val registeredRisks = tools.descriptions().associate { spec ->
                         spec.name to KellvynStepRisk.valueOf(spec.risk.name)
                     }
@@ -734,6 +748,17 @@ internal class KellvynSingleBrain(
                         )
                     }
                     toolCalls++
+
+                    if (decision.name !in presentedToolNames) {
+                        recordBlockedTool(traceSession, step, decision.name, "NOT_PRESENTED")
+                        messages += observation(
+                            "tool:${decision.name}",
+                            false,
+                            "A ferramenta solicitada não estava no catálogo apresentado ao KN nesta decisão. " +
+                                "Ela não foi executada; consulte o inventário local para descobrir capacidades."
+                        )
+                        continue
+                    }
 
                     val tool = tools.find(decision.name)
                     if (tool == null) {
@@ -832,7 +857,7 @@ internal class KellvynSingleBrain(
         requestId: String,
         traceSession: KellvynAgentLabTraceSession,
         step: Int
-    ): KellvynModelDecision {
+    ): InferenceResult {
         val startedAt = System.currentTimeMillis()
         traceSession.record(
             kind = KellvynAgentLabEventKind.MODEL_CALL_STARTED,
@@ -840,13 +865,14 @@ internal class KellvynSingleBrain(
             outcome = KellvynAgentLabOutcome.STARTED
         )
         return try {
+            val presentedTools = tools.descriptionsForPrompt(
+                history,
+                config.maxToolsInModelPrompt
+            )
             val executeWithTimeout: suspend () -> KellvynModelDecision = {
                 try {
                     withTimeout(config.modelTimeoutMs) {
-                        inference.next(
-                            history,
-                            tools.descriptionsForPrompt(history, config.maxToolsInModelPrompt)
-                        )
+                        inference.next(history, presentedTools)
                     }
                 } catch (timeout: TimeoutCancellationException) {
                     currentCoroutineContext().ensureActive()
@@ -876,7 +902,10 @@ internal class KellvynSingleBrain(
                 outcome = KellvynAgentLabOutcome.SUCCEEDED,
                 detailCode = decision.javaClass.simpleName.uppercase()
             )
-            decision
+            InferenceResult(
+                decision = decision,
+                presentedToolNames = presentedTools.map { it.name }.toSet()
+            )
         } catch (cancelled: CancellationException) {
             withContext(NonCancellable) {
                 traceSession.record(
@@ -1011,6 +1040,11 @@ internal class KellvynSingleBrain(
     }
 }
 
+
+private data class InferenceResult(
+    val decision: KellvynModelDecision,
+    val presentedToolNames: Set<String>
+)
 
 internal sealed class KellvynBrainResult {
     abstract val steps: Int
