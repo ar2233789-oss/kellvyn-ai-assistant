@@ -18,29 +18,46 @@ internal object KellvynInvisibleStudioCatalogTool {
     ): KellvynAgentTool {
         val catalogSpec = KellvynToolSpec(
             name = TOOL_NAME,
-            description = "Lista capacidades realmente registradas no laboratório invisível, módulos sob demanda, ferramentas centrais, dependências declaradas e lacunas. É somente inventário: não carrega nem executa motores.",
+            description = "Consulta o inventário real do laboratório invisível. Informe query para filtrar capacidades, módulos e ferramentas; não carrega nem executa motores.",
+            optionalArguments = setOf("query"),
             risk = KellvynToolRisk.READ_ONLY,
             timeoutMs = 5_000L,
             workloadClass = KellvynWorkloadClass.LIGHT,
-            estimatedWorkingSetBytes = 256L * 1024L
+            estimatedWorkingSetBytes = 256L * 1024L,
+            argumentSchemas = listOf(
+                KellvynToolArgumentSchema(
+                    name = "query",
+                    type = KellvynToolArgumentType.TEXT,
+                    required = false,
+                    maxLength = 120
+                )
+            )
         )
 
         return object : KellvynAgentTool {
             override val spec: KellvynToolSpec = catalogSpec
 
             override suspend fun execute(arguments: Map<String, String>): KellvynToolResult {
-                if (arguments.isNotEmpty()) {
-                    return KellvynToolResult(false, "O inventário não aceita argumentos.")
+                if (arguments.keys.any { it != "query" }) {
+                    return KellvynToolResult(
+                        false,
+                        "O inventário aceita somente o argumento opcional query."
+                    )
                 }
-                return runCatching {
+                val query = arguments["query"]?.trim().orEmpty()
+                if (query.length > 120) {
+                    return KellvynToolResult(false, "A consulta do inventário excede 120 caracteres.")
+                }
+                return try {
                     KellvynToolResult(
                         success = true,
                         content = render(
                             moduleManager = moduleManager,
-                            coreToolSpecs = coreToolSpecs
+                            coreToolSpecs = coreToolSpecs,
+                            query = query
                         )
                     )
-                }.getOrElse { error ->
+                } catch (error: Exception) {
                     KellvynToolResult(
                         success = false,
                         content = "Não foi possível ler o catálogo interno: " +
@@ -51,23 +68,62 @@ internal object KellvynInvisibleStudioCatalogTool {
         }
     }
 
+    private fun normalizeQuery(value: String): String =
+        java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .replace(Regex("[^a-z0-9]+"), " ")
+            .trim()
+
     private fun render(
         moduleManager: KellvynStudioModuleManager,
-        coreToolSpecs: List<KellvynToolSpec>
+        coreToolSpecs: List<KellvynToolSpec>,
+        query: String
     ): String {
-        val manifests = moduleManager.manifests().sortedBy { it.moduleId }
+        val allManifests = moduleManager.manifests().sortedBy { it.moduleId }
+        val allCore = coreToolSpecs.distinctBy { it.name }.sortedBy { it.name }
         val loaded = moduleManager.loadedModuleIds()
-        val core = coreToolSpecs.distinctBy { it.name }.sortedBy { it.name }
+        val queryTerms = normalizeQuery(query).split(Regex("\\s+")).filter { it.length >= 2 }
+        fun matches(vararg fields: String): Boolean {
+            if (queryTerms.isEmpty()) return true
+            val haystack = normalizeQuery(fields.joinToString(" "))
+            return queryTerms.any { it in haystack }
+        }
+        val manifests = allManifests.filter { manifest ->
+            matches(
+                manifest.moduleId,
+                manifest.capabilities.joinToString(" "),
+                manifest.supportedExtensions.joinToString(" "),
+                manifest.toolSpecs.joinToString(" ") { it.name + " " + it.description }
+            )
+        }
+        val core = allCore.filter { tool ->
+            matches(
+                tool.name,
+                tool.description,
+                tool.capabilities.joinToString(" ")
+            )
+        }
         val allCapabilities = KellvynStudioCapability.values()
             .filterNot {
                 it == KellvynStudioCapability.AGENT_DESIGN ||
                     it == KellvynStudioCapability.AGENT_EVALUATION
             }
+            .filter { capability ->
+                queryTerms.isEmpty() || matches(
+                    capability.name,
+                    manifests.filter { capability in it.capabilities }.joinToString(" ") { it.moduleId },
+                    core.filter { capability in it.capabilities }.joinToString(" ") { it.name }
+                )
+            }
 
         val body = buildString {
             appendLine("CATÁLOGO DO LABORATÓRIO INVISÍVEL — SOMENTE LEITURA")
-            appendLine("módulos_registrados=${manifests.size}")
-            appendLine("ferramentas_núcleo=${core.size}")
+            if (queryTerms.isNotEmpty()) {
+                appendLine("Resultados filtrados por correspondência textual da consulta.")
+            }
+            if (query.isNotBlank()) appendLine("consulta=${query.take(120)}")
+            appendLine("módulos_correspondentes=${manifests.size}")
+            appendLine("ferramentas_núcleo_correspondentes=${core.size}")
             appendLine("motores_carregados_agora=${loaded.size}")
             appendLine()
             appendLine("CAPACIDADES")
@@ -95,7 +151,7 @@ internal object KellvynInvisibleStudioCatalogTool {
             appendLine()
             appendLine("MÓDULOS")
             if (manifests.isEmpty()) {
-                appendLine("(nenhum módulo registrado)")
+                appendLine(if (queryTerms.isEmpty()) "(nenhum módulo registrado)" else "(nenhum módulo corresponde à consulta)")
             }
             manifests.forEach { manifest ->
                 append(manifest.moduleId)
@@ -124,7 +180,9 @@ internal object KellvynInvisibleStudioCatalogTool {
 
             appendLine()
             appendLine("FERRAMENTAS CENTRAIS")
-            if (core.isEmpty()) appendLine("(nenhuma ferramenta central registrada)")
+            if (core.isEmpty()) {
+                appendLine(if (queryTerms.isEmpty()) "(nenhuma ferramenta central registrada)" else "(nenhuma ferramenta central corresponde à consulta)")
+            }
             core.forEach { tool ->
                 append(tool.name)
                     .append(" risk=").append(tool.risk.name)
