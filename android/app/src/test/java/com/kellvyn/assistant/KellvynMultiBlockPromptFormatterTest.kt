@@ -66,7 +66,23 @@ class KellvynMultiBlockPromptFormatterTest {
             object : KellvynAgentTool {
                 override val spec = KellvynToolSpec(
                     name = name,
-                    description = "Ferramenta $name."
+                    description = "Ferramenta $name.",
+                    requiredArguments = if (name == "a_tool") setOf("segments") else emptySet(),
+                    argumentSchemas = if (name == "a_tool") listOf(
+                        KellvynToolArgumentSchema(
+                            name = "segments",
+                            type = KellvynToolArgumentType.INTEGER,
+                            required = true,
+                            maxLength = 3,
+                            minInteger = 3,
+                            maxInteger = 128
+                        )
+                    ) else emptyList(),
+                    capabilities = if (name == "a_tool") {
+                        setOf(KellvynStudioCapability.SCENE_3D)
+                    } else {
+                        emptySet()
+                    }
                 )
                 override suspend fun execute(arguments: Map<String, String>) =
                     KellvynToolResult(true, "ok")
@@ -78,5 +94,8 @@ class KellvynMultiBlockPromptFormatterTest {
         )
 
         assertTrue(prompt.indexOf("a_tool") < prompt.indexOf("z_tool"))
+        assertTrue(prompt.contains("cap=[scene_3d]"))
+        assertTrue(prompt.contains("workload=LIGHT"))
+        assertTrue(prompt.contains("segments:integer![max=3,min=3,maxInt=128]"))
     }
 }
