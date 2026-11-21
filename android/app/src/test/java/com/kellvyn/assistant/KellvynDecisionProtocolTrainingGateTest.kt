@@ -27,7 +27,7 @@ class KellvynDecisionProtocolTrainingGateTest {
         assertEquals(3, report.trainExamples)
         assertEquals(3, report.validationExamples)
         assertEquals(3, report.testExamples)
-        assertEquals(1, report.trainCounts.final)
+        assertEquals(1, report.trainCounts.finalDecision)
         assertEquals(1, report.trainCounts.callTool)
         assertEquals(1, report.trainCounts.plan)
         assertEquals(0, report.rejectedExamples)
