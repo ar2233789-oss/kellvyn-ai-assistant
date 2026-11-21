@@ -496,7 +496,7 @@ internal class KellvynRuntime(context: Context) {
                             content = example.prompt
                         )
                     )
-                    val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+                    val selectedTools = registry.descriptionsForPrompt(history, maxTools = KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT)
                     requireDecisionToolsVisible(example, selectedTools)
                     val formatted = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
                         userPrompt = example.prompt,
@@ -552,7 +552,7 @@ internal class KellvynRuntime(context: Context) {
                     content = example.prompt
                 )
             )
-            val selectedTools = registry.descriptionsForPrompt(history, maxTools = 6)
+            val selectedTools = registry.descriptionsForPrompt(history, maxTools = KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT)
             requireDecisionToolsVisible(example, selectedTools)
             example.copy(
                 prompt = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
@@ -970,7 +970,7 @@ internal class KellvynRuntime(context: Context) {
     suspend fun createOwnMultiBlockSingleBrain(
         activeProjectId: String? = null,
         inferenceConfig: KellvynMultiBlockInferenceEngine.Config? = null,
-        brainConfig: KellvynAgentConfig = KellvynAgentConfig()
+        brainConfig: KellvynAgentConfig = KellvynDecisionPromptContext.defaultConfig()
     ): KellvynSingleBrain? {
         val inference = createOwnMultiBlockInferenceEngine(inferenceConfig) ?: return null
         return createSingleBrain(
@@ -1111,7 +1111,7 @@ internal class KellvynRuntime(context: Context) {
     fun createSingleBrain(
         inference: KellvynInferenceEngine,
         activeProjectId: String? = null,
-        config: KellvynAgentConfig = KellvynAgentConfig()
+        config: KellvynAgentConfig = KellvynDecisionPromptContext.defaultConfig()
     ): KellvynSingleBrain {
         val addresses = memoryAddressesFor(activeProjectId)
         val workspaceAuthorization = KellvynProjectWorkspaceTools.authorization(projectWriteApprovalGate)
