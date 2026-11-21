@@ -6,6 +6,7 @@ import com.kellvyn.assistant.neural.KellvynTrainingManifestEntry
 import java.io.ByteArrayOutputStream
 import java.io.DataOutputStream
 import java.security.MessageDigest
+import kotlin.math.ceil
 
 /**
  * Held-out verification for the exact KELLVYN/1 decisions used by the live brain.
@@ -116,7 +117,7 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
             toolMatches < minimumClassMatches(expected.callTool) ||
             planMatches < minimumClassMatches(expected.plan)
         ) {
-            reasons += "Uma ou mais classes de decisão não atingiram a cobertura mínima."
+            reasons += "Uma ou mais classes de decisão não atingiram 60% de correspondência exata."
         }
         if (rate < MINIMUM_DECISION_MATCH_RATE) {
             reasons += "A correspondência exata de decisões ficou abaixo de $MINIMUM_DECISION_MATCH_RATE."
@@ -281,7 +282,7 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
             .take(240)
 
     private fun minimumClassMatches(expected: Int): Int =
-        if (expected == 0) 0 else 1
+        if (expected == 0) 0 else ceil(expected * 0.60).toInt()
 
     private const val PROTOCOL_VALIDATION_TIME_MILLIS = 1_800_000_000_000L
 }
