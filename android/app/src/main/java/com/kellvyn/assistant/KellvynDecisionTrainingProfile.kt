@@ -21,7 +21,7 @@ internal object KellvynDecisionTrainingProfile {
             feedForwardSize = 512,
             depth = 2,
             maxMerges = 768,
-            epochsPerExample = 1,
+            epochsPerExample = 3,
             maxTotalTrainingSteps = 100_000L,
             maxTrainingWorkingSetBytes = MAX_WORKING_SET_BYTES
         )
