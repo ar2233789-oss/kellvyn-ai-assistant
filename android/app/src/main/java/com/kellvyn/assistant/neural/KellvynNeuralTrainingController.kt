@@ -14,7 +14,22 @@ import java.io.InputStream
  * This controller does not fetch data, use a cloud model, create agents, or change the UI.
  */
 internal class KellvynNeuralTrainingController(
-    private val modelStore: KellvynNeuralModelStore
+    private val modelStore: KellvynNeuralModelStore,
+    private val trainModel: suspend (
+        List<KellvynInstructionTrainingExample>,
+        KellvynMultiBlockTrainingConfig,
+        Long,
+        () -> Unit
+    ) -> KellvynMultiBlockTrainingResult = { examples, config, createdAtMillis, cancellationCheck ->
+        withContext(Dispatchers.Default) {
+            KellvynMultiBlockTrainingPipeline.train(
+                examples = examples,
+                config = config,
+                createdAtMillis = createdAtMillis,
+                cancellationCheck = cancellationCheck
+            )
+        }
+    }
 ) {
     data class Outcome(
         val installed: Boolean,
@@ -124,12 +139,11 @@ internal class KellvynNeuralTrainingController(
         createdAtMillis: Long = System.currentTimeMillis()
     ): Outcome = withContext(Dispatchers.IO) {
         val trainingContext = currentCoroutineContext()
-        val trained = KellvynMultiBlockTrainingPipeline.train(
-            examples = examples,
-            config = config,
-            createdAtMillis = createdAtMillis,
-            cancellationCheck = { trainingContext.ensureActive() }
-        )
+        val trained = trainModel(
+            examples,
+            config,
+            createdAtMillis
+        ) { trainingContext.ensureActive() }
         trainingContext.ensureActive()
 
         val quality = KellvynMultiBlockTrainingQualityGate.evaluate(trained.manifest)
