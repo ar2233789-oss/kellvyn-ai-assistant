@@ -124,6 +124,46 @@ class KellvynDecisionProtocolTrainingGateTest {
         assertTrue(report.reasons.any { it.contains("transfere raciocínio") })
     }
 
+    @Test
+    fun planValidationAcceptsEveryRegisteredToolRiskCategory() {
+        val extraRisks = listOf(
+            KellvynToolRisk.ARTIFACT_CREATE,
+            KellvynToolRisk.APPEND_ONLY_TASK_CREATE,
+            KellvynToolRisk.CANCEL_QUEUED_TASK
+        )
+        val extraTools = extraRisks.mapIndexed { index, risk ->
+            object : KellvynAgentTool {
+                override val spec = KellvynToolSpec(
+                    name = "extra_tool_$index",
+                    description = "Ferramenta de teste para o risco $risk.",
+                    risk = risk
+                )
+                override suspend fun execute(arguments: Map<String, String>) =
+                    KellvynToolResult(true, "ok")
+            }
+        }
+        val registry = KellvynToolRegistry(
+            listOf(requireNotNull(registry().find("local_lookup"))) + extraTools
+        )
+
+        val report = KellvynDecisionProtocolTrainingGate.evaluate(
+            examples = sampleExamples(),
+            tools = registry,
+            minimumTrainExamples = 3,
+            minimumValidationExamples = 3,
+            minimumTestExamples = 3,
+            minimumTrainPerDecision = 1,
+            minimumValidationPerDecision = 1,
+            minimumTestPerDecision = 1
+        )
+
+        assertTrue(report.readyForDecisionTraining)
+        assertEquals(0, report.rejectedExamples)
+        assertEquals(KellvynStepRisk.REVERSIBLE_WRITE, KellvynToolRisk.ARTIFACT_CREATE.toStepRisk())
+        assertEquals(KellvynStepRisk.REVERSIBLE_WRITE, KellvynToolRisk.APPEND_ONLY_TASK_CREATE.toStepRisk())
+        assertEquals(KellvynStepRisk.REVERSIBLE_WRITE, KellvynToolRisk.CANCEL_QUEUED_TASK.toStepRisk())
+    }
+
     private fun sampleExamples(): List<KellvynInstructionTrainingExample> =
         KellvynTrainingSplit.values().flatMap { split ->
             listOf(
