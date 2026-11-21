@@ -396,7 +396,7 @@ internal class KellvynRuntime(context: Context) {
      */
     suspend fun auditOwnMultiBlockDecisionCorpus(
         input: InputStream,
-        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
         samplingSeed: Long = config.seed,
         maxExamples: Int = 1_000,
         minimumTrainExamples: Int = 100,
@@ -450,7 +450,7 @@ internal class KellvynRuntime(context: Context) {
     suspend fun trainOwnMultiBlockDecisionFromAuditedCorpus(
         input: InputStream,
         expectedAudit: KellvynJsonlCorpusReader.Report,
-        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
         createdAtMillis: Long = System.currentTimeMillis(),
         samplingSeed: Long = config.seed,
         maxExamples: Int = 1_000,
@@ -520,7 +520,7 @@ internal class KellvynRuntime(context: Context) {
      */
     suspend fun trainOwnMultiBlockDecisionModel(
         examples: List<KellvynInstructionTrainingExample>,
-        config: KellvynMultiBlockTrainingConfig = KellvynMultiBlockTrainingConfig(contextLength = 1024),
+        config: KellvynMultiBlockTrainingConfig = KellvynDecisionTrainingProfile.requireWithinBudget(),
         createdAtMillis: Long = System.currentTimeMillis()
     ): KellvynNeuralTrainingController.Outcome {
         val registry = createProjectWorkspaceToolRegistry()
