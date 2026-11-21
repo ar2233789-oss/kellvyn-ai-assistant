@@ -42,7 +42,7 @@ class KellvynMultiBlockPromptFormatterTest {
                 content = "Pesquise o registro local KN."
             )
         )
-        val shortlist = registry.descriptionsForPrompt(history, maxTools = 6)
+        val shortlist = registry.descriptionsForPrompt(history, maxTools = KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT)
 
         val trainingPrompt = KellvynMultiBlockPromptFormatter.buildTrainingPrompt(
             userPrompt = "Pesquise o registro local KN.",
@@ -58,6 +58,18 @@ class KellvynMultiBlockPromptFormatterTest {
         assertTrue(trainingPrompt.contains("KELLVYN/1"))
         assertTrue(trainingPrompt.contains("local_lookup"))
         assertTrue(trainingPrompt.contains("DECISÃO KELLVYN:"))
+    }
+
+    @Test
+    fun productionDefaultsKeepTrainingAndInferenceWithinOneSharedBudget() {
+        val brainConfig = KellvynDecisionPromptContext.defaultConfig()
+        val inferenceConfig = KellvynMultiBlockInferenceEngine.Config()
+
+        assertEquals(KellvynDecisionPromptContext.MAX_TOOLS_IN_PROMPT, brainConfig.maxToolsInModelPrompt)
+        assertEquals(brainConfig.maxToolsInModelPrompt, inferenceConfig.maxToolsInPrompt)
+        assertEquals(KellvynDecisionPromptContext.MAX_MESSAGE_CHARS, inferenceConfig.maxMessageChars)
+        assertEquals(KellvynDecisionPromptContext.MAX_TOOL_DESCRIPTION_CHARS, inferenceConfig.maxToolDescriptionChars)
+        assertEquals(1_000, brainConfig.maxSkillContextChars)
     }
 
     @Test
