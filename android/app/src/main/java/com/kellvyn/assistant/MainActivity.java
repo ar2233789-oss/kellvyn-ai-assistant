@@ -118,6 +118,20 @@ public class MainActivity extends Activity {
         for (String item : transcript) addMessageView(!item.startsWith("S|"), item.substring(2));
         if (transcript.isEmpty()) showWelcome();
         updateStatus();
+        brain.initializeConversation(result -> {
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                if (result.getBehaviorApprovedForConversation()) {
+                    engineLabel = "MOTOR LOCAL KN-004";
+                } else if (result.getQualityApprovedForBenchmark()) {
+                    engineLabel = "KN-004 AGUARDANDO TESTE";
+                } else {
+                    engineLabel = "KELLVYN EM CONSTRUÇÃO";
+                }
+                updateStatus();
+            });
+            return kotlin.Unit.INSTANCE;
+        });
     }
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
