@@ -21,7 +21,7 @@ Isso melhora o sistema sem alterar pesos. Não chamar essas mudanças de treinam
 
 ## 3. Regra de fundação neural
 
-O projeto não usará um modelo-base pré-treinado de terceiros, nem LoRA/adapters de pesos externos, como cérebro principal ou atalho para a entrega. Não baixar pesos de ChatGPT, Claude, Gemini, Gemma, Llama, Qwen ou de qualquer outro modelo para incorporá-los à Kellvyn.
+O projeto não usará modelo-base, pesos, adapters ou checkpoints pré-treinados de terceiros como cérebro principal ou atalho para a entrega. Não baixar, embutir, chamar por SDK nem incorporar pesos externos à Kellvyn.
 
 O tokenizer, arquitetura, inicialização, pesos, treinamento, avaliação e checkpoints do cérebro são de autoria do projeto. Componentes auxiliares de runtime/compilação podem ser avaliados separadamente sob licença compatível, desde que não tragam pesos de modelos externos nem troquem a origem do cérebro.
 
