@@ -88,7 +88,7 @@ internal object KellvynDecisionProtocolTrainingGate {
                 }
                 is KellvynModelDecision.Plan -> {
                     val risks = tools.descriptions().associate { spec ->
-                        spec.name to KellvynStepRisk.valueOf(spec.risk.name)
+                        spec.name to spec.risk.toStepRisk()
                     }
                     val validation = KellvynTaskPlanner().validate(parsed.plan, risks)
                     if (validation.isNotEmpty()) {
