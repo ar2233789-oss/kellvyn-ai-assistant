@@ -4,12 +4,8 @@ import android.content.Context
 import android.net.Uri
 
 /**
- * Compatibility boundary only.
- *
- * The former local neural implementation was removed. This class deliberately
- * contains no model, tokenizer, weights, inference, remote provider, or training.
- * It keeps the existing chat UI source-compatible and reports that no engine is
- * connected until a separately audited original implementation is supplied.
+ * Keeps the approved chat screen API unchanged while routing every turn through
+ * the single central KN-004 kernel and its registered local tools.
  */
 class LocalBrain(context: Context) : AutoCloseable {
     interface Listener {
@@ -19,13 +15,33 @@ class LocalBrain(context: Context) : AutoCloseable {
         fun onError(message: String)
     }
 
-    fun hasModel(): Boolean = false
-    fun hasActiveConversation(): Boolean = false
-    fun resetConversation() = Unit
+    private val runtime = KellvynRuntime(context.applicationContext)
 
-    fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        listener.onError("O mecanismo neural anterior foi removido. Nenhum modelo substituto está conectado.")
+    fun hasModel(): Boolean = runtime.isReady()
+
+    fun hasActiveConversation(): Boolean = runtime.hasActiveConversation()
+
+    fun resetConversation() = runtime.resetConversation()
+
+    fun reply(
+        prompt: String,
+        attachmentUri: Uri?,
+        attachmentName: String?,
+        listener: Listener
+    ) {
+        runtime.reply(
+            prompt = prompt,
+            attachmentUri = attachmentUri,
+            attachmentName = attachmentName,
+            listener = object : KellvynRuntime.Listener {
+                override fun onStatus(message: String) = listener.onStatus(message)
+                override fun onPartial(text: String) = listener.onPartial(text)
+                override fun onComplete(text: String, backend: String) =
+                    listener.onComplete(text, backend)
+                override fun onError(message: String) = listener.onError(message)
+            }
+        )
     }
 
-    override fun close() = Unit
+    override fun close() = runtime.close()
 }
