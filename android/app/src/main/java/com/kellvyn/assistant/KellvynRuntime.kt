@@ -137,9 +137,23 @@ internal class KellvynRuntime(context: Context) {
                 depth = config.depth,
                 seed = config.seed
             )
+            val tokenizerCorpusBytes = examples
+                .filter { it.split == KellvynTrainingSplit.TRAIN }
+                .sumOf {
+                    it.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                        it.completion.toByteArray(Charsets.UTF_8).size.toLong()
+                }
+            val totalCorpusBytes = examples.sumOf {
+                it.prompt.toByteArray(Charsets.UTF_8).size.toLong() +
+                    it.completion.toByteArray(Charsets.UTF_8).size.toLong()
+            }
             runHeavyTask(
                 taskId = "training-kn004-jsonl-$createdAtMillis",
-                estimatedWorkingSetBytes = modelConfig.estimatedTrainingWorkingSetBytes()
+                estimatedWorkingSetBytes = KellvynMultiBlockTrainingPipeline.estimatedWorkingSetBytes(
+                    modelConfig = modelConfig,
+                    tokenizerCorpusBytes = tokenizerCorpusBytes,
+                    totalCorpusBytes = totalCorpusBytes
+                )
             ) {
                 withContext(Dispatchers.Default) {
                     KellvynMultiBlockTrainingPipeline.train(
