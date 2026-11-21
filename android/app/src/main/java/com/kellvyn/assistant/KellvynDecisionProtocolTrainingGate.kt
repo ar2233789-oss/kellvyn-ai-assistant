@@ -10,7 +10,7 @@ import com.kellvyn.assistant.neural.KellvynTrainingSplit
  */
 internal object KellvynDecisionProtocolTrainingGate {
     data class Counts(
-        val final: Int,
+        val finalDecision: Int,
         val callTool: Int,
         val plan: Int
     )
@@ -71,7 +71,7 @@ internal object KellvynDecisionProtocolTrainingGate {
             val current = splitCounts.getValue(example.split)
             when (parsed) {
                 is KellvynModelDecision.Final -> {
-                    splitCounts[example.split] = current.copy(final = current.final + 1)
+                    splitCounts[example.split] = current.copy(finalDecision = current.finalDecision + 1)
                 }
                 is KellvynModelDecision.CallTool -> {
                     val tool = tools.find(parsed.name)
@@ -119,7 +119,7 @@ internal object KellvynDecisionProtocolTrainingGate {
             minimum: Int,
             label: String
         ) {
-            if (counts.final < minimum) reasons += "$label: FINAL tem ${counts.final}; mínimo: $minimum."
+            if (counts.finalDecision < minimum) reasons += "$label: FINAL tem ${counts.finalDecision}; mínimo: $minimum."
             if (counts.callTool < minimum) reasons += "$label: CALL_TOOL tem ${counts.callTool}; mínimo: $minimum."
             if (counts.plan < minimum) reasons += "$label: PLAN tem ${counts.plan}; mínimo: $minimum."
         }
