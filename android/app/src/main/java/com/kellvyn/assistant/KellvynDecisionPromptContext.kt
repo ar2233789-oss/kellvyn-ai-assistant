@@ -14,7 +14,7 @@ internal object KellvynDecisionPromptContext {
         val selectedSkills = skillRegistry.selectFor(
             goal = goal.trim(),
             limit = config.maxSkillsPerTask,
-            maxChars = config.maxSkillContextChars
+            maxChars = minOf(config.maxSkillContextChars, 1_000)
         )
         val skillContext = if (selectedSkills.isEmpty()) "" else {
             "\n\nPROCEDIMENTOS INTERNOS KELLVYN CARREGADOS SOB DEMANDA. " +
