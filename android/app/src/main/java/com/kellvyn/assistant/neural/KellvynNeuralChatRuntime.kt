@@ -84,7 +84,8 @@ internal object KellvynTokenSampler {
  * another conversation surface, or a fallback model.
  */
 internal class KellvynNeuralChatRuntime(
-    private val modelStore: KellvynNeuralModelStore
+    private val modelStore: KellvynNeuralModelStore,
+    private val approvalStore: KellvynNeuralBehaviorApprovalStore? = null
 ) {
     data class Status(
         val ready: Boolean,
@@ -93,7 +94,8 @@ internal class KellvynNeuralChatRuntime(
         val qualityReasons: List<String> = emptyList(),
         val depth: Int? = null,
         val contextLength: Int? = null,
-        val vocabularySize: Int? = null
+        val vocabularySize: Int? = null,
+        val behaviorApprovedForConversation: Boolean = false
     )
 
     private data class LoadedModel(
@@ -113,6 +115,15 @@ internal class KellvynNeuralChatRuntime(
 
     private val benchmarkThread = ThreadLocal.withInitial { false }
 
+    /** True only after both the numeric and held-out behavioral gates are approved. */
+    val isConversationReady: Boolean
+        get() {
+            val active = loadedModel ?: return false
+            return active.qualityGate.eligibleForProtocolBenchmark &&
+                behaviorApprovedFingerprint == active.fingerprint
+        }
+
+    /** True when a checksum-verified checkpoint is resident, even if it is not yet approved. */
     val isReady: Boolean
         get() = loadedModel != null
 
@@ -149,7 +160,19 @@ internal class KellvynNeuralChatRuntime(
             // Inference weights are immutable after load. Compute their identity once rather
             // than serializing/hashing every parameter again on each generated response.
             val fingerprint = restored.model.parameterFingerprint()
-            behaviorApprovedFingerprint = null
+            val testFingerprint = testManifestFingerprint(restored.manifest)
+            val persistedApproval = if (qualityGate.eligibleForProtocolBenchmark) {
+                try {
+                    approvalStore?.load(fingerprint, testFingerprint)
+                } catch (_: Exception) {
+                    null
+                }
+            } else {
+                null
+            }
+            behaviorApprovedFingerprint = persistedApproval
+                ?.takeIf { it.eligibleForIntegrationReview && it.modelFingerprint == fingerprint }
+                ?.modelFingerprint
             loadedModel = LoadedModel(
                 tokenizer = restored.tokenizer,
                 model = restored.model,
@@ -160,16 +183,20 @@ internal class KellvynNeuralChatRuntime(
             )
             Status(
                 ready = true,
-                detail = if (qualityGate.eligibleForProtocolBenchmark) {
-                    "Checkpoint KN-004 carregado; passou pelo gate numérico e pode seguir para benchmark comportamental."
-                } else {
-                    "Checkpoint KN-004 carregado apenas para inspeção experimental; ainda não pode responder no chat."
+                detail = when {
+                    !qualityGate.eligibleForProtocolBenchmark ->
+                        "Checkpoint KN-004 carregado para inspeção; o gate numérico ainda não foi aprovado."
+                    behaviorApprovedFingerprint == fingerprint ->
+                        "Checkpoint KN-004 carregado; os gates numérico e comportamental deste modelo já foram aprovados."
+                    else ->
+                        "Checkpoint KN-004 passou pelo gate numérico; ainda precisa do benchmark comportamental TEST."
                 },
                 qualityApprovedForBenchmark = qualityGate.eligibleForProtocolBenchmark,
                 qualityReasons = qualityGate.reasons,
                 depth = restored.model.config.depth,
                 contextLength = restored.model.config.contextLength,
-                vocabularySize = restored.tokenizer.vocabularySize
+                vocabularySize = restored.tokenizer.vocabularySize,
+                behaviorApprovedForConversation = behaviorApprovedFingerprint == fingerprint
             )
         } catch (error: Exception) {
             loadedModel = null
@@ -397,11 +424,49 @@ internal class KellvynNeuralChatRuntime(
                 }
             }
             if (report.eligibleForIntegrationReview) {
+                approvalStore?.save(
+                    modelFingerprint = fingerprint,
+                    testSetFingerprint = testManifestFingerprint(active.manifest),
+                    report = report
+                )
                 behaviorApprovedFingerprint = fingerprint
             }
             return report
         } finally {
             benchmarkThread.remove()
+        }
+    }
+
+    /**
+     * Stable fingerprint of the manifest's exact held-out TEST set and rights provenance.
+     * It binds a persisted behavior approval to the evaluated samples, not just the weights.
+     */
+    private fun testManifestFingerprint(
+        manifest: KellvynMultiBlockTrainingManifest
+    ): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        val testEntries = manifest.entries
+            .filter { it.split == KellvynTrainingSplit.TEST }
+            .sortedBy { it.id }
+        digest.update("KN004-TEST-MANIFEST-v1".toByteArray(Charsets.UTF_8))
+        for (entry in testEntries) {
+            val fields = listOf(
+                entry.id,
+                entry.contentSha256,
+                entry.permission.name,
+                entry.licenseId,
+                entry.sourceReference,
+                entry.rightsEvidence
+            )
+            for (field in fields) {
+                val bytes = field.toByteArray(Charsets.UTF_8)
+                digest.update(java.nio.ByteBuffer.allocate(Int.SIZE_BYTES)
+                    .putInt(bytes.size).array())
+                digest.update(bytes)
+            }
+        }
+        return digest.digest().joinToString("") { byte ->
+            "%02x".format(byte.toInt() and 0xff)
         }
     }
 
