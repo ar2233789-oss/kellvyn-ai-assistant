@@ -371,11 +371,9 @@ internal class KellvynSingleBrain(
 
     suspend fun run(goal: String): KellvynBrainResult {
         val traceSession = traceSessionFactory()
-        val rootRun = traceSession.actor == "coordinator"
         val resourceBaseline = recordResourceSnapshot(traceSession, "START")
         traceSession.record(
-            kind = if (rootRun) KellvynAgentLabEventKind.RUN_STARTED
-                else KellvynAgentLabEventKind.AGENT_STARTED,
+            kind = KellvynAgentLabEventKind.RUN_STARTED,
             outcome = KellvynAgentLabOutcome.STARTED
         )
         return try {
@@ -392,7 +390,7 @@ internal class KellvynSingleBrain(
                     (KellvynAgentLabEventKind.RUN_PLANNED to KellvynAgentLabOutcome.SUCCEEDED)
             }
             traceSession.record(
-                kind = if (rootRun) kindAndOutcome.first else KellvynAgentLabEventKind.AGENT_FINISHED,
+                kind = kindAndOutcome.first,
                 outcome = kindAndOutcome.second,
                 detailCode = result.javaClass.simpleName.uppercase()
                     .replace(Regex("[^A-Z0-9_.:-]"), "_")
@@ -403,8 +401,7 @@ internal class KellvynSingleBrain(
             withContext(NonCancellable) {
                 recordResourceSnapshot(traceSession, "CANCELLED", resourceBaseline)
                 traceSession.record(
-                    kind = if (rootRun) KellvynAgentLabEventKind.RUN_CANCELLED
-                        else KellvynAgentLabEventKind.AGENT_FINISHED,
+                    kind = KellvynAgentLabEventKind.RUN_CANCELLED,
                     outcome = KellvynAgentLabOutcome.FAILED,
                     detailCode = "CANCELLED"
                 )
@@ -414,8 +411,7 @@ internal class KellvynSingleBrain(
             withContext(NonCancellable) {
                 recordResourceSnapshot(traceSession, "FAILED", resourceBaseline)
                 traceSession.record(
-                    kind = if (rootRun) KellvynAgentLabEventKind.RUN_FAILED
-                        else KellvynAgentLabEventKind.AGENT_FINISHED,
+                    kind = KellvynAgentLabEventKind.RUN_FAILED,
                     outcome = KellvynAgentLabOutcome.FAILED,
                     detailCode = "UNHANDLED_EXCEPTION"
                 )
