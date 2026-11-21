@@ -37,11 +37,11 @@ import java.io.InputStream
 import java.util.Locale
 
 /**
- * Temporary application boundary while the original Kellvyn neural backend is built.
+ * Local Android runtime for the single KN brain.
  *
- * This class intentionally contains no downloaded model and no hidden fallback provider.
- * It reports that inference is unavailable instead of pretending the agent is ready.
- * The real runtime will be connected only after the neural model and runtime gates pass.
+ * Owns the locally trained KN-004 checkpoint, encrypted memory, resource controls and
+ * deterministic studio tools. Conversation remains disabled until the exact model and
+ * held-out KELLVYN/1 decision set pass the authenticated behavior gate.
  */
 internal class KellvynRuntime(context: Context) {
     interface Listener {
@@ -625,7 +625,12 @@ internal class KellvynRuntime(context: Context) {
         val testFingerprint = KellvynDecisionProtocolBehaviorBenchmark
             .testSetFingerprintFromManifest(bundle.manifest.entries)
         val approval = decisionProtocolApprovalStore.load(modelFingerprint, testFingerprint)
-        if (approval == null || !approval.eligibleForIntegrationReview) {
+        val heldOutCount = bundle.manifest.entries.count {
+            it.split == com.kellvyn.assistant.neural.KellvynTrainingSplit.TEST
+        }
+        if (approval == null || !approval.eligibleForIntegrationReview ||
+            approval.sampleCount != heldOutCount
+        ) {
             return KellvynNeuralChatRuntime.Status(
                 ready = false,
                 detail = "Checkpoint numérico aprovado; falta aprovação do benchmark KELLVYN/1.",
@@ -1305,7 +1310,7 @@ internal class KellvynRuntime(context: Context) {
         }
         val worker = Thread({
             try {
-                listener.onStatus("CÉREBRO LOCAL KN-004")
+                listener.onStatus("MOTOR LOCAL CPU — CÉREBRO KN-004")
                 when (val result = runBlocking { brain.run(prompt) }) {
                     is KellvynBrainResult.Completed ->
                         listener.onComplete(result.answer, "KN-004 CPU")
