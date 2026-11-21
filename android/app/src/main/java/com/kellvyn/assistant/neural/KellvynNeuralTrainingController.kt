@@ -1,5 +1,7 @@
 package com.kellvyn.assistant.neural
 
+import com.kellvyn.assistant.KellvynDecisionProtocolBehaviorBenchmark
+
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
@@ -62,7 +64,7 @@ internal class KellvynNeuralTrainingController(
         maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
-        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES
+        minimumTestExamples: Int = KellvynDecisionProtocolBehaviorBenchmark.MINIMUM_EXAMPLES
     ): KellvynJsonlCorpusReader.Report = withContext(Dispatchers.IO) {
         val auditContext = currentCoroutineContext()
         KellvynJsonlCorpusReader.read(
@@ -97,7 +99,7 @@ internal class KellvynNeuralTrainingController(
         maxLines: Long = 10_000_000L,
         minimumTrainExamples: Int = 100,
         minimumValidationExamples: Int = 20,
-        minimumTestExamples: Int = KellvynNeuralBehaviorBenchmark.MINIMUM_EXAMPLES,
+        minimumTestExamples: Int = KellvynDecisionProtocolBehaviorBenchmark.MINIMUM_EXAMPLES,
         prepareExamples: ((List<KellvynInstructionTrainingExample>) -> List<KellvynInstructionTrainingExample>)? = null
     ): CorpusOutcome = withContext(Dispatchers.IO) {
         val trainingContext = currentCoroutineContext()
