@@ -104,11 +104,16 @@ class KellvynDecisionProtocolBehaviorBenchmarkTest {
         (KellvynDecisionProtocol.parse(completion, nowMillis = 1_800_000_000_000L)
             as KellvynDecisionProtocol.ParseResult.Accepted).decision
 
-    private fun delegateTarget() = buildString {
-        append("KELLVYN/1\\nDELEGATE\\n")
-        append("ROLE\\tRESEARCHER\\n")
-        append("TASK\\t").append(KellvynDecisionProtocol.encodeText("Pesquisar o assunto.")).append("\\n")
-        append("CONTEXT\\t").append(KellvynDecisionProtocol.encodeText("Contexto de teste.")).append("\\nEND")
+    private fun delegateTarget(): String {
+        val tab = '\t'
+        return listOf(
+            "KELLVYN/1",
+            "DELEGATE",
+            "ROLE\${tab}RESEARCHER",
+            "TASK\${tab}\${KellvynDecisionProtocol.encodeText("Pesquisar o assunto.")}",
+            "CONTEXT\${tab}\${KellvynDecisionProtocol.encodeText("Contexto de teste.")}",
+            "END"
+        ).joinToString("\n")
     }
 
     private fun finalTarget(text: String) =
