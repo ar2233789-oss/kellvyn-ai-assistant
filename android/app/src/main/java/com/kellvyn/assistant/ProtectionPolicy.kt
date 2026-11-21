@@ -1,6 +1,6 @@
 package com.kellvyn.assistant
 
-/** Builds the system instruction for the existing reinforced-protection setting. */
+/** Builds the single assistant's system instruction and optional reinforced-protection rules. */
 internal object ProtectionPolicy {
     private const val REINFORCED_RULES = """
         PROTEÇÃO REFORÇADA ATIVADA:
@@ -11,6 +11,8 @@ internal object ProtectionPolicy {
         - Se uma ação não estiver implementada ou não puder ser verificada, diga isso claramente em vez de simular sucesso.
     """
 
-    fun systemInstruction(base: String, enabled: Boolean): String =
-        if (enabled) base + "\n\n" + REINFORCED_RULES.trimIndent() else base
+    fun systemInstruction(base: String, enabled: Boolean): String {
+        val withIdentity = KellvynPersona.systemInstruction(base)
+        return if (enabled) withIdentity + "\n\n" + REINFORCED_RULES.trimIndent() else withIdentity
+    }
 }
