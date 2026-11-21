@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.runBlocking
 import java.io.File
 import java.io.FilterInputStream
 import java.io.IOException
@@ -141,10 +142,16 @@ internal class KellvynRuntime(context: Context) {
     private val neuralChatRuntime by lazy {
         KellvynNeuralChatRuntime(neuralModelStore, neuralBehaviorApprovalStore)
     }
+    private val decisionProtocolApprovalStore = KellvynNeuralBehaviorApprovalStore(
+        File(appContext.filesDir, "neural/decision-protocol.approval"),
+        KellvynAndroidTaskCheckpointCipher("kellvyn.kn004.decision-protocol-approval.aes-gcm.v1")
+    )
     @Volatile
     private var neuralInitializationThread: Thread? = null
     @Volatile
     private var activeNeuralReplyThread: Thread? = null
+    @Volatile
+    private var activeSingleBrain: KellvynSingleBrain? = null
     private val taskCheckpointStore = KellvynTaskCheckpointStore(
         File(appContext.filesDir, "task-checkpoints"),
         KellvynAndroidTaskCheckpointCipher()
@@ -525,13 +532,13 @@ internal class KellvynRuntime(context: Context) {
         onInitialized: (KellvynNeuralChatRuntime.Status) -> Unit = {}
     ) {
         synchronized(this) {
-            if (neuralChatRuntime.isConversationReady) {
+            if (activeSingleBrain != null) {
                 onInitialized(
                     KellvynNeuralChatRuntime.Status(
-                        ready = false,
-                        detail = "O teste de texto livre passou, mas falta validar o protocolo de decisões do KN.",
+                        ready = true,
+                        detail = "Cérebro KN-004 carregado com aprovação do protocolo de decisões.",
                         qualityApprovedForBenchmark = true,
-                        behaviorApprovedForConversation = false
+                        behaviorApprovedForConversation = true
                     )
                 )
                 return
@@ -539,25 +546,69 @@ internal class KellvynRuntime(context: Context) {
             val current = neuralInitializationThread
             if (current?.isAlive == true) return
             val worker = Thread({
-                val loaded = neuralChatRuntime.initialize()
-                val result = if (loaded.ready || loaded.qualityApprovedForBenchmark) {
-                    loaded.copy(
+                val result = try {
+                    runBlocking { initializeSingleBrainStatus() }
+                } catch (error: Exception) {
+                    KellvynNeuralChatRuntime.Status(
                         ready = false,
-                        detail = if (loaded.qualityApprovedForBenchmark) {
-                            "Checkpoint KN-004 carregado; geração textual avaliada, mas o protocolo de decisões ainda não foi aprovado."
-                        } else {
-                            loaded.detail
-                        },
+                        detail = error.message?.take(400)
+                            ?: "Falha ao validar o cérebro KN-004.",
+                        qualityApprovedForBenchmark = false,
                         behaviorApprovedForConversation = false
                     )
-                } else {
-                    loaded
                 }
                 onInitialized(result)
             }, "kellvyn-kn004-initialize").apply { isDaemon = true }
             neuralInitializationThread = worker
             worker.start()
         }
+    }
+
+    private suspend fun initializeSingleBrainStatus(): KellvynNeuralChatRuntime.Status {
+        val bundle = loadOwnMultiBlockModelForInference()
+            ?: return KellvynNeuralChatRuntime.Status(
+                ready = false,
+                detail = "Nenhum checkpoint KN-004 válido está instalado.",
+                qualityApprovedForBenchmark = false,
+                behaviorApprovedForConversation = false
+            )
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
+        if (!quality.eligibleForProtocolBenchmark) {
+            return KellvynNeuralChatRuntime.Status(
+                ready = false,
+                detail = "O checkpoint KN-004 não passou pelo gate numérico.",
+                qualityApprovedForBenchmark = false,
+                behaviorApprovedForConversation = false
+            )
+        }
+        val modelFingerprint = bundle.model.parameterFingerprint()
+        val testFingerprint = KellvynDecisionProtocolBehaviorBenchmark
+            .testSetFingerprintFromManifest(bundle.manifest.entries)
+        val approval = decisionProtocolApprovalStore.load(modelFingerprint, testFingerprint)
+        if (approval == null || !approval.eligibleForIntegrationReview) {
+            return KellvynNeuralChatRuntime.Status(
+                ready = false,
+                detail = "Checkpoint numérico aprovado; falta aprovação do benchmark KELLVYN/1.",
+                qualityApprovedForBenchmark = true,
+                behaviorApprovedForConversation = false
+            )
+        }
+        val contextLength = bundle.model.config.contextLength
+        val generationTokens = minOf(256, maxOf(64, contextLength / 8), contextLength - 1)
+        val inference = KellvynMultiBlockInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = KellvynMultiBlockInferenceEngine.Config(
+                maxGenerationTokens = generationTokens
+            )
+        )
+        activeSingleBrain = createSingleBrain(inference)
+        return KellvynNeuralChatRuntime.Status(
+            ready = true,
+            detail = "Cérebro KN-004 aprovado pelo benchmark de decisões e carregado localmente.",
+            qualityApprovedForBenchmark = true,
+            behaviorApprovedForConversation = true
+        )
     }
 
     /** Controlled API retained for explicit training/benchmark workflows. */
@@ -576,6 +627,57 @@ internal class KellvynRuntime(context: Context) {
             examples = heldOutTestExamples,
             maxNewTokens = maxNewTokens
         )
+    }
+
+    /**
+     * Tests the exact KELLVYN/1 outputs on the immutable held-out TEST partition.
+     * A passing report is encrypted and bound to this model fingerprint and TEST manifest.
+     */
+    suspend fun benchmarkOwnMultiBlockDecisionProtocol(
+        heldOutTestExamples: List<KellvynInstructionTrainingExample>
+    ): KellvynDecisionProtocolBehaviorBenchmark.Report = withContext(Dispatchers.Default) {
+        val bundle = loadOwnMultiBlockModelForInference()
+            ?: throw IllegalStateException("Não há checkpoint KN-004 disponível para benchmark.")
+        val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
+        require(quality.eligibleForProtocolBenchmark) {
+            "O checkpoint não passou pelo gate numérico."
+        }
+        require(
+            KellvynDecisionProtocolBehaviorBenchmark.matchesTestManifest(
+                heldOutTestExamples,
+                bundle.manifest.entries
+            )
+        ) {
+            "Os exemplos fornecidos não correspondem exatamente ao conjunto TEST instalado."
+        }
+        val contextLength = bundle.model.config.contextLength
+        val inference = KellvynMultiBlockInferenceEngine(
+            model = bundle.model,
+            tokenizer = bundle.tokenizer,
+            config = KellvynMultiBlockInferenceEngine.Config(
+                maxGenerationTokens = minOf(256, maxOf(64, contextLength / 8), contextLength - 1)
+            )
+        )
+        val report = KellvynDecisionProtocolBehaviorBenchmark.evaluate(
+            modelFingerprint = bundle.model.parameterFingerprint(),
+            examples = heldOutTestExamples,
+            generate = { example -> inference.nextFromFormattedPrompt(example.prompt) }
+        )
+        val manifestFingerprint = KellvynDecisionProtocolBehaviorBenchmark
+            .testSetFingerprintFromManifest(bundle.manifest.entries)
+        require(report.testSetFingerprint == manifestFingerprint) {
+            "O fingerprint do TEST divergiu do manifesto instalado."
+        }
+        if (report.eligibleForConversationReview) {
+            decisionProtocolApprovalStore.save(
+                modelFingerprint = report.modelFingerprint,
+                testSetFingerprint = manifestFingerprint,
+                report = report.asEncryptedApprovalReport()
+            )
+        } else {
+            decisionProtocolApprovalStore.delete()
+        }
+        report
     }
 
     /**
@@ -1125,19 +1227,66 @@ internal class KellvynRuntime(context: Context) {
     )
 
     // Free-text approval is not decision-protocol approval; the main chat stays locked.
-    fun isReady(): Boolean = false
+    fun isReady(): Boolean = activeSingleBrain != null
 
     /** The KN-004 path is stateless; MainActivity supplies the saved transcript as context. */
     fun hasActiveConversation(): Boolean = false
 
     @Synchronized
     fun reply(prompt: String, attachmentUri: Uri?, attachmentName: String?, listener: Listener) {
-        listener.onStatus("KN-004 AGUARDANDO VALIDAÇÃO DE DECISÕES")
-        listener.onError(
-            "A geração de texto livre já foi testada separadamente, mas ainda não comprova que o KN " +
-                "interpreta decisões KELLVYN/1, executa ferramentas e confere resultados. " +
-                "O chat principal permanece bloqueado até esse teste específico passar."
-        )
+        if (attachmentUri != null || !attachmentName.isNullOrBlank()) {
+            listener.onError("O cérebro KN ainda não recebeu um caminho de análise de anexos validado.")
+            return
+        }
+        val brain = activeSingleBrain
+        if (brain == null) {
+            listener.onStatus("KN-004 AGUARDANDO VALIDAÇÃO DE DECISÕES")
+            listener.onError(
+                "O cérebro KN só libera a conversa após o benchmark KELLVYN/1 no conjunto TEST."
+            )
+            return
+        }
+        val previous = activeNeuralReplyThread
+        if (previous?.isAlive == true) {
+            listener.onError("A resposta anterior do KN ainda está em execução.")
+            return
+        }
+        val worker = Thread({
+            try {
+                listener.onStatus("CÉREBRO LOCAL KN-004")
+                when (val result = runBlocking { brain.run(prompt) }) {
+                    is KellvynBrainResult.Completed ->
+                        listener.onComplete(result.answer, "KN-004 CPU")
+                    is KellvynBrainResult.Failed ->
+                        listener.onError(result.reason)
+                    is KellvynBrainResult.LimitReached ->
+                        listener.onError(result.reason)
+                    is KellvynBrainResult.Planned -> {
+                        val summary = buildString {
+                            append("Plano KN salvo: ").append(result.state.plan.goal).append("\n")
+                            append("ID: ").append(result.state.plan.id).append("\n")
+                            result.state.plan.steps.forEach { step ->
+                                append("• ").append(step.title).append(": ")
+                                    .append(result.state.statuses[step.id]).append("\n")
+                            }
+                            append("Checkpoint: ").append(result.checkpoint.sha256.take(16))
+                        }
+                        listener.onComplete(summary, "KN-004 CPU")
+                    }
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                if (!Thread.currentThread().isInterrupted) {
+                    listener.onError(cancelled.message ?: "Execução do KN cancelada.")
+                }
+            } catch (error: Exception) {
+                listener.onError(
+                    error.message?.takeIf { it.isNotBlank() }
+                        ?: "O cérebro KN não conseguiu concluir a solicitação."
+                )
+            }
+        }, "kellvyn-kn004-brain").apply { isDaemon = true }
+        activeNeuralReplyThread = worker
+        worker.start()
     }
 
     fun resetConversation() {
@@ -1161,6 +1310,7 @@ internal class KellvynRuntime(context: Context) {
     fun close() {
         resetConversationAndWait()
         neuralInitializationThread?.interrupt()
+        activeSingleBrain = null
         neuralChatRuntime.unload()
         memoryRepository.close()
     }
