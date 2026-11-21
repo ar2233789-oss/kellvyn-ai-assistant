@@ -589,7 +589,9 @@ internal class KellvynScene3DStudio private constructor(
         minimum: Float,
         maximum: Float
     ): FloatArray {
-        val array = json.optJSONArray(name) ?: return default.copyOf()
+        if (!json.has(name)) return default.copyOf()
+        val array = json.optJSONArray(name)
+            ?: throw IllegalArgumentException("O campo " + name + " precisa ser um array.")
         require(array.length() == 3) {
             "O campo " + name + " precisa conter exatamente três números."
         }
