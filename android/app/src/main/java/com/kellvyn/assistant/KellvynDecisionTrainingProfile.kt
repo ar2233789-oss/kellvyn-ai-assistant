@@ -8,10 +8,10 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTrainingConfig
  * The earlier 32-dimensional experiment was useful for validating the training pipeline,
  * but is not an adequate default for the installed decision brain. This profile raises
  * representation capacity while keeping the conservative estimated training working set
- * under the existing 128 MiB admission budget.
+ * under the 256 MiB admission budget, including BPE and encoded-sample buffers.
  */
 internal object KellvynDecisionTrainingProfile {
-    const val MAX_WORKING_SET_BYTES = 128L * 1024L * 1024L
+    const val MAX_WORKING_SET_BYTES = 256L * 1024L * 1024L
 
     fun config(): KellvynMultiBlockTrainingConfig =
         KellvynMultiBlockTrainingConfig(
@@ -37,7 +37,11 @@ internal object KellvynDecisionTrainingProfile {
             depth = config.depth,
             seed = config.seed
         )
-        return modelConfig.estimatedTrainingWorkingSetBytes()
+        return KellvynMultiBlockTrainingPipeline.estimatedWorkingSetBytes(
+            modelConfig = modelConfig,
+            tokenizerCorpusBytes = 1_600_000L,
+            totalCorpusBytes = 2_000_000L
+        )
     }
 
     fun requireWithinBudget(): KellvynMultiBlockTrainingConfig {
