@@ -15,7 +15,7 @@ import kotlinx.coroutines.CancellationException
  */
 internal object KellvynDecisionProtocolBehaviorBenchmark {
     const val MINIMUM_EXAMPLES = 20
-    const val MINIMUM_DECISION_MATCH_RATE = 0.80
+    const val MINIMUM_DECISION_MATCH_RATE = 0.90
 
     data class Counts(val finalDecision: Int, val callTool: Int, val plan: Int)
 
@@ -175,7 +175,7 @@ internal object KellvynDecisionProtocolBehaviorBenchmark {
             .take(240)
 
     private fun minimumClassMatches(expected: Int): Int =
-        if (expected == 0) 0 else ceil(expected * 0.60).toInt()
+        if (expected == 0) 0 else ceil(expected * 0.80).toInt()
 
     private const val PROTOCOL_VALIDATION_TIME_MILLIS = 1_800_000_000_000L
 }
