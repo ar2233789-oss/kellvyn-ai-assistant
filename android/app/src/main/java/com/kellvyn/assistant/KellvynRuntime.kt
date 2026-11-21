@@ -21,9 +21,6 @@ import com.kellvyn.assistant.neural.KellvynMultiBlockTransformer
 import com.kellvyn.assistant.neural.KellvynRestoredMultiBlockBundle
 import com.kellvyn.assistant.neural.KellvynNeuralTrainingController
 import com.kellvyn.assistant.neural.KellvynJsonlCorpusReader
-import com.kellvyn.assistant.neural.KellvynNeuralChatRuntime
-import com.kellvyn.assistant.neural.KellvynNeuralBehaviorApprovalStore
-import com.kellvyn.assistant.neural.KellvynNeuralBehaviorBenchmark
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -35,6 +32,13 @@ import java.io.FilterInputStream
 import java.io.IOException
 import java.io.InputStream
 import java.util.Locale
+
+internal data class KellvynDecisionBrainStatus(
+    val ready: Boolean,
+    val detail: String,
+    val qualityApprovedForBenchmark: Boolean,
+    val behaviorApprovedForConversation: Boolean
+)
 
 /**
  * Local Android runtime for the single KN brain.
@@ -134,13 +138,6 @@ internal class KellvynRuntime(context: Context) {
                 }
             }
         }
-    }
-    private val neuralBehaviorApprovalStore = KellvynNeuralBehaviorApprovalStore(
-        File(appContext.filesDir, "neural/behavior.approval"),
-        KellvynAndroidTaskCheckpointCipher("kellvyn.kn004.behavior-approval.aes-gcm.v1")
-    )
-    private val neuralChatRuntime by lazy {
-        KellvynNeuralChatRuntime(neuralModelStore, neuralBehaviorApprovalStore)
     }
     private val decisionProtocolApprovalStore = KellvynDecisionProtocolApprovalStore(
         File(appContext.filesDir, "neural/decision-protocol.approval"),
@@ -571,12 +568,12 @@ internal class KellvynRuntime(context: Context) {
      * when the numeric gate and the persisted authenticated behavior approval both match.
      */
     fun initializeConversation(
-        onInitialized: (KellvynNeuralChatRuntime.Status) -> Unit = {}
+        onInitialized: (KellvynDecisionBrainStatus) -> Unit = {}
     ) {
         synchronized(this) {
             if (activeSingleBrain != null) {
                 onInitialized(
-                    KellvynNeuralChatRuntime.Status(
+                    KellvynDecisionBrainStatus(
                         ready = true,
                         detail = "Cérebro KN-004 carregado com aprovação do protocolo de decisões.",
                         qualityApprovedForBenchmark = true,
@@ -591,7 +588,7 @@ internal class KellvynRuntime(context: Context) {
                 val result = try {
                     runBlocking { initializeSingleBrainStatus() }
                 } catch (error: Exception) {
-                    KellvynNeuralChatRuntime.Status(
+                    KellvynDecisionBrainStatus(
                         ready = false,
                         detail = error.message?.take(400)
                             ?: "Falha ao validar o cérebro KN-004.",
@@ -606,9 +603,9 @@ internal class KellvynRuntime(context: Context) {
         }
     }
 
-    private suspend fun initializeSingleBrainStatus(): KellvynNeuralChatRuntime.Status {
+    private suspend fun initializeSingleBrainStatus(): KellvynDecisionBrainStatus {
         val bundle = loadOwnMultiBlockModelForInference()
-            ?: return KellvynNeuralChatRuntime.Status(
+            ?: return KellvynDecisionBrainStatus(
                 ready = false,
                 detail = "Nenhum checkpoint KN-004 válido está instalado.",
                 qualityApprovedForBenchmark = false,
@@ -616,7 +613,7 @@ internal class KellvynRuntime(context: Context) {
             )
         val quality = KellvynMultiBlockTrainingQualityGate.evaluate(bundle.manifest)
         if (!quality.eligibleForProtocolBenchmark) {
-            return KellvynNeuralChatRuntime.Status(
+            return KellvynDecisionBrainStatus(
                 ready = false,
                 detail = "O checkpoint KN-004 não passou pelo gate numérico.",
                 qualityApprovedForBenchmark = false,
@@ -635,7 +632,7 @@ internal class KellvynRuntime(context: Context) {
             expectedSampleCount = heldOutCount
         )
         if (approval == null) {
-            return KellvynNeuralChatRuntime.Status(
+            return KellvynDecisionBrainStatus(
                 ready = false,
                 detail = "Checkpoint numérico aprovado; falta aprovação do benchmark KELLVYN/1.",
                 qualityApprovedForBenchmark = true,
@@ -652,29 +649,11 @@ internal class KellvynRuntime(context: Context) {
             )
         )
         activeSingleBrain = createSingleBrain(inference)
-        return KellvynNeuralChatRuntime.Status(
+        return KellvynDecisionBrainStatus(
             ready = true,
             detail = "Cérebro KN-004 aprovado pelo benchmark de decisões e carregado localmente.",
             qualityApprovedForBenchmark = true,
             behaviorApprovedForConversation = true
-        )
-    }
-
-    /** Controlled API retained for explicit training/benchmark workflows. */
-    suspend fun initializeOwnMultiBlockChat(): KellvynNeuralChatRuntime.Status =
-        withContext(Dispatchers.IO) { neuralChatRuntime.initialize() }
-
-    /**
-     * Runs the original held-out TEST examples against this exact loaded checkpoint.
-     * Only a passing report unlocks this runtime instance; restart requires a new benchmark.
-     */
-    suspend fun benchmarkOwnMultiBlockChat(
-        heldOutTestExamples: List<KellvynInstructionTrainingExample>,
-        maxNewTokens: Int = 96
-    ): KellvynNeuralBehaviorBenchmark.Report = withContext(Dispatchers.Default) {
-        neuralChatRuntime.runBehaviorBenchmark(
-            examples = heldOutTestExamples,
-            maxNewTokens = maxNewTokens
         )
     }
 
@@ -727,26 +706,6 @@ internal class KellvynRuntime(context: Context) {
             decisionProtocolApprovalStore.delete()
         }
         report
-    }
-
-    /**
-     * Generates with the locally trained KN-004 only after numeric and behavioral gates pass.
-     * Main chat remains disabled until app-level integration and device validation are approved.
-     */
-    suspend fun generateOwnMultiBlockReply(
-        prompt: String,
-        maxNewTokens: Int = 96,
-        onPartial: (String) -> Unit = {}
-    ): String = withContext(Dispatchers.Default) {
-        neuralChatRuntime.generateContinuation(
-            prompt = prompt,
-            maxNewTokens = maxNewTokens,
-            onPartial = onPartial
-        )
-    }
-
-    fun unloadOwnMultiBlockChat() {
-        neuralChatRuntime.unload()
     }
 
     /** Loads the independently versioned KN-004 tokenizer, model and provenance bundle. */
@@ -1289,7 +1248,6 @@ internal class KellvynRuntime(context: Context) {
      */
     private fun invalidateDecisionBrainAfterCheckpointReplacement() {
         activeSingleBrain = null
-        neuralChatRuntime.unload()
         decisionProtocolApprovalStore.delete()
     }
 
@@ -1405,7 +1363,6 @@ internal class KellvynRuntime(context: Context) {
         resetConversationAndWait()
         neuralInitializationThread?.interrupt()
         activeSingleBrain = null
-        neuralChatRuntime.unload()
         memoryRepository.close()
     }
 
