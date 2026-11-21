@@ -37,7 +37,7 @@ class KellvynDecisionProtocolApprovalStoreTest {
         val report = report(
             model = "a".repeat(64),
             test = "b".repeat(64),
-            matched = KellvynDecisionProtocolBehaviorBenchmark.Counts(7, 7, 7)
+            matched = KellvynDecisionProtocolBehaviorBenchmark.Counts(8, 8, 8)
         )
 
         val saved = store.save(report, approvedAtMillis = 1_800_000_000_000L)
@@ -48,10 +48,10 @@ class KellvynDecisionProtocolApprovalStoreTest {
         )
 
         assertTrue(file.isFile)
-        assertEquals(0.875, saved.overallDecisionMatchRate, 0.0001)
-        assertEquals(0.875, saved.finalDecisionMatchRate, 0.0001)
-        assertEquals(0.875, saved.toolDecisionMatchRate, 0.0001)
-        assertEquals(0.875, saved.planDecisionMatchRate, 0.0001)
+        assertEquals(1.0, saved.overallDecisionMatchRate, 0.0001)
+        assertEquals(1.0, saved.finalDecisionMatchRate, 0.0001)
+        assertEquals(1.0, saved.toolDecisionMatchRate, 0.0001)
+        assertEquals(1.0, saved.planDecisionMatchRate, 0.0001)
         assertEquals(saved, restored)
     }
 
