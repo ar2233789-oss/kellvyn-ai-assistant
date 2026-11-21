@@ -10,7 +10,7 @@ internal object KellvynMultiBlockPromptFormatter {
         history: List<KellvynAgentMessage>,
         availableTools: List<KellvynToolSpec>,
         maxMessageChars: Int = 900,
-        maxToolDescriptionChars: Int = 80
+        maxToolDescriptionChars: Int = 100
     ): String {
         require(maxMessageChars in 128..8_000)
         require(maxToolDescriptionChars in 16..400)
@@ -75,14 +75,31 @@ internal object KellvynMultiBlockPromptFormatter {
             val required = spec.requiredArguments.sorted().joinToString(",")
             val optional = spec.optionalArguments.sorted().joinToString(",")
             val schema = spec.argumentSchemas.joinToString(";") { argument ->
-                "${argument.name}:${argument.type.name.lowercase()}" +
-                    if (argument.type == KellvynToolArgumentType.ENUM) {
-                        "=${argument.allowedValues.sorted().joinToString("|")}"
-                    } else {
-                        ""
+                buildString {
+                    append(argument.name)
+                    append(':')
+                    append(argument.type.name.lowercase())
+                    append(if (argument.required) "!" else "?")
+                    append("[max=").append(argument.maxLength)
+                    argument.pattern?.let {
+                        append(",pattern=").append(it.take(120))
                     }
+                    if (argument.type == KellvynToolArgumentType.ENUM) {
+                        append(",values=").append(argument.allowedValues.sorted().joinToString("|"))
+                    }
+                    argument.minInteger?.let { append(",min=").append(it) }
+                    argument.maxInteger?.let { append(",maxInt=").append(it) }
+                    argument.minNumber?.let { append(",minNum=").append(it) }
+                    argument.maxNumber?.let { append(",maxNum=").append(it) }
+                    append(']')
+                }
             }
-            "${spec.name} r=${spec.risk.name} req=[$required] opt=[$optional] " +
+            val capabilities = spec.capabilities
+                .map { it.name.lowercase() }
+                .sorted()
+                .joinToString(",")
+            "${spec.name} r=${spec.risk.name} workload=${spec.workloadClass.name} " +
+                "cap=[$capabilities] req=[$required] opt=[$optional] " +
                 "schema=[$schema] ${spec.description.take(maxToolDescriptionChars)}"
         } + "\n"
     }
