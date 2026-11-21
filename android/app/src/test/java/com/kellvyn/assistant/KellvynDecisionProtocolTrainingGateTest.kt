@@ -164,6 +164,27 @@ class KellvynDecisionProtocolTrainingGateTest {
         assertEquals(KellvynStepRisk.REVERSIBLE_WRITE, KellvynToolRisk.CANCEL_QUEUED_TASK.toStepRisk())
     }
 
+    @Test
+    fun rejectsDuplicatePromptsInHeldOutTestBeforeTraining() {
+        val examples = sampleExamples().toMutableList()
+        examples[7] = examples[7].copy(prompt = examples[6].prompt)
+
+        val report = KellvynDecisionProtocolTrainingGate.evaluate(
+            examples = examples,
+            tools = registry(),
+            minimumTrainExamples = 3,
+            minimumValidationExamples = 3,
+            minimumTestExamples = 3,
+            minimumTrainPerDecision = 1,
+            minimumValidationPerDecision = 1,
+            minimumTestPerDecision = 1
+        )
+
+        assertFalse(report.readyForDecisionTraining)
+        assertEquals(2, report.rejectedExamples)
+        assertTrue(report.reasons.any { it.contains("prompt TEST duplicado") })
+    }
+
     private fun sampleExamples(): List<KellvynInstructionTrainingExample> =
         KellvynTrainingSplit.values().flatMap { split ->
             listOf(
