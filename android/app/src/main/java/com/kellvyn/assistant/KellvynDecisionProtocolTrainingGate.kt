@@ -52,8 +52,19 @@ internal object KellvynDecisionProtocolTrainingGate {
         )
         var rejected = 0
 
+        val duplicateTestGroups = examples
+            .filter { it.split == KellvynTrainingSplit.TEST }
+            .groupBy { normalizePrompt(it.prompt) }
+            .filterValues { it.size > 1 }
+        duplicateTestGroups.values.flatten().forEach { example ->
+            rejected++
+            reasons += "${example.id}: prompt TEST duplicado; o benchmark exige entradas únicas."
+        }
+        val duplicateTestIds = duplicateTestGroups.values.flatten().map { it.id }.toSet()
+
         examples.forEach { example ->
             splitTotals[example.split] = (splitTotals[example.split] ?: 0) + 1
+            if (example.id in duplicateTestIds) return@forEach
             val parsed = when (
                 val result = KellvynDecisionProtocol.parse(
                     example.completion,
@@ -165,6 +176,9 @@ internal object KellvynDecisionProtocolTrainingGate {
         }
         return report
     }
+
+    private fun normalizePrompt(value: String): String =
+        value.trim().lowercase().replace(Regex("\\s+"), " ")
 
     private const val PROTOCOL_VALIDATION_TIME_MILLIS = 1_800_000_000_000L
 }
