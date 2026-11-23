@@ -38,6 +38,25 @@ internal data class KellvynProjectSearchReport(
 )
 
 internal object KellvynProjectSearchRanker {
+    private const val BM25_K1 = 1.2
+    private const val BM25_B = 0.75
+    private const val BM25_NORMALIZER = 1.0
+
+    private data class PreparedDocument(
+        val document: KellvynProjectSearchDocument,
+        val bodyTokens: List<String>,
+        val termFrequency: Map<String, Int>,
+        val pathTerms: Set<String>,
+        val identifierTerms: Set<String>
+    )
+
+    /**
+     * BM25 body relevance fused with path and symbol matches.
+     *
+     * The corpus is deliberately bounded by the caller (normally <=60 files and <=12k chars
+     * per file), so the statistics are computed in memory without a database or background
+     * service. This improves ranking without changing the central neural model.
+     */
     fun rank(
         documents: List<KellvynProjectSearchDocument>,
         query: String,
@@ -46,42 +65,81 @@ internal object KellvynProjectSearchRanker {
         require(query.isNotBlank() && query.length <= 120)
         require(limit in 1..20)
         val queryTerms = KellvynMemoryRanker.tokens(query)
-        if (queryTerms.isEmpty()) return emptyList()
+        if (queryTerms.isEmpty() || documents.isEmpty()) return emptyList()
 
-        return documents.mapNotNull { document ->
+        val prepared = documents.map { document ->
+            val bodyTokens = tokenOccurrences(document.excerpt)
             val pathTerms = KellvynMemoryRanker.tokens(document.path)
-            val contentTerms = KellvynMemoryRanker.tokens(document.excerpt)
             val identifierTerms = document.codeIndex?.searchableIdentifiers
                 ?.flatMap { KellvynMemoryRanker.tokens(it) }
                 ?.toSet()
                 .orEmpty()
-            val textTerms = pathTerms + contentTerms
-            val matched = queryTerms.intersect(textTerms + identifierTerms)
+            PreparedDocument(
+                document = document,
+                bodyTokens = bodyTokens,
+                termFrequency = bodyTokens.groupingBy { it }.eachCount(),
+                pathTerms = pathTerms,
+                identifierTerms = identifierTerms
+            )
+        }
+
+        val totalDocuments = prepared.size.toDouble()
+        val averageDocumentLength = prepared.sumOf { it.bodyTokens.size.toDouble() }
+            .div(totalDocuments)
+            .coerceAtLeast(1.0)
+        val documentFrequency = queryTerms.associateWith { term ->
+            prepared.count { term in it.termFrequency }
+        }
+
+        return prepared.mapNotNull { indexed ->
+            val bodyTerms = indexed.termFrequency.keys
+            val allTextTerms = indexed.pathTerms + bodyTerms
+            val matched = queryTerms.intersect(
+                allTextTerms + indexed.identifierTerms
+            )
             if (matched.isEmpty()) return@mapNotNull null
 
-            val pathMatches = queryTerms.intersect(pathTerms)
-            val textMatches = queryTerms.intersect(textTerms)
-            val identifierMatches = queryTerms.intersect(identifierTerms)
+            val bodyMatches = queryTerms.intersect(bodyTerms)
+            val pathMatches = queryTerms.intersect(indexed.pathTerms)
+            val textMatches = queryTerms.intersect(allTextTerms)
+            val identifierMatches = queryTerms.intersect(indexed.identifierTerms)
             val denominator = queryTerms.size.toDouble()
-            val textScore = textMatches.size.toDouble() / denominator
+            val textCoverage = textMatches.size.toDouble() / denominator
             val pathScore = pathMatches.size.toDouble() / denominator
             val identifierScore = identifierMatches.size.toDouble() / denominator
-            val score = if (document.codeIndex == null) {
-                // Preserve the established text/path ranking for prose documents.
-                (0.78 * textScore + 0.22 * pathScore).coerceIn(0.0, 1.0)
-            } else {
-                (0.62 * textScore + 0.16 * pathScore + 0.22 * identifierScore)
-                    .coerceIn(0.0, 1.0)
+
+            val rawBm25 = queryTerms.sumOf { term ->
+                val frequency = indexed.termFrequency[term] ?: 0
+                if (frequency == 0) {
+                    0.0
+                } else {
+                    val df = documentFrequency[term] ?: 0
+                    val inverseDocumentFrequency = kotlin.math.ln(
+                        1.0 + (totalDocuments - df + 0.5) / (df + 0.5)
+                    )
+                    val documentLength = indexed.bodyTokens.size.toDouble().coerceAtLeast(1.0)
+                    val lengthNorm = frequency + BM25_K1 * (
+                        1.0 - BM25_B + BM25_B * documentLength / averageDocumentLength
+                    )
+                    inverseDocumentFrequency *
+                        (frequency * (BM25_K1 + 1.0) / lengthNorm)
+                }
             }
-            val snippet = bestSnippet(document.excerpt, queryTerms)
+            val normalizedBm25 = rawBm25 / (rawBm25 + BM25_NORMALIZER)
+            val score = (
+                0.65 * textCoverage +
+                    0.25 * normalizedBm25 +
+                    0.08 * pathScore +
+                    0.02 * identifierScore
+                ).coerceIn(0.0, 1.0)
 
             KellvynProjectSearchHit(
-                path = document.path,
-                snippet = snippet.take(400),
+                path = indexed.document.path,
+                snippet = bestSnippet(indexed.document.excerpt, queryTerms).take(400),
                 score = score,
                 matchedTerms = matched,
-                truncated = document.truncated,
-                sizeBytes = document.sizeBytes,
+                truncated = indexed.document.truncated,
+                sizeBytes = indexed.document.sizeBytes,
                 matchedIdentifiers = identifierMatches
             )
         }.sortedWith(
@@ -90,18 +148,27 @@ internal object KellvynProjectSearchRanker {
         ).take(limit)
     }
 
+    private fun tokenOccurrences(value: String): List<String> {
+        val normalized = java.text.Normalizer.normalize(
+            value,
+            java.text.Normalizer.Form.NFD
+        ).replace(Regex("\\p{Mn}+"), "").lowercase(java.util.Locale.ROOT)
+        return Regex("[\\p{L}\\p{N}]{2,}").findAll(normalized)
+            .map { it.value }
+            .toList()
+    }
+
     private fun bestSnippet(content: String, queryTerms: Set<String>): String {
         val lines = content.lines()
         if (lines.isEmpty()) return content.take(400)
         val best = lines.mapIndexed { index, line ->
-            val terms = KellvynMemoryRanker.tokens(line)
-            index to terms.intersect(queryTerms).size
+            index to KellvynMemoryRanker.tokens(line).intersect(queryTerms).size
         }.maxByOrNull { it.second }
         val selected = best?.takeIf { it.second > 0 }?.first ?: 0
         val start = (selected - 1).coerceAtLeast(0)
         val end = (selected + 2).coerceAtMost(lines.lastIndex)
         return (start..end).joinToString("\n") { lineIndex ->
-            "${lineIndex + 1}: ${lines[lineIndex]}"
+            (lineIndex + 1).toString() + ": " + lines[lineIndex]
         }
     }
 }
