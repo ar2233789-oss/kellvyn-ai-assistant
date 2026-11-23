@@ -1,5 +1,5 @@
 name: Poco F6 virtual comparison lab
-# Build, exercise, and compare the existing web layout and native Android screen without editing either UI.
+# QA run: verify the 85% native settings sheet against the web reference and exercise all Android controls.
 
 on:
   pull_request:
