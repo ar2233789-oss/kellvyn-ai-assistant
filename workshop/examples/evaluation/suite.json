@@ -1,0 +1,7 @@
+{
+  "suite_id": "sample-evaluation-v1",
+  "cases": [
+    {"id": "greeting-01", "input": "olá", "expected": "saudação"},
+    {"id": "math-01", "input": "quanto é 2+2?", "expected": "4"}
+  ]
+}
