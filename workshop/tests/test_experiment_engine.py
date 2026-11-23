@@ -153,5 +153,52 @@ class ExperimentEngineTests(unittest.TestCase):
             engine.compare_runs(baseline, candidate, POLICY)
 
 
+    def test_record_imports_metrics_from_matching_complete_evaluation(self):
+        spec_path = self.write_spec("evaluated.json", make_spec("evaluated-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("evaluation-result.json", {
+            "schema": 1, "status": "complete", "evaluation_suite_sha256": HASH_B,
+            "metrics": {"exact_match_accuracy": 0.9, "coverage": 1.0, "matched_count": 9,
+                        "case_count": 9, "missing_prediction_count": 0, "extra_prediction_count": 0}
+        })
+        output = self.root / "evaluated.run.json"
+        run = engine.record_run(spec_path, self.artifacts, output, evaluation_path)
+        self.assertEqual(0.9, run["metrics"]["exact_match_accuracy"])
+        self.assertEqual("complete", run["evaluation"]["status"])
+        verified = engine.verify_run(output, self.artifacts, evaluation_path)
+        self.assertEqual("verified", verified["status"])
+        self.assertEqual("verified", verified["evaluation_result_status"])
+
+    def test_record_imports_task_metrics_without_exact_match_metric(self):
+        spec_path = self.write_spec("classification.json", make_spec("classification-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("classification-eval.json", {
+            "schema": 1, "status": "complete", "task": "classification", "evaluation_suite_sha256": HASH_B,
+            "metrics": {"accuracy": 0.9, "macro_f1": 0.88, "coverage": 1.0, "matched_count": 9,
+                        "case_count": 9, "missing_prediction_count": 0, "extra_prediction_count": 0}
+        })
+        run = engine.record_run(spec_path, self.artifacts, self.root / "classification.run.json", evaluation_path)
+        self.assertEqual(0.9, run["metrics"]["accuracy"])
+        self.assertEqual(0.88, run["metrics"]["macro_f1"])
+
+    def test_record_rejects_evaluation_from_different_suite(self):
+        spec_path = self.write_spec("wrong-suite.json", make_spec("wrong-suite-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("wrong-suite-eval.json", {
+            "schema": 1, "status": "complete", "evaluation_suite_sha256": "c" * 64,
+            "metrics": {"exact_match_accuracy": 0.9, "coverage": 1.0, "matched_count": 9,
+                        "case_count": 9, "missing_prediction_count": 0, "extra_prediction_count": 0}
+        })
+        with self.assertRaises(engine.ExperimentError):
+            engine.record_run(spec_path, self.artifacts, self.root / "wrong-suite.run.json", evaluation_path)
+
+    def test_record_rejects_partial_evaluation(self):
+        spec_path = self.write_spec("partial.json", make_spec("partial-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("partial-eval.json", {
+            "schema": 1, "status": "partial", "evaluation_suite_sha256": HASH_B,
+            "metrics": {"exact_match_accuracy": 0.9, "coverage": 0.5, "matched_count": 1,
+                        "case_count": 2, "missing_prediction_count": 1, "extra_prediction_count": 0}
+        })
+        with self.assertRaises(engine.ExperimentError):
+            engine.record_run(spec_path, self.artifacts, self.root / "partial.run.json", evaluation_path)
+
+
 if __name__ == "__main__":
     unittest.main()
