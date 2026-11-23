@@ -15,9 +15,10 @@ import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
-import java.time.Instant
-import java.time.ZoneOffset
+import java.text.SimpleDateFormat
+import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.zip.GZIPInputStream
 
 internal data class KellvynDeveloperAnswer(
@@ -185,10 +186,10 @@ internal class KellvynDeveloperKnowledgeStudio(
     }.take(MAX_OUTPUT_CHARS)
 
     private fun formatDate(epochSeconds: Long): String = try {
-        Instant.ofEpochSecond(epochSeconds)
-            .atZone(ZoneOffset.UTC)
-            .toLocalDate()
-            .toString()
+        val safeEpochSeconds = epochSeconds.coerceIn(0L, 253_402_300_799L)
+        SimpleDateFormat("yyyy-MM-dd", Locale.ROOT).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date(safeEpochSeconds * 1_000L))
     } catch (_: Exception) {
         "data indisponível"
     }
@@ -300,7 +301,7 @@ internal class KellvynStackExchangeApiProvider(
             require(limit in 1..5)
 
             val now = clock()
-            activeBackoff(KEY_SEARCH_BACKOFF, now)?.let { seconds ->
+            activeBackoff(KEY_API_BACKOFF, now)?.let { seconds ->
                 return@withContext KellvynDeveloperSearchBatch(
                     emptyList(),
                     listOf("A API solicitou espera de " + seconds + "s antes de uma nova pesquisa.")
@@ -325,7 +326,7 @@ internal class KellvynStackExchangeApiProvider(
                     "&pagesize=" + limit +
                     "&answers=1&filter=withbody"
             )
-            val searchResponse = request(searchUrl, KEY_SEARCH_BACKOFF)
+            val searchResponse = request(searchUrl)
             var quotaRemaining = searchResponse.optInt("quota_remaining", -1)
                 .takeIf { it >= 0 }
             val questions = parseQuestions(searchResponse.optJSONArray("items") ?: JSONArray())
@@ -337,11 +338,13 @@ internal class KellvynStackExchangeApiProvider(
                 )
             }
 
-            val answerBackoff = activeBackoff(KEY_ANSWERS_BACKOFF, clock())
+            // Stack Exchange backoff is global: after the first response asks us to wait,
+            // do not issue the answer-detail request in the same tool execution.
+            val answerBackoff = activeBackoff(KEY_API_BACKOFF, clock())
             if (answerBackoff != null) {
                 return@withContext KellvynDeveloperSearchBatch(
                     questions,
-                    warnings = listOf("Respostas detalhadas temporariamente limitadas; aguarde " + answerBackoff + "s."),
+                    warnings = listOf("A API solicitou espera global de " + answerBackoff + "s; as respostas detalhadas foram adiadas."),
                     quotaRemaining = quotaRemaining
                 )
             }
@@ -354,7 +357,7 @@ internal class KellvynStackExchangeApiProvider(
             )
             val warnings = mutableListOf<String>()
             val answerMap = try {
-                val answerResponse = request(answerUrl, KEY_ANSWERS_BACKOFF)
+                val answerResponse = request(answerUrl)
                 val answerQuota = answerResponse.optInt("quota_remaining", -1)
                     .takeIf { it >= 0 }
                 if (answerQuota != null) {
@@ -382,7 +385,7 @@ internal class KellvynStackExchangeApiProvider(
             KellvynDeveloperSearchBatch(enriched, warnings, quotaRemaining)
         }
 
-    private fun request(url: URL, backoffKey: String): JSONObject {
+    private fun request(url: URL): JSONObject {
         require(url.protocol == "https" && url.host == API_HOST) {
             "O destino da pesquisa não pertence à API oficial permitida."
         }
@@ -405,7 +408,7 @@ internal class KellvynStackExchangeApiProvider(
                     val retryAfter = connection.getHeaderField("Retry-After")
                         ?.toLongOrNull()
                         ?.coerceAtLeast(1L)
-                    if (retryAfter != null) storeBackoff(backoffKey, retryAfter, clock())
+                    if (retryAfter != null) storeBackoff(KEY_API_BACKOFF, retryAfter, clock())
                 }
                 throw IllegalStateException("A API respondeu HTTP " + status + ".")
             }
@@ -425,7 +428,7 @@ internal class KellvynStackExchangeApiProvider(
                 )
             }
             val backoff = json.optInt("backoff", 0)
-            if (backoff > 0) storeBackoff(backoffKey, backoff.toLong(), clock())
+            if (backoff > 0) storeBackoff(KEY_API_BACKOFF, backoff.toLong(), clock())
             return json
         } finally {
             connection.disconnect()
@@ -617,8 +620,7 @@ internal class KellvynStackExchangeApiProvider(
         const val MAX_RESPONSE_BYTES = 384 * 1024
         const val MAX_RECENT_QUERY_HASHES = 24
         const val MAX_ANSWERS_PER_QUESTION = 2
-        const val KEY_SEARCH_BACKOFF = "stackexchange.search.backoff_until"
-        const val KEY_ANSWERS_BACKOFF = "stackexchange.answers.backoff_until"
+        const val KEY_API_BACKOFF = "stackexchange.api.backoff_until"
         const val KEY_RECENT_QUERY_MAP = "stackexchange.recent_queries"
         const val MAX_TITLE_CHARS = 240
         const val MAX_BODY_CHARS = 700
