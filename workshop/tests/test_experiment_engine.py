@@ -200,5 +200,28 @@ class ExperimentEngineTests(unittest.TestCase):
             engine.record_run(spec_path, self.artifacts, self.root / "partial.run.json", evaluation_path)
 
 
+    def test_evaluation_is_not_claimed_verified_without_rechecking_result_file(self):
+        spec_path = self.write_spec("no-recheck.json", make_spec("no-recheck-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("no-recheck-eval.json", {
+            "schema": 1, "status": "complete", "evaluation_suite_sha256": HASH_B,
+            "metrics": {"exact_match_accuracy": 0.9, "coverage": 1.0, "matched_count": 2,
+                        "case_count": 2, "missing_prediction_count": 0, "extra_prediction_count": 0}
+        })
+        output = self.root / "no-recheck.run.json"
+        engine.record_run(spec_path, self.artifacts, output, evaluation_path)
+        result = engine.verify_run(output, self.artifacts)
+        self.assertEqual("evaluation_not_rechecked", result["status"])
+
+    def test_record_rejects_complete_result_with_inconsistent_counts(self):
+        spec_path = self.write_spec("inconsistent.json", make_spec("inconsistent-run", {"latency_ms": 100}))
+        evaluation_path = self.write_spec("inconsistent-eval.json", {
+            "schema": 1, "status": "complete", "evaluation_suite_sha256": HASH_B,
+            "metrics": {"exact_match_accuracy": 0.9, "coverage": 1.0, "matched_count": 1,
+                        "case_count": 2, "missing_prediction_count": 0, "extra_prediction_count": 0}
+        })
+        with self.assertRaises(engine.ExperimentError):
+            engine.record_run(spec_path, self.artifacts, self.root / "inconsistent.run.json", evaluation_path)
+
+
 if __name__ == "__main__":
     unittest.main()
