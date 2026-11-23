@@ -1,0 +1,29 @@
+{
+  "run_id": "sample-run-001",
+  "experiment": "local-model-benchmark",
+  "kind": "language-model",
+  "subject": {
+    "name": "modelo-de-exemplo",
+    "version": "1.0",
+    "revision": "sha-ou-commit-do-modelo"
+  },
+  "comparison_context": {
+    "dataset_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+    "evaluation_suite_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "device": "Poco F6",
+    "runtime": "runtime-local",
+    "precision": "int4"
+  },
+  "parameters": {
+    "temperature": 0.2,
+    "max_tokens": 256
+  },
+  "metrics": {
+    "quality_score": 0.87,
+    "latency_ms": 1250,
+    "peak_memory_mb": 2800
+  },
+  "artifacts": [
+    "predictions.json"
+  ]
+}
