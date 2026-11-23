@@ -1,6 +1,7 @@
 package com.kellvyn.assistant
 
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -296,8 +297,8 @@ internal interface KellvynProjectContextSearch {
     suspend fun search(request: KellvynProjectSearchRequest): KellvynProjectSearchReport
 }
 /**
- * Bounded project retrieval. It never scans .git, binary/unsupported files, known
- * secret-bearing paths, or files whose content resembles credentials.
+ * Bounded project retrieval. It excludes .git, unsupported/binary types and known
+ * secret-bearing paths; allowed text excerpts are screened for credential-like content.
  * Results are data only and must enter model context as UNTRUSTED.
  */
 internal class KellvynProjectContextRetriever(
@@ -307,6 +308,9 @@ internal class KellvynProjectContextRetriever(
         withContext(Dispatchers.IO) {
             require(request.projectId.matches(Regex("[a-z0-9][a-z0-9-]{0,60}")))
             require(request.query.trim().length in 2..120)
+            require(KellvynProjectSearchLexicon.tokens(request.query).isNotEmpty()) {
+                "A consulta não contém termos úteis para busca."
+            }
             require(request.maxFilesToScan in 1..60)
             require(request.maxResults in 1..20)
 
@@ -374,7 +378,7 @@ internal class KellvynProjectContextRetriever(
     private fun isAllowedPath(path: String): Boolean {
         val segments = path.replace('\\', '/').split('/')
         return segments.none { segment ->
-            val value = segment.lowercase()
+            val value = segment.lowercase(Locale.ROOT)
             value == ".git" ||
                 value == ".env" ||
                 value.startsWith(".env.") ||

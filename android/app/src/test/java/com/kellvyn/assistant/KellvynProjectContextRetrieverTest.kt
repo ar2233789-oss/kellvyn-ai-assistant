@@ -198,6 +198,15 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun tokenizerRemovesStopWordsButKeepsUsefulBilingualTerms() {
+        assertTrue(KellvynProjectSearchLexicon.tokens("de um para com").isEmpty())
+        assertEquals(
+            setOf("memoria", "cache", "memory"),
+            KellvynProjectSearchLexicon.tokens("memória cache memory")
+        )
+    }
+
+    @Test
     fun unrelatedFilesAreNotReturned() {
         val documents = listOf(
             KellvynProjectSearchDocument(

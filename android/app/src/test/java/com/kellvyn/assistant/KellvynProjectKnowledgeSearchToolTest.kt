@@ -55,25 +55,32 @@ class KellvynProjectKnowledgeSearchToolTest {
 
     @Test
     fun validatesProjectQueryLimitAndUnknownArguments() = runBlocking {
+        var searchInvoked = false
         val searcher = object : KellvynProjectContextSearch {
             override suspend fun search(
                 request: KellvynProjectSearchRequest
-            ): KellvynProjectSearchReport = KellvynProjectSearchReport(
-                projectId = request.projectId,
-                query = request.query,
-                hits = emptyList(),
-                filesScanned = 0,
-                filesSkipped = 0
-            )
+            ): KellvynProjectSearchReport {
+                searchInvoked = true
+                return KellvynProjectSearchReport(
+                    projectId = request.projectId,
+                    query = request.query,
+                    hits = emptyList(),
+                    filesScanned = 0,
+                    filesSkipped = 0
+                )
+            }
         }
         val tool = KellvynProjectKnowledgeSearchTool(searcher)
 
         assertFalse(tool.execute(mapOf("project_id" to "../outside", "query" to "memory")).success)
         assertFalse(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to " ")).success)
+        assertFalse(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to "de um")).success)
         assertFalse(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to "memory", "limit" to "9")).success)
         assertFalse(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to "memory", "limit" to "zero")).success)
         assertFalse(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to "memory", "url" to "https://example.com")).success)
+        assertFalse(searchInvoked)
         assertTrue(tool.execute(mapOf("project_id" to "kellvyn-app", "query" to "memory")).success)
+        assertTrue(searchInvoked)
     }
 
     @Test

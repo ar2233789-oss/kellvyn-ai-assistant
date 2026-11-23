@@ -31,6 +31,13 @@ internal class KellvynProjectKnowledgeSearchTool(
             )
         }
 
+        if (KellvynProjectSearchLexicon.tokens(query).isEmpty()) {
+            return KellvynToolResult(
+                false,
+                "A consulta precisa incluir pelo menos um termo útil para busca."
+            )
+        }
+
         val rawLimit = arguments["limit"]
         val limit = if (rawLimit == null) DEFAULT_RESULTS else rawLimit.toIntOrNull()
             ?: return KellvynToolResult(false, "O limite precisa ser um número inteiro.")
