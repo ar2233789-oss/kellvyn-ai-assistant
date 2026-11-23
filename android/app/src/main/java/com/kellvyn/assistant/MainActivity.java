@@ -62,6 +62,7 @@ public class MainActivity extends Activity {
     private static final int PICK_FILE = 1001;
     private static final int SPEECH = 1002;
     private static final int SAVE_TEXT = 1003;
+    private static final String[] THINKING_STEPS = {"Analisando", "Pensando", "Organizando a resposta"};
     private static final Pattern GENERATED_PROJECT_FILE = Pattern.compile(
             "(?m)^Arquivo:\\s*([^\\r\\n]+)\\s*\\r?\\n\\s*(?:\\x60){3}[^\\r\\n]*\\r?\\n(.*?)\\r?\\n(?:\\x60){3}",
             Pattern.DOTALL);
@@ -78,8 +79,14 @@ public class MainActivity extends Activity {
     private Uri selectedAttachmentUri = null;
     private TextView footerStatus;
     private TextView activeReplyBubble;
-    private TextView thinkingIndicator;
+    private View thinkingIndicator;
+    private TextView thinkingLabel;
     private ObjectAnimator thinkingAnimator;
+    private ValueAnimator thinkingRingAnimator;
+    private ValueAnimator thinkingTextAnimator;
+    private final Handler thinkingHandler = new Handler(android.os.Looper.getMainLooper());
+    private Runnable thinkingStepRunnable;
+    private int thinkingStepIndex = 0;
     private TextToSpeech textToSpeech;
     private String pendingDownloadText = "";
     private LocalBrain brain;
@@ -111,10 +118,16 @@ public class MainActivity extends Activity {
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 
     private void buildScreen() {
+        // Stop the previous full-screen animation before replacing the view tree.
+        // Without this, every color change leaves an unreachable RainView scheduling frames.
+        if (rain != null) rain.stop();
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(uiBackground());
         rain = new RainView();
         root.addView(rain, new FrameLayout.LayoutParams(-1, -1));
+        // Theme changes rebuild this view tree without invoking Activity.onResume() again.
+        // Start the replacement so rain/lightning never freezes after a color switch.
+        rain.start();
 
         LinearLayout shell = new LinearLayout(this);
         shell.setOrientation(LinearLayout.VERTICAL);
@@ -123,7 +136,7 @@ public class MainActivity extends Activity {
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
         header.setPadding(dp(12), dp(5), dp(12), dp(5));
-        header.setBackgroundColor(0xEE0B1211);
+        header.setBackgroundColor(themeSurfaceColor(0xEE0B1211));
         // 46dp header + 1dp divider reproduces the web reference's 47dp header.
         shell.addView(header, new LinearLayout.LayoutParams(-1, dp(46)));
 
@@ -143,7 +156,7 @@ public class MainActivity extends Activity {
         settings.setOnClickListener(v -> showSettingsPanel());
 
         View divider = new View(this);
-        divider.setBackgroundColor(0x5533C995);
+        divider.setBackgroundColor(themeAccentColor(0x5533C995));
         shell.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
         chatScroll = new ScrollView(this);
@@ -159,7 +172,7 @@ public class MainActivity extends Activity {
         composerPanel.setOrientation(LinearLayout.VERTICAL);
         // The reference draws one rounded border around both the prompt and the action row.
         composerPanel.setPadding(dp(8), dp(8), dp(8), dp(8));
-        composerPanel.setBackground(roundRect(uiPanelAltColor(), dp(18), 0x8845A989, dp(1)));
+        composerPanel.setBackground(roundRect(uiPanelAltColor(), dp(18), themeAccentColor(0x8845A989), dp(1)));
         LinearLayout.LayoutParams composerPanelLp = new LinearLayout.LayoutParams(-1, -2);
         composerPanelLp.setMargins(dp(12), dp(4), dp(12), dp(12));
         shell.addView(composerPanel, composerPanelLp);
@@ -199,7 +212,7 @@ public class MainActivity extends Activity {
         footerStatus.setIncludeFontPadding(false);
         footerStatus.setGravity(Gravity.CENTER);
         footerStatus.setPadding(dp(10), 0, dp(10), 0);
-        footerStatus.setBackground(roundRect(uiPanelAltColor(), dp(12), 0x8845A989, dp(1)));
+        footerStatus.setBackground(roundRect(uiPanelAltColor(), dp(12), themeAccentColor(0x8845A989), dp(1)));
         controls.addView(footerStatus, new LinearLayout.LayoutParams(-2, dp(34)));
 
         View spacer = new View(this);
@@ -210,16 +223,16 @@ public class MainActivity extends Activity {
         mic.setOnClickListener(v -> startSpeech());
 
         View send = new LucideIconView("send", "Enviar mensagem");
-        send.setBackground(roundRect(0x00000000, dp(18), 0x8845A989, dp(1)));
+        send.setBackground(roundRect(0x00000000, dp(18), themeAccentColor(0x8845A989), dp(1)));
         controls.addView(send, new LinearLayout.LayoutParams(dp(36), dp(36)));
         send.setOnClickListener(v -> sendMessage());
 
         View navDivider = new View(this);
-        navDivider.setBackgroundColor(0x4433C995);
+        navDivider.setBackgroundColor(themeAccentColor(0x4433C995));
         shell.addView(navDivider, new LinearLayout.LayoutParams(-1, dp(1)));
         LinearLayout bottomNav = new LinearLayout(this);
         bottomNav.setGravity(Gravity.CENTER_VERTICAL);
-        bottomNav.setBackgroundColor(0xF20A1110);
+        bottomNav.setBackgroundColor(themeSurfaceColor(0xF20A1110));
         bottomNav.setPadding(dp(2), dp(3), dp(2), dp(4));
         // 67dp navigation + the divider matches the measured 67.5dp web navigation bar.
         shell.addView(bottomNav, new LinearLayout.LayoutParams(-1, dp(67)));
@@ -230,6 +243,9 @@ public class MainActivity extends Activity {
         addNavItem(bottomNav, "♧", "Bots", this::showBots);
         addNavItem(bottomNav, "▦", "Apps", this::openPhoneApps);
         setContentView(root);
+        // Theme changes replace this view tree without invoking Activity.onResume().
+        // Start the replacement effect layer immediately; onPause() still stops it normally.
+        if (rain != null) rain.start();
     }
 
     private android.graphics.drawable.GradientDrawable roundRect(int color, int radius, int stroke, int strokeWidth) {
@@ -265,12 +281,24 @@ public class MainActivity extends Activity {
     /** Crisp outline icons matching the Lucide set used by the web reference. */
     private final class LucideIconView extends View {
         private final String iconName;
+        private final float iconSizeDp;
+        private final int iconColor;
         private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final Path iconPath = new Path();
 
         LucideIconView(String iconName, String description) {
+            this(iconName, description, 22f, accent);
+        }
+
+        LucideIconView(String iconName, String description, float iconSizeDp) {
+            this(iconName, description, iconSizeDp, accent);
+        }
+
+        LucideIconView(String iconName, String description, float iconSizeDp, int iconColor) {
             super(MainActivity.this);
             this.iconName = iconName;
+            this.iconSizeDp = iconSizeDp;
+            this.iconColor = iconColor;
             if (description != null) setContentDescription(description);
             else setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
@@ -284,18 +312,18 @@ public class MainActivity extends Activity {
 
         @Override protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
-            float size = dp(22);
+            float size = dp(iconSizeDp);
             canvas.save();
             canvas.translate((getWidth() - size) / 2f, (getHeight() - size) / 2f);
             canvas.scale(size / 24f, size / 24f);
             iconPaint.reset();
             iconPaint.setAntiAlias(true);
-            iconPaint.setColor(accent);
+            iconPaint.setColor(iconColor);
             iconPaint.setStrokeWidth(1.9f);
             iconPaint.setStyle(Paint.Style.STROKE);
             iconPaint.setStrokeCap(Paint.Cap.ROUND);
             iconPaint.setStrokeJoin(Paint.Join.ROUND);
-            if ("AI".equals(iconName)) iconPaint.setShadowLayer(1.0f, 0, 0, 0x9938E6BC);
+            if ("AI".equals(iconName)) iconPaint.setShadowLayer(1.0f, 0, 0, themeAccentColor(0x9938E6BC));
 
             switch (iconName) {
                 case "AI":
@@ -383,6 +411,37 @@ public class MainActivity extends Activity {
                     canvas.drawLine(12, 20, 12, 22, iconPaint);
                     canvas.drawLine(8, 22, 16, 22, iconPaint);
                     break;
+                case "copy":
+                    canvas.drawRoundRect(8, 8, 20, 21, 1.5f, 1.5f, iconPaint);
+                    canvas.drawRoundRect(4, 3, 16, 16, 1.5f, 1.5f, iconPaint);
+                    break;
+                case "volume-2":
+                    iconPath.reset();
+                    iconPath.moveTo(3, 9); iconPath.lineTo(7, 9); iconPath.lineTo(12, 5);
+                    iconPath.lineTo(12, 19); iconPath.lineTo(7, 15); iconPath.lineTo(3, 15);
+                    iconPath.close();
+                    canvas.drawPath(iconPath, iconPaint);
+                    iconPath.reset();
+                    iconPath.moveTo(16, 9); iconPath.quadTo(20, 12, 16, 15);
+                    iconPath.moveTo(18, 6); iconPath.quadTo(24, 12, 18, 18);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "download":
+                    iconPath.reset();
+                    iconPath.moveTo(12, 3); iconPath.lineTo(12, 15);
+                    iconPath.moveTo(7, 10); iconPath.lineTo(12, 15); iconPath.lineTo(17, 10);
+                    iconPath.moveTo(4, 20); iconPath.lineTo(20, 20);
+                    canvas.drawPath(iconPath, iconPaint);
+                    break;
+                case "share-2":
+                    iconPath.reset();
+                    iconPath.moveTo(8.5f, 11); iconPath.lineTo(15.5f, 6.5f);
+                    iconPath.moveTo(8.5f, 13); iconPath.lineTo(15.5f, 17.5f);
+                    canvas.drawPath(iconPath, iconPaint);
+                    canvas.drawCircle(6, 12, 2.5f, iconPaint);
+                    canvas.drawCircle(18, 5, 2.5f, iconPaint);
+                    canvas.drawCircle(18, 19, 2.5f, iconPaint);
+                    break;
                 case "send":
                     canvas.drawCircle(12, 12, 10, iconPaint);
                     iconPath.reset();
@@ -402,7 +461,7 @@ public class MainActivity extends Activity {
         LinearLayout welcome = new LinearLayout(this);
         welcome.setOrientation(LinearLayout.VERTICAL);
         welcome.setGravity(Gravity.CENTER_HORIZONTAL);
-        welcome.setPadding(dp(8), dp(72), dp(8), dp(24));
+        welcome.setPadding(dp(8), dp(96), dp(8), dp(24));
         welcome.addView(new KellvynLogoView(), new LinearLayout.LayoutParams(dp(56), dp(56)));
         TextView sub = text("Converse com a Kellvyn IA ou peça para criar um aplicativo.", 15, uiMutedColor(), false);
         sub.setGravity(Gravity.CENTER);
@@ -423,8 +482,13 @@ public class MainActivity extends Activity {
         bubble.setLineSpacing(dp(3), 1f);
         bubble.setPadding(dp(13), dp(10), dp(13), dp(10));
         bubble.setMaxWidth((int) (getResources().getDisplayMetrics().widthPixels * 0.84f));
-        bubble.setBackground(roundRect(user ? 0xE51B3D31 : 0xE5111B19, dp(14),
-                user ? 0xAA29C78D : 0x5544A58A, dp(1)));
+        int bubbleBackground = user
+                ? themeUserBubbleColor(0xE51B3D31)
+                : themeAssistantBubbleColor(0xE5111B19);
+        int bubbleBorder = user
+                ? themeAccentColor(0xAA29C78D)
+                : themeAccentColor(0x5544A58A);
+        bubble.setBackground(roundRect(bubbleBackground, dp(14), bubbleBorder, dp(1)));
 
         if (user) {
             row.addView(bubble, new LinearLayout.LayoutParams(-2, -2));
@@ -437,10 +501,10 @@ public class MainActivity extends Activity {
             LinearLayout actions = new LinearLayout(this);
             actions.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
             actions.setPadding(dp(1), dp(1), 0, 0);
-            addMessageAction(actions, "▢", "Copiar", () -> copyText(bubble.getText().toString()));
-            addMessageAction(actions, "♫", "Ouvir", () -> speakText(bubble.getText().toString()));
-            addMessageAction(actions, "↓", "Baixar", () -> downloadText(bubble.getText().toString()));
-            addMessageAction(actions, "↗", "Compartilhar", () -> shareText(bubble.getText().toString()));
+            addMessageAction(actions, "copy", "Copiar", () -> copyText(bubble.getText().toString()));
+            addMessageAction(actions, "volume-2", "Ouvir", () -> speakText(bubble.getText().toString()));
+            addMessageAction(actions, "download", "Baixar", () -> downloadText(bubble.getText().toString()));
+            addMessageAction(actions, "share-2", "Compartilhar", () -> shareText(bubble.getText().toString()));
             column.addView(actions, new LinearLayout.LayoutParams(-2, dp(30)));
             row.addView(column, new LinearLayout.LayoutParams(-2, -2));
         }
@@ -451,11 +515,11 @@ public class MainActivity extends Activity {
         return bubble;
     }
 
-    private void addMessageAction(LinearLayout parent, String glyph, String description, Runnable action) {
-        TextView button = text(glyph, 17, uiMutedColor(), false);
-        button.setGravity(Gravity.CENTER);
-        button.setContentDescription(description);
+    private void addMessageAction(LinearLayout parent, String iconName, String description, Runnable action) {
+        // Keep reply actions muted like the web reference; each click reads the same bubble's final text.
+        LucideIconView button = new LucideIconView(iconName, description, 17f, uiMutedColor());
         button.setBackground(roundRect(0x00000000, dp(7), 0, 0));
+        button.setFocusable(true);
         button.setOnClickListener(v -> action.run());
         parent.addView(button, new LinearLayout.LayoutParams(dp(34), dp(30)));
     }
@@ -500,27 +564,153 @@ public class MainActivity extends Activity {
 
     private void showThinkingIndicator() {
         hideThinkingIndicator();
-        thinkingIndicator = text("🧠  Pensando…", 12, uiMutedColor(), false);
-        thinkingIndicator.setPadding(dp(6), dp(3), dp(6), dp(8));
-        messages.addView(thinkingIndicator, new LinearLayout.LayoutParams(-2, -2));
-        thinkingAnimator = ObjectAnimator.ofFloat(thinkingIndicator, View.ALPHA, 0.45f, 1f);
-        thinkingAnimator.setDuration(850);
+
+        // Match the locked Lovable ThinkingBrain: 28dp halo, 18dp brain, 13sp shimmer
+        // text and three status phases that rotate every 900ms. Keep the brain deliberately small.
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+
+        FrameLayout brainFrame = new FrameLayout(this);
+        brainFrame.setClipChildren(false);
+        brainFrame.setClipToPadding(false);
+        View ring = new View(this);
+        android.graphics.drawable.GradientDrawable ringShape = new android.graphics.drawable.GradientDrawable();
+        ringShape.setShape(android.graphics.drawable.GradientDrawable.OVAL);
+        ringShape.setColor(Color.argb(64, Color.red(accent), Color.green(accent), Color.blue(accent)));
+        ring.setBackground(ringShape);
+        brainFrame.addView(ring, new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+
+        ThinkingBrainIconView brainIcon = new ThinkingBrainIconView();
+        brainFrame.addView(brainIcon, new FrameLayout.LayoutParams(dp(18), dp(18), Gravity.CENTER));
+        row.addView(brainFrame, new LinearLayout.LayoutParams(dp(28), dp(28)));
+
+        thinkingLabel = text(THINKING_STEPS[0] + "…", 13, uiMutedColor(), false);
+        thinkingLabel.setIncludeFontPadding(false);
+        LinearLayout.LayoutParams labelLp = new LinearLayout.LayoutParams(-2, -2);
+        labelLp.leftMargin = dp(8);
+        row.addView(thinkingLabel, labelLp);
+
+        thinkingIndicator = row;
+        messages.addView(row, new LinearLayout.LayoutParams(-1, -2));
+
+        thinkingRingAnimator = ValueAnimator.ofFloat(0f, 1f);
+        thinkingRingAnimator.setDuration(900);
+        thinkingRingAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingRingAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        thinkingRingAnimator.addUpdateListener(animation -> {
+            float phase = (float) animation.getAnimatedValue();
+            float scale = 1f + 0.8f * phase;
+            ring.setScaleX(scale);
+            ring.setScaleY(scale);
+            ring.setAlpha(1f - phase);
+        });
+        thinkingRingAnimator.start();
+
+        thinkingAnimator = ObjectAnimator.ofFloat(brainIcon, View.ALPHA, 0.65f, 1f);
+        thinkingAnimator.setDuration(900);
         thinkingAnimator.setRepeatCount(ValueAnimator.INFINITE);
         thinkingAnimator.setRepeatMode(ValueAnimator.REVERSE);
         thinkingAnimator.start();
+
+        thinkingTextAnimator = ValueAnimator.ofFloat(0f, 1f);
+        thinkingTextAnimator.setDuration(1600);
+        thinkingTextAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        thinkingTextAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        thinkingTextAnimator.addUpdateListener(animation -> {
+            if (thinkingLabel == null) return;
+            float t = (float) animation.getAnimatedValue();
+            float phase = t < 0.5f ? t * 2f : (1f - t) * 2f;
+            thinkingLabel.setTextColor(blendColors(uiMutedColor(), accent, 0.08f + phase * 0.38f));
+        });
+        thinkingTextAnimator.start();
+
+        thinkingStepIndex = 0;
+        thinkingStepRunnable = new Runnable() {
+            @Override public void run() {
+                if (thinkingLabel == null) return;
+                thinkingStepIndex = (thinkingStepIndex + 1) % THINKING_STEPS.length;
+                thinkingLabel.setText(THINKING_STEPS[thinkingStepIndex] + "…");
+                thinkingHandler.postDelayed(this, 900L);
+            }
+        };
+        thinkingHandler.postDelayed(thinkingStepRunnable, 900L);
         chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
     }
 
     private void hideThinkingIndicator() {
+        if (thinkingStepRunnable != null) {
+            thinkingHandler.removeCallbacks(thinkingStepRunnable);
+            thinkingStepRunnable = null;
+        }
         if (thinkingAnimator != null) {
             thinkingAnimator.cancel();
             thinkingAnimator = null;
+        }
+        if (thinkingRingAnimator != null) {
+            thinkingRingAnimator.cancel();
+            thinkingRingAnimator = null;
+        }
+        if (thinkingTextAnimator != null) {
+            thinkingTextAnimator.cancel();
+            thinkingTextAnimator = null;
         }
         if (thinkingIndicator != null) {
             if (thinkingIndicator.getParent() instanceof android.view.ViewGroup) {
                 ((android.view.ViewGroup) thinkingIndicator.getParent()).removeView(thinkingIndicator);
             }
             thinkingIndicator = null;
+        }
+        thinkingLabel = null;
+        thinkingStepIndex = 0;
+    }
+
+    private final class ThinkingBrainIconView extends View {
+        private final Paint brainPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+        ThinkingBrainIconView() {
+            super(MainActivity.this);
+            setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            float scale = Math.min(getWidth(), getHeight()) / 24f;
+            if (scale <= 0f) return;
+            canvas.save();
+            canvas.translate((getWidth() - 24f * scale) / 2f, (getHeight() - 24f * scale) / 2f);
+            canvas.scale(scale, scale);
+            brainPaint.setColor(accent);
+            brainPaint.setStyle(Paint.Style.STROKE);
+            brainPaint.setStrokeWidth(1.7f);
+            brainPaint.setStrokeCap(Paint.Cap.ROUND);
+            brainPaint.setStrokeJoin(Paint.Join.ROUND);
+            brainPaint.setShadowLayer(3f, 0f, 0f, accent);
+
+            Path brain = new Path();
+            brain.moveTo(12f, 18f);
+            brain.lineTo(12f, 5f);
+            brain.moveTo(12f, 5f);
+            brain.cubicTo(10.4f, 2.4f, 7.4f, 2.0f, 5.8f, 4.1f);
+            brain.cubicTo(3.4f, 4.0f, 2.8f, 6.6f, 4.0f, 8.0f);
+            brain.cubicTo(2.7f, 9.7f, 3.4f, 11.3f, 4.2f, 12.0f);
+            brain.cubicTo(2.8f, 14.5f, 4.5f, 16.3f, 6.2f, 16.2f);
+            brain.cubicTo(6.3f, 18.8f, 9.1f, 20.0f, 12f, 18f);
+            brain.cubicTo(14.9f, 20.0f, 17.7f, 18.8f, 17.8f, 16.2f);
+            brain.cubicTo(20.5f, 16.1f, 21.3f, 13.8f, 19.9f, 12.0f);
+            brain.cubicTo(21.2f, 10.2f, 20.6f, 8.8f, 20.0f, 8.0f);
+            brain.cubicTo(21.1f, 5.6f, 19.4f, 3.8f, 17.8f, 4.2f);
+            brain.cubicTo(16.3f, 2.0f, 13.4f, 2.4f, 12f, 5f);
+            brain.moveTo(12f, 9f);
+            brain.cubicTo(11.6f, 11.0f, 9.7f, 12.5f, 8.2f, 12.5f);
+            brain.moveTo(12f, 9f);
+            brain.cubicTo(12.4f, 11.0f, 14.3f, 12.5f, 15.8f, 12.5f);
+            brain.moveTo(12f, 17.9f);
+            brain.cubicTo(10.8f, 16.1f, 9.9f, 15.4f, 8.2f, 15.3f);
+            canvas.drawPath(brain, brainPaint);
+            brainPaint.clearShadowLayer();
+            canvas.restore();
         }
     }
 
@@ -583,7 +773,8 @@ public class MainActivity extends Activity {
 
             @Override public void onPartial(String text) {
                 runOnUiThread(() -> {
-                    hideThinkingIndicator();
+                    // Keep the thinking brain visible while the response streams, matching the
+                    // web UI; it disappears only when inference completes or reports an error.
                     if (activeReplyBubble != null) activeReplyBubble.setText(text);
                     if (chatScroll != null) chatScroll.post(() -> chatScroll.fullScroll(View.FOCUS_DOWN));
                 });
@@ -605,6 +796,7 @@ public class MainActivity extends Activity {
                     engineLabel = "INFERÊNCIA PRÓPRIA";
                     updateStatus();
                     activeReplyBubble = null;
+                    scrollToLatestMessage();
                 });
             }
 
@@ -619,6 +811,7 @@ public class MainActivity extends Activity {
                     engineLabel = "MOTOR LOCAL INDISPONÍVEL";
                     updateStatus();
                     activeReplyBubble = null;
+                    scrollToLatestMessage();
                 });
             }
         });
@@ -1007,7 +1200,7 @@ public class MainActivity extends Activity {
                 botsContainer.addView(row, new LinearLayout.LayoutParams(-1, -2));
 
                 View divider = new View(MainActivity.this);
-                divider.setBackgroundColor(0x2233C995);
+                divider.setBackgroundColor(themeAccentColor(0x2233C995));
                 botsContainer.addView(divider, new LinearLayout.LayoutParams(-1, dp(1)));
 
                 if (!supportsRuntime) {
@@ -1130,7 +1323,7 @@ public class MainActivity extends Activity {
         source.setMaxLines(16);
         source.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_MULTI_LINE | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         source.setTypeface(Typeface.MONOSPACE);
-        source.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x5545A989, dp(1)));
+        source.setBackground(roundRect(uiPanelAltColor(), dp(10), themeAccentColor(0x5545A989), dp(1)));
         source.setPadding(dp(10), dp(10), dp(10), dp(10));
 
         LinearLayout form = new LinearLayout(this);
@@ -1211,6 +1404,38 @@ public class MainActivity extends Activity {
                 .setPositiveButton("Entendi", null).show();
     }
 
+    /** Preserve every approved emerald RGB value; other palettes tint fixed native surfaces too. */
+    private boolean isDefaultVisualTheme() {
+        return accent == EMERALD && uiBackground() == DEFAULT_BG && uiTextColor() == DEFAULT_TEXT;
+    }
+
+    private int colorWithAlpha(int color, int alpha) {
+        return Color.argb(alpha, Color.red(color), Color.green(color), Color.blue(color));
+    }
+
+    /** Keeps the existing opacity and default appearance but follows the selected accent hue. */
+    private int themeAccentColor(int defaultColor) {
+        if (isDefaultVisualTheme()) return defaultColor;
+        return colorWithAlpha(accent, Color.alpha(defaultColor));
+    }
+
+    /** Keeps opaque/overlay header and navigation surfaces in the selected background palette. */
+    private int themeSurfaceColor(int defaultColor) {
+        if (isDefaultVisualTheme()) return defaultColor;
+        int surface = blendColors(uiBackground(), Color.BLACK, 0.035f);
+        return colorWithAlpha(surface, Color.alpha(defaultColor));
+    }
+
+    private int themeUserBubbleColor(int defaultColor) {
+        if (isDefaultVisualTheme()) return defaultColor;
+        return colorWithAlpha(blendColors(uiBackground(), accent, 0.12f), Color.alpha(defaultColor));
+    }
+
+    private int themeAssistantBubbleColor(int defaultColor) {
+        if (isDefaultVisualTheme()) return defaultColor;
+        return colorWithAlpha(blendColors(uiBackground(), uiTextColor(), 0.025f), Color.alpha(defaultColor));
+    }
+
     private int uiBackground() {
         return prefs == null ? DEFAULT_BG : prefs.getInt("ui_bg", DEFAULT_BG);
     }
@@ -1249,6 +1474,14 @@ public class MainActivity extends Activity {
     }
 
     private void applyVisualTheme() {
+        // A theme change can happen while the local model is replying. Preserve its visible
+        // placeholder and restart only the existing indicator so the callback never targets
+        // a detached TextView and the animation does not leak from the previous screen.
+        boolean resumeThinking = waitingForReply;
+        String pendingReplyText = activeReplyBubble == null ? "" : activeReplyBubble.getText().toString();
+        hideThinkingIndicator();
+        activeReplyBubble = null;
+
         getWindow().setStatusBarColor(uiBackground());
         getWindow().setNavigationBarColor(uiBackground());
         buildScreen();
@@ -1257,7 +1490,23 @@ public class MainActivity extends Activity {
             if (item != null && item.length() >= 2) addMessageView(!item.startsWith("S|"), item.substring(2));
         }
         if (transcript.isEmpty()) showWelcome();
+        if (resumeThinking) {
+            activeReplyBubble = addMessageView(false, pendingReplyText);
+            showThinkingIndicator();
+        }
         updateStatus();
+        scrollToLatestMessage();
+    }
+
+    private void scrollToLatestMessage() {
+        if (chatScroll == null) return;
+        chatScroll.post(() -> {
+            if (chatScroll != null) {
+                chatScroll.post(() -> {
+                    if (chatScroll != null) chatScroll.fullScroll(View.FOCUS_DOWN);
+                });
+            }
+        });
     }
 
     private LinearLayout settingsSection(LinearLayout parent, String label) {
@@ -1322,6 +1571,12 @@ public class MainActivity extends Activity {
         return field;
     }
 
+    private void reopenSettingsPanelAfterDismiss() {
+        // Avoid opening a new Window while Android is still dismissing the previous Dialog.
+        // The race could leave a HEX editor above the main chat after palette changes.
+        new Handler(android.os.Looper.getMainLooper()).postDelayed(this::showSettingsPanel, 250L);
+    }
+
     private void editThemeColor(String key, String title, int currentColor, android.app.Dialog parentDialog) {
         EditText input = new EditText(this);
         input.setSingleLine(true);
@@ -1336,7 +1591,7 @@ public class MainActivity extends Activity {
                 .setTitle(title)
                 .setMessage("Informe uma cor HEX de seis dígitos.")
                 .setView(input)
-                .setNegativeButton("Cancelar", (d, which) -> showSettingsPanel())
+                .setNegativeButton("Cancelar", (d, which) -> reopenSettingsPanelAfterDismiss())
                 .setPositiveButton("Aplicar", null)
                 .create();
         // A Dialog has its own window. Dismiss the sheet first so the color editor is
@@ -1356,12 +1611,12 @@ public class MainActivity extends Activity {
                 }
                 editor.dismiss();
                 applyVisualTheme();
-                showSettingsPanel();
+                reopenSettingsPanelAfterDismiss();
             } catch (IllegalArgumentException invalid) {
                 toast("HEX inválido. Use, por exemplo, #38E6BC.");
             }
         }));
-        editor.setOnCancelListener(d -> showSettingsPanel());
+        editor.setOnCancelListener(d -> reopenSettingsPanelAfterDismiss());
         editor.show();
     }
 
@@ -1417,7 +1672,7 @@ public class MainActivity extends Activity {
                     .apply();
             parentDialog.dismiss();
             applyVisualTheme();
-            showSettingsPanel();
+            reopenSettingsPanelAfterDismiss();
         });
         return button;
     }
@@ -1516,13 +1771,13 @@ public class MainActivity extends Activity {
         entry.setHint("Nova informação…");
         entry.setTextColor(uiTextColor());
         entry.setHintTextColor(uiMutedColor());
-        entry.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+        entry.setBackground(roundRect(uiPanelAltColor(), dp(10), themeAccentColor(0x8845A989), dp(1)));
         entry.setPadding(dp(10), dp(9), dp(10), dp(9));
 
         TextView add = text("Salvar", 13, accent, true);
         add.setGravity(Gravity.CENTER);
         add.setPadding(dp(12), dp(9), dp(12), dp(9));
-        add.setBackground(roundRect(uiPanelAltColor(), dp(10), 0x8845A989, dp(1)));
+        add.setBackground(roundRect(uiPanelAltColor(), dp(10), themeAccentColor(0x8845A989), dp(1)));
 
         panel.addView(saved);
         LinearLayout.LayoutParams entryLp = new LinearLayout.LayoutParams(-1, -2);
@@ -1673,7 +1928,7 @@ public class MainActivity extends Activity {
             TextView chip = text(label, 12, on ? uiBackground() : uiTextColor(), false);
             chip.setGravity(Gravity.CENTER);
             chip.setPadding(dp(12), dp(6), dp(12), dp(6));
-            chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : 0x6645A989, dp(1)));
+            chip.setBackground(roundRect(on ? accent : uiPanelAltColor(), dp(25), on ? accent : themeAccentColor(0x6645A989), dp(1)));
             LinearLayout.LayoutParams chipLp = new LinearLayout.LayoutParams(-2, -2);
             chipLp.rightMargin = dp(5);
             firstEffectRow.addView(chip, chipLp);
@@ -1690,7 +1945,7 @@ public class MainActivity extends Activity {
                 }
                 saveEffectOptions(selected);
                 dialog.dismiss();
-                showSettingsPanel();
+                reopenSettingsPanelAfterDismiss();
             });
         }
 
@@ -1735,9 +1990,9 @@ public class MainActivity extends Activity {
             WindowManager.LayoutParams params = window.getAttributes();
             params.gravity = Gravity.BOTTOM;
             params.width = -1;
-            // Pixel-aligned comparison at 1220x2712: 88% placed the sheet top 62px too high,
-            // while 85% put it 81px too low after the system-inset crop. Interpolated height: 86.7%.
-            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.867f);
+            // The 1220x2712 native screenshot showed the 89.6% sheet top about 100px
+            // above the web reference. Reduce height to 85.9%; preserve control sizes and footer placement.
+            params.height = (int) (getResources().getDisplayMetrics().heightPixels * 0.859f);
             // Match the Lovable bottom sheet backdrop: stronger dim plus a small blur,
             // limited to the settings overlay so the underlying main-screen layout is untouched.
             params.dimAmount = 0.70f;
@@ -1843,10 +2098,7 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this).setTitle("Cor da interface").setItems(colors, (d, which) -> {
             accent = values[which];
             prefs.edit().putInt("accent", accent).apply();
-            buildScreen();
-            messages.removeAllViews();
-            for (String item : transcript) addMessageView(!item.startsWith("S|"), item.substring(2));
-            if (transcript.isEmpty()) showWelcome();
+            applyVisualTheme();
         }).setNegativeButton("Cancelar", null).show();
     }
 
@@ -1991,22 +2243,32 @@ public class MainActivity extends Activity {
         private final float[] x = new float[count], y = new float[count], speed = new float[count], len = new float[count], opacity = new float[count];
         private final float[] px = new float[particleCount], py = new float[particleCount];
         private final float[] pspeed = new float[particleCount], psize = new float[particleCount], prot = new float[particleCount], protSpeed = new float[particleCount];
-        private final float[] boltX = new float[15], boltY = new float[15];
+        private final float[] boltX = new float[14], boltY = new float[14];
+        private int boltPointCount = 0;
         private Set<String> activeEffects = new HashSet<>();
         private boolean initialized = false, running = false;
-        private int flashFrames = 0;
+        private float flashIntensity = 0f;
         private long nextLightningAt = 0L;
 
         RainView() {
             super(MainActivity.this);
             flashPaint.setColor(0x18DDE8FF);
             activeEffects = renderEffectSet();
+            if (activeEffects.contains("raios")) {
+                nextLightningAt = System.currentTimeMillis() + 1200L;
+            }
         }
 
         void setEffects(Set<String> effects) {
+            boolean hadLightning = activeEffects.contains("raios");
+            boolean hasLightning = effects.contains("raios");
             activeEffects = new HashSet<>(effects);
-            if (activeEffects.contains("raios") && nextLightningAt == 0L) {
+            if (hasLightning && (!hadLightning || nextLightningAt == 0L)) {
                 nextLightningAt = System.currentTimeMillis() + 1200L;
+                flashIntensity = 0f;
+            } else if (!hasLightning) {
+                nextLightningAt = 0L;
+                flashIntensity = 0f;
             }
             invalidate();
         }
@@ -2092,29 +2354,49 @@ public class MainActivity extends Activity {
 
         private void drawLightning(Canvas c) {
             long now = System.currentTimeMillis();
-            if (flashFrames <= 0 && now >= nextLightningAt) {
-                float bx = getWidth() * (0.2f + (float)Math.random()*0.6f);
+            if (flashIntensity <= 0f && now >= nextLightningAt) {
+                // One clean, short bolt with restrained bends: it should read as lightning,
+                // not a dense zigzag or a branching graphic covering the whole screen.
+                float endY = getHeight() * (0.40f + (float)Math.random() * 0.12f);
+                boltPointCount = boltX.length;
+                float bx = getWidth() * (0.24f + (float)Math.random() * 0.52f);
                 float by = 0f;
-                for (int i=0;i<boltX.length;i++) {
+                float minX = getWidth() * 0.12f;
+                float maxX = getWidth() * 0.88f;
+                for (int i = 0; i < boltPointCount; i++) {
                     boltX[i] = bx;
                     boltY[i] = by;
-                    bx += (-getWidth()*0.055f + (float)Math.random()*getWidth()*0.11f);
-                    by += getHeight() / (float)(boltX.length - 1);
+                    if (i < boltPointCount - 1) {
+                        float jitter = dp(8f + (float)Math.random() * 8f);
+                        bx = Math.max(minX, Math.min(maxX,
+                                bx - jitter + (float)Math.random() * jitter * 2f));
+                        by = endY * (i + 1f) / (boltPointCount - 1f);
+                    }
                 }
-                flashFrames = 3;
-                nextLightningAt = now + 3500L + (long)(Math.random()*5500L);
+                flashIntensity = 1f;
+                nextLightningAt = now + 3500L + (long)(Math.random() * 5500L);
             }
-            if (flashFrames > 0) {
+
+            if (flashIntensity > 0f) {
+                // Keep the full-screen flash barely perceptible; the narrow bolt is the focus.
+                flashPaint.setColor(Color.argb(Math.round(255f * flashIntensity * 0.035f), 221, 232, 255));
                 c.drawRect(0, 0, getWidth(), getHeight(), flashPaint);
-                p.setColor(0xFFEAF1FF);
-                p.setStrokeWidth(dp(1.8f));
-                p.setShadowLayer(dp(12), 0, 0, 0xFF9DB8FF);
+
+                p.setColor(Color.argb(Math.round(255f * flashIntensity * 0.88f), 242, 247, 255));
+                p.setStyle(Paint.Style.STROKE);
+                p.setStrokeCap(Paint.Cap.ROUND);
+                p.setStrokeJoin(Paint.Join.ROUND);
+                p.setStrokeWidth(dp(1.35f));
+                p.setShadowLayer(dp(5f), 0, 0, 0xFF9DB8FF);
+
                 Path path = new Path();
-                path.moveTo(boltX[0], boltY[0]);
-                for (int i=1;i<boltX.length;i++) path.lineTo(boltX[i], boltY[i]);
-                c.drawPath(path, p);
+                if (boltPointCount > 0) {
+                    path.moveTo(boltX[0], boltY[0]);
+                    for (int i = 1; i < boltPointCount; i++) path.lineTo(boltX[i], boltY[i]);
+                    c.drawPath(path, p);
+                }
                 p.clearShadowLayer();
-                flashFrames--;
+                flashIntensity = Math.max(0f, flashIntensity - 0.16f);
             }
         }
 

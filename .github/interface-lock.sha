@@ -8,4 +8,4 @@ a04d2bffae951ffb221184a08c436af879d098d5 src/components/kellvyn/store.ts
 5dc104ead73ba012b07192964b9f319bbb626469 src/routes/index.tsx
 1e07392be47f687b3c16a821105068936894e3d8 src/routes/__root.tsx
 20a48e518017c38f1c0973f6e6bb4bed9d8d49a5 src/routeTree.gen.ts
-bc7de61c36a3c46fc90b9962600cb48d6c3ed2c8 android/app/src/main/java/com/kellvyn/assistant/MainActivity.java
+0fbdbee4ef79cf0d1a5c9554de517340e79024cf android/app/src/main/java/com/kellvyn/assistant/MainActivity.java
