@@ -1,0 +1,7 @@
+{
+  "predictions": [
+    {"id": "cat-01", "output": "animal"},
+    {"id": "car-01", "output": "vehicle"},
+    {"id": "dog-01", "output": "animal"}
+  ]
+}
