@@ -1578,10 +1578,10 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
                 "android", "apk", "gradle", "compilar", "build", "compile", "erro",
                 "error", "falha", "failure"
             ),
+            // Keep shared web hints generic. Domain-specific terms belong in each tool
+            // description so academic searches do not pull Stack Overflow (and vice versa).
             KellvynStudioCapability.WEB_RESEARCH to setOf(
-                "pesquisar", "pesquisa", "research", "web", "site", "internet", "fonte",
-                "source", "stackoverflow", "stack", "duvida", "question", "erro", "error",
-                "exception", "stacktrace", "paper", "artigo", "estudo", "scientific"
+                "pesquisar", "pesquisa", "research", "web", "site", "internet", "fonte", "source"
             ),
             KellvynStudioCapability.DEVICE_DIAGNOSTICS to setOf(
                 "recursos", "resource", "ram", "memoria", "memory", "bateria", "battery",
