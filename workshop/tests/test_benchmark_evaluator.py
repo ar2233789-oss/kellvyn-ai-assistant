@@ -144,5 +144,11 @@ class BenchmarkEvaluatorTests(unittest.TestCase):
             evaluator.evaluate(suite, "f" * 64, {"empty": "hello"})
 
 
+    def test_word_error_rate_alignment_has_bounded_memory(self):
+        words = ["word"] * 1001
+        with self.assertRaises(evaluator.EvaluationError):
+            evaluator.word_edit_counts(words, words)
+
+
 if __name__ == "__main__":
     unittest.main()
