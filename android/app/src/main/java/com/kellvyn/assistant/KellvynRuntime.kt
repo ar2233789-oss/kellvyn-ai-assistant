@@ -102,6 +102,9 @@ internal class KellvynRuntime(context: Context) {
         resourceRuntime.studioModules.registerIfAbsent(
             KellvynAcademicResearchStudio.definition(appContext)
         )
+        resourceRuntime.studioModules.registerIfAbsent(
+            KellvynDeveloperKnowledgeStudio.definition(appContext)
+        )
         // Legacy agent studios are intentionally not registered in the central KN runtime.
         // Their sources, tests and encrypted history remain available for migration/audit.
         resourceRuntime.studioModules.registerIfAbsent(
