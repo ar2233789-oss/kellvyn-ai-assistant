@@ -1,0 +1,7 @@
+{
+  "predictions": [
+    {"id": "r-01", "output": 11.0},
+    {"id": "r-02", "output": 19.0},
+    {"id": "r-03", "output": 31.0}
+  ]
+}
