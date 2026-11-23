@@ -63,7 +63,7 @@ internal class KellvynAcademicResearchStudio(
 
                 val query = arguments["query"]?.trim().orEmpty()
                 if (query.isBlank() || query.length > MAX_QUERY_CHARS ||
-                    query.any { it.isISOControl() }
+                    query.any { it.code < 32 || it.code == 127 }
                 ) {
                     return KellvynToolResult(
                         false,
@@ -430,8 +430,9 @@ internal class KellvynOpenAlexCrossrefProvider : KellvynAcademicSearchProvider {
         val words = TreeMap<Int, String>()
         val keys = index.keys()
         while (keys.hasNext()) {
-            val word = keys.next().cleanText(80)
-            val positions = index.optJSONArray(keys.currentKey()) 
+            val rawWord = keys.next()
+            val word = rawWord.cleanText(80)
+            val positions = index.optJSONArray(rawWord)
             if (positions != null) {
                 for (positionIndex in 0 until positions.length()) {
                     val position = positions.optInt(positionIndex, -1)
@@ -483,7 +484,16 @@ internal class KellvynOpenAlexCrossrefProvider : KellvynAcademicSearchProvider {
         while (true) {
             val count = read(buffer)
             if (count < 0) break
-            if (count == 0) continue
+            if (count == 0) {
+                val single = read()
+                if (single < 0) break
+                total++
+                if (total > maxBytes) {
+                    throw IllegalStateException("A fonte excedeu o limite de resposta.")
+                }
+                output.write(single)
+                continue
+            }
             total += count
             if (total > maxBytes) {
                 throw IllegalStateException("A fonte excedeu o limite de resposta.")
@@ -519,8 +529,8 @@ internal class KellvynOpenAlexCrossrefProvider : KellvynAcademicSearchProvider {
         normalizeDoi(doi)?.let { "https://doi.org/" + Uri.encode(it, "/()") }
 
     private companion object {
-        const val CONNECT_TIMEOUT_MS = 5_000
-        const val READ_TIMEOUT_MS = 8_000
+        const val CONNECT_TIMEOUT_MS = 4_000
+        const val READ_TIMEOUT_MS = 5_000
         const val MAX_RESPONSE_BYTES = 256 * 1024
         const val MAX_ABSTRACT_TOKENS = 2_000
     }

@@ -374,6 +374,10 @@ jobs:
             cat /tmp/poco-f6-emulator.log || true
             exit 1
           fi
+          echo "[LAB] Running the targeted studio registration instrumented test"
+          gradle -p android connectedDebugAndroidTest \
+            -Pandroid.testInstrumentationRunnerArguments.class=com.kellvyn.assistant.KellvynAndroidBuildStatusStudioInstrumentedTest \
+            --no-daemon --stacktrace
           adb shell wm size 1220x2712
           adb shell wm density 440
           # Avoid triggering the stalled Pixel Launcher menu; launch the app directly.
