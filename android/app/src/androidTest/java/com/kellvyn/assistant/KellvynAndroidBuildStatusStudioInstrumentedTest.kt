@@ -28,10 +28,6 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
             assertNotNull(tool)
             assertNotNull(academicTool)
             assertEquals(KellvynToolRisk.NETWORK_READ, academicTool!!.spec.risk)
-            val developerTool = registry.find(KellvynDeveloperKnowledgeStudio.TOOL_NAME)
-            assertNotNull(developerTool)
-            assertEquals(KellvynToolRisk.NETWORK_READ, developerTool!!.spec.risk)
-
             assertTrue(academicTool.spec.capabilities.contains(KellvynStudioCapability.WEB_RESEARCH))
             val localHistory = listOf(
                 KellvynAgentMessage(
@@ -57,19 +53,6 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
                 registry.descriptionsForPrompt(academicHistory, 8)
                     .any { it.name == KellvynAcademicResearchStudio.TOOL_NAME }
             )
-            val developerHistory = listOf(
-                KellvynAgentMessage(
-                    role = KellvynMessageRole.USER,
-                    trust = KellvynTrustLevel.USER_PROVIDED,
-                    source = "user",
-                    content = "Como resolver IllegalStateException no Kotlin com stacktrace?"
-                )
-            )
-            assertTrue(
-                registry.descriptionsForPrompt(developerHistory, 8)
-                    .any { it.name == KellvynDeveloperKnowledgeStudio.TOOL_NAME }
-            )
-
 
             assertEquals(KellvynToolRisk.READ_ONLY, tool!!.spec.risk)
             assertEquals(

@@ -310,7 +310,6 @@ internal class KellvynStackExchangeApiProvider(
             val quotaRemaining = searchResponse.optInt("quota_remaining", -1)
                 .takeIf { it >= 0 }
             val questions = parseQuestions(searchResponse.optJSONArray("items") ?: JSONArray())
-            recordQuery(signature, now)
 
             if (questions.isEmpty()) {
                 return@withContext KellvynDeveloperSearchBatch(
@@ -332,7 +331,7 @@ internal class KellvynStackExchangeApiProvider(
             val answerUrl = URL(
                 "https://api.stackexchange.com/2.3/questions/" + ids.joinToString(";") +
                     "/answers?order=desc&sort=votes&site=stackoverflow" +
-                    "&pagesize=5&filter=withbody"
+                    "&pagesize=30&filter=withbody"
             )
             val warnings = mutableListOf<String>()
             val answerMap = try {

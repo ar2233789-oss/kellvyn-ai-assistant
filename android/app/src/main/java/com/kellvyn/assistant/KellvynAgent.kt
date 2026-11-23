@@ -1428,7 +1428,7 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
         KellvynStudioCapability.SECURITY_AUDIT to setOf("seguranca", "vulnerabilidade", "risco", "auditoria"),
         KellvynStudioCapability.DATA_MODELING to setOf("dados", "json", "csv", "schema", "banco", "sql"),
         KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS to setOf("android", "apk", "gradle", "compilar", "build", "erro"),
-        KellvynStudioCapability.WEB_RESEARCH to setOf("pesquisar", "pesquisa", "web", "site", "internet", "fonte", "stackoverflow", "stack", "duvida", "erro", "exception", "stacktrace"),
+        KellvynStudioCapability.WEB_RESEARCH to setOf("pesquisar", "pesquisa", "web", "site", "internet", "fonte"),
         KellvynStudioCapability.DEVICE_DIAGNOSTICS to setOf("recursos", "ram", "memoria", "bateria", "temperatura", "cpu", "dispositivo"),
         KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS to setOf("fila", "tarefa", "agendamento", "status"),
         KellvynStudioCapability.BOT_DIAGNOSTICS to setOf("bot", "discord", "telegram", "whatsapp"),

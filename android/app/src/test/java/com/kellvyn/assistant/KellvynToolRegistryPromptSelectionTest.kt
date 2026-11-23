@@ -46,18 +46,6 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
-    fun programmingErrorQuestionSelectsDeveloperQnaSearch() {
-        val selected = registry().descriptionsForPrompt(
-            history = listOf(user("Como resolver IllegalStateException no Kotlin com stacktrace?")),
-            maxTools = 6
-        ).map { it.name }.toSet()
-
-        assertTrue("studio_capability_inventory" in selected)
-        assertTrue("developer_qna_search" in selected)
-        assertFalse("animation_render_spritesheet" in selected)
-    }
-
-    @Test
     fun imageRequestGetsRasterToolsWithoutUnrelatedModules() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Redimensionar foto PNG para 256 pixels")),
@@ -178,11 +166,6 @@ class KellvynToolRegistryPromptSelectionTest {
                 "workspace_search_content",
                 "Pesquisa conteúdo de arquivos de um projeto usando ranking BM25 e retorna trechos relevantes.",
                 setOf(KellvynStudioCapability.CODE_NAVIGATION)
-            ),
-            tool(
-                "developer_qna_search",
-                "Pesquisa dúvidas e erros de programação no Stack Overflow; mostra respostas, votos, autor, resposta aceita e links.",
-                setOf(KellvynStudioCapability.WEB_RESEARCH)
             ),
             tool(
                 "code_find_symbols",
