@@ -19,10 +19,14 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val runtime = KellvynRuntime(context)
         try {
-            val tool = runtime.createProjectWorkspaceToolRegistry()
-                .find("android_build_environment_status")
+            val registry = runtime.createProjectWorkspaceToolRegistry()
+            val tool = registry.find("android_build_environment_status")
+            val academicTool = registry.find(KellvynAcademicResearchStudio.TOOL_NAME)
 
             assertNotNull(tool)
+            assertNotNull(academicTool)
+            assertEquals(KellvynToolRisk.NETWORK_READ, academicTool!!.spec.risk)
+            assertTrue(academicTool.spec.capabilities.contains(KellvynStudioCapability.WEB_RESEARCH))
             assertEquals(KellvynToolRisk.READ_ONLY, tool!!.spec.risk)
             assertEquals(
                 setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS),
