@@ -1,6 +1,6 @@
 {
-  "note": "Artefato fictício para demonstrar o fluxo local do motor de experimentos.",
   "predictions": [
-    {"input": "exemplo 1", "output": "resposta demonstrativa"}
+    {"id": "greeting-01", "output": "saudação"},
+    {"id": "math-01", "output": "4"}
   ]
 }
