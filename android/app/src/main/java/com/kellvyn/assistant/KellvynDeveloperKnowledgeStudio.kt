@@ -208,7 +208,7 @@ internal class KellvynDeveloperKnowledgeStudio(
 
         private val TOOL_SPEC = KellvynToolSpec(
             name = TOOL_NAME,
-            description = "Consulta a base comunitária de perguntas e soluções técnicas do Stack Overflow; retorna perguntas, trechos das respostas, autor, votos, indicação de resposta aceita e links com atribuição. Útil para Kotlin, Java, Android, APIs, exceções, stack traces e falhas de programação. Requer Acesso à Web ativado.",
+            description = "Base comunitária Stack Overflow de perguntas e soluções para desenvolvimento. Retorna respostas, autor, votos, resposta aceita e links com atribuição. Indicada para Kotlin, Java, Android, API, erro, error, exception, exception handling, stacktrace, crash, debug e falha de programação. Requer Acesso à Web ativado.",
             requiredArguments = setOf("query"),
             optionalArguments = setOf("limit"),
             risk = KellvynToolRisk.NETWORK_READ,

@@ -228,7 +228,7 @@ class KellvynToolRegistryPromptSelectionTest {
             ),
             tool(
                 "developer_qna_search",
-                "Pesquisa dúvidas e erros de programação no Stack Overflow; mostra respostas, votos, autor, resposta aceita e links.",
+                "Base comunitária Stack Overflow de perguntas e soluções para desenvolvimento. Indicada para Kotlin, Java, Android, API, erro, error, exception, stacktrace, crash e debug.",
                 setOf(KellvynStudioCapability.WEB_RESEARCH)
             ),
             tool(
