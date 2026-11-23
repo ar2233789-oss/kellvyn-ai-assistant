@@ -1,0 +1,3 @@
+{"input":"olá","expected":"saudação"}
+{"input":"quanto é 2+2?","expected":"4"}
+{"input":"classifique: gato","expected":"animal"}
