@@ -330,6 +330,14 @@ def run_evaluation(suite_root: Path, suite_file: Path, predictions_file: Path,
     try: resolved_output.relative_to(resolved_root)
     except ValueError: pass
     else: raise EvaluationError("O relatório precisa ficar fora da raiz da suíte para preservar sua impressão digital")
+    if predictions_file.is_symlink():
+        raise EvaluationError("O arquivo de previsões não pode ser um link simbólico")
+    try:
+        predictions_file.resolve(strict=True).relative_to(resolved_root)
+    except (OSError, ValueError):
+        pass
+    else:
+        raise EvaluationError("As previsões precisam ficar fora da raiz da suíte para preservar o fingerprint de referência")
     suite, suite_hash = load_suite(suite_file, suite_root)
     predictions = load_predictions(predictions_file)
     result = evaluate(suite, suite_hash, predictions, casefold, collapse_whitespace)
