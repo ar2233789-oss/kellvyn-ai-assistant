@@ -171,6 +171,33 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun exactEvidenceRanksAboveTranslatedEvidence() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "docs/translated.md",
+                excerpt = "A falha ocorre durante o cancelamento da corrotina.",
+                truncated = false,
+                sizeBytes = 100
+            ),
+            KellvynProjectSearchDocument(
+                path = "docs/exact.md",
+                excerpt = "An exception occurs during coroutine cancellation.",
+                truncated = false,
+                sizeBytes = 100
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "exception cancellation coroutine",
+            limit = 2
+        )
+
+        assertEquals("docs/exact.md", hits.first().path)
+        assertTrue(hits.first().score > hits.last().score)
+    }
+
+    @Test
     fun unrelatedFilesAreNotReturned() {
         val documents = listOf(
             KellvynProjectSearchDocument(

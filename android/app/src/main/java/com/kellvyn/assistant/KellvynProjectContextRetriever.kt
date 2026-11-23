@@ -225,14 +225,6 @@ internal object KellvynProjectSearchRanker {
             )
             if (matched.isEmpty()) return@mapNotNull null
 
-            val textMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
-                queryTerms,
-                allTextTerms
-            )
-            val pathMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
-                queryTerms,
-                indexed.pathTerms
-            )
             val identifierMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
                 queryTerms,
                 indexed.identifierTerms
