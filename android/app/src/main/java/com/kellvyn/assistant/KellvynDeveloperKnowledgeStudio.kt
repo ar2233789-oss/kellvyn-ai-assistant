@@ -616,6 +616,7 @@ internal class KellvynStackExchangeApiProvider(
         const val READ_TIMEOUT_MS = 4_500
         const val MAX_RESPONSE_BYTES = 384 * 1024
         const val MAX_RECENT_QUERY_HASHES = 24
+        const val MAX_ANSWERS_PER_QUESTION = 2
         const val KEY_SEARCH_BACKOFF = "stackexchange.search.backoff_until"
         const val KEY_ANSWERS_BACKOFF = "stackexchange.answers.backoff_until"
         const val KEY_RECENT_QUERY_MAP = "stackexchange.recent_queries"
