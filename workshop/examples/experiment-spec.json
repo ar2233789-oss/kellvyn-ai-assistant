@@ -8,8 +8,8 @@
     "revision": "sha-ou-commit-do-modelo"
   },
   "comparison_context": {
-    "dataset_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "evaluation_suite_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+    "dataset_sha256": "d95d6c217e45a88c2bc76c768a1ef4d2ebce083da2ff20a2cd0fc3a18fdb7716",
+    "evaluation_suite_sha256": "7f1c7f0df2491cfcf8486091002092b580cfe8095ebe0b56b549ef7083b1b2bf",
     "device": "Poco F6",
     "runtime": "runtime-local",
     "precision": "int4"
