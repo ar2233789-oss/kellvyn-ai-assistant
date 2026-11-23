@@ -7,6 +7,7 @@ not generate predictions, call a model, execute user code, or use a network.
 from __future__ import annotations
 
 import argparse
+from array import array
 import json
 import math
 import os
@@ -21,6 +22,7 @@ from dataset_catalog import build_manifest  # noqa: E402
 
 SCHEMA_VERSION = 1
 SUPPORTED_TASKS = {"exact_match", "classification", "regression", "word_error_rate"}
+MAX_WER_ALIGNMENT_CELLS = 1_000_000
 
 
 class EvaluationError(ValueError):
@@ -196,28 +198,49 @@ def regression_metrics(cases: list[dict[str, Any]], predictions: dict[str, Any])
 
 def word_edit_counts(reference: list[str], hypothesis: list[str]) -> tuple[int, int, int]:
     rows, cols = len(reference) + 1, len(hypothesis) + 1
-    dp = [[0] * cols for _ in range(rows)]
-    back = [[""] * cols for _ in range(rows)]
-    for i in range(1, rows):
-        dp[i][0], back[i][0] = i, "D"
+    if len(reference) * len(hypothesis) > MAX_WER_ALIGNMENT_CELLS:
+        raise EvaluationError(
+            f"Alinhamento WER excede o limite de {MAX_WER_ALIGNMENT_CELLS:,} células; divida o áudio em segmentos menores"
+        )
+    # One-byte backpointers plus two rolling cost rows keep memory bounded.
+    # Operation codes: 0=match, 1=substitution, 2=deletion, 3=insertion.
+    back = [bytearray(cols) for _ in range(rows)]
+    previous = array("I", range(cols))
     for j in range(1, cols):
-        dp[0][j], back[0][j] = j, "I"
+        back[0][j] = 3
     for i in range(1, rows):
+        current = array("I", [i]) + array("I", [0]) * (cols - 1)
+        back[i][0] = 2
         for j in range(1, cols):
             if reference[i - 1] == hypothesis[j - 1]:
-                dp[i][j], back[i][j] = dp[i - 1][j - 1], "M"
+                current[j] = previous[j - 1]
+                back[i][j] = 0
             else:
-                choices = [(dp[i - 1][j - 1] + 1, "S"),
-                           (dp[i - 1][j] + 1, "D"), (dp[i][j - 1] + 1, "I")]
-                dp[i][j], back[i][j] = min(choices, key=lambda item: item[0])
+                cost, operation = min(
+                    (previous[j - 1] + 1, 1),
+                    (previous[j] + 1, 2),
+                    (current[j - 1] + 1, 3),
+                )
+                current[j] = cost
+                back[i][j] = operation
+        previous = current
     substitutions = deletions = insertions = 0
     i, j = len(reference), len(hypothesis)
     while i or j:
         operation = back[i][j]
-        if operation == "S": substitutions += 1; i -= 1; j -= 1
-        elif operation == "D": deletions += 1; i -= 1
-        elif operation == "I": insertions += 1; j -= 1
-        else: i -= 1; j -= 1
+        if operation == 1:
+            substitutions += 1
+            i -= 1
+            j -= 1
+        elif operation == 2:
+            deletions += 1
+            i -= 1
+        elif operation == 3:
+            insertions += 1
+            j -= 1
+        else:
+            i -= 1
+            j -= 1
     return substitutions, deletions, insertions
 
 
