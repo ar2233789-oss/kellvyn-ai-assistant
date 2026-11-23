@@ -2,6 +2,28 @@
 
 Este diretório contém ferramentas técnicas chamadas diretamente pelo **cérebro principal do Kellvyn**. As ferramentas não são inteligências, não tomam decisões, não planejam tarefas e não iniciam trabalhos por conta própria. O cérebro principal continua sendo a única inteligência e o único responsável por decidir o que executar e como interpretar os resultados.
 
+## Catálogo local de datasets
+
+O arquivo **tools/dataset_catalog.py** inventaria uma pasta sem alterar os dados e cria uma impressão digital determinística de seu conteúdo. Ele registra caminho relativo, tamanho, SHA-256 por arquivo, categorias, grupos de arquivos duplicados e resumo de JSONL. Arquivos JSONL/NDJSON são validados linha a linha sem carregar o arquivo inteiro na memória.
+
+~~~bash
+python3 workshop/tools/dataset_catalog.py inspect \
+  --root workshop/examples/dataset \
+  --output out/datasets/training.manifest.json
+
+python3 workshop/tools/dataset_catalog.py inspect \
+  --root workshop/examples/evaluation \
+  --output out/datasets/evaluation.manifest.json
+
+python3 workshop/tools/dataset_catalog.py verify \
+  --root workshop/examples/dataset \
+  --manifest out/datasets/training.manifest.json
+~~~
+
+O campo dataset_sha256 dos manifestos pode preencher comparison_context.dataset_sha256 e comparison_context.evaluation_suite_sha256 no registro de experimento. A pasta do manifesto precisa ficar fora da pasta inventariada. Links simbólicos e arquivos especiais são rejeitados; os limites padrão são 100 mil arquivos e 20 GiB, ambos configuráveis no comando inspect.
+
+O catálogo não interpreta o significado de imagens, áudio ou documentos, não faz limpeza/rotulagem automática e não treina modelos. Ele fornece inventário e identidade de conteúdo reproduzíveis; transformações e treinamento serão etapas separadas, comandadas pelo cérebro principal.
+
 ## Motor local de experimentos
 
 O arquivo **tools/experiment_engine.py** fornece três operações determinísticas, usando somente a biblioteca padrão do Python:
@@ -33,7 +55,7 @@ python3 workshop/tools/experiment_engine.py compare \
   --output out/experiments/comparison.json
 ~~~
 
-O exemplo em examples/ é demonstrativo. Os hashes fictícios do dataset e da suíte de avaliação devem ser substituídos pelos hashes reais antes de qualquer comparação usada para tomar decisões.
+Os hashes do dataset e da suíte de avaliação no exemplo correspondem aos arquivos incluídos em examples/dataset e examples/evaluation. Quando os dados forem alterados, gere novamente os manifestos e atualize os hashes antes de comparar execuções.
 
 ### Regras de comparação
 
@@ -60,7 +82,7 @@ Uma regressão além da tolerância bloqueia o resultado improved, mesmo que out
 
 ~~~bash
 python3 -m unittest discover -s workshop/tests -v
-python3 -m py_compile workshop/tools/experiment_engine.py
+python3 -m py_compile workshop/tools/experiment_engine.py workshop/tools/dataset_catalog.py
 ~~~
 
-Os testes cobrem registro, integridade, adulteração, caminhos inseguros, links simbólicos, métricas inválidas, contexto incompatível, regressões e políticas inválidas.
+Os testes cobrem catálogo de datasets, impressão digital, duplicatas, JSONL, integridade, caminhos inseguros, links simbólicos, métricas inválidas, contexto incompatível, regressões e políticas inválidas.
