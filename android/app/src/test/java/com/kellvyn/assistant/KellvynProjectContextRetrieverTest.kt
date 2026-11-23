@@ -156,6 +156,21 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun exactTermsOutrankTranslatedSynonymsAndKeepReducedWeight() {
+        val exact = KellvynProjectSearchLexicon.coverage(
+            setOf("exception"),
+            setOf("exception")
+        )
+        val translated = KellvynProjectSearchLexicon.coverage(
+            setOf("exception"),
+            setOf("falha")
+        )
+
+        assertEquals(1.0, exact, 0.0)
+        assertEquals(0.35, translated, 0.000001)
+    }
+
+    @Test
     fun unrelatedFilesAreNotReturned() {
         val documents = listOf(
             KellvynProjectSearchDocument(

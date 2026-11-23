@@ -237,10 +237,13 @@ internal object KellvynProjectSearchRanker {
                 queryTerms,
                 indexed.identifierTerms
             )
-            val denominator = queryTerms.size.toDouble()
-            val textCoverage = textMatches.size.toDouble() / denominator
-            val pathScore = pathMatches.size.toDouble() / denominator
-            val identifierScore = identifierMatches.size.toDouble() / denominator
+            // Translated matches count as weaker evidence than exact lexical matches.
+            val textCoverage = KellvynProjectSearchLexicon.coverage(queryTerms, allTextTerms)
+            val pathScore = KellvynProjectSearchLexicon.coverage(queryTerms, indexed.pathTerms)
+            val identifierScore = KellvynProjectSearchLexicon.coverage(
+                queryTerms,
+                indexed.identifierTerms
+            )
 
             val rawBm25 = weightedQuery.entries.sumOf { (term, queryWeight) ->
                 val frequency = indexed.termFrequency[term] ?: 0
