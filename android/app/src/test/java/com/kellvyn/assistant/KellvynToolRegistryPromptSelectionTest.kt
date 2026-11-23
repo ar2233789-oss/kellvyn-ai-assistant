@@ -22,6 +22,18 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
+    fun academicResearchRequestSelectsScholarlySearchTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(user("Pesquisar artigos científicos sobre modelos de linguagem")),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("academic_research" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
     fun imageRequestGetsRasterToolsWithoutUnrelatedModules() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Redimensionar foto PNG para 256 pixels")),
@@ -132,6 +144,11 @@ class KellvynToolRegistryPromptSelectionTest {
                 "device_resource_snapshot",
                 "Consulta RAM bateria CPU e temperatura.",
                 setOf(KellvynStudioCapability.DEVICE_DIAGNOSTICS)
+            ),
+            tool(
+                "academic_research",
+                "Pesquisa artigos científicos e trabalhos acadêmicos em OpenAlex e Crossref; retorna DOI, autores, ano e resumo.",
+                setOf(KellvynStudioCapability.WEB_RESEARCH)
             ),
             tool(
                 "code_find_symbols",
