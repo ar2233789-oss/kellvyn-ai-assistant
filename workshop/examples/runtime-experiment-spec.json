@@ -1,0 +1,28 @@
+{
+  "run_id": "runtime-demo-001",
+  "experiment": "local-runtime-profile",
+  "kind": "language-model",
+  "subject": {
+    "name": "modelo-demonstrativo",
+    "version": "1.0",
+    "revision": "sample-only"
+  },
+  "comparison_context": {
+    "dataset_sha256": "d95d6c217e45a88c2bc76c768a1ef4d2ebce083da2ff20a2cd0fc3a18fdb7716",
+    "evaluation_suite_sha256": "7f1c7f0df2491cfcf8486091002092b580cfe8095ebe0b56b549ef7083b1b2bf",
+    "device": "Poco F6 illustrative profile",
+    "runtime": "example-runtime",
+    "precision": "int4"
+  },
+  "parameters": {
+    "temperature": 0.2,
+    "max_tokens": 256
+  },
+  "metrics": {
+    "latency_ms": 1350.0,
+    "peak_memory_mb": 1350.0
+  },
+  "artifacts": [
+    "runtime-measurements.jsonl"
+  ]
+}
