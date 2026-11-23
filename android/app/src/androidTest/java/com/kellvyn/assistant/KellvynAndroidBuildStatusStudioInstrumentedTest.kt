@@ -29,6 +29,31 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
             assertNotNull(academicTool)
             assertEquals(KellvynToolRisk.NETWORK_READ, academicTool!!.spec.risk)
             assertTrue(academicTool.spec.capabilities.contains(KellvynStudioCapability.WEB_RESEARCH))
+            val localHistory = listOf(
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.USER,
+                    trust = KellvynTrustLevel.USER_PROVIDED,
+                    source = "user",
+                    content = "Pesquise conteúdo do projeto sobre memória e checkpoints"
+                )
+            )
+            val academicHistory = listOf(
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.USER,
+                    trust = KellvynTrustLevel.USER_PROVIDED,
+                    source = "user",
+                    content = "Pesquisar artigos científicos sobre modelos de linguagem"
+                )
+            )
+            assertTrue(
+                registry.descriptionsForPrompt(localHistory, 8)
+                    .any { it.name == KellvynProjectKnowledgeSearchTool.TOOL_NAME }
+            )
+            assertTrue(
+                registry.descriptionsForPrompt(academicHistory, 8)
+                    .any { it.name == KellvynAcademicResearchStudio.TOOL_NAME }
+            )
+
             assertEquals(KellvynToolRisk.READ_ONLY, tool!!.spec.risk)
             assertEquals(
                 setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS),

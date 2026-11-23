@@ -63,6 +63,22 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun candidatePathsPrioritizeFilenameMatchesAndRemainDeterministic() {
+        val paths = listOf(
+            "bulk/decoy-01.md",
+            "bulk/decoy-02.md",
+            "docs/checkpoint-recovery.md",
+            "src/AgentRuntime.kt"
+        )
+
+        val ranked = KellvynProjectPathRanker.rank(paths, "checkpoint recovery")
+        val repeated = KellvynProjectPathRanker.rank(paths.reversed(), "checkpoint recovery")
+
+        assertEquals("docs/checkpoint-recovery.md", ranked.first())
+        assertEquals(ranked, repeated)
+    }
+
+    @Test
     fun searchNormalizesPortugueseAccents() {
         val documents = listOf(
             KellvynProjectSearchDocument(

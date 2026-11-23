@@ -1,6 +1,7 @@
 package com.kellvyn.assistant
 
 import com.kellvyn.assistant.workspace.ProjectWorkspaceStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -36,6 +37,30 @@ internal data class KellvynProjectSearchReport(
     val filesScanned: Int,
     val filesSkipped: Int
 )
+
+internal object KellvynProjectPathRanker {
+    /**
+     * Prioritizes candidate files by query-term coverage in their filename and full path.
+     * Filename matches weigh twice as much as directory matches. Ties remain deterministic.
+     */
+    fun rank(paths: List<String>, query: String): List<String> {
+        val queryTerms = KellvynMemoryRanker.tokens(query)
+        return paths.distinct().map { path ->
+            val normalized = path.replace('\\', '/')
+            val fileName = normalized.substringAfterLast('/').substringBeforeLast('.')
+            val fileTerms = KellvynMemoryRanker.tokens(fileName)
+            val pathTerms = KellvynMemoryRanker.tokens(normalized)
+            val fileCoverage = queryTerms.intersect(fileTerms).size.toDouble()
+            val pathCoverage = queryTerms.intersect(pathTerms).size.toDouble()
+            val denominator = queryTerms.size.toDouble().coerceAtLeast(1.0)
+            val score = (2.0 * fileCoverage + pathCoverage) / (3.0 * denominator)
+            path to score
+        }.sortedWith(
+            compareByDescending<Pair<String, Double>> { it.second }
+                .thenBy { it.first }
+        ).map { it.first }
+    }
+}
 
 internal object KellvynProjectSearchRanker {
     private const val BM25_K1 = 1.2
@@ -192,24 +217,26 @@ internal class KellvynProjectContextRetriever(
             require(request.maxResults in 1..20)
 
             val files = workspace.listFiles(request.projectId)
-            val selected = files.take(request.maxFilesToScan)
+            // Filter unsafe and unsupported paths before applying the scan budget. Otherwise,
+            // an alphabetically early block of binary/secret files can crowd out useful sources.
+            val eligible = files.filter { path ->
+                isAllowedPath(path) && KellvynAgentLimits.isSupportedTextFile(path)
+            }
+            val selected = KellvynProjectPathRanker.rank(
+                eligible,
+                request.query
+            ).take(request.maxFilesToScan)
             var skipped = (files.size - selected.size).coerceAtLeast(0)
             val documents = mutableListOf<KellvynProjectSearchDocument>()
             var scanned = 0
 
             selected.forEach { path ->
-                if (!isAllowedPath(path) || !KellvynAgentLimits.isSupportedTextFile(path)) {
-                    skipped++
-                    return@forEach
-                }
-
                 try {
                     val excerpt = workspace.readFileExcerpt(
                         projectId = request.projectId,
                         relativePath = path,
                         maxChars = MAX_EXCERPT_CHARS
                     )
-                    scanned++
                     if (containsSecretMaterial(excerpt.content)) {
                         skipped++
                         return@forEach
@@ -229,6 +256,9 @@ internal class KellvynProjectContextRetriever(
                         sizeBytes = excerpt.sizeBytes,
                         codeIndex = codeIndex
                     )
+                    scanned++
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
                 } catch (_: Exception) {
                     skipped++
                 }
