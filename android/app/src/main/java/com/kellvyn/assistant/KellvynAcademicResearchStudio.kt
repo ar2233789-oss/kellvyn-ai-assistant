@@ -430,8 +430,9 @@ internal class KellvynOpenAlexCrossrefProvider : KellvynAcademicSearchProvider {
         val words = TreeMap<Int, String>()
         val keys = index.keys()
         while (keys.hasNext()) {
-            val word = keys.next().cleanText(80)
-            val positions = index.optJSONArray(keys.currentKey()) 
+            val rawWord = keys.next()
+            val word = rawWord.cleanText(80)
+            val positions = index.optJSONArray(rawWord)
             if (positions != null) {
                 for (positionIndex in 0 until positions.length()) {
                     val position = positions.optInt(positionIndex, -1)
