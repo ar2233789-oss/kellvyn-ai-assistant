@@ -28,6 +28,7 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
                 setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS),
                 tool.spec.capabilities
             )
+            assertTrue(KellvynAndroidBuildStatusStudio.MANIFEST.capabilities.containsAll(tool.spec.capabilities))
 
             val result = tool.execute(emptyMap())
 
