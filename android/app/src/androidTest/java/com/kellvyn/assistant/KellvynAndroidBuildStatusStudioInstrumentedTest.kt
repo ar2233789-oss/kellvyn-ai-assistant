@@ -94,6 +94,74 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
 
 
     @Test
+    fun realRuntimeCatalogPassesRepresentativeToolDiscoveryRegressionSet() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val runtime = KellvynRuntime(context)
+        try {
+            val registry = runtime.createProjectWorkspaceToolRegistry()
+            data class RoutingCase(
+                val query: String,
+                val expectedTool: String
+            )
+            val cases = listOf(
+                RoutingCase(
+                    "Pesquise conteúdo do projeto sobre memória local e checkpoints",
+                    KellvynProjectKnowledgeSearchTool.TOOL_NAME
+                ),
+                RoutingCase(
+                    "Pesquisar artigos científicos sobre modelos de linguagem",
+                    KellvynAcademicResearchStudio.TOOL_NAME
+                ),
+                RoutingCase(
+                    "Como corrigir IllegalStateException no Kotlin com stacktrace?",
+                    KellvynDeveloperKnowledgeStudio.TOOL_NAME
+                ),
+                RoutingCase(
+                    "Redimensione uma imagem PNG para 256 pixels",
+                    "image_resize"
+                ),
+                RoutingCase(
+                    "Crie uma ilustração vetorial SVG com formas geométricas",
+                    "vector_render_artwork"
+                ),
+                RoutingCase(
+                    "Crie uma animação 2D com keyframes e movimento",
+                    "animation_render_spritesheet"
+                ),
+                RoutingCase(
+                    "Verifique a memória RAM e a temperatura do dispositivo",
+                    "device_resource_snapshot"
+                ),
+                RoutingCase(
+                    "Diagnostique o ambiente de compilação Android e Gradle",
+                    "android_build_environment_status"
+                )
+            )
+
+            cases.forEach { routingCase ->
+                val history = listOf(
+                    KellvynAgentMessage(
+                        role = KellvynMessageRole.USER,
+                        trust = KellvynTrustLevel.USER_PROVIDED,
+                        source = "tool-discovery-regression",
+                        content = routingCase.query
+                    )
+                )
+                val selected = registry.descriptionsForPrompt(history, 8)
+                    .map { it.name }
+                    .toSet()
+                assertTrue(
+                    "A consulta '" + routingCase.query + "' precisa selecionar " +
+                        routingCase.expectedTool + "; selecionadas: " + selected.sorted(),
+                    routingCase.expectedTool in selected
+                )
+            }
+        } finally {
+            runtime.close()
+        }
+    }
+
+    @Test
     fun localKnowledgeToolSearchesProjectAndDoesNotReturnSecretBearingFiles() = runBlocking {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val workspace = ProjectWorkspaceStore(context)
