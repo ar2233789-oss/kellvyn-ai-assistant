@@ -69,7 +69,7 @@ internal object KellvynProjectSearchLexicon {
         listOf("configuracao", "configuracoes", "configuration", "config"),
         listOf("ferramenta", "ferramentas", "tool", "tools"),
         listOf("artigo", "artigos", "paper", "papers"),
-        listOf("cientifico", "cientifica", "scientific", "research", "pesquisa")
+        listOf("cientifico", "cientifica", "scientific", "research", "paper", "papers", "artigo", "artigos")
     )
 
     private val synonymsByTerm: Map<String, Set<String>> = buildMap {

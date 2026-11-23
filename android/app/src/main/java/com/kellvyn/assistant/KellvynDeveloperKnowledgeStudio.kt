@@ -413,11 +413,9 @@ internal class KellvynStackExchangeApiProvider(
                 throw IllegalStateException("A API respondeu HTTP " + status + ".")
             }
             val raw = connection.inputStream
-            val stream = if (connection.contentEncoding.equals("gzip", ignoreCase = true)) {
-                GZIPInputStream(raw)
-            } else {
-                raw
-            }
+            val isGzip = connection.getHeaderField("Content-Encoding")
+                ?.equals("gzip", ignoreCase = true) == true
+            val stream = if (isGzip) GZIPInputStream(raw) else raw
             val bytes = stream.use { it.readBounded(MAX_RESPONSE_BYTES) }
             val json = JSONObject(String(bytes, StandardCharsets.UTF_8))
             val errorId = json.optInt("error_id", 0)

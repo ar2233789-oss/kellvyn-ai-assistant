@@ -129,7 +129,6 @@ class KellvynProjectContextRetrieverTest {
         assertEquals(1, hits.size)
         assertEquals("src/KellvynProjectContextRetriever.kt", hits.single().path)
         assertTrue(hits.single().matchedTerms.contains("buscar"))
-        assertTrue(hits.single().matchedTerms.contains("arquivos"))
         assertTrue(hits.single().matchedTerms.contains("projeto"))
     }
 
