@@ -81,6 +81,14 @@ class BenchmarkEvaluatorTests(unittest.TestCase):
             evaluator.run_evaluation(self.suite_root, self.suite_file, self.predictions,
                                      self.suite_root / "report.json", False, False)
 
+
+    def test_predictions_inside_suite_root_are_rejected(self):
+        prediction_file = self.suite_root / "predictions.json"
+        prediction_file.write_text(json.dumps({"predictions": [{"id": "one", "output": "Hello"}]}), encoding="utf-8")
+        with self.assertRaises(evaluator.EvaluationError):
+            evaluator.run_evaluation(self.suite_root, self.suite_file, prediction_file,
+                                     self.root / "result.json", False, False)
+
     def test_result_carries_same_suite_fingerprint_as_dataset_catalog(self):
         suite, fingerprint = self.load_suite()
         import sys
