@@ -63,6 +63,28 @@ Outras suítes demonstrativas ficam em \`examples/evaluation-classification/suit
 
 **Limites das métricas:** exact match mede igualdade lexical/estruturada, não qualidade semântica; classificação precisa de métricas por classe quando há desequilíbrio; regressão depende da escala e distribuição dos alvos; WER depende da normalização e pode exceder 1 por causa de inserções. O alinhamento WER é limitado a um milhão de células para manter o uso de memória previsível em dispositivos móveis. Nenhuma dessas métricas substitui revisão humana e benchmarks adequados à modalidade.
 
+## Perfilador de desempenho de inferência
+
+\`tools/runtime_profiler.py\` agrega medições coletadas durante chamadas que o cérebro principal decidiu executar. O perfilador não carrega modelo, não executa inferência e não grava prompts nem respostas. Recebe JSONL com \`case_id\`, estado, latência, tokens de entrada/saída, TTFT e, quando disponível, pico de memória.
+
+Produz latência média/p50/p95, TTFT médio/p95, cobertura de TTFT e memória, tokens por segundo de ponta a ponta e velocidade de decodificação após o primeiro token. O resultado usa a mesma impressão digital da suíte de avaliação, para que a medição de runtime possa ser vinculada ao mesmo conjunto de casos dos benchmarks de qualidade.
+
+~~~bash
+python3 workshop/tools/runtime_profiler.py \
+  --suite-root workshop/examples/evaluation \
+  --suite-file workshop/examples/evaluation/suite.json \
+  --measurements workshop/examples/runtime-measurements.jsonl \
+  --output out/runtime/profile.json
+
+python3 workshop/tools/experiment_engine.py record \
+  --spec workshop/examples/runtime-experiment-spec.json \
+  --artifact-root workshop/examples \
+  --evaluation-result out/runtime/profile.json \
+  --output out/experiments/runtime.run.json
+~~~
+
+Uma execução com caso ausente, extra ou falho fica \`partial\` e não pode ser selada como avaliação completa. Compare apenas medições feitas com mesmo modelo, tokenizador, runtime, precisão, dispositivo, aquecimento e método de medição. \`decode_tokens_per_second\` exclui o primeiro token e não deve ser confundido com throughput de ponta a ponta. O campo de memória registra o máximo fornecido pelo instrumento de origem; a consistência desse instrumento precisa ser mantida.
+
 ## Motor local de experimentos
 
 \`tools/experiment_engine.py\` oferece três operações determinísticas:
