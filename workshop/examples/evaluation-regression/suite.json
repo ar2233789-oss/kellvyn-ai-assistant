@@ -1,0 +1,9 @@
+{
+  "suite_id": "regression-demo-v1",
+  "task": "regression",
+  "cases": [
+    {"id": "r-01", "input": "sample-1", "expected": 10.0},
+    {"id": "r-02", "input": "sample-2", "expected": 20.0},
+    {"id": "r-03", "input": "sample-3", "expected": 30.0}
+  ]
+}
