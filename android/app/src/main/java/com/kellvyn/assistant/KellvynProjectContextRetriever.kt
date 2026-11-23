@@ -38,22 +38,117 @@ internal data class KellvynProjectSearchReport(
     val filesSkipped: Int
 )
 
+internal object KellvynProjectSearchLexicon {
+    private const val TRANSLATED_TERM_WEIGHT = 0.35
+
+    private val STOP_WORDS = setOf(
+        "a", "as", "ao", "aos", "com", "da", "das", "de", "do", "dos", "e",
+        "em", "na", "nas", "no", "nos", "o", "os", "ou", "para", "por",
+        "que", "um", "uma", "the", "and", "for", "from", "into", "is", "it",
+        "of", "on", "or", "to", "with", "how", "what", "this", "that"
+    )
+
+    private val synonymGroups = listOf(
+        listOf("arquivo", "arquivos", "file", "files", "document", "documento", "documentos"),
+        listOf("projeto", "projetos", "project", "workspace"),
+        listOf("codigo", "code", "source"),
+        listOf("busca", "buscar", "procurar", "pesquisar", "pesquisa", "search", "find", "lookup"),
+        listOf("erro", "falha", "excecao", "problema", "bug", "error", "failure", "exception", "crash", "issue"),
+        listOf("cancelamento", "cancelar", "cancellation", "cancel"),
+        listOf("corrotina", "coroutines", "coroutine"),
+        listOf("travamento", "travar", "congelamento", "freeze", "hang"),
+        listOf("desempenho", "lentidao", "lento", "performance", "latency", "slow"),
+        listOf("memoria", "memory"),
+        listOf("seguranca", "security"),
+        listOf("teste", "testes", "tests", "test"),
+        listOf("compilar", "compilacao", "compile", "compilation", "build"),
+        listOf("dependencia", "dependencias", "dependency", "dependencies"),
+        listOf("funcao", "funcoes", "function", "functions", "method", "metodo", "metodos"),
+        listOf("classe", "classes", "class"),
+        listOf("interface", "tela", "screen", "ui"),
+        listOf("configuracao", "configuracoes", "configuration", "config"),
+        listOf("ferramenta", "ferramentas", "tool", "tools"),
+        listOf("artigo", "artigos", "paper", "papers"),
+        listOf("cientifico", "cientifica", "scientific", "research", "pesquisa")
+    )
+
+    private val synonymsByTerm: Map<String, Set<String>> = buildMap {
+        synonymGroups.forEach { group ->
+            val normalized = group.toSet()
+            group.forEach { term -> put(term, normalized - term) }
+        }
+    }
+
+    /** Splits camelCase, PascalCase and acronyms before normalizing accents. */
+    fun occurrences(value: String): List<String> {
+        val separated = value
+            .replace(Regex("([a-z0-9])([A-Z])"), "$1 $2")
+            .replace(Regex("([A-Z])([A-Z][a-z])"), "$1 $2")
+            .replace('_', ' ')
+            .replace('-', ' ')
+        val normalized = java.text.Normalizer.normalize(
+            separated,
+            java.text.Normalizer.Form.NFD
+        ).replace(Regex("\\p{Mn}+"), "").lowercase(java.util.Locale.ROOT)
+        return Regex("[\\p{L}\\p{N}]{2,}").findAll(normalized)
+            .map { it.value }
+            .filterNot { it in STOP_WORDS }
+            .toList()
+    }
+
+    fun tokens(value: String): Set<String> = occurrences(value).toCollection(LinkedHashSet())
+
+    fun weightedQueryTerms(queryTerms: Set<String>): Map<String, Double> {
+        val weights = LinkedHashMap<String, Double>()
+        queryTerms.sorted().forEach { term ->
+            weights[term] = 1.0
+            synonymsByTerm[term].orEmpty().forEach { synonym ->
+                weights[synonym] = maxOf(weights[synonym] ?: 0.0, TRANSLATED_TERM_WEIGHT)
+            }
+        }
+        return weights
+    }
+
+    fun expandedTerms(queryTerms: Set<String>): Set<String> =
+        weightedQueryTerms(queryTerms).keys
+
+    /** Returns original query terms that matched directly or through one translation. */
+    fun matchingQueryTerms(queryTerms: Set<String>, documentTerms: Set<String>): Set<String> =
+        queryTerms.filterTo(LinkedHashSet()) { queryTerm ->
+            queryTerm in documentTerms ||
+                synonymsByTerm[queryTerm].orEmpty().any { it in documentTerms }
+        }
+
+    /** Exact matches score 1.0; translated matches are weaker evidence. */
+    fun coverage(queryTerms: Set<String>, documentTerms: Set<String>): Double {
+        if (queryTerms.isEmpty()) return 0.0
+        val coveredWeight = queryTerms.sumOf { queryTerm ->
+            when {
+                queryTerm in documentTerms -> 1.0
+                synonymsByTerm[queryTerm].orEmpty().any { it in documentTerms } ->
+                    TRANSLATED_TERM_WEIGHT
+                else -> 0.0
+            }
+        }
+        return coveredWeight / queryTerms.size.toDouble()
+    }
+}
+
 internal object KellvynProjectPathRanker {
     /**
      * Prioritizes candidate files by query-term coverage in their filename and full path.
      * Filename matches weigh twice as much as directory matches. Ties remain deterministic.
      */
     fun rank(paths: List<String>, query: String): List<String> {
-        val queryTerms = KellvynMemoryRanker.tokens(query)
+        val queryTerms = KellvynProjectSearchLexicon.tokens(query)
         return paths.distinct().map { path ->
             val normalized = path.replace('\\', '/')
             val fileName = normalized.substringAfterLast('/').substringBeforeLast('.')
-            val fileTerms = KellvynMemoryRanker.tokens(fileName)
-            val pathTerms = KellvynMemoryRanker.tokens(normalized)
-            val fileCoverage = queryTerms.intersect(fileTerms).size.toDouble()
-            val pathCoverage = queryTerms.intersect(pathTerms).size.toDouble()
-            val denominator = queryTerms.size.toDouble().coerceAtLeast(1.0)
-            val score = (2.0 * fileCoverage + pathCoverage) / (3.0 * denominator)
+            val fileTerms = KellvynProjectSearchLexicon.tokens(fileName)
+            val pathTerms = KellvynProjectSearchLexicon.tokens(normalized)
+            val fileCoverage = KellvynProjectSearchLexicon.coverage(queryTerms, fileTerms)
+            val pathCoverage = KellvynProjectSearchLexicon.coverage(queryTerms, pathTerms)
+            val score = (2.0 * fileCoverage + pathCoverage) / 3.0
             path to score
         }.sortedWith(
             compareByDescending<Pair<String, Double>> { it.second }
@@ -76,11 +171,13 @@ internal object KellvynProjectSearchRanker {
     )
 
     /**
-     * BM25 body relevance fused with path and symbol matches.
+     * BM25 body relevance fused with path and symbol matches plus conservative
+     * Portuguese/English query expansion. Exact query terms weigh 1.0; translations
+     * weigh 0.35 and never become instructions or new actions.
      *
      * The corpus is deliberately bounded by the caller (normally <=60 files and <=12k chars
      * per file), so the statistics are computed in memory without a database or background
-     * service. This improves ranking without changing the central neural model.
+     * service. This improves retrieval without changing the central neural model.
      */
     fun rank(
         documents: List<KellvynProjectSearchDocument>,
@@ -89,14 +186,16 @@ internal object KellvynProjectSearchRanker {
     ): List<KellvynProjectSearchHit> {
         require(query.isNotBlank() && query.length <= 120)
         require(limit in 1..20)
-        val queryTerms = KellvynMemoryRanker.tokens(query)
+        val queryTerms = KellvynProjectSearchLexicon.tokens(query)
         if (queryTerms.isEmpty() || documents.isEmpty()) return emptyList()
+        val weightedQuery = KellvynProjectSearchLexicon.weightedQueryTerms(queryTerms)
+        val expandedQueryTerms = weightedQuery.keys
 
         val prepared = documents.map { document ->
-            val bodyTokens = tokenOccurrences(document.excerpt)
-            val pathTerms = KellvynMemoryRanker.tokens(document.path)
+            val bodyTokens = KellvynProjectSearchLexicon.occurrences(document.excerpt)
+            val pathTerms = KellvynProjectSearchLexicon.tokens(document.path)
             val identifierTerms = document.codeIndex?.searchableIdentifiers
-                ?.flatMap { KellvynMemoryRanker.tokens(it) }
+                ?.flatMap { KellvynProjectSearchLexicon.occurrences(it) }
                 ?.toSet()
                 .orEmpty()
             PreparedDocument(
@@ -112,28 +211,38 @@ internal object KellvynProjectSearchRanker {
         val averageDocumentLength = prepared.sumOf { it.bodyTokens.size.toDouble() }
             .div(totalDocuments)
             .coerceAtLeast(1.0)
-        val documentFrequency = queryTerms.associateWith { term ->
+        val documentFrequency = expandedQueryTerms.associateWith { term ->
             prepared.count { term in it.termFrequency }
         }
 
         return prepared.mapNotNull { indexed ->
             val bodyTerms = indexed.termFrequency.keys
             val allTextTerms = indexed.pathTerms + bodyTerms
-            val matched = queryTerms.intersect(
-                allTextTerms + indexed.identifierTerms
+            val allSearchableTerms = allTextTerms + indexed.identifierTerms
+            val matched = KellvynProjectSearchLexicon.matchingQueryTerms(
+                queryTerms,
+                allSearchableTerms
             )
             if (matched.isEmpty()) return@mapNotNull null
 
-            val bodyMatches = queryTerms.intersect(bodyTerms)
-            val pathMatches = queryTerms.intersect(indexed.pathTerms)
-            val textMatches = queryTerms.intersect(allTextTerms)
-            val identifierMatches = queryTerms.intersect(indexed.identifierTerms)
+            val textMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
+                queryTerms,
+                allTextTerms
+            )
+            val pathMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
+                queryTerms,
+                indexed.pathTerms
+            )
+            val identifierMatches = KellvynProjectSearchLexicon.matchingQueryTerms(
+                queryTerms,
+                indexed.identifierTerms
+            )
             val denominator = queryTerms.size.toDouble()
             val textCoverage = textMatches.size.toDouble() / denominator
             val pathScore = pathMatches.size.toDouble() / denominator
             val identifierScore = identifierMatches.size.toDouble() / denominator
 
-            val rawBm25 = queryTerms.sumOf { term ->
+            val rawBm25 = weightedQuery.entries.sumOf { (term, queryWeight) ->
                 val frequency = indexed.termFrequency[term] ?: 0
                 if (frequency == 0) {
                     0.0
@@ -147,7 +256,7 @@ internal object KellvynProjectSearchRanker {
                         1.0 - BM25_B + BM25_B * documentLength / averageDocumentLength
                     )
                     inverseDocumentFrequency *
-                        (frequency * (BM25_K1 + 1.0) / lengthNorm)
+                        (frequency * (BM25_K1 + 1.0) / lengthNorm) * queryWeight
                 }
             }
             val normalizedBm25 = rawBm25 / (rawBm25 + BM25_NORMALIZER)
@@ -160,7 +269,7 @@ internal object KellvynProjectSearchRanker {
 
             KellvynProjectSearchHit(
                 path = indexed.document.path,
-                snippet = bestSnippet(indexed.document.excerpt, queryTerms).take(400),
+                snippet = bestSnippet(indexed.document.excerpt, expandedQueryTerms).take(400),
                 score = score,
                 matchedTerms = matched,
                 truncated = indexed.document.truncated,
@@ -173,21 +282,11 @@ internal object KellvynProjectSearchRanker {
         ).take(limit)
     }
 
-    private fun tokenOccurrences(value: String): List<String> {
-        val normalized = java.text.Normalizer.normalize(
-            value,
-            java.text.Normalizer.Form.NFD
-        ).replace(Regex("\\p{Mn}+"), "").lowercase(java.util.Locale.ROOT)
-        return Regex("[\\p{L}\\p{N}]{2,}").findAll(normalized)
-            .map { it.value }
-            .toList()
-    }
-
     private fun bestSnippet(content: String, queryTerms: Set<String>): String {
         val lines = content.lines()
         if (lines.isEmpty()) return content.take(400)
         val best = lines.mapIndexed { index, line ->
-            index to KellvynMemoryRanker.tokens(line).intersect(queryTerms).size
+            index to KellvynProjectSearchLexicon.tokens(line).intersect(queryTerms).size
         }.maxByOrNull { it.second }
         val selected = best?.takeIf { it.second > 0 }?.first ?: 0
         val start = (selected - 1).coerceAtLeast(0)

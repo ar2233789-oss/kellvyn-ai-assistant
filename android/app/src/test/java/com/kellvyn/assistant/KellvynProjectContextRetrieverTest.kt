@@ -100,6 +100,63 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun portugueseSearchFindsEnglishNamedCamelCaseCode() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "src/KellvynProjectContextRetriever.kt",
+                excerpt = """
+                    class KellvynProjectContextRetriever {
+                        fun searchWorkspace(projectId: String) = Unit
+                    }
+                """.trimIndent(),
+                truncated = false,
+                sizeBytes = 180
+            ),
+            KellvynProjectSearchDocument(
+                path = "docs/recipe.md",
+                excerpt = "Leite condensado, ovos e açúcar.",
+                truncated = false,
+                sizeBytes = 60
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "buscar arquivos do projeto",
+            limit = 5
+        )
+
+        assertEquals(1, hits.size)
+        assertEquals("src/KellvynProjectContextRetriever.kt", hits.single().path)
+        assertTrue(hits.single().matchedTerms.contains("buscar"))
+        assertTrue(hits.single().matchedTerms.contains("arquivos"))
+        assertTrue(hits.single().matchedTerms.contains("projeto"))
+    }
+
+    @Test
+    fun englishQueryFindsPortugueseDocumentationWithConservativeExpansion() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "docs/erros.md",
+                excerpt = "A falha ocorre durante o cancelamento da corrotina.",
+                truncated = false,
+                sizeBytes = 100
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "exception cancellation coroutine",
+            limit = 3
+        )
+
+        assertEquals(1, hits.size)
+        assertTrue(hits.single().matchedTerms.contains("exception"))
+        assertTrue(hits.single().matchedTerms.contains("cancellation"))
+        assertTrue(hits.single().matchedTerms.contains("coroutine"))
+    }
+
+    @Test
     fun unrelatedFilesAreNotReturned() {
         val documents = listOf(
             KellvynProjectSearchDocument(
