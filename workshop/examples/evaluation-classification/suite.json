@@ -1,9 +1,0 @@
-{
-  "suite_id": "classification-demo-v1",
-  "task": "classification",
-  "cases": [
-    {"id": "cat-01", "input": "gato", "expected": "animal"},
-    {"id": "car-01", "input": "carro", "expected": "vehicle"},
-    {"id": "dog-01", "input": "cachorro", "expected": "animal"}
-  ]
-}
