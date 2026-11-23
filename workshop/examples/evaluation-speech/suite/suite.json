@@ -1,0 +1,16 @@
+{
+  "suite_id": "speech-wer-demo-v1",
+  "task": "word_error_rate",
+  "cases": [
+    {
+      "id": "speech-01",
+      "input": "audio-amostra",
+      "expected": "o laboratório está funcionando"
+    },
+    {
+      "id": "speech-02",
+      "input": "audio-amostra-2",
+      "expected": "teste de reconhecimento de voz"
+    }
+  ]
+}
