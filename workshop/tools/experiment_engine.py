@@ -54,6 +54,8 @@ def sha256_value(value: Any) -> str:
 
 
 def read_json(path: Path) -> Any:
+    if path.is_symlink():
+        raise ExperimentError(f"Links simbólicos não são aceitos: {path}")
     try:
         with path.open("r", encoding="utf-8") as stream:
             return json.load(stream)
@@ -197,6 +199,8 @@ def load_evaluation_result(path: Path, expected_suite_hash: str) -> tuple[dict[s
     counts = {name: result.get("metrics", {}).get(name) for name in count_names}
     if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in counts.values()):
         raise ExperimentError("Resultado de avaliação contém contagens ausentes ou inválidas")
+    if counts["case_count"] < 1 or counts["matched_count"] != counts["case_count"] or counts["missing_prediction_count"] != 0 or counts["extra_prediction_count"] != 0 or metrics["coverage"] != 1.0:
+        raise ExperimentError("Resultado marcado como complete, mas as contagens/cobertura não confirmam uma suíte integral")
     score_metrics = {name: value for name, value in metrics.items() if name not in count_names and name != "coverage"}
     if not score_metrics:
         raise ExperimentError("Resultado de avaliação não contém métrica específica da tarefa")
@@ -274,6 +278,8 @@ def verify_run(run_path: Path, artifact_root: Path, evaluation_path: Path | None
         if evaluation["evaluation_suite_sha256"] != context["evaluation_suite_sha256"]:
             raise ExperimentError("A suíte registrada na avaliação diverge do contexto")
         if evaluation_path is not None:
+            if evaluation_path.is_symlink():
+                raise ExperimentError("O resultado da avaliação não pode ser um link simbólico")
             evaluation_status = "verified" if sha256_file(evaluation_path) == evaluation["evaluation_result_sha256"] else "integrity_error"
         else:
             evaluation_status = "not_rechecked"
@@ -292,8 +298,14 @@ def verify_run(run_path: Path, artifact_root: Path, evaluation_path: Path | None
         ok = actual_hash == expected_hash and actual_bytes == expected_bytes
         checks.append({"path": rel, "ok": ok, "expected_sha256": expected_hash, "actual_sha256": actual_hash,
                        "expected_bytes": item.get("bytes"), "actual_bytes": actual_bytes})
-    integrity_ok = all(x["ok"] for x in checks) and evaluation_status != "integrity_error"
-    return {"run_id": run.get("run_id"), "status": "verified" if integrity_ok else "integrity_error",
+    artifacts_ok = all(x["ok"] for x in checks)
+    if not artifacts_ok or evaluation_status == "integrity_error":
+        status = "integrity_error"
+    elif evaluation_status == "not_rechecked":
+        status = "evaluation_not_rechecked"
+    else:
+        status = "verified"
+    return {"run_id": run.get("run_id"), "status": status,
             "artifact_count": len(checks), "evaluation_result_status": evaluation_status, "checks": checks}
 
 
