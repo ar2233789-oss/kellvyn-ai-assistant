@@ -22,6 +22,70 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
+    fun academicResearchRequestSelectsScholarlySearchTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(user("Pesquisar artigos científicos sobre modelos de linguagem")),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("academic_research" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
+    fun projectContentQuestionSelectsOfflineKnowledgeSearch() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(user("Pesquise conteúdo do projeto sobre memória local e privacidade")),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("workspace_search_content" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
+    fun programmingErrorQuestionSelectsDeveloperQnaSearch() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(user("Como resolver IllegalStateException no Kotlin com stacktrace?")),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("developer_qna_search" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
+    fun naturalLanguageCrashDescriptionFindsDeveloperKnowledgeTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Meu app fecha sozinho e apresenta exception no Kotlin. Como encontro a solução?")
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("developer_qna_search" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
+    fun EnglishScientificQueryFindsAcademicResearchTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Find peer-reviewed papers about reinforcement learning and local language models")
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("academic_research" in selected)
+        assertFalse("developer_qna_search" in selected)
+    }
+
+    @Test
     fun imageRequestGetsRasterToolsWithoutUnrelatedModules() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Redimensionar foto PNG para 256 pixels")),
@@ -58,6 +122,25 @@ class KellvynToolRegistryPromptSelectionTest {
         assertTrue("automation_task_status" in selected)
         assertTrue("device_resource_snapshot" in selected)
         assertFalse("image_resize" in selected)
+    }
+
+    @Test
+    fun followUpToolEvidenceStillRefinesTheShortlistWithBilingualRanking() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Isto parece um bug; pesquise a solução."),
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.TOOL,
+                    trust = KellvynTrustLevel.UNTRUSTED,
+                    source = "tool:workspace_read_file",
+                    content = "IllegalStateException thrown by Kotlin coroutine cancellation."
+                )
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("developer_qna_search" in selected)
     }
 
     @Test
@@ -132,6 +215,21 @@ class KellvynToolRegistryPromptSelectionTest {
                 "device_resource_snapshot",
                 "Consulta RAM bateria CPU e temperatura.",
                 setOf(KellvynStudioCapability.DEVICE_DIAGNOSTICS)
+            ),
+            tool(
+                "academic_research",
+                "Pesquisa artigos científicos e trabalhos acadêmicos em OpenAlex e Crossref; retorna DOI, autores, ano e resumo.",
+                setOf(KellvynStudioCapability.WEB_RESEARCH)
+            ),
+            tool(
+                "workspace_search_content",
+                "Pesquisa conteúdo de arquivos de um projeto usando ranking BM25 e retorna trechos relevantes.",
+                setOf(KellvynStudioCapability.CODE_NAVIGATION)
+            ),
+            tool(
+                "developer_qna_search",
+                "Base comunitária Stack Overflow de perguntas e soluções para desenvolvimento. Indicada para Kotlin, Java, Android, API, erro, error, exception, stacktrace, crash e debug.",
+                setOf(KellvynStudioCapability.WEB_RESEARCH)
             ),
             tool(
                 "code_find_symbols",

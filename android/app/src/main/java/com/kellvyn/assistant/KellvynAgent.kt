@@ -1373,83 +1373,282 @@ internal class KellvynToolRegistry(tools: List<KellvynAgentTool>) {
                     .forEach { add(it.content) }
             }
         }
-        val query = normalizeToolSearchText(queryParts.joinToString(" "))
-        val queryTerms = query.split(Regex("\\s+")).filter { it.length >= 2 }.toSet()
-        val selected = LinkedHashMap<String, KellvynToolSpec>()
+        val queryTokens = tokenizeToolSearchText(queryParts.joinToString(" "))
+        if (queryTokens.isEmpty()) {
+            return registered["studio_capability_inventory"]?.spec?.let { listOf(it) }
+                .orEmpty()
+                .take(maxTools)
+        }
 
+        val documents = registered.values.map { tool ->
+            val spec = tool.spec
+            val nameTokens = tokenizeToolSearchText(spec.name.replace('_', ' '))
+            val argumentTokens = tokenizeToolSearchText(
+                (spec.requiredArguments + spec.optionalArguments).joinToString(" ")
+            )
+            val descriptionTokens = tokenizeToolSearchText(spec.description)
+            val capabilityTokens = tokenizeToolSearchText(
+                spec.capabilities.joinToString(" ") { it.name.replace('_', ' ') }
+            )
+            val hintTokens = spec.capabilities
+                .flatMap { TOOL_CAPABILITY_HINTS[it].orEmpty() }
+                .flatMap(::tokenizeToolSearchText)
+            val weightedTerms = buildMap<String, Double> {
+                addWeightedTerms(nameTokens, NAME_TERM_WEIGHT)
+                addWeightedTerms(argumentTokens, ARGUMENT_TERM_WEIGHT)
+                addWeightedTerms(descriptionTokens, DESCRIPTION_TERM_WEIGHT)
+                addWeightedTerms(capabilityTokens, CAPABILITY_TERM_WEIGHT)
+                addWeightedTerms(hintTokens, HINT_TERM_WEIGHT)
+            }
+            val weightedLength = nameTokens.size * NAME_TERM_WEIGHT +
+                argumentTokens.size * ARGUMENT_TERM_WEIGHT +
+                descriptionTokens.size * DESCRIPTION_TERM_WEIGHT +
+                capabilityTokens.size * CAPABILITY_TERM_WEIGHT +
+                hintTokens.size * HINT_TERM_WEIGHT
+            ToolSearchDocument(
+                spec = spec,
+                nameTokens = nameTokens,
+                descriptionTokens = descriptionTokens,
+                weightedTerms = weightedTerms,
+                weightedLength = weightedLength
+            )
+        }
+
+        val averageLength = documents.map { it.weightedLength }.average().coerceAtLeast(1.0)
+        val expandedQuery = LinkedHashMap<String, Double>()
+        queryTokens.forEach { token ->
+            expandedQuery[token] = maxOf(expandedQuery[token] ?: 0.0, 1.0)
+            TOOL_QUERY_SYNONYMS[token].orEmpty().forEach { synonym ->
+                expandedQuery[synonym] = maxOf(
+                    expandedQuery[synonym] ?: 0.0,
+                    SYNONYM_QUERY_WEIGHT
+                )
+            }
+        }
+        val documentFrequency = expandedQuery.keys.associateWith { term ->
+            documents.count { (it.weightedTerms[term] ?: 0.0) > 0.0 }
+        }
+        val selected = LinkedHashMap<String, KellvynToolSpec>()
         registered["studio_capability_inventory"]?.spec?.let {
             selected[it.name] = it
         }
 
-        val ranked = registered.values.map { tool ->
-            val spec = tool.spec
-            val nameText = normalizeToolSearchText(spec.name.replace('_', ' '))
-            val argumentText = normalizeToolSearchText(
-                (spec.requiredArguments + spec.optionalArguments).joinToString(" ")
+        val ranked = documents.mapNotNull { document ->
+            val score = scoreToolDocument(
+                document = document,
+                queryWeights = expandedQuery,
+                documentFrequency = documentFrequency,
+                documentCount = documents.size,
+                averageLength = averageLength
             )
-            val descriptionText = normalizeToolSearchText(spec.description)
-            var score = 0
-            queryTerms.forEach { term ->
-                if (term in nameText.split(Regex("\\s+"))) score += 5
-                if (term in argumentText.split(Regex("\\s+"))) score += 2
-                if (descriptionText.contains(term)) score += 1
+            if (score <= MIN_TOOL_MATCH_SCORE || document.spec.name in selected) {
+                null
+            } else {
+                document.spec to score
             }
-            spec.capabilities.forEach { capability ->
-                val hints = TOOL_CAPABILITY_HINTS[capability].orEmpty()
-                if (hints.any { hint -> query.contains(hint) }) score += 8
-            }
-            if (spec.name == "memory_search" &&
-                listOf("memoria", "lembrar", "historico", "preferencia").any { query.contains(it) }
-            ) score += 12
-            spec to score
-        }.filter { (spec, score) ->
-            score > 0 && spec.name !in selected
         }.sortedWith(
-            compareByDescending<Pair<KellvynToolSpec, Int>> { it.second }
+            compareByDescending<Pair<KellvynToolSpec, Double>> { it.second }
                 .thenBy { it.first.name }
         )
 
         ranked.forEach { (spec, _) ->
             if (selected.size < maxTools) selected[spec.name] = spec
         }
-
         return selected.values.take(maxTools)
     }
 
-    private fun normalizeToolSearchText(value: String): String =
-        java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
-            .replace(Regex("\\p{M}+"), "")
-            .replace(Regex("[^a-z0-9]+"), " ")
-            .trim()
-
-    private val TOOL_CAPABILITY_HINTS = mapOf(
-        KellvynStudioCapability.CODE_NAVIGATION to setOf("codigo", "kotlin", "java", "arquivo", "projeto", "simbolo", "referencia"),
-        KellvynStudioCapability.CODE_EDITING to setOf("editar", "corrigir", "alterar", "escrever", "patch", "codigo"),
-        KellvynStudioCapability.SECURITY_AUDIT to setOf("seguranca", "vulnerabilidade", "risco", "auditoria"),
-        KellvynStudioCapability.DATA_MODELING to setOf("dados", "json", "csv", "schema", "banco", "sql"),
-        KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS to setOf("android", "apk", "gradle", "compilar", "build", "erro"),
-        KellvynStudioCapability.WEB_RESEARCH to setOf("pesquisar", "pesquisa", "web", "site", "internet", "fonte"),
-        KellvynStudioCapability.DEVICE_DIAGNOSTICS to setOf("recursos", "ram", "memoria", "bateria", "temperatura", "cpu", "dispositivo"),
-        KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS to setOf("fila", "tarefa", "agendamento", "status"),
-        KellvynStudioCapability.BOT_DIAGNOSTICS to setOf("bot", "discord", "telegram", "whatsapp"),
-        KellvynStudioCapability.WORKFLOW_AUTOMATION to setOf("automacao", "agendar", "rotina", "workflow"),
-        KellvynStudioCapability.RASTER_IMAGE_EDIT to setOf("imagem", "foto", "png", "jpeg", "webp", "redimensionar", "recortar", "editar"),
-        KellvynStudioCapability.IMAGE_GENERATION to setOf("gerar", "imagem", "ilustracao", "arte"),
-        KellvynStudioCapability.VISUAL_ANALYSIS to setOf("visual", "analise", "design", "layout"),
-        KellvynStudioCapability.VECTOR_GRAPHICS to setOf("vetor", "svg", "desenho", "ilustracao", "imagem", "gerar", "arte"),
-        KellvynStudioCapability.ANIMATION to setOf("animacao", "animar", "movimento", "quadro", "keyframe", "spritesheet"),
-        KellvynStudioCapability.SCENE_3D to setOf("3d", "cena", "malha", "mesh", "modelo"),
-        KellvynStudioCapability.CAD_PARAMETRIC to setOf("cad", "parametrico", "geometria", "medida"),
-        KellvynStudioCapability.VIDEO_EDITING to setOf("video", "mp4", "corte", "transicao", "render"),
-        KellvynStudioCapability.VIDEO_GENERATION to setOf("video", "mp4", "animacao"),
-        KellvynStudioCapability.AUDIO_PERCEPTION to setOf("audio", "voz", "transcrever", "som"),
-        KellvynStudioCapability.AUDIO_GENERATION to setOf("audio", "voz", "som", "gerar"),
-        KellvynStudioCapability.NEURAL_TRAINING to setOf("treinar", "treinamento", "corpus", "checkpoint", "kn"),
-        KellvynStudioCapability.NEURAL_INFERENCE to setOf("modelo", "inferencia", "resposta", "cerebro", "kn"),
-        KellvynStudioCapability.ARTIFACT_STORAGE to setOf("artefato", "arquivo", "exportar", "resultado", "anexo"),
-        KellvynStudioCapability.MEMORY_READ to setOf("memoria", "lembrar", "historico", "preferencia")
+    private data class ToolSearchDocument(
+        val spec: KellvynToolSpec,
+        val nameTokens: List<String>,
+        val descriptionTokens: List<String>,
+        val weightedTerms: Map<String, Double>,
+        val weightedLength: Double
     )
 
+    private fun scoreToolDocument(
+        document: ToolSearchDocument,
+        queryWeights: Map<String, Double>,
+        documentFrequency: Map<String, Int>,
+        documentCount: Int,
+        averageLength: Double
+    ): Double {
+        var score = 0.0
+        queryWeights.forEach { (term, queryWeight) ->
+            val termFrequency = document.weightedTerms[term] ?: 0.0
+            if (termFrequency <= 0.0) return@forEach
+            val df = documentFrequency[term] ?: 0
+            val inverseDocumentFrequency = kotlin.math.ln(
+                1.0 + (documentCount - df + 0.5) / (df + 0.5)
+            )
+            val lengthNormalization = BM25_K1 * (
+                1.0 - BM25_B + BM25_B * document.weightedLength / averageLength
+            )
+            val bm25 = inverseDocumentFrequency *
+                (termFrequency * (BM25_K1 + 1.0) / (termFrequency + lengthNormalization))
+            score += bm25 * queryWeight
+        }
+
+        val normalizedQuery = queryWeights.keys.joinToString(" ")
+        val normalizedName = document.nameTokens.joinToString(" ")
+        val normalizedDescription = document.descriptionTokens.joinToString(" ")
+        if (normalizedQuery.length >= 4 &&
+            (normalizedName.contains(normalizedQuery) ||
+                normalizedDescription.contains(normalizedQuery))
+        ) {
+            score += EXACT_PHRASE_BOOST
+        }
+        return score
+    }
+
+    private fun MutableMap<String, Double>.addWeightedTerms(
+        tokens: List<String>,
+        weight: Double
+    ) {
+        tokens.forEach { token -> this[token] = (this[token] ?: 0.0) + weight }
+    }
+
+    private fun tokenizeToolSearchText(value: String): List<String> {
+        val normalized = java.text.Normalizer.normalize(
+            value.lowercase(java.util.Locale.ROOT),
+            java.text.Normalizer.Form.NFD
+        ).replace(Regex("\\p{M}+"), "").replace('_', ' ').replace('-', ' ')
+        return Regex("[a-z0-9]{2,}").findAll(normalized)
+            .map { it.value }
+            .filterNot { it in TOOL_SEARCH_STOP_WORDS }
+            .toList()
+    }
+
+    private companion object {
+        const val BM25_K1 = 1.2
+        const val BM25_B = 0.75
+        const val NAME_TERM_WEIGHT = 3.0
+        const val ARGUMENT_TERM_WEIGHT = 1.8
+        const val DESCRIPTION_TERM_WEIGHT = 1.0
+        const val CAPABILITY_TERM_WEIGHT = 1.7
+        const val HINT_TERM_WEIGHT = 1.4
+        const val SYNONYM_QUERY_WEIGHT = 0.35
+        const val EXACT_PHRASE_BOOST = 2.0
+        const val MIN_TOOL_MATCH_SCORE = 0.12
+
+        val TOOL_SEARCH_STOP_WORDS = setOf(
+            "a", "as", "ao", "aos", "com", "de", "da", "das", "do", "dos", "e",
+            "em", "na", "nas", "no", "nos", "o", "os", "ou", "para", "por",
+            "que", "um", "uma", "the", "and", "for", "from", "into", "is",
+            "it", "of", "on", "or", "the", "to", "with", "how", "what"
+        )
+
+        val TOOL_QUERY_SYNONYMS = mapOf(
+            "bug" to setOf("erro", "error", "falha", "exception", "crash"),
+            "crash" to setOf("falha", "erro", "error", "exception", "stacktrace"),
+            "error" to setOf("erro", "falha", "exception", "stacktrace"),
+            "erro" to setOf("error", "falha", "exception", "stacktrace"),
+            "exception" to setOf("erro", "error", "falha", "stacktrace"),
+            "stacktrace" to setOf("exception", "erro", "error", "debug"),
+            "debug" to setOf("erro", "exception", "stacktrace"),
+            "paper" to setOf("artigo", "artigos", "estudo", "research", "cientifico"),
+            "papers" to setOf("artigos", "artigo", "estudos", "research", "cientifico"),
+            "artigo" to setOf("paper", "papers", "estudo", "research", "cientifico"),
+            "artigos" to setOf("paper", "papers", "estudo", "research", "cientifico"),
+            "estudo" to setOf("paper", "papers", "artigo", "research", "cientifico"),
+            "studies" to setOf("study", "paper", "papers", "artigo", "research"),
+            "research" to setOf("pesquisa", "estudo", "paper", "artigo"),
+            "pesquisa" to setOf("research", "estudo", "paper", "artigo"),
+            "workspace" to setOf("projeto", "arquivo", "conteudo", "local"),
+            "documento" to setOf("arquivo", "conteudo", "workspace", "projeto")
+        )
+
+        val TOOL_CAPABILITY_HINTS = mapOf(
+            KellvynStudioCapability.CODE_NAVIGATION to setOf(
+                "codigo", "code", "kotlin", "java", "arquivo", "file", "projeto",
+                "project", "simbolo", "symbol", "referencia", "reference", "workspace",
+                "documento", "document", "conteudo", "content", "busca", "search"
+            ),
+            KellvynStudioCapability.CODE_EDITING to setOf(
+                "editar", "corrigir", "alterar", "escrever", "patch", "codigo", "edit",
+                "fix", "change", "modify", "refactor"
+            ),
+            KellvynStudioCapability.SECURITY_AUDIT to setOf(
+                "seguranca", "security", "vulnerabilidade", "vulnerability", "risco",
+                "risk", "auditoria", "audit", "secret", "credential"
+            ),
+            KellvynStudioCapability.DATA_MODELING to setOf(
+                "dados", "data", "json", "csv", "schema", "banco", "database", "sql"
+            ),
+            KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS to setOf(
+                "android", "apk", "gradle", "compilar", "build", "compile", "erro",
+                "error", "falha", "failure"
+            ),
+            // Keep shared web hints generic. Domain-specific terms belong in each tool
+            // description so academic searches do not pull Stack Overflow (and vice versa).
+            KellvynStudioCapability.WEB_RESEARCH to setOf(
+                "pesquisar", "pesquisa", "research", "web", "site", "internet", "fonte", "source"
+            ),
+            KellvynStudioCapability.DEVICE_DIAGNOSTICS to setOf(
+                "recursos", "resource", "ram", "memoria", "memory", "bateria", "battery",
+                "temperatura", "temperature", "cpu", "dispositivo", "device"
+            ),
+            KellvynStudioCapability.TASK_QUEUE_DIAGNOSTICS to setOf(
+                "fila", "queue", "tarefa", "task", "agendamento", "schedule", "status"
+            ),
+            KellvynStudioCapability.BOT_DIAGNOSTICS to setOf(
+                "bot", "discord", "telegram", "whatsapp", "heartbeat", "polling"
+            ),
+            KellvynStudioCapability.WORKFLOW_AUTOMATION to setOf(
+                "automacao", "automation", "agendar", "schedule", "rotina", "routine",
+                "workflow"
+            ),
+            KellvynStudioCapability.RASTER_IMAGE_EDIT to setOf(
+                "imagem", "image", "foto", "photo", "png", "jpeg", "webp",
+                "redimensionar", "resize", "recortar", "crop", "editar", "edit"
+            ),
+            KellvynStudioCapability.IMAGE_GENERATION to setOf(
+                "gerar", "generate", "imagem", "image", "ilustracao", "illustration", "arte", "art"
+            ),
+            KellvynStudioCapability.VISUAL_ANALYSIS to setOf(
+                "visual", "analise", "analysis", "design", "layout", "inspect", "inspect"
+            ),
+            KellvynStudioCapability.VECTOR_GRAPHICS to setOf(
+                "vetor", "vector", "svg", "desenho", "drawing", "ilustracao",
+                "illustration", "imagem", "image", "gerar", "generate", "arte", "art"
+            ),
+            KellvynStudioCapability.ANIMATION to setOf(
+                "animacao", "animation", "animar", "animate", "movimento", "motion",
+                "quadro", "frame", "keyframe", "spritesheet"
+            ),
+            KellvynStudioCapability.SCENE_3D to setOf(
+                "3d", "cena", "scene", "malha", "mesh", "modelo", "model"
+            ),
+            KellvynStudioCapability.CAD_PARAMETRIC to setOf(
+                "cad", "parametrico", "parametric", "geometria", "geometry", "medida", "dimension"
+            ),
+            KellvynStudioCapability.VIDEO_EDITING to setOf(
+                "video", "mp4", "corte", "cut", "transicao", "transition", "render"
+            ),
+            KellvynStudioCapability.VIDEO_GENERATION to setOf(
+                "video", "mp4", "animacao", "animation", "generate"
+            ),
+            KellvynStudioCapability.AUDIO_PERCEPTION to setOf(
+                "audio", "voz", "voice", "transcrever", "transcribe", "som", "sound"
+            ),
+            KellvynStudioCapability.AUDIO_GENERATION to setOf(
+                "audio", "voz", "voice", "som", "sound", "gerar", "generate"
+            ),
+            KellvynStudioCapability.NEURAL_TRAINING to setOf(
+                "treinar", "training", "treinamento", "corpus", "checkpoint", "kn"
+            ),
+            KellvynStudioCapability.NEURAL_INFERENCE to setOf(
+                "modelo", "model", "inferencia", "inference", "resposta", "answer", "cerebro", "kn"
+            ),
+            KellvynStudioCapability.ARTIFACT_STORAGE to setOf(
+                "artefato", "artifact", "arquivo", "file", "exportar", "export", "resultado",
+                "result", "anexo", "attachment"
+            ),
+            KellvynStudioCapability.MEMORY_READ to setOf(
+                "memoria", "memory", "lembrar", "remember", "historico", "history",
+                "preferencia", "preference"
+            )
+        )
+    }
     /** Creates an isolated specialist registry; network reads require the owner switch. */
     fun specialistSubset(
         requestedNames: Set<String>,

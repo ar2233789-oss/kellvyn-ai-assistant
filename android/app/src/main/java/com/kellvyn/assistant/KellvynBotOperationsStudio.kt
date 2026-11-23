@@ -135,7 +135,7 @@ internal class KellvynBotOperationsStudio(
         private val MANIFEST = KellvynStudioModuleManifest(
             moduleId = MODULE_ID,
             version = 1,
-            capabilities = setOf(KellvynStudioCapability.WORKFLOW_AUTOMATION),
+            capabilities = setOf(KellvynStudioCapability.BOT_DIAGNOSTICS),
             supportedExtensions = emptySet(),
             minSdk = 24,
             requiresNetwork = false,

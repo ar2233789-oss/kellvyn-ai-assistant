@@ -35,6 +35,50 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
+    fun bm25UsesTermFrequencyInsteadOfOnlyBinaryTermOverlap() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "docs/single.md",
+                excerpt = "cache attention",
+                truncated = false,
+                sizeBytes = 20
+            ),
+            KellvynProjectSearchDocument(
+                path = "docs/repeated.md",
+                excerpt = "cache attention cache cache cache attention attention attention",
+                truncated = false,
+                sizeBytes = 80
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "cache attention",
+            limit = 2
+        )
+
+        assertEquals(2, hits.size)
+        assertEquals("docs/repeated.md", hits.first().path)
+        assertTrue(hits.first().score > hits.last().score)
+    }
+
+    @Test
+    fun candidatePathsPrioritizeFilenameMatchesAndRemainDeterministic() {
+        val paths = listOf(
+            "bulk/decoy-01.md",
+            "bulk/decoy-02.md",
+            "docs/checkpoint-recovery.md",
+            "src/AgentRuntime.kt"
+        )
+
+        val ranked = KellvynProjectPathRanker.rank(paths, "checkpoint recovery")
+        val repeated = KellvynProjectPathRanker.rank(paths.reversed(), "checkpoint recovery")
+
+        assertEquals("docs/checkpoint-recovery.md", ranked.first())
+        assertEquals(ranked, repeated)
+    }
+
+    @Test
     fun searchNormalizesPortugueseAccents() {
         val documents = listOf(
             KellvynProjectSearchDocument(
@@ -53,6 +97,113 @@ class KellvynProjectContextRetrieverTest {
 
         assertEquals(1, hits.size)
         assertEquals("docs/validacao.md", hits.single().path)
+    }
+
+    @Test
+    fun portugueseSearchFindsEnglishNamedCamelCaseCode() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "src/KellvynProjectContextRetriever.kt",
+                excerpt = """
+                    class KellvynProjectContextRetriever {
+                        fun searchWorkspace(projectId: String) = Unit
+                    }
+                """.trimIndent(),
+                truncated = false,
+                sizeBytes = 180
+            ),
+            KellvynProjectSearchDocument(
+                path = "docs/recipe.md",
+                excerpt = "Leite condensado, ovos e açúcar.",
+                truncated = false,
+                sizeBytes = 60
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "buscar arquivos do projeto",
+            limit = 5
+        )
+
+        assertEquals(1, hits.size)
+        assertEquals("src/KellvynProjectContextRetriever.kt", hits.single().path)
+        assertTrue(hits.single().matchedTerms.contains("buscar"))
+        assertTrue(hits.single().matchedTerms.contains("projeto"))
+    }
+
+    @Test
+    fun englishQueryFindsPortugueseDocumentationWithConservativeExpansion() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "docs/erros.md",
+                excerpt = "A falha ocorre durante o cancelamento da corrotina.",
+                truncated = false,
+                sizeBytes = 100
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "exception cancellation coroutine",
+            limit = 3
+        )
+
+        assertEquals(1, hits.size)
+        assertTrue(hits.single().matchedTerms.contains("exception"))
+        assertTrue(hits.single().matchedTerms.contains("cancellation"))
+        assertTrue(hits.single().matchedTerms.contains("coroutine"))
+    }
+
+    @Test
+    fun exactTermsOutrankTranslatedSynonymsAndKeepReducedWeight() {
+        val exact = KellvynProjectSearchLexicon.coverage(
+            setOf("exception"),
+            setOf("exception")
+        )
+        val translated = KellvynProjectSearchLexicon.coverage(
+            setOf("exception"),
+            setOf("falha")
+        )
+
+        assertEquals(1.0, exact, 0.0)
+        assertEquals(0.35, translated, 0.000001)
+    }
+
+    @Test
+    fun exactEvidenceRanksAboveTranslatedEvidence() {
+        val documents = listOf(
+            KellvynProjectSearchDocument(
+                path = "docs/translated.md",
+                excerpt = "A falha ocorre durante o cancelamento da corrotina.",
+                truncated = false,
+                sizeBytes = 100
+            ),
+            KellvynProjectSearchDocument(
+                path = "docs/exact.md",
+                excerpt = "An exception occurs during coroutine cancellation.",
+                truncated = false,
+                sizeBytes = 100
+            )
+        )
+
+        val hits = KellvynProjectSearchRanker.rank(
+            documents,
+            query = "exception cancellation coroutine",
+            limit = 2
+        )
+
+        assertEquals("docs/exact.md", hits.first().path)
+        assertTrue(hits.first().score > hits.last().score)
+    }
+
+    @Test
+    fun tokenizerRemovesStopWordsButKeepsUsefulBilingualTerms() {
+        assertTrue(KellvynProjectSearchLexicon.tokens("de um para com").isEmpty())
+        assertEquals(
+            setOf("memoria", "cache", "memory"),
+            KellvynProjectSearchLexicon.tokens("memória cache memory")
+        )
     }
 
     @Test

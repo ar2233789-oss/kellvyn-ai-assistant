@@ -88,7 +88,7 @@ internal class KellvynAndroidBuildStatusStudio private constructor(
         val MANIFEST = KellvynStudioModuleManifest(
             moduleId = "android-build-status",
             version = 1,
-            capabilities = setOf(KellvynStudioCapability.ANDROID_BUILD),
+            capabilities = setOf(KellvynStudioCapability.ANDROID_BUILD_DIAGNOSTICS),
             supportedExtensions = setOf("apk"),
             minSdk = 26,
             requiresNetwork = false,
