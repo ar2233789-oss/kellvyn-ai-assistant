@@ -4,94 +4,103 @@ Este diretório contém ferramentas técnicas chamadas diretamente pelo **céreb
 
 ## Catálogo local de datasets
 
-\`tools/dataset_catalog.py\` inventaria uma pasta sem alterar os dados e cria uma impressão digital determinística. Registra caminho relativo, tamanho, SHA-256 por arquivo, categorias, arquivos com conteúdo duplicado e resumo de JSONL/NDJSON. A validação de JSONL é feita linha a linha, sem carregar o dataset inteiro na memória.
+\`tools/dataset_catalog.py\` inventaria uma pasta sem alterar os dados e cria uma impressão digital determinística. Registra caminhos relativos, tamanhos, SHA-256 por arquivo, categorias, grupos de conteúdo duplicado e resumo JSONL/NDJSON. A validação de JSONL é feita linha a linha, sem carregar o dataset inteiro na memória.
 
 ~~~bash
-python3 workshop/tools/dataset_catalog.py inspect \\
-  --root workshop/examples/dataset \\
+python3 workshop/tools/dataset_catalog.py inspect \
+  --root workshop/examples/dataset \
   --output out/datasets/training.manifest.json
 
-python3 workshop/tools/dataset_catalog.py inspect \\
-  --root workshop/examples/evaluation \\
+python3 workshop/tools/dataset_catalog.py inspect \
+  --root workshop/examples/evaluation \
   --output out/datasets/evaluation.manifest.json
 
-python3 workshop/tools/dataset_catalog.py verify \\
-  --root workshop/examples/dataset \\
+python3 workshop/tools/dataset_catalog.py verify \
+  --root workshop/examples/dataset \
   --manifest out/datasets/training.manifest.json
 ~~~
 
-O campo \`dataset_sha256\` identifica os arquivos e seus caminhos relativos. Use-o em \`comparison_context.dataset_sha256\` e use a impressão digital da suíte em \`comparison_context.evaluation_suite_sha256\`. O manifesto deve ficar fora da raiz inventariada. Links simbólicos e arquivos especiais são rejeitados; os limites padrão são 100 mil arquivos e 20 GiB.
+O campo \`dataset_sha256\` identifica os arquivos e seus caminhos relativos. Use-o em \`comparison_context.dataset_sha256\` e use a impressão digital da suíte em \`comparison_context.evaluation_suite_sha256\`. O manifesto precisa ficar fora da raiz inventariada. Links simbólicos e arquivos especiais são rejeitados; os limites padrão são 100 mil arquivos e 20 GiB.
 
-O catálogo não interpreta semanticamente imagens, áudio ou documentos, não faz rotulagem automática e não treina modelos. Ele garante inventário e identidade de conteúdo reproduzíveis.
+## Auditoria de divisões de dados
+
+\`tools/dataset_split_auditor.py\` verifica vazamento por duplicação exata entre treino, validação e teste. Compara JSONL/NDJSON por hash de JSON canônico, usando SQLite temporário para não manter todos os fingerprints em memória. Relata os nomes das divisões, caminhos relativos e linhas conflitantes, mas não grava os valores dos registros. Também identifica duplicatas dentro de cada divisão e linhas JSON inválidas/vazias.
+
+~~~bash
+python3 workshop/tools/dataset_split_auditor.py \
+  --train-root workshop/examples/splits/train \
+  --validation-root workshop/examples/splits/validation \
+  --test-root workshop/examples/splits/test \
+  --output out/datasets/split-audit.json
+~~~
+
+O comando retorna \`clean\`, \`overlap_detected\` ou \`invalid_data\`; códigos de saída diferentes de zero indicam dados que precisam de atenção. O relatório não contém os registros originais, mas fingerprints de dados previsíveis podem ser adivinhados. Restrinja o acesso ao relatório. A auditoria detecta apenas duplicatas JSON exatas após ordenação das chaves; não detecta paráfrases, quase duplicatas, exemplos semanticamente equivalentes nem vazamento indireto por origem/coleta.
 
 ## Avaliador local de benchmarks
 
-\`tools/benchmark_evaluator.py\` recebe uma suíte de casos e as previsões produzidas pelo modelo que o cérebro principal decidiu executar. Não chama modelos, não gera respostas e não usa rede. O campo \`task\` da suíte seleciona a família de métricas:
+\`tools/benchmark_evaluator.py\` recebe uma suíte de casos e as previsões produzidas pelo modelo que o cérebro principal decidiu executar. Não chama modelos, não gera respostas e não usa rede. O campo \`task\` seleciona a família de métricas:
 
-| Tarefa | Métricas produzidas |
+| Tarefa | Métricas |
 |---|---|
-| \`exact_match\` | Correspondência exata, cobertura e casos individuais |
+| \`exact_match\` | Correspondência exata e cobertura |
 | \`classification\` | Acurácia, precisão, recall e F1 macro/micro, além de detalhes por classe |
 | \`regression\` | MAE, MSE, RMSE e R² |
 | \`word_error_rate\` | WER, substituições, exclusões e inserções |
 
-Quando \`task\` é omitido, o padrão é \`exact_match\`. O avaliador exige IDs únicos, registra previsões ausentes/excedentes e marca a execução como \`partial\` quando a cobertura não é completa. O motor experimental não aceita avaliação parcial para selar uma execução.
+Quando \`task\` é omitido, o padrão é \`exact_match\`. O avaliador exige IDs únicos, registra previsões ausentes/excedentes e marca a execução como \`partial\` quando a cobertura não é completa. O arquivo de previsões precisa ficar fora da raiz da suíte, para que o fingerprint represente somente os dados de referência. O motor experimental não aceita avaliação parcial.
 
 Exemplo de avaliação textual exata:
 
 ~~~bash
-python3 workshop/tools/benchmark_evaluator.py \\
-  --suite-root workshop/examples/evaluation \\
-  --suite-file workshop/examples/evaluation/suite.json \\
-  --predictions workshop/examples/predictions.json \\
+python3 workshop/tools/benchmark_evaluator.py \
+  --suite-root workshop/examples/evaluation \
+  --suite-file workshop/examples/evaluation/suite.json \
+  --predictions workshop/examples/predictions.json \
   --output out/evaluation/result.json
 ~~~
 
-Outras suítes demonstrativas estão em \`examples/evaluation-classification\`, \`examples/evaluation-regression\` e \`examples/evaluation-speech\`.
+Outras suítes demonstrativas ficam em \`examples/evaluation-classification/suite\`, \`examples/evaluation-regression/suite\` e \`examples/evaluation-speech/suite\`; as respectivas previsões ficam fora de cada raiz de referência.
 
-**Limites das métricas:** exact match mede igualdade lexical/estruturada, não qualidade semântica; classificação precisa de métricas por classe quando há desequilíbrio; regressão depende da escala e distribuição dos alvos; WER depende da normalização e pode exceder 1 por causa de inserções; o alinhamento tem limite de um milhão de células para manter o uso de memória previsível em dispositivos móveis. Essas métricas não substituem revisão humana ou benchmarks específicos de cada modalidade.
+**Limites das métricas:** exact match mede igualdade lexical/estruturada, não qualidade semântica; classificação precisa de métricas por classe quando há desequilíbrio; regressão depende da escala e distribuição dos alvos; WER depende da normalização e pode exceder 1 por causa de inserções. O alinhamento WER é limitado a um milhão de células para manter o uso de memória previsível em dispositivos móveis. Nenhuma dessas métricas substitui revisão humana e benchmarks adequados à modalidade.
 
 ## Motor local de experimentos
 
-\`tools/experiment_engine.py\` oferece três operações determinísticas, usando somente a biblioteca padrão do Python:
+\`tools/experiment_engine.py\` oferece três operações determinísticas:
 
-- \`record\`: valida a especificação, calcula SHA-256 e tamanho dos artefatos e sela um manifesto. Não sobrescreve execuções existentes.
-- \`verify\`: recalcula hashes e tamanhos dos artefatos e, se informado, revalida o hash do resultado de avaliação.
+- \`record\`: valida uma especificação, calcula SHA-256 e tamanho dos artefatos e sela um manifesto. Não sobrescreve execuções existentes.
+- \`verify\`: recalcula hashes e tamanhos dos artefatos e, quando fornecido novamente, revalida o hash do resultado de avaliação.
 - \`compare\`: compara duas execuções seladas sob contexto idêntico e aplica tolerâncias explícitas por métrica.
 
 Exemplo integrado:
 
 ~~~bash
-python3 workshop/tools/experiment_engine.py record \\
-  --spec workshop/examples/experiment-spec.json \\
-  --artifact-root workshop/examples \\
-  --evaluation-result out/evaluation/result.json \\
+python3 workshop/tools/experiment_engine.py record \
+  --spec workshop/examples/experiment-spec.json \
+  --artifact-root workshop/examples \
+  --evaluation-result out/evaluation/result.json \
   --output out/experiments/candidate.run.json
 
-python3 workshop/tools/experiment_engine.py verify \\
-  --run out/experiments/candidate.run.json \\
-  --artifact-root workshop/examples \\
+python3 workshop/tools/experiment_engine.py verify \
+  --run out/experiments/candidate.run.json \
+  --artifact-root workshop/examples \
   --evaluation-result out/evaluation/result.json
 
-python3 workshop/tools/experiment_engine.py compare \\
-  --baseline out/experiments/baseline.run.json \\
-  --candidate out/experiments/candidate.run.json \\
-  --policy workshop/examples/comparison-policy.json \\
+python3 workshop/tools/experiment_engine.py compare \
+  --baseline out/experiments/baseline.run.json \
+  --candidate out/experiments/candidate.run.json \
+  --policy workshop/examples/comparison-policy.json \
   --output out/experiments/comparison.json
 ~~~
 
-O conjunto de métricas da política precisa corresponder à família da tarefa. Uma política de classificação não deve ser reutilizada para regressão ou reconhecimento de fala. As execuções só são comparáveis se hashes do dataset e da suíte, dispositivo, runtime e precisão forem idênticos. Parâmetros que estão sendo experimentados ficam em \`parameters\`, fora do contexto fixo.
+Cada execução registra fingerprints do dataset e da suíte, dispositivo, runtime e precisão. Parâmetros que estão sendo experimentados ficam em \`parameters\`, fora do contexto fixo. A política define por métrica a direção (\`higher\` ou \`lower\`), melhoria mínima e regressão máxima tolerada. Qualquer regressão fora da tolerância bloqueia o resultado \`improved\`; métricas ausentes ou contextos incompatíveis produzem \`inconclusive\`.
 
-Cada regra de métrica define \`direction\` (\`higher\` ou \`lower\`), \`min_improvement\` e \`max_regression\`. Uma regressão além da tolerância bloqueia a aprovação, mesmo se outra métrica melhorar. Métricas ausentes ou contextos incompatíveis produzem \`inconclusive\`; o motor não inventa uma nota agregada.
-
-## Integridade e segurança
+## Integridade, segurança e limites
 
 - Caminhos de artefatos são relativos à raiz declarada; caminhos absolutos, travessia \`..\` e links simbólicos são rejeitados.
-- O registro calcula SHA-256 e tamanho dos arquivos; a verificação detecta divergências.
-- Um hash detecta alteração do conteúdo registrado, mas não prova autoria, aprovação humana ou autenticidade do manifesto.
-- Nenhum desses módulos executa código fornecido por um projeto, dispara subprocessos, usa rede ou precisa de serviço pago.
+- Os registros usam SHA-256 e tamanho dos arquivos; isso detecta alterações, mas não prova autoria nem aprovação humana.
+- Os módulos não executam código fornecido por projetos, não iniciam subprocessos, não usam rede e não exigem serviços pagos.
 - O motor de experimentos registra resultados produzidos por uma execução autorizada; não é um executor de projetos.
-- A avaliação objetiva é limitada pela qualidade da suíte, dos rótulos e dos dados de referência. Um score alto em uma amostra pequena não prova capacidade geral.
+- As amostras incluídas são demonstrações sintéticas, não medições de modelos reais nem resultados de desempenho do Poco F6.
 
 ## Testes
 
@@ -100,8 +109,8 @@ python3 -m unittest discover -s workshop/tests -v
 python3 -m py_compile workshop/tools/*.py
 ~~~
 
-Os testes cobrem integridade de dados, fingerprints, duplicatas, JSONL, métricas de quatro famílias de tarefas, caminhos inseguros, avaliação parcial, incompatibilidade de contexto, regressões e adulteração de artefatos.
+Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, cobertura, segurança de caminhos, métricas, incompatibilidade de contexto, regressões e adulteração de artefatos.
 
 ## Referências de desenho
 
-O catálogo adota ideias de fingerprint/versionamento de dados presentes em DVC e Hugging Face Datasets. As métricas de classificação, regressão e WER seguem definições documentadas pelo Hugging Face Evaluate e scikit-learn. Essas plataformas são referências de engenharia, não dependências de execução desta oficina.
+O catálogo adota ideias de fingerprints/versionamento do DVC e Hugging Face Datasets. Métricas de classificação, regressão e WER seguem definições documentadas pelo Hugging Face Evaluate e scikit-learn. São referências de engenharia, não dependências de execução desta oficina.
