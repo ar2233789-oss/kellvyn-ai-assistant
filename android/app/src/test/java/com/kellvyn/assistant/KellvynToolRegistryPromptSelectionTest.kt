@@ -58,6 +58,34 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
+    fun naturalLanguageCrashDescriptionFindsDeveloperKnowledgeTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Meu app fecha sozinho e apresenta exception no Kotlin. Como encontro a solução?")
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("developer_qna_search" in selected)
+        assertFalse("animation_render_spritesheet" in selected)
+    }
+
+    @Test
+    fun EnglishScientificQueryFindsAcademicResearchTool() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Find peer-reviewed papers about reinforcement learning and local language models")
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("academic_research" in selected)
+        assertFalse("developer_qna_search" in selected)
+    }
+
+    @Test
     fun imageRequestGetsRasterToolsWithoutUnrelatedModules() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Redimensionar foto PNG para 256 pixels")),
@@ -94,6 +122,25 @@ class KellvynToolRegistryPromptSelectionTest {
         assertTrue("automation_task_status" in selected)
         assertTrue("device_resource_snapshot" in selected)
         assertFalse("image_resize" in selected)
+    }
+
+    @Test
+    fun followUpToolEvidenceStillRefinesTheShortlistWithBilingualRanking() {
+        val selected = registry().descriptionsForPrompt(
+            history = listOf(
+                user("Isto parece um bug; pesquise a solução."),
+                KellvynAgentMessage(
+                    role = KellvynMessageRole.TOOL,
+                    trust = KellvynTrustLevel.UNTRUSTED,
+                    source = "tool:workspace_read_file",
+                    content = "IllegalStateException thrown by Kotlin coroutine cancellation."
+                )
+            ),
+            maxTools = 6
+        ).map { it.name }.toSet()
+
+        assertTrue("studio_capability_inventory" in selected)
+        assertTrue("developer_qna_search" in selected)
     }
 
     @Test
