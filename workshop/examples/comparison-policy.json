@@ -1,10 +1,15 @@
 {
   "schema": 1,
   "metrics": {
-    "quality_score": {
+    "exact_match_accuracy": {
       "direction": "higher",
       "min_improvement": 0.01,
       "max_regression": 0.005
+    },
+    "coverage": {
+      "direction": "higher",
+      "min_improvement": 0.0,
+      "max_regression": 0.0
     },
     "latency_ms": {
       "direction": "lower",
