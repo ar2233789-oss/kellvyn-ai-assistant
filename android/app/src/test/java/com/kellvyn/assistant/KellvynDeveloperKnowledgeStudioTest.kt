@@ -143,6 +143,26 @@ class KellvynDeveloperKnowledgeStudioTest {
     }
 
     @Test
+    fun duplicateQueryPolicyEnforcesSixtySecondIntervalAndHandlesClockChanges() {
+        val now = 1_000_000L
+
+        assertEquals(60L, KellvynDeveloperQueryThrottle.duplicateQueryDelaySeconds(now, now))
+        assertEquals(30L, KellvynDeveloperQueryThrottle.duplicateQueryDelaySeconds(now, now + 30_000L))
+        assertEquals(null, KellvynDeveloperQueryThrottle.duplicateQueryDelaySeconds(now, now + 60_000L))
+        assertEquals(60L, KellvynDeveloperQueryThrottle.duplicateQueryDelaySeconds(now + 1_000L, now))
+    }
+
+    @Test
+    fun backoffPolicyBlocksOnlyUntilServerProvidedDeadline() {
+        val now = 2_000_000L
+        val deadline = now + 12_500L
+
+        assertEquals(13L, KellvynDeveloperQueryThrottle.backoffRemainingSeconds(deadline, now))
+        assertEquals(5L, KellvynDeveloperQueryThrottle.backoffRemainingSeconds(deadline, now + 7_500L))
+        assertEquals(null, KellvynDeveloperQueryThrottle.backoffRemainingSeconds(deadline, deadline))
+    }
+
+    @Test
     fun reportsProviderErrorsWithoutInventingAnswers() = runBlocking {
         val studio = KellvynDeveloperKnowledgeStudio.testModule(
             accessEnabled = { true },

@@ -272,6 +272,23 @@ internal class KellvynDeveloperKnowledgeStudio(
  * Implements the Stack Exchange API's method backoff and duplicate-query guidance.
  * Backoff timestamps and recent query hashes are app-private and contain no query text.
  */
+internal object KellvynDeveloperQueryThrottle {
+    const val MIN_IDENTICAL_QUERY_INTERVAL_MS = 60_000L
+
+    fun duplicateQueryDelaySeconds(lastRequestAtMillis: Long, nowMillis: Long): Long? {
+        if (lastRequestAtMillis <= 0L) return null
+        val age = nowMillis - lastRequestAtMillis
+        if (age < 0L) return MIN_IDENTICAL_QUERY_INTERVAL_MS / 1_000L
+        if (age >= MIN_IDENTICAL_QUERY_INTERVAL_MS) return null
+        return ((MIN_IDENTICAL_QUERY_INTERVAL_MS - age) + 999L) / 1_000L
+    }
+
+    fun backoffRemainingSeconds(nextAllowedAtMillis: Long, nowMillis: Long): Long? {
+        if (nextAllowedAtMillis <= nowMillis) return null
+        return ((nextAllowedAtMillis - nowMillis) + 999L) / 1_000L
+    }
+}
+
 internal class KellvynStackExchangeApiProvider(
     private val preferences: SharedPreferences,
     private val clock: () -> Long = System::currentTimeMillis
@@ -290,7 +307,9 @@ internal class KellvynStackExchangeApiProvider(
                 )
             }
 
-            val signature = sha256(query.trim().lowercase(Locale.ROOT))
+            val normalizedQuery = query.trim().lowercase(Locale.ROOT)
+                .replace(Regex("\\s+"), " ")
+            val signature = sha256(normalizedQuery)
             duplicateQueryDelay(signature, now)?.let { seconds ->
                 return@withContext KellvynDeveloperSearchBatch(
                     emptyList(),
@@ -307,7 +326,7 @@ internal class KellvynStackExchangeApiProvider(
                     "&answers=1&filter=withbody"
             )
             val searchResponse = request(searchUrl, KEY_SEARCH_BACKOFF)
-            val quotaRemaining = searchResponse.optInt("quota_remaining", -1)
+            var quotaRemaining = searchResponse.optInt("quota_remaining", -1)
                 .takeIf { it >= 0 }
             val questions = parseQuestions(searchResponse.optJSONArray("items") ?: JSONArray())
 
@@ -336,6 +355,11 @@ internal class KellvynStackExchangeApiProvider(
             val warnings = mutableListOf<String>()
             val answerMap = try {
                 val answerResponse = request(answerUrl, KEY_ANSWERS_BACKOFF)
+                val answerQuota = answerResponse.optInt("quota_remaining", -1)
+                    .takeIf { it >= 0 }
+                if (answerQuota != null) {
+                    quotaRemaining = quotaRemaining?.let { minOf(it, answerQuota) } ?: answerQuota
+                }
                 parseAnswers(answerResponse.optJSONArray("items") ?: JSONArray())
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -497,11 +521,11 @@ internal class KellvynStackExchangeApiProvider(
                 (uri.path.startsWith("/a/") || uri.path.startsWith("/questions/"))
         }.getOrDefault(false)
 
-    private fun activeBackoff(key: String, nowMillis: Long): Long? {
-        val until = preferences.getLong(key, 0L)
-        if (until <= nowMillis) return null
-        return ((until - nowMillis) + 999L) / 1_000L
-    }
+    private fun activeBackoff(key: String, nowMillis: Long): Long? =
+        KellvynDeveloperQueryThrottle.backoffRemainingSeconds(
+            preferences.getLong(key, 0L),
+            nowMillis
+        )
 
     private fun storeBackoff(key: String, seconds: Long, nowMillis: Long) {
         val safeSeconds = seconds.coerceAtLeast(1L)
@@ -521,16 +545,11 @@ internal class KellvynStackExchangeApiProvider(
         while (keys.hasNext()) {
             val key = keys.next()
             val at = json.optLong(key, 0L)
-            val age = nowMillis - at
-            if (at > 0L && (age < MIN_IDENTICAL_QUERY_INTERVAL_MS || age < 0L)) {
+            val remaining = KellvynDeveloperQueryThrottle
+                .duplicateQueryDelaySeconds(at, nowMillis)
+            if (remaining != null) {
                 retained.put(key, at)
-                if (key == signature) {
-                    retryAfter = if (age < 0L) {
-                        MIN_IDENTICAL_QUERY_INTERVAL_MS / 1_000L
-                    } else {
-                        ((MIN_IDENTICAL_QUERY_INTERVAL_MS - age) + 999L) / 1_000L
-                    }
-                }
+                if (key == signature) retryAfter = remaining
             }
         }
         if (retryAfter != null) {
@@ -596,7 +615,6 @@ internal class KellvynStackExchangeApiProvider(
         const val CONNECT_TIMEOUT_MS = 3_500
         const val READ_TIMEOUT_MS = 4_500
         const val MAX_RESPONSE_BYTES = 384 * 1024
-        const val MIN_IDENTICAL_QUERY_INTERVAL_MS = 60_000L
         const val MAX_RECENT_QUERY_HASHES = 24
         const val KEY_SEARCH_BACKOFF = "stackexchange.search.backoff_until"
         const val KEY_ANSWERS_BACKOFF = "stackexchange.answers.backoff_until"
