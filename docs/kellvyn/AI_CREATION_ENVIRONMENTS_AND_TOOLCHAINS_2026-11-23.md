@@ -170,7 +170,64 @@ Fontes:
 | PEFT/LoRA para ajuste de modelos conhecidos | Só considerar depois de demonstrar que a arquitetura do modelo-alvo é compatível |
 | Runtimes móveis com GPU/NPU | Provar formato, conversão, memória, temperatura e qualidade no Poco F6 antes de adotar |
 
-## 8. Plano de decisão para o laboratório
+## 8. n8n: automação visual, MCP e o que pode ser aproveitado
+
+### O que ele é — e o que não é
+
+n8n é uma plataforma fair-code de automação de processos. Conecta aplicações, APIs, bancos, triggers, filas, transformações e execuções por meio de workflows visuais, com possibilidade de código e nós customizados. Também oferece recursos de IA, mas a existência de um AI Agent node não significa que a plataforma seja um runtime neural local ou um substituto para o cérebro KN.
+
+### Capacidades relevantes observadas em 23/11/2026
+
+1. **n8n Assistant:** chat capaz de planejar, criar, editar, testar e depurar workflows. O resultado é um workflow normal que pode ser inspecionado e publicado. O próprio n8n alerta que o Assistant pode errar e que a saída deve ser revista antes de produção. O recurso também pode conectar MCP servers, navegar com Browser Use e consultar trabalhos/execuções recentes. Em self-hosted Community o Assistant está listado como disponível, mas precisa de um modelo configurado para funcionar; o AI Agent interno do n8n não deve ser usado como cérebro da Kellvyn.
+2. **MCP em nível de instância:** uma conexão autenticada pode expor workflows selecionados; clientes podem localizar, executar e testar workflows, e desde n8n 2.13.0 também criar/editar workflows. A exposição não é automática: MCP precisa ser habilitado e cada workflow liberado individualmente. Um detalhe de segurança importante: as permissões não são isoladas por cliente MCP; os clientes conectados podem ver os mesmos workflows expostos, respeitando o acesso do usuário. Para a Kellvyn, isso exigiria uma allowlist estrita e autenticação própria.
+3. **MCP protegido:** a documentação informa que, desde 2.47.0, uma instância configurada como protegida/read-only bloqueia ferramentas MCP sem readOnlyHint: true, com exceção de execução de workflows publicados em modo production. É um modelo útil para reduzir o risco de uma integração.
+4. **Aprovação humana (HITL):** um workflow pode pausar antes de uma ferramenta sensível, mostrar os parâmetros e aguardar aprovação ou rejeição. Serve como referência de UX e política para ações externas; não substitui as aprovações já existentes no workspace da Kellvyn.
+5. **Avaliações:** o n8n suporta conjuntos de exemplos de teste, resultados esperados e comparações para detectar regressões em workflows com IA. A prática é valiosa mesmo que a Kellvyn mantenha sua avaliação inteiramente local.
+6. **Integrações e extensibilidade:** nodes de aplicativos, HTTP Request, Code, triggers, sub-workflows, MCP Client/Server Trigger e nodes customizados permitem conectar sistemas sem implementar cada conector de raiz.
+
+Fontes oficiais:
+- https://docs.n8n.io/build/ways-of-building-workflows/n8n-assistant.md
+- https://docs.n8n.io/connect/connect-to-n8n-mcp-server.md
+- https://docs.n8n.io/connect/connect-to-n8n-mcp-server/mcp-server-tools-reference.md
+- https://docs.n8n.io/build/integrate-ai/ai-examples/human-in-the-loop-for-tools.md
+- https://docs.n8n.io/build/integrate-ai/test-and-improve-ai-workflows/understand-why-to-test.md
+
+### Novidades de versão verificadas nesta data
+
+- **2.48.8** aparece como a versão estável mais recente publicada em 23/11/2026. Seu changelog inclui explicação do último estado de execução no Migration Report e correções para e2e, permissões e tratamento de memória do motor de expressões.
+- **2.49.5** aparece como pré-lançamento, não deve ser confundida com a versão estável.
+- **3.0.0 Beta** foi anunciada em 27/10/2026; o anúncio previa a versão estável para o início de dezembro. A versão 3.0 reúne mudanças potencialmente incompatíveis: self-hosting passa a ser Docker-based, remove instalação npm/npx, muda execução manual para workers em queue mode, remove modo de dados binários em memória, substitui Cron/Interval pelo Schedule Trigger, reduz o timeout padrão do Code node e endurece defaults de segurança. Não atualizar para 3.0 sem ler o Migration Report e testar os workflows.
+
+Fontes:
+- https://github.com/n8n-io/n8n/releases
+- https://blog.n8n.io/introducing-n8n-v3/
+
+### Custo, hospedagem, privacidade e licença
+
+- **Community self-hosted:** pode ser gratuita para uso pessoal ou interno da organização sob a Sustainable Use License. O n8n Cloud é um serviço separado, com assinatura e créditos.
+- **Uso dentro de um produto:** se a Kellvyn permitir que usuários externos construam ou configurem workflows via editor, API, MCP ou agente de IA, a FAQ do n8n indica a necessidade de licença comercial. Não assumir que a Community Edition pode ser embutida gratuitamente num produto distribuído.
+- **Hospedagem:** a documentação atual orienta self-hosting com Docker, Docker Compose ou ambiente compatível. A versão 3.0 deixa npm/npx sem suporte para novas instalações. Os requisitos de produção recomendam host Linux 64-bit; o guia de Docker Compose para o stack do n8n Assistant pede Docker Engine, Compose, pelo menos 4 GB de RAM e 2 vCPUs. O sandbox de desenvolvimento desse guia usa Docker-in-Docker privilegiado, com isolamento fraco, e não deve ser instalado junto a dados pessoais num aparelho principal.
+- **Poco F6:** Android/HyperOS não aparece como alvo de instalação suportado nas instruções oficiais. Portanto, não tratar o telefone como host n8n oficial. Os 8 GB de RAM do aparelho, isoladamente, não resolvem o requisito Docker/host nem os limites de execução em background do Android.
+- **Dados:** n8n mantém workflows, credenciais e histórico numa base de dados. Ele tem controles para criptografia, auditoria, ocultação de dados de execução, bloqueio de nodes e proteção SSRF; isso exige configuração e manutenção do servidor. O tráfego MCP também deve ser protegido e limitado a workflows explicitamente publicados.
+
+Fontes:
+- https://support.n8n.io/article/can-i-use-your-license-for-your-use-case
+- https://docs.n8n.io/deploy/host-n8n.md
+- https://docs.n8n.io/deploy/host-n8n/install-options/production-requirements.md
+- https://docs.n8n.io/deploy/host-n8n/install-options/install-using-docker-compose.md
+- https://docs.n8n.io/deploy/host-n8n/configure-n8n/security.md
+
+### Veredito para Kellvyn
+
+**Aproveitar:** o padrão de workflow versionado, triggers, nós reutilizáveis, retry/backoff, logs de execução, testes com dataset conhecido, gates de aprovação, MCP autenticado e allowlist de operações.
+
+**Não copiar para o runtime principal:** AI Agent do n8n, Chat Hub multi-modelo, ou delegação de raciocínio. Isso criaria outro agente decisor e contrariaria a arquitetura de cérebro único da Kellvyn.
+
+**Não integrar como dependência agora:** n8n exige uma instância/host separado, e o caminho oficial não é instalar no APK. O modelo Cloud adiciona custos; self-hosted exige infraestrutura e manutenção; embutir criação/configuração de workflows dentro do produto pode exigir licença comercial.
+
+**Melhor uso imediato:** usar o n8n como referência para desenhar e testar fluxos determinísticos fora do app, e extrair os padrões comprovados para ferramentas Kotlin locais. Caso no futuro exista um host próprio e uma autorização explícita para integração externa, o KN poderá chamar apenas workflows publicados e allowlisted por meio de um adaptador MCP/HTTP — continuando sendo a única inteligência que decide quando e por que chamar a ferramenta.
+
+## 9. Plano de decisão para o laboratório
 
 1. **Agora:** estabilizar catálogo de ferramentas, pesquisa local bilíngue, pesquisa acadêmica e pesquisa de programação; ampliar testes de seleção e segurança.
 2. **Em paralelo:** construir um conjunto de avaliação offline com entradas representativas e resultados esperados. Isso permite saber se a Kellvyn melhorou, em vez de medir progresso pelo número de ferramentas.
