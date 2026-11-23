@@ -181,8 +181,50 @@ def validate_spec(spec: Any) -> dict[str, Any]:
     }
 
 
-def record_run(spec_path: Path, artifact_root: Path, output_path: Path) -> dict[str, Any]:
+
+def load_evaluation_result(path: Path, expected_suite_hash: str) -> tuple[dict[str, float], dict[str, Any]]:
+    result = read_json(path)
+    if not isinstance(result, dict) or result.get("schema") != 1 or result.get("status") != "complete":
+        raise ExperimentError("A avaliação precisa ser um resultado completo do benchmark_evaluator")
+    suite_hash = result.get("evaluation_suite_sha256")
+    validate_sha256(suite_hash, "evaluation_result.evaluation_suite_sha256")
+    if suite_hash != expected_suite_hash:
+        raise ExperimentError("O hash da suíte avaliada não corresponde ao comparison_context do experimento")
+    metrics = validate_metric_map(result.get("metrics"))
+    if "coverage" not in metrics or not 0.0 <= metrics["coverage"] <= 1.0:
+        raise ExperimentError("Resultado de avaliação sem coverage válida")
+    count_names = ("matched_count", "case_count", "missing_prediction_count", "extra_prediction_count")
+    counts = {name: result.get("metrics", {}).get(name) for name in count_names}
+    if any(isinstance(value, bool) or not isinstance(value, int) or value < 0 for value in counts.values()):
+        raise ExperimentError("Resultado de avaliação contém contagens ausentes ou inválidas")
+    score_metrics = {name: value for name, value in metrics.items() if name not in count_names and name != "coverage"}
+    if not score_metrics:
+        raise ExperimentError("Resultado de avaliação não contém métrica específica da tarefa")
+    bounded = ("exact_match_accuracy", "accuracy", "macro_precision", "macro_recall", "macro_f1",
+               "micro_precision", "micro_recall", "micro_f1", "coverage")
+    for name in bounded:
+        if name in metrics and not 0.0 <= metrics[name] <= 1.0:
+            raise ExperimentError(f"A métrica {name} precisa estar entre 0 e 1")
+    return {"coverage": metrics["coverage"], **score_metrics}, {
+        "evaluation_suite_sha256": suite_hash,
+        "evaluation_result_sha256": sha256_file(path),
+        "status": result["status"],
+        "task": result.get("task", "exact_match"),
+        "counts": counts,
+    }
+
+
+def record_run(spec_path: Path, artifact_root: Path, output_path: Path, evaluation_path: Path | None = None) -> dict[str, Any]:
     spec = validate_spec(read_json(spec_path))
+    evaluated_metrics: dict[str, float] = {}
+    evaluation_provenance = None
+    if evaluation_path is not None:
+        evaluated_metrics, evaluation_provenance = load_evaluation_result(
+            evaluation_path, spec["comparison_context"]["evaluation_suite_sha256"])
+        for name, value in evaluated_metrics.items():
+            if name in spec["metrics"] and float(spec["metrics"][name]) != value:
+                raise ExperimentError(f"A métrica {name} diverge do resultado de avaliação; não será sobrescrita")
+        spec["metrics"].update(evaluated_metrics)
     if output_path.exists():
         raise ExperimentError(f"O registro já existe e não será sobrescrito: {output_path}")
     if not artifact_root.is_dir():
@@ -204,13 +246,14 @@ def record_run(spec_path: Path, artifact_root: Path, output_path: Path) -> dict[
         "parameters": spec["parameters"],
         "metrics": spec["metrics"],
         "artifacts": artifact_records,
+        "evaluation": evaluation_provenance,
         "integrity_note": "Hashes detect divergence from recorded artifacts; they do not prove who created or approved this manifest.",
     }
     write_json_atomic(output_path, run)
     return run
 
 
-def verify_run(run_path: Path, artifact_root: Path) -> dict[str, Any]:
+def verify_run(run_path: Path, artifact_root: Path, evaluation_path: Path | None = None) -> dict[str, Any]:
     run = read_json(run_path)
     if not isinstance(run, dict) or run.get("schema") != SCHEMA_VERSION or run.get("status") != "sealed":
         raise ExperimentError("Manifesto não reconhecido ou não selado")
@@ -221,6 +264,19 @@ def verify_run(run_path: Path, artifact_root: Path) -> dict[str, Any]:
     validate_sha256(expected_context_hash, "comparison_context_sha256")
     if sha256_value(context) != expected_context_hash:
         raise ExperimentError("comparison_context diverge do hash registrado")
+    evaluation_status = "not_present"
+    evaluation = run.get("evaluation")
+    if evaluation is not None:
+        if not isinstance(evaluation, dict) or evaluation.get("status") != "complete":
+            raise ExperimentError("Proveniência de avaliação inválida no manifesto")
+        validate_sha256(evaluation.get("evaluation_suite_sha256"), "evaluation.evaluation_suite_sha256")
+        validate_sha256(evaluation.get("evaluation_result_sha256"), "evaluation.evaluation_result_sha256")
+        if evaluation["evaluation_suite_sha256"] != context["evaluation_suite_sha256"]:
+            raise ExperimentError("A suíte registrada na avaliação diverge do contexto")
+        if evaluation_path is not None:
+            evaluation_status = "verified" if sha256_file(evaluation_path) == evaluation["evaluation_result_sha256"] else "integrity_error"
+        else:
+            evaluation_status = "not_rechecked"
     checks = []
     for item in run["artifacts"]:
         if not isinstance(item, dict):
@@ -236,8 +292,9 @@ def verify_run(run_path: Path, artifact_root: Path) -> dict[str, Any]:
         ok = actual_hash == expected_hash and actual_bytes == expected_bytes
         checks.append({"path": rel, "ok": ok, "expected_sha256": expected_hash, "actual_sha256": actual_hash,
                        "expected_bytes": item.get("bytes"), "actual_bytes": actual_bytes})
-    return {"run_id": run.get("run_id"), "status": "verified" if all(x["ok"] for x in checks) else "integrity_error",
-            "artifact_count": len(checks), "checks": checks}
+    integrity_ok = all(x["ok"] for x in checks) and evaluation_status != "integrity_error"
+    return {"run_id": run.get("run_id"), "status": "verified" if integrity_ok else "integrity_error",
+            "artifact_count": len(checks), "evaluation_result_status": evaluation_status, "checks": checks}
 
 
 def validate_policy(policy: Any) -> dict[str, Any]:
@@ -326,9 +383,13 @@ def main(argv: list[str] | None = None) -> int:
     record.add_argument("--spec", type=Path, required=True)
     record.add_argument("--artifact-root", type=Path, required=True)
     record.add_argument("--output", type=Path, required=True)
+    record.add_argument("--evaluation-result", type=Path,
+                        help="Optional complete benchmark result; evaluation suite fingerprint must match")
     verify = commands.add_parser("verify", help="Recalculate artifact hashes from a sealed run")
     verify.add_argument("--run", type=Path, required=True)
     verify.add_argument("--artifact-root", type=Path, required=True)
+    verify.add_argument("--evaluation-result", type=Path,
+                        help="Optional evaluation JSON to recheck its recorded hash")
     compare = commands.add_parser("compare", help="Compare two sealed runs against a policy")
     compare.add_argument("--baseline", type=Path, required=True)
     compare.add_argument("--candidate", type=Path, required=True)
@@ -337,9 +398,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         if args.command == "record":
-            result = record_run(args.spec, args.artifact_root, args.output)
+            result = record_run(args.spec, args.artifact_root, args.output, args.evaluation_result)
         elif args.command == "verify":
-            result = verify_run(args.run, args.artifact_root)
+            result = verify_run(args.run, args.artifact_root, args.evaluation_result)
         else:
             result = compare_runs(read_json(args.baseline), read_json(args.candidate), read_json(args.policy))
             if args.output:
