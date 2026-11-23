@@ -49,7 +49,7 @@ python3 workshop/tools/benchmark_evaluator.py \\
 
 Outras suítes demonstrativas estão em \`examples/evaluation-classification\`, \`examples/evaluation-regression\` e \`examples/evaluation-speech\`.
 
-**Limites das métricas:** exact match mede igualdade lexical/estruturada, não qualidade semântica; classificação precisa de métricas por classe quando há desequilíbrio; regressão depende da escala e distribuição dos alvos; WER depende da normalização e pode exceder 1 por causa de inserções. Essas métricas não substituem revisão humana ou benchmarks específicos de cada modalidade.
+**Limites das métricas:** exact match mede igualdade lexical/estruturada, não qualidade semântica; classificação precisa de métricas por classe quando há desequilíbrio; regressão depende da escala e distribuição dos alvos; WER depende da normalização e pode exceder 1 por causa de inserções; o alinhamento tem limite de um milhão de células para manter o uso de memória previsível em dispositivos móveis. Essas métricas não substituem revisão humana ou benchmarks específicos de cada modalidade.
 
 ## Motor local de experimentos
 
