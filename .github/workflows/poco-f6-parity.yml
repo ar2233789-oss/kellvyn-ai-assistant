@@ -7,6 +7,8 @@ on:
       - "android/**"
       - "src/components/kellvyn/**"
       - "src/styles.css"
+      - "scripts/compare_poco_f6_captures.py"
+      - "scripts/test_compare_poco_f6_captures.py"
       - ".github/workflows/poco-f6-parity.yml"
   push:
     branches: [main]
@@ -21,25 +23,36 @@ on:
 permissions:
   contents: read
 
+# New commits supersede stale captures; never leave multiple runs fighting for runners.
+concurrency:
+  group: poco-f6-lab-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   web-build-and-capture:
     name: Web reference build and screenshot
+    needs: [lab-tooling-self-test]
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - name: Install project dependencies
+        timeout-minutes: 8
         run: bun install --frozen-lockfile
       - name: Run web tests
+        timeout-minutes: 5
         run: bun run test
       - name: Build web reference
+        timeout-minutes: 7
         run: bun run build
       - name: Install Playwright Chromium
+        timeout-minutes: 8
         run: |
           npm install --no-save playwright
           npx playwright install --with-deps chromium
       - name: Capture web UI at Poco F6 logical viewport
+        timeout-minutes: 8
         shell: bash
         run: |
           set -euo pipefail
@@ -226,6 +239,9 @@ jobs:
             await page.getByRole("button", { name: "Preto e Dourado", exact: true }).click();
             const palette = await page.evaluate(() => JSON.parse(localStorage.getItem("kv.settings") || "{}"));
             if (palette.color !== "#D4AF37" || palette.bg !== "#0A0907") throw new Error("Palette button did not apply its colors");
+            // Capture the palette result separately so the comparator can verify theme changes,
+            // not just the default emerald screen and the closed palette picker.
+            await page.screenshot({ path: "out/web-after-gold-palette.png", fullPage: false });
             await page.getByRole("button", { name: "Abrir", exact: true }).click();
             await visible(heading("MEMÓRIA LOCAL"), "MEMÓRIA LOCAL");
             await page.getByPlaceholder("Nova informação…").fill("poco-f6-lab-temporary");
@@ -254,21 +270,47 @@ jobs:
           console.log(JSON.stringify({ interactionChecks: checks, pageErrors: errors }));
           await browser.close();
           NODE
-      - name: Upload web reference capture
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Save web reference captures to run cache
+        if: success()
+        uses: actions/cache/save@v4
         with:
-          name: poco-f6-web-reference
-          path: out/*
-          if-no-files-found: error
-          retention-days: 14
+          path: out
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
+
+  lab-tooling-self-test:
+    name: Lab tooling self-test (no emulator required)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install visual comparison dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check pillow numpy pyyaml
+      - name: Validate workflow YAML syntax
+        timeout-minutes: 2
+        run: python -c 'import yaml; yaml.safe_load(open(".github/workflows/poco-f6-parity.yml", encoding="utf-8"))'
+      - name: Test screenshot diff, palette case and evidence report
+        timeout-minutes: 2
+        run: python scripts/test_compare_poco_f6_captures.py
 
   native-emulator-test:
     name: Android emulator boot, launch, and UI capture
+    needs: [lab-tooling-self-test, web-build-and-capture]
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+      # The emulator's palette detector uses NumPy and Pillow. Install them in this
+      # job as well as the separate tooling job; GitHub Actions jobs do not share Python packages.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install native screenshot-analysis dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check numpy pillow
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -277,6 +319,7 @@ jobs:
         with:
           gradle-version: "8.13"
       - name: Install Android SDK and Poco-like virtual display
+        timeout-minutes: 12
         shell: bash
         run: |
           set -euo pipefail
@@ -323,16 +366,60 @@ jobs:
           set_avd_prop hw.gpu.mode swiftshader_indirect
           set_avd_prop disk.dataPartition.size 4096M
       - name: Compile unit tests and native APK
+        timeout-minutes: 8
         working-directory: android
         run: gradle testDebugUnitTest assembleDebug --no-daemon --stacktrace
+      - name: Restore web reference captures for same-run comparison
+        uses: actions/cache/restore@v4
+        with:
+          # Cache version includes the path, so it must match the web save path exactly.
+          path: out
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Stage restored web captures for native comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/web
+          cp out/web-reference.png out/web-settings.png out/web-after-gold-palette.png out/web-interaction-audit.json artifacts/web/
       - name: Boot Android 15 virtual display, install APK and capture native UI
+        timeout-minutes: 20
         shell: bash
         run: |
           set -euo pipefail
           export PATH="$ANDROID_HOME/platform-tools:$ANDROID_HOME/emulator:$PATH"
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk out/kellvyn-native-debug.apk
-          trap 'cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true' EXIT
+          # Preserve actionable diagnostics even when a UI action fails or times out.
+          # Do not leave the next laboratory run guessing which dialog was left open.
+          trap '
+            status=$?
+            set +e
+            cp /tmp/poco-f6-emulator.log out/poco-f6-emulator.log 2>/dev/null || true
+            if [ "$status" -ne 0 ]; then
+              {
+                echo "Poco F6 lab failed with exit code $status"
+                date -u
+                echo "--- adb devices ---"
+                timeout 10s adb devices -l
+                echo "--- foreground activities ---"
+                timeout 10s adb shell dumpsys activity activities | grep -E "mResumedActivity|topResumedActivity|mCurrentFocus" || true
+                echo "--- app process ---"
+                timeout 10s adb shell pidof com.kellvyn.assistant || true
+              } > out/lab-failure-summary.txt 2>&1
+              timeout 12s adb shell screencap -p /sdcard/lab-failure-screen.png >/dev/null 2>&1 || true
+              timeout 12s adb pull /sdcard/lab-failure-screen.png out/lab-failure-screen.png >/dev/null 2>&1 || true
+              timeout 12s adb logcat -d -t 2000 > out/native-logcat-tail.txt 2>&1 || true
+              timeout 12s adb logcat -d -b crash > out/native-crash-buffer.txt 2>&1 || true
+              timeout 12s adb shell uiautomator dump /sdcard/lab-failure-ui-tree.xml >/tmp/lab-failure-ui-dump.log 2>&1 || true
+              timeout 12s adb pull /sdcard/lab-failure-ui-tree.xml out/lab-failure-ui-tree-live.xml >/dev/null 2>&1 || true
+              cp /tmp/lab-failure-ui-dump.log out/lab-failure-ui-dump.log 2>/dev/null || true
+              if [ -s out/current-ui.xml ]; then cp out/current-ui.xml out/lab-ui-tree-before-failure.xml; fi
+              if [ -s out/native-ui.xml ]; then cp out/native-ui.xml out/lab-last-known-ui-tree.xml; fi
+            fi
+            if [ -n "${EMULATOR_PID:-}" ]; then kill "$EMULATOR_PID" 2>/dev/null || true; fi
+            exit "$status"
+          ' EXIT
           # GitHub-hosted runner exposes /dev/kvm but may not grant the runner user access.
           if [ -e /dev/kvm ]; then sudo chmod 666 /dev/kvm; ls -l /dev/kvm; fi
           "$ANDROID_HOME/emulator/emulator" -avd PocoF6Virtual -no-window -no-audio -no-boot-anim -no-snapshot -gpu swiftshader_indirect -camera-back none -camera-front none > /tmp/poco-f6-emulator.log 2>&1 &
@@ -376,6 +463,32 @@ jobs:
           fi
           timeout 10s adb shell wm size 1220x2712
           timeout 10s adb shell wm density 440
+          # Record the exact device image and viewport so failures can be reproduced.
+          python3 - <<'PY' > out/lab-environment.json
+          import json, os, platform, subprocess, sys
+          def adb(*args):
+              result = subprocess.run(["adb", *args], capture_output=True, text=True, timeout=8, check=False)
+              return result.stdout.strip() if result.returncode == 0 else "unavailable"
+          report = {
+              "lab": "Poco F6 virtual comparison lab",
+              "commit": os.environ.get("GITHUB_SHA", "unknown"),
+              "runId": os.environ.get("GITHUB_RUN_ID", "unknown"),
+              "runAttempt": os.environ.get("GITHUB_RUN_ATTEMPT", "unknown"),
+              "runner": {"os": platform.platform(), "python": sys.version.split()[0]},
+              "device": {
+                  "model": adb("shell", "getprop", "ro.product.model"),
+                  "manufacturer": adb("shell", "getprop", "ro.product.manufacturer"),
+                  "androidRelease": adb("shell", "getprop", "ro.build.version.release"),
+                  "apiLevel": adb("shell", "getprop", "ro.build.version.sdk"),
+                  "buildFingerprint": adb("shell", "getprop", "ro.build.fingerprint"),
+                  "abi": adb("shell", "getprop", "ro.product.cpu.abi"),
+                  "windowSize": adb("shell", "wm", "size"),
+                  "windowDensity": adb("shell", "wm", "density"),
+                  "ramSizeMbConfigured": 8192,
+              },
+          }
+          print(json.dumps(report, indent=2))
+          PY
           # Avoid triggering the stalled Pixel Launcher menu; launch the app directly.
           timeout 10s adb shell am force-stop com.google.android.apps.nexuslauncher || true
           timeout 120s adb install -r android/app/build/outputs/apk/debug/app-debug.apk
@@ -476,19 +589,17 @@ jobs:
           read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
           timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
           sleep 2
+          # Try accessibility once with a short timeout. This custom blurred Dialog is
+          # often absent from UIAutomator's tree on Android 15; repeated retries waste over
+          # two minutes despite the existing, verified screenshot/coordinate fallback.
           SETTINGS_READY=0
-          for attempt in $(seq 1 8); do
-            rm -f out/native-settings-ui.xml
-            timeout 10s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
-            if timeout 5s adb shell ls /sdcard/settings-window.xml >/dev/null 2>&1; then
-              timeout 10s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 || true
-            fi
+          rm -f out/native-settings-ui.xml
+          timeout 5s adb shell uiautomator dump /sdcard/settings-window.xml >/tmp/settings-dump.log 2>&1 || true
+          if timeout 4s adb pull /sdcard/settings-window.xml out/native-settings-ui.xml >/dev/null 2>&1 && test -s out/native-settings-ui.xml; then
             if grep -q "CONFIGURAÇÕES DO KELLVYN" out/native-settings-ui.xml 2>/dev/null; then
               SETTINGS_READY=1
-              break
             fi
-            sleep 1
-          done
+          fi
           timeout 10s adb shell screencap -p /sdcard/native-settings.png
           timeout 10s adb pull /sdcard/native-settings.png out/native-settings.png >/dev/null
           SETTINGS_ACCESSIBILITY=0
@@ -580,75 +691,220 @@ jobs:
               timeout 10s adb shell screencap -p "/sdcard/native-settings-fallback-${fallback_pass}.png"
               timeout 10s adb pull "/sdcard/native-settings-fallback-${fallback_pass}.png" "out/native-settings-fallback-${fallback_pass}.png" >/dev/null
             done
-            # Reset the disposable emulator instead of reusing a guessed scroll offset.
-            # The prior fallback left the settings sheet at a variable scroll position, so
-            # the old 875x1330 tap occasionally hit the "Fundo" HEX field instead of a palette.
-            timeout 10s adb shell am force-stop com.kellvyn.assistant
-            timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
-            wait_for_main_ui
-            timeout 10s adb shell screencap -p /sdcard/native-main-after-palette-reset.png
-            timeout 10s adb pull /sdcard/native-main-after-palette-reset.png out/native-main-after-palette-reset.png >/dev/null
-
-            # Find the actual settings icon bounds from the fresh main-screen tree instead
-            # of relying on fixed taps while the status/navigation bars settle.
-            SETTINGS_TAP="$(python3 - out/native-ui.xml <<'PY'
+            # Keep this settings sheet open. Clearing app data here caused Android 15 to
+            # ignore the next tap and made UIAutomator return an empty tree.
+            # The following screenshot scan scrolls back up to the visible presets.
+            # Find the real #D4AF37 swatch in screenshots and only tap after it is visible.
+            # This replaces the old hard-coded tap that occasionally opened the "Fundo" HEX editor.
+            PALETTE_TAP=""
+            for palette_pass in 0 1 2 3 4; do
+              if [ "$palette_pass" -gt 0 ]; then
+                timeout 10s adb shell input swipe 610 700 610 2200 450
+                sleep 1
+              fi
+              remote_palette="/sdcard/native-settings-palette-scan-${palette_pass}.png"
+              local_palette="out/native-settings-palette-scan-${palette_pass}.png"
+              timeout 10s adb shell screencap -p "$remote_palette"
+              timeout 10s adb pull "$remote_palette" "$local_palette" >/dev/null
+              PALETTE_TAP="$(python3 - "$local_palette" "$palette_pass" <<'PY'
+          import json, sys
+          import numpy as np
+          from PIL import Image
+          path, scan = sys.argv[1], int(sys.argv[2])
+          image = np.asarray(Image.open(path).convert("RGB"), dtype=np.int16)
+          r, g, b = image[..., 0], image[..., 1], image[..., 2]
+          # The gold chip is a unique #D4AF37 swatch on the default emerald theme.
+          mask = (np.abs(r - 212) <= 24) & (np.abs(g - 175) <= 24) & (np.abs(b - 55) <= 24)
+          rows = mask.sum(axis=1)
+          if rows.size == 0 or int(rows.max()) < 18:
+              sys.exit(1)
+          y = int(rows.argmax())
+          if int(rows[y]) < 18:
+              sys.exit(1)
+          # The gold palette is the right-hand card in the first preset row.
+          # Derive its vertical coordinate from the screenshot, not from scroll guesses.
+          x = int(image.shape[1] * 0.73)
+          print(json.dumps({"x": x, "y": y, "scanPass": scan,
+                            "goldPixelsAtDetectedRow": int(rows[y]),
+                            "screenshot": path,
+                            "imageSize": [int(image.shape[1]), int(image.shape[0])]}))
+          PY
+              )" || PALETTE_TAP=""
+              if [ -n "$PALETTE_TAP" ]; then break; fi
+            done
+            if [ -z "$PALETTE_TAP" ]; then
+              echo "Could not locate the visible gold palette chip in five screenshot scans."
+              echo "No guessed tap was attempted." > out/native-palette-control-not-found.txt
+              exit 1
+            fi
+            printf '%s\n' "$PALETTE_TAP" > out/native-palette-tap-location.json
+            PALETTE_X="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["x"])' out/native-palette-tap-location.json)"
+            PALETTE_Y="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["y"])' out/native-palette-tap-location.json)"
+            timeout 10s adb shell input tap "$PALETTE_X" "$PALETTE_Y"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
+            timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            python3 - out/native-prefs.xml <<'PY'
           import sys, xml.etree.ElementTree as ET
           root = ET.parse(sys.argv[1]).getroot()
-          for node in root.iter("node"):
-              if node.attrib.get("content-desc") == "Configurações" and node.attrib.get("clickable") == "true":
-                  b = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
-                  if len(b) == 4:
-                      x1, y1, x2, y2 = map(int, b)
-                      print((x1+x2)//2, (y1+y2)//2)
-                      break
+          pref = next((n for n in root if n.tag == "int" and n.attrib.get("name") == "accent"), None)
+          if pref is None:
+              raise SystemExit("Native accent preference is missing after choosing the gold palette.")
+          actual = int(pref.attrib["value"])
+          expected = int.from_bytes(bytes.fromhex("FFD4AF37"), "big", signed=True)
+          if actual != expected:
+              raise SystemExit(f"Gold palette tap did not update accent. expected={expected}, actual={actual}")
+          print(f"PASS: gold palette persisted accent={actual}; screenshot tap location recorded.")
           PY
-            )"
-            if [ -z "$SETTINGS_TAP" ]; then
-              echo "Fresh main-screen UI tree has no clickable Configurações control."
-              cat out/native-ui.xml
-              exit 1
-            fi
-            read -r SETTINGS_X SETTINGS_Y <<< "$SETTINGS_TAP"
-            timeout 10s adb shell input tap "$SETTINGS_X" "$SETTINGS_Y"
-            sleep 2
-            timeout 10s adb shell screencap -p /sdcard/native-settings-palette-test.png
-            timeout 10s adb pull /sdcard/native-settings-palette-test.png out/native-settings-palette-test.png >/dev/null
-            python3 -m pip install --quiet --disable-pip-version-check pillow
-            python3 - out/native-main-after-palette-reset.png out/native-settings-palette-test.png <<'PY'
-          import sys
-          from PIL import Image, ImageChops, ImageStat
-          main = Image.open(sys.argv[1]).convert("RGB")
-          settings = Image.open(sys.argv[2]).convert("RGB")
-          if main.size != settings.size:
-              raise SystemExit("Main/settings screenshots have different dimensions.")
-          delta = sum(ImageStat.Stat(ImageChops.difference(main, settings)).mean) / 3
-          print(f"Native settings sheet screenshot mean pixel delta: {delta:.2f}")
-          if delta < 5.0:
-              raise SystemExit("Settings tap did not open the sheet; refusing to test palette on the home screen.")
-          PY
-            timeout 10s adb shell input tap 875 1330
-            sleep 2
-            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
-            if ! grep -q 'name="accent" value="-2830537"' out/native-prefs.xml; then
-              echo "Gold palette was not applied from the known initial settings position."
-              cat out/native-prefs.xml
-              exit 1
-            fi
             timeout 10s adb shell dumpsys activity activities > out/native-after-gold-palette.txt
             if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-gold-palette.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
               echo "Kellvyn left the foreground after applying the gold palette."
               cat out/native-after-gold-palette.txt
               exit 1
             fi
+
+            # Restore the default theme by clicking the visible Esmeralda preset.
+            # The palette click reopens settings at its top, so use the real swatch instead
+            # of clearing app data and relying on a cold-launch tap.
+            GREEN_TAP=""
+            for green_pass in 0 1 2 3; do
+              if [ "$green_pass" -gt 0 ]; then
+                timeout 10s adb shell input swipe 610 700 610 2200 450
+                sleep 1
+              fi
+              remote_green="/sdcard/native-settings-emerald-scan-${green_pass}.png"
+              local_green="out/native-settings-emerald-scan-${green_pass}.png"
+              timeout 10s adb shell screencap -p "$remote_green"
+              timeout 10s adb pull "$remote_green" "$local_green" >/dev/null
+              GREEN_TAP="$(python3 - "$local_green" "$green_pass" <<'PY'
+          import json, sys
+          import numpy as np
+          from PIL import Image
+          path, scan = sys.argv[1], int(sys.argv[2])
+          image = np.asarray(Image.open(path).convert("RGB"), dtype=np.int16)
+          r, g, b = image[..., 0], image[..., 1], image[..., 2]
+          mask = (np.abs(r - 56) <= 20) & (np.abs(g - 230) <= 20) & (np.abs(b - 188) <= 20)
+          rows = mask.sum(axis=1)
+          if rows.size == 0 or int(rows.max()) < 18:
+              sys.exit(1)
+          y = int(rows.argmax())
+          x = int(image.shape[1] * 0.27)  # inside the left-hand Esmeralda preset card
+          print(json.dumps({"x": x, "y": y, "scanPass": scan,
+                            "emeraldPixelsAtDetectedRow": int(rows[y]),
+                            "screenshot": path,
+                            "imageSize": [int(image.shape[1]), int(image.shape[0])]}))
+          PY
+              )" || GREEN_TAP=""
+              if [ -n "$GREEN_TAP" ]; then break; fi
+            done
+            if [ -z "$GREEN_TAP" ]; then
+              echo "Could not visually locate Esmeralda after applying gold."
+              exit 1
+            fi
+            printf '%s\n' "$GREEN_TAP" > out/native-emerald-tap-location.json
+            GREEN_X="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["x"])' out/native-emerald-tap-location.json)"
+            GREEN_Y="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["y"])' out/native-emerald-tap-location.json)"
+            timeout 10s adb shell input tap "$GREEN_X" "$GREEN_Y"
+            sleep 2
+            timeout 10s adb shell screencap -p /sdcard/native-after-emerald-restore.png
+            timeout 10s adb pull /sdcard/native-after-emerald-restore.png out/native-after-emerald-restore.png >/dev/null
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs-after-emerald.xml
+            python3 - out/native-prefs-after-emerald.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          def pref(name):
+              node = next((n for n in root if n.tag == "int" and n.attrib.get("name") == name), None)
+              if node is None:
+                  raise SystemExit(f"Missing persisted preference: {name}")
+              return int(node.attrib["value"])
+          expected = {
+              "accent": int.from_bytes(bytes.fromhex("FF38E6BC"), "big", signed=True),
+              "ui_bg": int.from_bytes(bytes.fromhex("FF0B1413"), "big", signed=True),
+              "ui_text": int.from_bytes(bytes.fromhex("FFE3EEEC"), "big", signed=True),
+          }
+          actual = {key: pref(key) for key in expected}
+          if actual != expected:
+              raise SystemExit(f"Default theme restore failed. expected={expected}, actual={actual}")
+          print(f"PASS: default emerald theme restored via UI: {actual}")
+          PY
+          else
+            # Accessibility-capable AVDs also test the real palette action, using the
+            # visible text node and its clickable parent rather than fixed coordinates.
+            for reset_scroll in 1 2 3; do
+              timeout 10s adb shell input swipe 610 700 610 2200 450
+              sleep 1
+            done
+            PALETTE_TAP=""
+            for palette_pass in 0 1 2 3 4; do
+              remote_xml="/sdcard/settings-palette-access-${palette_pass}.xml"
+              local_xml="out/native-settings-palette-access-${palette_pass}.xml"
+              timeout 12s adb shell uiautomator dump "$remote_xml" >/tmp/settings-palette-access.log 2>&1 || true
+              timeout 12s adb pull "$remote_xml" "$local_xml" >/dev/null 2>&1 || true
+              if [ -s "$local_xml" ]; then
+                PALETTE_TAP="$(python3 - "$local_xml" <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          parents = {child: node for node in root.iter("node") for child in node}
+          for node in root.iter("node"):
+              if node.attrib.get("text", "").strip() != "Preto e Dourado":
+                  continue
+              candidate = node
+              while candidate is not None:
+                  if candidate.attrib.get("clickable") == "true" and candidate.attrib.get("enabled", "true") == "true":
+                      bounds = candidate.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+                      if len(bounds) == 4:
+                          x1, y1, x2, y2 = map(int, bounds)
+                          print((x1+x2)//2, (y1+y2)//2)
+                          raise SystemExit(0)
+                  candidate = parents.get(candidate)
+              bounds = node.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+              if len(bounds) == 4:
+                  x1, y1, x2, y2 = map(int, bounds)
+                  print((x1+x2)//2, (y1+y2)//2)
+                  raise SystemExit(0)
+          raise SystemExit(1)
+          PY
+                )" || PALETTE_TAP=""
+              fi
+              if [ -n "$PALETTE_TAP" ]; then
+                echo "$PALETTE_TAP" > out/native-palette-tap-location.txt
+                break
+              fi
+              if [ "$palette_pass" -lt 4 ]; then
+                timeout 10s adb shell input swipe 610 2240 610 1450 450
+                sleep 1
+              fi
+            done
+            if [ -z "$PALETTE_TAP" ]; then
+              echo "Accessible settings opened, but the gold palette button could not be located in five fresh UI trees."
+              cp /tmp/settings-palette-access.log out/native-palette-control-not-found.txt 2>/dev/null || true
+              exit 1
+            fi
+            read -r PALETTE_X PALETTE_Y <<< "$PALETTE_TAP"
+            python3 - "$PALETTE_X" "$PALETTE_Y" <<'PY' > out/native-palette-tap-location.json
+          import json, sys
+          print(json.dumps({"x": int(sys.argv[1]), "y": int(sys.argv[2]),
+                            "method": "UIAutomator visible text + clickable ancestor",
+                            "label": "Preto e Dourado"}, indent=2))
+          PY
+            timeout 10s adb shell input tap "$PALETTE_X" "$PALETTE_Y"
+            sleep 2
             timeout 10s adb shell screencap -p /sdcard/native-after-gold-palette.png
             timeout 10s adb pull /sdcard/native-after-gold-palette.png out/native-after-gold-palette.png >/dev/null
-
-            # Reset after verifying theme change so the remaining controls start in emerald.
-            timeout 10s adb shell am force-stop com.kellvyn.assistant
-            timeout 20s adb shell pm clear com.kellvyn.assistant
-            timeout 20s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null || true
-            wait_for_main_ui
+            timeout 10s adb shell run-as com.kellvyn.assistant cat shared_prefs/kellvyn_native.xml > out/native-prefs.xml
+            python3 - out/native-prefs.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          root = ET.parse(sys.argv[1]).getroot()
+          pref = next((n for n in root if n.tag == "int" and n.attrib.get("name") == "accent"), None)
+          if pref is None:
+              raise SystemExit("Native accent preference is missing after choosing the gold palette.")
+          actual = int(pref.attrib["value"])
+          expected = int.from_bytes(bytes.fromhex("FFD4AF37"), "big", signed=True)
+          if actual != expected:
+              raise SystemExit(f"Gold palette button did not update accent. expected={expected}, actual={actual}")
+          print(f"PASS: gold palette persisted accent={actual}; UIAutomator tap target recorded.")
+          PY
           fi
 
           # Keep an inventory of all visible native controls at the same point as the web inventory.
@@ -709,6 +965,45 @@ jobs:
             dump_current_ui
           }
           tap_text() { tap_control text "$1"; }
+          # Resolve visible text even when Android 15 exposes its row as a non-clickable TextView.
+          # Prefer the nearest clickable ancestor; if Android exposes none, tap the exact text bounds
+          # and verify the persisted preference immediately after the interaction.
+          tap_visible_text() {
+            local value="$1"
+            echo "[LAB] tap visible text with ancestor fallback: $value"
+            local point
+            point="$(python3 - "$value" out/current-ui.xml <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          value, path = sys.argv[1:]
+          root = ET.parse(path).getroot()
+          parents = {child: parent for parent in root.iter() for child in parent}
+          nodes = [n for n in root.iter("node")
+                   if n.attrib.get("text", "").strip().casefold() == value.casefold()
+                   and n.attrib.get("enabled", "true") == "true"
+                   and n.attrib.get("bounds")]
+          if not nodes:
+              print(f"Visible text not found: {value}", file=sys.stderr)
+              sys.exit(2)
+          target = nodes[0]
+          current = target
+          while current is not None:
+              if current.attrib.get("clickable") == "true" and current.attrib.get("enabled", "true") == "true":
+                  target = current
+                  break
+              current = parents.get(current)
+          bounds = target.attrib.get("bounds", "").replace("][", ",").strip("[]").split(",")
+          if len(bounds) != 4:
+              print(f"Invalid bounds for visible text: {value}", file=sys.stderr)
+              sys.exit(3)
+          x1, y1, x2, y2 = map(int, bounds)
+          print((x1+x2)//2, (y1+y2)//2)
+          PY
+            )" || { echo "Could not resolve visible text target: $value"; cat out/current-ui.xml; exit 1; }
+            read -r tx ty <<< "$point"
+            timeout 10s adb shell input tap "$tx" "$ty" || { echo "[LAB] timed out while tapping visible text $value"; exit 1; }
+            sleep 1
+            dump_current_ui
+          }
           tap_desc() { tap_control desc "$1"; }
           # Dismiss native AlertDialogs by their stable Android button IDs instead of
           # matching theme-dependent labels such as "Fechar"/"FECHAR".
@@ -778,9 +1073,43 @@ jobs:
             if dump_current_ui; then
               assert_text "Kellvyn Assistente"
             else
-              echo "UIAutomator remained unavailable after closing settings; use the startup main-screen tree for the remaining main controls." > out/native-main-accessibility-warning.txt
-              cp out/native-ui.xml out/current-ui.xml
-              assert_text "Kellvyn Assistente"
+              echo "UIAutomator timed out after closing settings; relaunching Kellvyn before collecting a fresh main-screen tree." > out/native-main-accessibility-warning.txt
+              timeout 10s adb shell am force-stop com.kellvyn.assistant
+              timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+              sleep 3
+              if ! dump_current_ui; then
+                echo "UIAutomator timed out after relaunch; verifying the live main-screen screenshot against the initial capture before using baseline control bounds." > out/native-main-visual-fallback.txt
+                timeout 10s adb shell screencap -p /sdcard/native-after-settings-relaunch-failed.png
+                timeout 10s adb pull /sdcard/native-after-settings-relaunch-failed.png out/native-after-settings-relaunch-failed.png >/dev/null
+                timeout 10s adb shell dumpsys activity activities > out/native-after-settings-relaunch-activity.txt
+                if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-settings-relaunch-activity.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+                  echo "MainActivity is not in the foreground after relaunch; refusing to reuse baseline bounds."
+                  cat out/native-after-settings-relaunch-activity.txt
+                  exit 1
+                fi
+                python3 - out/native-screen.png out/native-after-settings-relaunch-failed.png <<'PY'
+          import sys
+          import numpy as np
+          from PIL import Image
+          reference = np.asarray(Image.open(sys.argv[1]).convert("RGB"), dtype=np.int16)
+          current = np.asarray(Image.open(sys.argv[2]).convert("RGB"), dtype=np.int16)
+          if reference.shape != current.shape:
+              raise SystemExit(f"Main-screen fallback size mismatch: {reference.shape} vs {current.shape}")
+          # Compare the opaque app header below Android's status bar. The translucent rain layer
+          # may change individual pixels, so allow small animation noise but reject a different sheet.
+          y1, y2 = 136, 400
+          a, b = reference[y1:y2], current[y1:y2]
+          changed = np.any(np.abs(a - b) > 25, axis=2)
+          percent = float(changed.mean() * 100.0)
+          print(f"Main-screen header fallback difference: {percent:.3f}%")
+          if percent > 10.0:
+              raise SystemExit("Current screenshot does not match the initial main-screen header; baseline touch bounds are unsafe.")
+          PY
+                cp out/native-ui.xml out/current-ui.xml
+                echo "PASS: MainActivity foreground and header screenshot verified; startup bounds may now be reused for unchanged header controls." >> out/native-main-visual-fallback.txt
+              else
+                assert_text "Kellvyn Assistente"
+              fi
             fi
           fi
 
@@ -808,8 +1137,40 @@ jobs:
             if dump_current_ui; then
               assert_text "Kellvyn Assistente"
             else
-              cp out/native-ui.xml out/current-ui.xml
-              assert_text "Kellvyn Assistente"
+              echo "UIAutomator timed out after dismissing history; relaunching before further interactions." > out/native-after-history-accessibility-warning.txt
+              timeout 10s adb shell am force-stop com.kellvyn.assistant
+              timeout 30s adb shell am start -W -n com.kellvyn.assistant/.MainActivity >/dev/null
+              sleep 3
+              if ! dump_current_ui; then
+                echo "UIAutomator timed out after history dismissal; verifying the live main-screen header before reusing baseline bounds." > out/native-after-history-visual-fallback.txt
+                timeout 10s adb shell screencap -p /sdcard/native-after-history-relaunch-failed.png
+                timeout 10s adb pull /sdcard/native-after-history-relaunch-failed.png out/native-after-history-relaunch-failed.png >/dev/null
+                timeout 10s adb shell dumpsys activity activities > out/native-after-history-relaunch-activity.txt
+                if ! grep -E 'mResumedActivity|topResumedActivity' out/native-after-history-relaunch-activity.txt | grep -Fq 'com.kellvyn.assistant/.MainActivity'; then
+                  echo "MainActivity is not in the foreground after history dismissal recovery; refusing stale controls."
+                  cat out/native-after-history-relaunch-activity.txt
+                  exit 1
+                fi
+                python3 - out/native-screen.png out/native-after-history-relaunch-failed.png <<'PY'
+          import sys
+          import numpy as np
+          from PIL import Image
+          reference = np.asarray(Image.open(sys.argv[1]).convert("RGB"), dtype=np.int16)
+          current = np.asarray(Image.open(sys.argv[2]).convert("RGB"), dtype=np.int16)
+          if reference.shape != current.shape:
+              raise SystemExit(f"Main-screen fallback size mismatch: {reference.shape} vs {current.shape}")
+          a, b = reference[136:400], current[136:400]
+          changed = np.any(np.abs(a - b) > 25, axis=2)
+          percent = float(changed.mean() * 100.0)
+          print(f"Main-screen header fallback difference: {percent:.3f}%")
+          if percent > 10.0:
+              raise SystemExit("Current screen does not match the initial main-screen header; baseline touch bounds are unsafe.")
+          PY
+                cp out/native-ui.xml out/current-ui.xml
+                echo "PASS: foreground Activity and main-screen header verified; baseline bounds may be reused." >> out/native-after-history-visual-fallback.txt
+              else
+                assert_text "Kellvyn Assistente"
+              fi
             fi
           fi
 
@@ -819,11 +1180,11 @@ jobs:
           assert_text "Plugins"
           assert_text "Acesso à Web"
           WEB_BEFORE="$(read_web_pref)"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_AFTER="$(read_web_pref)"
           if [ "$WEB_AFTER" = "$WEB_BEFORE" ]; then echo "Web-access control failed to toggle"; exit 1; fi
           tap_desc "Anexos e Web"
-          tap_text "Acesso à Web"
+          tap_visible_text "Acesso à Web"
           WEB_RESTORED="$(read_web_pref)"
           if [ "$WEB_RESTORED" != "$WEB_BEFORE" ]; then echo "Web-access control failed to restore its value"; exit 1; fi
 
@@ -853,14 +1214,29 @@ jobs:
               sleep 1
               dump_current_ui
             fi
-            tap_text "Raios"
+            tap_visible_text "Raios"
             EFFECTS_ON="$(read_effect_pref)"
             if [ "$EFFECTS_ON" != '["chuva","raios"]' ]; then
               echo "Expected rain and lightning together, got: $EFFECTS_ON"
               cat out/native-prefs.xml
               exit 1
             fi
-            tap_text "Raios"
+            tap_desc "Fechar configurações"
+            sleep 1
+            dump_current_ui
+            assert_text "Kellvyn Assistente"
+            # Record the actual combined rain + lightning animation in the normal accessibility path too.
+            timeout 25s adb shell screenrecord --bit-rate 3000000 --time-limit 10 /sdcard/native-lightning.mp4
+            timeout 20s adb pull /sdcard/native-lightning.mp4 out/native-lightning.mp4 >/dev/null
+            timeout 10s adb shell screencap -p /sdcard/native-lightning-final.png
+            timeout 10s adb pull /sdcard/native-lightning-final.png out/native-lightning-final.png >/dev/null
+            tap_desc "Configurações"
+            if ! grep -q 'text="Raios"' out/current-ui.xml; then
+              timeout 10s adb shell input swipe 610 700 610 2220 500
+              sleep 1
+              dump_current_ui
+            fi
+            tap_visible_text "Raios"
             EFFECTS_RESTORED="$(read_effect_pref)"
             if [ "$EFFECTS_RESTORED" != '["chuva"]' ]; then
               echo "Expected rain-only to be restored, got: $EFFECTS_RESTORED"
@@ -1019,45 +1395,191 @@ jobs:
             exit 1
           fi
           timeout 15s adb shell dumpsys meminfo com.kellvyn.assistant > out/native-meminfo.txt
+          timeout 15s adb shell dumpsys gfxinfo com.kellvyn.assistant framestats > out/native-gfxinfo-framestats.txt 2>&1 || true
+          timeout 15s adb shell dumpsys battery > out/native-battery.txt 2>&1 || true
           echo "PASS: Android 15 AVD booted, app controls checked, color palette round-trip validated, four response controls exercised, UI captured and no startup crash."
-      - name: Upload native emulator capture and diagnostics
+      - name: Stage native screenshots and diagnostics for cache
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p out/evidence
+          for name in \
+            native-screen.png \
+            native-settings.png \
+            native-after-gold-palette.png \
+            native-after-emerald-restore.png \
+            native-settings-effects.png \
+            native-lightning.mp4 \
+            native-lightning-final.png \
+            native-response-controls.png \
+            native-controls.json \
+            native-crashes.txt \
+            native-after-response-controls.txt \
+            native-crash-buffer.txt \
+            native-logcat-tail.txt \
+            native-meminfo.txt \
+            native-gfxinfo-framestats.txt \
+            native-battery.txt \
+            lab-environment.json \
+            lab-failure-summary.txt \
+            lab-failure-screen.png \
+            native-settings-accessibility-warning.txt \
+            native-main-accessibility-warning.txt \
+            native-history-accessibility-warning.txt \
+            native-main-visual-fallback.txt \
+            native-after-settings-relaunch-failed.png \
+            native-after-settings-relaunch-activity.txt \
+            native-after-history-relaunch-failed.png \
+            native-after-history-relaunch-activity.txt \
+            native-after-history-visual-fallback.txt; do
+            if [ -f "out/$name" ]; then cp "out/$name" out/evidence/; fi
+          done
+          for file in out/native-prefs*.xml out/native-prefs-after-*.xml; do
+            if [ -f "$file" ]; then cp "$file" out/evidence/; fi
+          done
+          if [ ! -s out/evidence/native-screen.png ]; then
+            printf 'Native main-screen capture was not produced. See the native job logs.\n' > out/evidence/lab-evidence-missing.txt
+          fi
+      - name: Save native screenshots and diagnostics to run cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: out/evidence
+          key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
+      - name: Upload native screenshots and failure diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: poco-f6-native-emulator
-          path: out/*
+          name: poco-f6-native-evidence
+          path: out/evidence/**
           if-no-files-found: warn
           retention-days: 14
 
 
   compare-web-and-native-captures:
     name: Pixel-aligned web/native screenshot diff
-    needs: [web-build-and-capture, native-emulator-test]
-    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.native-emulator-test.result == 'success' }}
+    needs: [web-build-and-capture, lab-tooling-self-test, native-emulator-test]
+    if: ${{ always() && needs.web-build-and-capture.result == 'success' && needs.lab-tooling-self-test.result == 'success' && needs.native-emulator-test.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
-      - name: Download web screenshot captures
-        uses: actions/download-artifact@v4
+      - name: Restore web screenshot captures
+        uses: actions/cache/restore@v4
         with:
-          name: poco-f6-web-reference
-          path: artifacts/web
-      - name: Download native emulator captures
-        uses: actions/download-artifact@v4
-        with:
-          name: poco-f6-native-emulator
-          path: artifacts/native
-      - name: Compare main screen and settings without scaling
+          path: out
+          key: poco-f6-web-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Stage restored web captures for comparison
+        shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check pillow numpy
+          mkdir -p artifacts/web
+          cp out/web-reference.png out/web-settings.png out/web-after-gold-palette.png out/web-interaction-audit.json artifacts/web/
+      - name: Restore native emulator captures
+        uses: actions/cache/restore@v4
+        with:
+          # Match the save path to keep the cache version identical.
+          path: out/evidence
+          key: poco-f6-native-${{ github.run_id }}-${{ github.run_attempt }}
+          fail-on-cache-miss: true
+      - name: Stage restored native captures for comparison
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/native
+          cp -a out/evidence/. artifacts/native/
+      - name: Install visual comparison dependencies
+        timeout-minutes: 3
+        run: python -m pip install --disable-pip-version-check pillow numpy
+      - name: Compare main screen, settings and palette change without scaling
+        timeout-minutes: 8
+        run: |
+          set -euo pipefail
           mkdir -p out/parity
-          python scripts/compare_poco_f6_captures.py --web-dir artifacts/web --native-dir artifacts/native --output-dir out/parity --status-bar-top-px 136
+          COMPARE_STATUS=0
+          python scripts/compare_poco_f6_captures.py \
+            --web-dir artifacts/web \
+            --native-dir artifacts/native \
+            --output-dir out/parity \
+            --status-bar-top-px 136 \
+            --channel-threshold 16 \
+            --max-changed-pixels-percent 1.0 || COMPARE_STATUS=$?
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          data = json.loads(Path("out/parity/parity-metrics.json").read_text(encoding="utf-8"))
+          lines = [
+              "# Poco F6 lab report",
+              "",
+              f"Overall status: {data.get('status', 'unknown')}",
+              f"Palette comparison: {data.get('paletteComparison', 'unknown')}",
+              "",
+              "## Screenshot comparisons",
+              "",
+              "| View | Compared size | Mean absolute error | Pixels changed (>16) |",
+              "|---|---:|---:|---:|",
+          ]
+          for item in data.get("results", []):
+              size = " × ".join(str(value) for value in item.get("comparisonSize", []))
+              lines.append(
+                  f"| {item.get('name', 'unknown')} | {size} | "
+                  f"{item.get('meanAbsoluteError', 'n/a')} | "
+                  f"{item.get('changedPixelsPercent', 'n/a')}% |"
+              )
+          evidence = data.get("evidence", {})
+          web = evidence.get("webInteractionAudit", {})
+          native = evidence.get("nativeControlInventory", {})
+          crash = evidence.get("startupCrashScan", {})
+          visuals = evidence.get("nativeVisualEvidence", {})
+          lines += [
+              "",
+              "## Interaction and runtime evidence",
+              "",
+              f"- Web interactions: {web.get('passedChecks', 0)}/{web.get('totalChecks', 0)} passed; status {web.get('status', 'not captured')}.",
+              f"- Native controls observed: {native.get('count', 'not captured')}.",
+              f"- Native controls missing from inventory: {', '.join(native.get('missingExpectedLabels', [])) or 'none reported'}.",
+              f"- Startup crash scan: {crash.get('status', 'not captured')}.",
+              f"- Palette screenshot captured: {visuals.get('paletteScreenshot', False)}.",
+              f"- Lightning video captured: {visuals.get('lightningVideo', False)}.",
+              f"- Response-controls screenshot captured: {visuals.get('responseControlScreenshot', False)}.",
+              f"- Failure diagnostics present: {visuals.get('failureSummary', False)}.",
+              "",
+              "## How to review",
+              "",
+              "Review the numeric differences below; overlay and difference-map files remain in the comparison runner workspace. "
+              f"- Maximum changed pixels per capture: {data.get('criteria', {}).get('maxChangedPixelsPercent', 'unknown')}%.",
+              f"- RGB channel threshold: {data.get('criteria', {}).get('channelThreshold', 'unknown')}.",
+              f"- Result: {'PASS' if data.get('passed') else 'FAIL'}.",
+              "",
+              "The visual threshold is an acceptance gate, not just a diagnostic. A pass means every required screenshot pair and evidence item met the configured criteria.",
+              "",
+              "Rejection reasons:",
+              *[f"- {reason}" for reason in data.get("failures", [])],
+              "",
+              "Review the uploaded overlays, amplified difference maps, cropped captures and parity-metrics.json.",
+              "",
+          ]
+          Path("out/parity/lab-summary.md").write_text("\n".join(lines), encoding="utf-8")
+          print("\n".join(lines))
+          PY
+          exit "$COMPARE_STATUS"
+      - name: Publish visual comparison summary in the workflow result
+        if: always()
+        shell: bash
+        run: |
+          if [ -s out/parity/lab-summary.md ]; then
+            cat out/parity/lab-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "# Poco F6 lab report" >> "$GITHUB_STEP_SUMMARY"
+            echo "Comparison report was not produced; inspect the previous step logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload comparison report, overlays and difference maps
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: poco-f6-visual-comparison
-          path: out/parity/*
-          if-no-files-found: error
+          path: out/parity/**
+          if-no-files-found: warn
           retention-days: 14
