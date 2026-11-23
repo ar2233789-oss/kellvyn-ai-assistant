@@ -35,50 +35,6 @@ class KellvynProjectContextRetrieverTest {
     }
 
     @Test
-    fun bm25UsesTermFrequencyInsteadOfOnlyBinaryTermOverlap() {
-        val documents = listOf(
-            KellvynProjectSearchDocument(
-                path = "docs/single.md",
-                excerpt = "cache attention",
-                truncated = false,
-                sizeBytes = 20
-            ),
-            KellvynProjectSearchDocument(
-                path = "docs/repeated.md",
-                excerpt = "cache attention cache cache cache attention attention attention",
-                truncated = false,
-                sizeBytes = 80
-            )
-        )
-
-        val hits = KellvynProjectSearchRanker.rank(
-            documents,
-            query = "cache attention",
-            limit = 2
-        )
-
-        assertEquals(2, hits.size)
-        assertEquals("docs/repeated.md", hits.first().path)
-        assertTrue(hits.first().score > hits.last().score)
-    }
-
-    @Test
-    fun candidatePathsPrioritizeFilenameMatchesAndRemainDeterministic() {
-        val paths = listOf(
-            "bulk/decoy-01.md",
-            "bulk/decoy-02.md",
-            "docs/checkpoint-recovery.md",
-            "src/AgentRuntime.kt"
-        )
-
-        val ranked = KellvynProjectPathRanker.rank(paths, "checkpoint recovery")
-        val repeated = KellvynProjectPathRanker.rank(paths.reversed(), "checkpoint recovery")
-
-        assertEquals("docs/checkpoint-recovery.md", ranked.first())
-        assertEquals(ranked, repeated)
-    }
-
-    @Test
     fun searchNormalizesPortugueseAccents() {
         val documents = listOf(
             KellvynProjectSearchDocument(

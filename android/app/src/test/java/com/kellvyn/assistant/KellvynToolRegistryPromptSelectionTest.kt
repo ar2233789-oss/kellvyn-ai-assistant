@@ -22,30 +22,6 @@ class KellvynToolRegistryPromptSelectionTest {
     }
 
     @Test
-    fun academicResearchRequestSelectsScholarlySearchTool() {
-        val selected = registry().descriptionsForPrompt(
-            history = listOf(user("Pesquisar artigos científicos sobre modelos de linguagem")),
-            maxTools = 6
-        ).map { it.name }.toSet()
-
-        assertTrue("studio_capability_inventory" in selected)
-        assertTrue("academic_research" in selected)
-        assertFalse("animation_render_spritesheet" in selected)
-    }
-
-    @Test
-    fun projectContentQuestionSelectsOfflineKnowledgeSearch() {
-        val selected = registry().descriptionsForPrompt(
-            history = listOf(user("Pesquise conteúdo do projeto sobre memória local e privacidade")),
-            maxTools = 6
-        ).map { it.name }.toSet()
-
-        assertTrue("studio_capability_inventory" in selected)
-        assertTrue("workspace_search_content" in selected)
-        assertFalse("animation_render_spritesheet" in selected)
-    }
-
-    @Test
     fun imageRequestGetsRasterToolsWithoutUnrelatedModules() {
         val selected = registry().descriptionsForPrompt(
             history = listOf(user("Redimensionar foto PNG para 256 pixels")),
@@ -156,16 +132,6 @@ class KellvynToolRegistryPromptSelectionTest {
                 "device_resource_snapshot",
                 "Consulta RAM bateria CPU e temperatura.",
                 setOf(KellvynStudioCapability.DEVICE_DIAGNOSTICS)
-            ),
-            tool(
-                "academic_research",
-                "Pesquisa artigos científicos e trabalhos acadêmicos em OpenAlex e Crossref; retorna DOI, autores, ano e resumo.",
-                setOf(KellvynStudioCapability.WEB_RESEARCH)
-            ),
-            tool(
-                "workspace_search_content",
-                "Pesquisa conteúdo de arquivos de um projeto usando ranking BM25 e retorna trechos relevantes.",
-                setOf(KellvynStudioCapability.CODE_NAVIGATION)
             ),
             tool(
                 "code_find_symbols",

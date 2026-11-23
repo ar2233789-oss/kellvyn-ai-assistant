@@ -83,19 +83,38 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
         val project = workspace.createProject(
             name = "Knowledge Retrieval Instrumented " + System.currentTimeMillis(),
             description = "Fixture de busca local.",
-            files = listOf(
-                ProjectFileInput(
-                    path = "docs/architecture.md",
-                    content = """
-                        A arquitetura guarda checkpoints e permite retomada do treinamento interrompido.
-                        O índice local recupera evidências por relevância textual.
-                    """.trimIndent()
-                ),
-                ProjectFileInput(
-                    path = "docs/internal.md",
-                    content = """api_key = "sk-12345678901234567890" """
+            files = buildList {
+                add(
+                    ProjectFileInput(
+                        path = "000-ignored.bin",
+                        content = "Arquivo de formato não suportado."
+                    )
                 )
-            )
+                repeat(60) { index ->
+                    val number = index.toString().padStart(2, '0')
+                    add(
+                        ProjectFileInput(
+                            path = "bulk/decoy-$number.md",
+                            content = "Notas sem relação com checkpoint ou recuperação."
+                        )
+                    )
+                }
+                add(
+                    ProjectFileInput(
+                        path = "docs/checkpoint-recovery.md",
+                        content = """
+                            O checkpoint local permite recuperação do treinamento interrompido.
+                            O histórico registra o estado e a origem de cada etapa.
+                        """.trimIndent()
+                    )
+                )
+                add(
+                    ProjectFileInput(
+                        path = "docs/internal.md",
+                        content = """client_secret = "sk-12345678901234567890" """
+                    )
+                )
+            }
         )
         val runtime = KellvynRuntime(context)
         try {
@@ -112,15 +131,23 @@ class KellvynAndroidBuildStatusStudioInstrumentedTest {
             val result = tool.execute(
                 mapOf(
                     "project_id" to project.id,
-                    "query" to "retomada checkpoint"
+                    "query" to "checkpoint recovery"
+                )
+            )
+            val secretResult = tool.execute(
+                mapOf(
+                    "project_id" to project.id,
+                    "query" to "internal settings"
                 )
             )
 
             assertTrue(result.success)
-            assertTrue(result.content.contains("docs/architecture.md"))
-            assertTrue(result.content.contains("checkpoints"))
-            assertFalse(result.content.contains("docs/internal.md"))
-            assertFalse(result.content.contains("sk-12345678901234567890"))
+            assertTrue(result.content.contains("docs/checkpoint-recovery.md"))
+            assertTrue(result.content.contains("checkpoint local"))
+            assertTrue(secretResult.success)
+            assertFalse(secretResult.content.contains("docs/internal.md"))
+            assertFalse(secretResult.content.contains("sk-12345678901234567890"))
+            assertTrue(secretResult.content.contains("Arquivos analisados: 59; ignorados: 4"))
         } finally {
             runtime.close()
             workspace.deleteProject(project.id)
