@@ -119,6 +119,16 @@ Oferece AAR Android com APIs Java/Kotlin e bibliotecas JNI. A documentação lis
 
 Fonte: https://docs.pytorch.org/executorch/stable/using-executorch-android.html
 
+### llama.cpp
+
+O projeto oficial tem documentação específica para Android, uma aplicação de exemplo importável no Android Studio e compilação cruzada por Android NDK. A aplicação de exemplo lê modelos GGUF do armazenamento privado, cria um motor de inferência e transmite tokens por Kotlin Flow. O projeto documenta também detecção de recursos do processador Arm para selecionar kernels compatíveis.
+
+**Ponto de interesse:** alternativa madura para testar modelos distribuídos em GGUF e execução local sem depender de API remota.
+
+**Limite decisivo:** é uma base C/C++ com cadeia própria de conversão/exportação e integração JNI. Um checkpoint KN que não esteja no formato e arquitetura compatíveis não pode ser carregado só por adicionar a biblioteca. O caminho Android usa NDK e deve ser medido em memória, temperatura e desempenho no aparelho real.
+
+Fonte: https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md
+
 ### Como comparar no Poco F6
 
 Nenhum benchmark de Pixel, Samsung ou outro aparelho deve ser tratado como resultado do Poco F6. Uma comparação justa precisa usar exatamente o mesmo conjunto de prompts e medir, no aparelho real:
