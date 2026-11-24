@@ -376,6 +376,87 @@
         "no_model_inference",
         "no_weight_loading"
       ]
+    },
+    {
+      "id": "model.estimate_memory",
+      "title": "Estimar orçamento de memória de modelo",
+      "script": "workshop/tools/model_memory_estimator.py",
+      "command": [],
+      "purpose": "Estimar pesos, cache KV, overhead e margem a partir do relatório de inspeção e do orçamento de RAM informado.",
+      "inputs": [
+        "--inspection",
+        "--context-tokens",
+        "--usable-memory-mb",
+        "--runtime-overhead-mb",
+        "--output"
+      ],
+      "optional_inputs": [
+        "--safety-margin-percent",
+        "--layers",
+        "--kv-heads",
+        "--head-dim",
+        "--kv-bytes-per-element",
+        "--kv-cache-mb"
+      ],
+      "outputs": [
+        "memory_estimate.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false,
+      "arguments": {
+        "--inspection": {
+          "type": "input_file",
+          "required": true
+        },
+        "--context-tokens": {
+          "type": "integer",
+          "required": true
+        },
+        "--usable-memory-mb": {
+          "type": "number",
+          "required": true
+        },
+        "--runtime-overhead-mb": {
+          "type": "number",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        },
+        "--safety-margin-percent": {
+          "type": "number",
+          "required": false
+        },
+        "--layers": {
+          "type": "integer",
+          "required": false
+        },
+        "--kv-heads": {
+          "type": "integer",
+          "required": false
+        },
+        "--head-dim": {
+          "type": "integer",
+          "required": false
+        },
+        "--kv-bytes-per-element": {
+          "type": "integer",
+          "required": false
+        },
+        "--kv-cache-mb": {
+          "type": "number",
+          "required": false
+        }
+      },
+      "constraints": [
+        "estimate_only",
+        "no_model_inference",
+        "requires_usable_memory_budget"
+      ]
     }
   ]
 }
