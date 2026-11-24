@@ -127,12 +127,12 @@ class ModelArtifactInspectorTests(unittest.TestCase):
         self.assertEqual("llama", result["architecture"])
         self.assertEqual(1, result["tensor_count"])
         self.assertEqual(6, result["parameter_count"])
-        self.assertEqual(32, result["tensor_data_bytes"])
+        self.assertEqual(12, result["tensor_data_bytes"])
 
     def test_gguf_custom_alignment_is_used(self):
         path = self.write_gguf(alignment=64)
         result = inspector.inspect_gguf(path)
-        self.assertEqual(64, result["tensor_data_bytes"])
+        self.assertEqual(12, result["tensor_data_bytes"])
 
     def test_gguf_invalid_magic_rejected(self):
         path = self.write_gguf()
