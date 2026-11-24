@@ -22,8 +22,8 @@ MAX_TENSORS = 2_000_000
 MAX_METADATA_ITEMS = 2_000_000
 MAX_STRING_BYTES = 16 * 1024 * 1024
 SAFETENSORS_DTYPE_BYTES = {
-    "BOOL": 1, "U8": 1, "I8": 1, "I16": 2, "U16": 2, "I32": 4,
-    "U32": 4, "I64": 8, "U64": 8, "F8_E4M3": 1, "F8_E5M2": 1,
+    "BOOL": 1, "U8": 1, "I8": 1, "I16": 2, "I32": 4,
+    "I64": 8, "F8_E4M3": 1,
     "F16": 2, "BF16": 2, "F32": 4, "F64": 8,
 }
 GGUF_VALUE_TYPES = {
@@ -139,9 +139,15 @@ def inspect_safetensors(path: Path) -> dict[str, Any]:
     if len(header) - (1 if "__metadata__" in header else 0) > MAX_TENSORS:
         raise ModelArtifactError("Quantidade de tensores acima do limite")
     ranges.sort()
-    for previous, current in zip(ranges, ranges[1:]):
-        if current[0] < previous[1]:
-            raise ModelArtifactError(f"Regiões de dados sobrepostas: {previous[2]} e {current[2]}")
+    cursor = 0
+    for begin, end, name in ranges:
+        if begin < cursor:
+            raise ModelArtifactError(f"Regiões de dados sobrepostas: {name}")
+        if begin != cursor:
+            raise ModelArtifactError(f"Buffer Safetensors contém lacuna antes do tensor {name}")
+        cursor = end
+    if cursor != data_size:
+        raise ModelArtifactError("O buffer Safetensors contém bytes não indexados pelos tensores")
     return {
         "schema": 1, "status": "inspected", "format": "safetensors",
         "file": resolved.name, "file_bytes": file_size, "file_sha256": sha256_file(resolved),
@@ -244,7 +250,7 @@ def inspect_gguf(path: Path) -> dict[str, Any]:
             value_type = reader.unpack("<I")
             metadata[key] = reader.value(value_type, keep=key in {
                 "general.architecture", "general.name", "general.basename",
-                "general.file_type", "general.quantization_version",
+                "general.file_type", "general.quantization_version", "general.alignment",
                 "tokenizer.ggml.model", "tokenizer.ggml.pre",
             } or key.endswith(".context_length") or key.endswith(".embedding_length"))
         tensor_types: Counter[str] = Counter()
@@ -314,7 +320,7 @@ def inspect_model(path: Path) -> dict[str, Any]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("model_file", type=Path)
+    parser.add_argument("--model-file", type=Path, required=True)
     args = parser.parse_args(argv)
     try:
         result = inspect_model(args.model_file)
