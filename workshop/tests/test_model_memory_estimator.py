@@ -19,7 +19,7 @@ class ModelMemoryEstimatorTests(unittest.TestCase):
             "tensor_data_bytes": 100 * 1024 * 1024, "parameter_count": 1_000_000_000,
             "model_dimensions": {
                 "block_count": 32, "embedding_length": 4096,
-                "attention.head_count": 32, "attention.head_count_kv": 8,
+                "attention.head_count": 32, "attention.head_count_kv": 8, "context_length": 8192,
             },
         }
 
@@ -95,6 +95,14 @@ class ModelMemoryEstimatorTests(unittest.TestCase):
     def test_invalid_explicit_kv_cache_is_rejected(self):
         with self.assertRaises(estimator.MemoryEstimateError):
             estimator.estimate_memory(self.inspection, 1024, 4096, 256, explicit_kv_cache_mb=-1)
+
+    def test_context_above_model_declared_limit_is_rejected(self):
+        with self.assertRaises(estimator.MemoryEstimateError):
+            estimator.estimate_memory(self.inspection, 8193, 4096, 256)
+
+    def test_kv_element_size_is_bounded(self):
+        with self.assertRaises(estimator.MemoryEstimateError):
+            estimator.estimate_memory(self.inspection, 1024, 4096, 256, kv_bytes_per_element=3)
 
     def test_read_inspection_rejects_unrecognized_schema(self):
         with tempfile.TemporaryDirectory() as directory:
