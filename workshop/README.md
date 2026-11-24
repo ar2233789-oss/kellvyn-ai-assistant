@@ -116,6 +116,20 @@ python3 workshop/tools/experiment_engine.py compare \
 
 Cada execução registra fingerprints do dataset e da suíte, dispositivo, runtime e precisão. Parâmetros que estão sendo experimentados ficam em `parameters`, fora do contexto fixo. A política define por métrica a direção (`higher` ou `lower`), melhoria mínima e regressão máxima tolerada. Qualquer regressão fora da tolerância bloqueia o resultado `improved`; métricas ausentes ou contextos incompatíveis produzem `inconclusive`.
 
+## Estimativa de memória antes da inferência
+
+`tools/model_memory_estimator.py` combina o relatório do inspetor de modelos com o contexto desejado e o orçamento de memória realmente disponível. Estima tamanho do buffer de pesos, cache KV, overhead informado e uma margem de segurança.
+
+~~~bash
+python3 workshop/tools/model_artifact_inspector.py   --model-file /caminho/local/modelo.gguf > out/model-inspection.json
+
+python3 workshop/tools/model_memory_estimator.py   --inspection out/model-inspection.json   --context-tokens 4096   --usable-memory-mb 4096   --runtime-overhead-mb 1024   --safety-margin-percent 25   --output out/model-memory-estimate.json
+~~~
+
+Se o GGUF contiver as dimensões necessárias, o estimador calcula o cache KV pela fórmula padrão de atenção. Se faltarem dimensões ou a arquitetura usar cache não convencional, informe layers, KV heads e head dimension ou forneça uma estimativa manual de cache com `--kv-cache-mb`.
+
+**Não use os 8 GB físicos como memória disponível automaticamente.** O sistema, aplicativos abertos, buffers e runtime já consomem RAM. O número passado em `--usable-memory-mb` deve representar o orçamento que realmente pode ser reservado ao modelo. O resultado é uma triagem conservadora, não uma garantia de carregamento: não mede RSS, memória de GPU/NPU nem buffers específicos do runtime.
+
 ## Matriz de runtimes Android
 
 O arquivo `runtime_compatibility.json` mantém as opções de execução local, formatos de modelo, backends, dependências de build e o estado de evidência no Poco F6. Ele separa três coisas que não podem ser confundidas: suporte declarado pelo projeto, SoC presente em uma enumeração e validação real no aparelho.
@@ -167,7 +181,7 @@ python3 -m unittest discover -s workshop/tests -v
 python3 -m py_compile workshop/tools/*.py
 ~~~
 
-Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, perfil de runtime, contratos do registro de ferramentas, inspeção de cabeçalhos GGUF/Safetensors, offsets inválidos, duplicatas, sobreposição e limites de parsing.
+Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, perfil de runtime, contratos do registro de ferramentas, inspeção de cabeçalhos GGUF/Safetensors, estimativas de memória e cache KV, offsets inválidos, duplicatas, sobreposição e limites de parsing.
 
 ## Referências de desenho
 
