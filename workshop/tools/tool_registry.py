@@ -106,7 +106,7 @@ def validate_registry(data: Any, repo_root: Path | None = None) -> dict[str, Any
         arguments = tool["arguments"]
         if not isinstance(arguments, dict) or set(arguments) != set(all_flags):
             raise RegistryError(f"{tool_id}.arguments precisa descrever exatamente todas as opções CLI")
-        allowed_types = {"directory", "input_file", "output_file", "integer", "boolean"}
+        allowed_types = {"directory", "input_file", "output_file", "integer", "number", "boolean"}
         for flag, contract in arguments.items():
             if not isinstance(contract, dict) or set(contract) != {"type", "required"}:
                 raise RegistryError(f"Contrato inválido para {tool_id} {flag}")
