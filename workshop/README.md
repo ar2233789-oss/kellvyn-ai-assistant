@@ -116,9 +116,25 @@ python3 workshop/tools/experiment_engine.py compare \
 
 Cada execução registra fingerprints do dataset e da suíte, dispositivo, runtime e precisão. Parâmetros que estão sendo experimentados ficam em `parameters`, fora do contexto fixo. A política define por métrica a direção (`higher` ou `lower`), melhoria mínima e regressão máxima tolerada. Qualquer regressão fora da tolerância bloqueia o resultado `improved`; métricas ausentes ou contextos incompatíveis produzem `inconclusive`.
 
+## Inspeção de artefatos de modelos
+
+\`tools/model_artifact_inspector.py\` lê somente metadados de arquivos GGUF v2/v3 e Safetensors. Não carrega pesos na memória, não executa código do modelo, não chama runtime de inferência e não usa rede.
+
+~~~bash
+python3 workshop/tools/model_artifact_inspector.py \
+  --model-file /caminho/local/modelo.gguf
+
+python3 workshop/tools/model_artifact_inspector.py \
+  --model-file /caminho/local/model.safetensors
+~~~
+
+Para GGUF, registra arquitetura, nome, dimensões de contexto/embedding quando presentes, número de tensores, parâmetros estimados pelas formas e distribuição de tipos/quantizações. Para Safetensors, valida o cabeçalho, tipos, formas, offsets, sobreposição e cobertura integral do buffer; também calcula parâmetros e hash do arquivo.
+
+**O que essa inspeção não promete:** compatibilidade com o runtime, velocidade no Poco F6, memória real de inferência, qualidade do modelo ou suporte a todas as variantes de quantização. O formato reconhecido é apenas o primeiro filtro. A estimativa de parâmetros não equivale à memória de execução: contexto KV, buffers temporários, runtime e sistema operacional também consomem RAM.
+
 ## Catálogo de capacidades e contratos de ferramentas
 
-`tool_registry.json` é o inventário declarativo das ferramentas disponíveis para a inteligência principal. Cada entrada informa identificador estável, finalidade, script, subcomando, argumentos obrigatórios/opcionais com tipos (diretório, arquivo de entrada/saída, inteiro ou booleano), saídas declaradas e efeitos colaterais. O catálogo registra explicitamente que as ferramentas não são agentes: não planejam, não decidem, não chamam modelos e não executam código de projetos.
+`tool_registry.json` é o inventário declarativo das ferramentas disponíveis para a inteligência principal. Cada entrada informa identificador estável, finalidade, script, subcomando, argumentos obrigatórios/opcionais com tipos (diretório, arquivo de entrada/saída, inteiro ou booleano), saídas declaradas e efeitos colaterais. O catálogo contém nove ferramentas. O catálogo registra explicitamente que as ferramentas não são agentes: não planejam, não decidem, não chamam modelos e não executam código de projetos.
 
 `tools/tool_registry.py` valida o contrato, verifica se cada script existe dentro do repositório e permite listar ou consultar uma capacidade. É somente leitura e **não executa nenhuma ferramenta registrada**.
 
