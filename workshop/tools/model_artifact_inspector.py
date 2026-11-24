@@ -281,6 +281,8 @@ def inspect_gguf(path: Path) -> dict[str, Any]:
             tensor_offsets.append((offset, name))
             if len(tensor_samples) < 20:
                 tensor_samples.append({"name": name, "shape": shape, "type": GGML_TENSOR_TYPES[type_id]})
+        if stream.tell() > MAX_HEADER_BYTES:
+            raise ModelArtifactError("Cabeçalho GGUF excede o limite de 64 MiB")
         alignment = metadata.get("general.alignment", 32)
         if isinstance(alignment, bool) or not isinstance(alignment, int) or alignment <= 0 or alignment > 4096:
             raise ModelArtifactError("general.alignment GGUF inválido")
