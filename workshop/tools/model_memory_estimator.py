@@ -31,7 +31,8 @@ def read_inspection(path: Path) -> dict[str, Any]:
         raise MemoryEstimateError("Relatório de inspeção não reconhecido")
     if data.get("format") not in {"gguf", "safetensors"}:
         raise MemoryEstimateError("Formato do relatório não suportado")
-    if not isinstance(data.get("file_sha256"), str) or len(data["file_sha256"]) != 64:
+    digest = data.get("file_sha256")
+    if not isinstance(digest, str) or len(digest) != 64 or any(ch not in "0123456789abcdef" for ch in digest):
         raise MemoryEstimateError("Relatório sem SHA-256 válido do modelo")
     return data
 
@@ -58,6 +59,13 @@ def estimate_memory(
 ) -> dict[str, Any]:
     context_tokens = positive_int(context_tokens, "context_tokens")
     kv_bytes_per_element = positive_int(kv_bytes_per_element, "kv_bytes_per_element")
+    if kv_bytes_per_element not in {1, 2, 4, 8}:
+        raise MemoryEstimateError("kv_bytes_per_element precisa ser 1, 2, 4 ou 8")
+    if context_tokens > 1_048_576:
+        raise MemoryEstimateError("context_tokens excede o limite de estimativa de 1.048.576")
+    model_context = inspection.get("model_dimensions", {}).get("context_length") if isinstance(inspection.get("model_dimensions"), dict) else None
+    if isinstance(model_context, int) and not isinstance(model_context, bool) and model_context > 0 and context_tokens > model_context:
+        raise MemoryEstimateError(f"context_tokens excede o contexto declarado pelo modelo ({model_context})")
     for value, field in ((usable_memory_mb, "usable_memory_mb"),
                          (runtime_overhead_mb, "runtime_overhead_mb"),
                          (safety_margin_percent, "safety_margin_percent")):
