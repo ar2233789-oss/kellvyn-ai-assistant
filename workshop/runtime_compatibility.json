@@ -1,0 +1,134 @@
+{
+  "schema": 1,
+  "target_device": {
+    "product": "POCO F6",
+    "soc_marketing_name": "Snapdragon 8s Gen 3",
+    "soc_id": "SM8635",
+    "ram_gb": 8,
+    "device_verification": "not_run"
+  },
+  "policy": {
+    "single_main_intelligence": true,
+    "autonomous_agents": false,
+    "automatic_tool_execution_by_runtime": false,
+    "offline_required": true,
+    "paid_service_dependency": false
+  },
+  "runtimes": [
+    {
+      "id": "llama.cpp",
+      "status": "first_candidate",
+      "model_formats": [
+        "GGUF"
+      ],
+      "android_abi": [
+        "arm64-v8a"
+      ],
+      "backends": [
+        "CPU"
+      ],
+      "optional_backends": [
+        "Adreno GPU",
+        "Hexagon NPU"
+      ],
+      "android_native_binding": true,
+      "on_device_build_path_documented": true,
+      "host_build_requirements": [
+        "CMake",
+        "Android NDK for cross-compilation"
+      ],
+      "poco_f6_verified": false,
+      "notes": "Start CPU-only; accelerator builds and exact device compatibility remain unverified.",
+      "sources": [
+        "https://github.com/ggml-org/llama.cpp/blob/master/docs/android.md",
+        "https://github.com/ggml-org/llama.cpp/blob/master/docs/build.md"
+      ]
+    },
+    {
+      "id": "LiteRT-LM",
+      "status": "native_integration_candidate",
+      "model_formats": [
+        ".litertlm"
+      ],
+      "android_abi": [
+        "arm64-v8a"
+      ],
+      "backends": [
+        "CPU",
+        "GPU",
+        "NPU"
+      ],
+      "android_native_binding": true,
+      "on_device_build_path_documented": false,
+      "host_build_requirements": [
+        "Gradle/Maven dependency",
+        "model conversion or compatible .litertlm artifact"
+      ],
+      "poco_f6_verified": false,
+      "tool_call_policy": "manual_only",
+      "notes": "Use automaticToolCalling=false so the main intelligence validates and manually executes any requested tool.",
+      "sources": [
+        "https://developers.google.com/edge/litert-lm/android",
+        "https://developers.google.com/edge/litert-lm/overview"
+      ]
+    },
+    {
+      "id": "ExecuTorch",
+      "status": "research_candidate",
+      "model_formats": [
+        ".pte"
+      ],
+      "android_abi": [
+        "arm64-v8a"
+      ],
+      "backends": [
+        "XNNPACK CPU",
+        "Vulkan GPU",
+        "Qualcomm QNN"
+      ],
+      "qualcomm_soc_enum": [
+        "SM8635"
+      ],
+      "qualcomm_htp_arch": "V73",
+      "android_native_binding": true,
+      "on_device_build_path_documented": false,
+      "host_build_requirements": [
+        "Android NDK",
+        "QNN SDK for Qualcomm backend",
+        "AOT model export toolchain"
+      ],
+      "poco_f6_verified": false,
+      "notes": "SM8635 is listed in QcomChipset, but published Android/Linux validation examples cite SM8550 and SM8450. Enum presence is not a device test.",
+      "sources": [
+        "https://docs.pytorch.org/executorch/stable/using-executorch-android.html",
+        "https://docs.pytorch.org/executorch/stable/backends-qualcomm.html",
+        "https://github.com/pytorch/executorch/blob/main/backends/qualcomm/serialization/qc_schema.py"
+      ]
+    },
+    {
+      "id": "NNAPI",
+      "status": "deprecated_do_not_start",
+      "model_formats": [
+        "model/API dependent"
+      ],
+      "android_abi": [
+        "Android"
+      ],
+      "backends": [
+        "vendor delegates"
+      ],
+      "poco_f6_verified": false,
+      "notes": "Android API deprecated starting Android 15; do not base new runtime architecture on it.",
+      "sources": [
+        "https://developer.android.com/ndk/guides/neuralnetworks/migration-guide"
+      ]
+    }
+  ],
+  "validation_order": [
+    "llama.cpp CPU baseline",
+    "LiteRT-LM CPU/GPU capability check",
+    "ExecuTorch QNN SM8635 investigation",
+    "device-specific accelerator benchmark"
+  ],
+  "evidence_policy": "Never mark a runtime or backend verified on POCO F6 until an actual on-device build and benchmark artifact is recorded."
+}
