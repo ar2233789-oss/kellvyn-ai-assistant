@@ -349,6 +349,33 @@
           "required": false
         }
       }
+    },
+    {
+      "id": "model.inspect",
+      "title": "Inspecionar artefato de modelo",
+      "script": "workshop/tools/model_artifact_inspector.py",
+      "command": [],
+      "purpose": "Ler metadados e descritores de tensores GGUF/Safetensors sem carregar pesos nem executar código do modelo.",
+      "inputs": [
+        "--model-file"
+      ],
+      "outputs": [
+        "stdout_json"
+      ],
+      "side_effects": [],
+      "network": false,
+      "executes_project_code": false,
+      "arguments": {
+        "--model-file": {
+          "type": "input_file",
+          "required": true
+        }
+      },
+      "constraints": [
+        "metadata_only",
+        "no_model_inference",
+        "no_weight_loading"
+      ]
     }
   ]
 }
