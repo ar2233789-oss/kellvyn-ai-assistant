@@ -118,7 +118,7 @@ Cada execução registra fingerprints do dataset e da suíte, dispositivo, runti
 
 ## Catálogo de capacidades e contratos de ferramentas
 
-`tool_registry.json` é o inventário declarativo das ferramentas disponíveis para a inteligência principal. Cada entrada informa identificador estável, finalidade, script, subcomando, argumentos obrigatórios/opcionais, saídas declaradas e efeitos colaterais. O catálogo registra explicitamente que as ferramentas não são agentes: não planejam, não decidem, não chamam modelos e não executam código de projetos.
+`tool_registry.json` é o inventário declarativo das ferramentas disponíveis para a inteligência principal. Cada entrada informa identificador estável, finalidade, script, subcomando, argumentos obrigatórios/opcionais com tipos (diretório, arquivo de entrada/saída, inteiro ou booleano), saídas declaradas e efeitos colaterais. O catálogo registra explicitamente que as ferramentas não são agentes: não planejam, não decidem, não chamam modelos e não executam código de projetos.
 
 `tools/tool_registry.py` valida o contrato, verifica se cada script existe dentro do repositório e permite listar ou consultar uma capacidade. É somente leitura e **não executa nenhuma ferramenta registrada**.
 
