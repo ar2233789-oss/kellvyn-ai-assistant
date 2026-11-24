@@ -60,4 +60,5 @@ O Android declara NNAPI descontinuada a partir do Android 15 e direciona desenvo
 - ExecuTorch backends Android: https://docs.pytorch.org/executorch/stable/using-executorch-android.html
 - ExecuTorch Qualcomm QNN: https://docs.pytorch.org/executorch/stable/backends-qualcomm.html
 - Enumeração oficial de SoCs Qualcomm: https://github.com/pytorch/executorch/blob/main/backends/qualcomm/serialization/qc_schema.py
+- POCO F6 — especificação oficial do Snapdragon 8s Gen 3: https://www.po.co/global/product/poco-f6/specs/
 - Migração da NNAPI: https://developer.android.com/ndk/guides/neuralnetworks/migration-guide
