@@ -14,7 +14,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 REQUIRED_TOOL_FIELDS = {
     "id", "title", "script", "command", "purpose", "inputs", "outputs",
-    "side_effects", "network", "executes_project_code",
+    "side_effects", "network", "executes_project_code", "arguments",
 }
 OPTIONAL_LIST_FIELDS = {"optional_inputs", "constraints"}
 
@@ -103,6 +103,17 @@ def validate_registry(data: Any, repo_root: Path | None = None) -> dict[str, Any
             raise RegistryError(f"{tool_id} repete argumentos obrigatórios/opcionais")
         if any(not flag.startswith("--") for flag in all_flags):
             raise RegistryError(f"{tool_id} contém argumento que não é uma opção CLI")
+        arguments = tool["arguments"]
+        if not isinstance(arguments, dict) or set(arguments) != set(all_flags):
+            raise RegistryError(f"{tool_id}.arguments precisa descrever exatamente todas as opções CLI")
+        allowed_types = {"directory", "input_file", "output_file", "integer", "boolean"}
+        for flag, contract in arguments.items():
+            if not isinstance(contract, dict) or set(contract) != {"type", "required"}:
+                raise RegistryError(f"Contrato inválido para {tool_id} {flag}")
+            if contract["type"] not in allowed_types or not isinstance(contract["required"], bool):
+                raise RegistryError(f"Tipo/obrigatoriedade inválido para {tool_id} {flag}")
+            if contract["required"] != (flag in tool["inputs"]):
+                raise RegistryError(f"Obrigatoriedade divergente entre inputs e arguments em {tool_id} {flag}")
         if repo_root is not None:
             candidate = repo_root
             for part in script.parts:
