@@ -105,7 +105,7 @@ class ModelMemoryEstimatorTests(unittest.TestCase):
 
     def test_estimate_reports_limitations(self):
         result = estimator.estimate_memory(self.inspection, 1024, 4096, 256)
-        self.assertTrue(any("not a runtime measurement" in x.lower() for x in result["limitations"]))
+        self.assertTrue(any("estimate only" in x.lower() for x in result["limitations"]))
 
 
 if __name__ == "__main__":
