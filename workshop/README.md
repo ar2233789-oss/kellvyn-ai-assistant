@@ -116,6 +116,20 @@ python3 workshop/tools/experiment_engine.py compare \
 
 Cada execução registra fingerprints do dataset e da suíte, dispositivo, runtime e precisão. Parâmetros que estão sendo experimentados ficam em \`parameters\`, fora do contexto fixo. A política define por métrica a direção (\`higher\` ou \`lower\`), melhoria mínima e regressão máxima tolerada. Qualquer regressão fora da tolerância bloqueia o resultado \`improved\`; métricas ausentes ou contextos incompatíveis produzem \`inconclusive\`.
 
+## Catálogo de capacidades e contratos de ferramentas
+
+\`tool_registry.json\` é o inventário declarativo das ferramentas disponíveis para a inteligência principal. Cada entrada informa identificador estável, finalidade, script, subcomando, argumentos obrigatórios/opcionais, saídas declaradas e efeitos colaterais. O catálogo registra explicitamente que as ferramentas não são agentes: não planejam, não decidem, não chamam modelos e não executam código de projetos.
+
+\`tools/tool_registry.py\` valida o contrato, verifica se cada script existe dentro do repositório e permite listar ou consultar uma capacidade. É somente leitura e **não executa nenhuma ferramenta registrada**.
+
+~~~bash
+python3 workshop/tools/tool_registry.py validate
+python3 workshop/tools/tool_registry.py list
+python3 workshop/tools/tool_registry.py describe runtime.profile
+~~~
+
+A inteligência principal escolhe quando e por que chamar uma ferramenta. O registro não cria agentes, filas autônomas, ciclos de planejamento nem uma segunda inteligência. A política mantém rede desabilitada, execução de código de projeto desabilitada e o cérebro principal explicitamente fora do escopo.
+
 ## Integridade, segurança e limites
 
 - Caminhos de artefatos são relativos à raiz declarada; caminhos absolutos, travessia \`..\` e links simbólicos são rejeitados.
@@ -131,7 +145,7 @@ python3 -m unittest discover -s workshop/tests -v
 python3 -m py_compile workshop/tools/*.py
 ~~~
 
-Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, cobertura, segurança de caminhos, métricas, incompatibilidade de contexto, regressões e adulteração de artefatos.
+Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, perfil de runtime, contratos do registro de ferramentas, cobertura, segurança de caminhos, métricas, incompatibilidade de contexto, regressões e adulteração de artefatos.
 
 ## Referências de desenho
 
