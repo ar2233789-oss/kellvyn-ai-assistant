@@ -116,6 +116,12 @@ python3 workshop/tools/experiment_engine.py compare \
 
 Cada execução registra fingerprints do dataset e da suíte, dispositivo, runtime e precisão. Parâmetros que estão sendo experimentados ficam em `parameters`, fora do contexto fixo. A política define por métrica a direção (`higher` ou `lower`), melhoria mínima e regressão máxima tolerada. Qualquer regressão fora da tolerância bloqueia o resultado `improved`; métricas ausentes ou contextos incompatíveis produzem `inconclusive`.
 
+## Matriz de runtimes Android
+
+O arquivo `runtime_compatibility.json` mantém as opções de execução local, formatos de modelo, backends, dependências de build e o estado de evidência no Poco F6. Ele separa três coisas que não podem ser confundidas: suporte declarado pelo projeto, SoC presente em uma enumeração e validação real no aparelho.
+
+A matriz atual mantém llama.cpp como primeiro candidato para uma linha de base GGUF em CPU; LiteRT-LM como candidato de integração Kotlin; ExecuTorch/QNN como trilha de pesquisa para SM8635; e NNAPI como tecnologia que não deve ser usada para uma integração nova. Nenhum backend está marcado como validado no Poco F6.
+
 ## Inspeção de artefatos de modelos
 
 \`tools/model_artifact_inspector.py\` lê somente metadados de arquivos GGUF v2/v3 e Safetensors. Não carrega pesos na memória, não executa código do modelo, não chama runtime de inferência e não usa rede.
