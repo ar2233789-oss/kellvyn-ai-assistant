@@ -23,7 +23,7 @@ class ToolRegistryTests(unittest.TestCase):
     def test_current_registry_is_valid_and_single_intelligence(self):
         result = registry_module.validate_registry(self.registry, self.root)
         self.assertEqual("valid", result["status"])
-        self.assertEqual(9, result["tool_count"])
+        self.assertEqual(10, result["tool_count"])
         self.assertTrue(result["single_intelligence"])
         self.assertFalse(result["tools_are_agents"])
 
@@ -34,6 +34,14 @@ class ToolRegistryTests(unittest.TestCase):
         self.assertFalse(tool["network"])
         self.assertFalse(tool["executes_project_code"])
         self.assertEqual([], tool["side_effects"])
+
+    def test_memory_estimator_is_registered_with_numeric_budget_contracts(self):
+        result = registry_module.validate_registry(self.registry, self.root)
+        tool = next(item for item in result["tools"] if item["id"] == "model.estimate_memory")
+        self.assertEqual("number", tool["arguments"]["--usable-memory-mb"]["type"])
+        self.assertEqual("number", tool["arguments"]["--runtime-overhead-mb"]["type"])
+        self.assertFalse(tool["network"])
+        self.assertFalse(tool["executes_project_code"])
 
     def test_all_scripts_resolve_inside_repository(self):
         result = registry_module.validate_registry(self.registry, self.root)
