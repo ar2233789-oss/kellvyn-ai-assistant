@@ -161,8 +161,11 @@ python3 -m unittest discover -s workshop/tests -v
 python3 -m py_compile workshop/tools/*.py
 ~~~
 
-Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, perfil de runtime, contratos do registro de ferramentas, cobertura, segurança de caminhos, métricas, incompatibilidade de contexto, regressões e adulteração de artefatos.
+Os testes cobrem catálogo e integridade de dados, vazamento exato entre divisões, JSONL inválido, quatro famílias de benchmarks, perfil de runtime, contratos do registro de ferramentas, inspeção de cabeçalhos GGUF/Safetensors, offsets inválidos, duplicatas, sobreposição e limites de parsing.
 
 ## Referências de desenho
 
 O catálogo adota ideias de fingerprints/versionamento do DVC e Hugging Face Datasets. Métricas de classificação, regressão e WER seguem definições documentadas pelo Hugging Face Evaluate e scikit-learn. São referências de engenharia, não dependências de execução desta oficina.
+
+- Especificação GGUF e cabeçalho de referência: https://github.com/ggml-org/ggml/blob/master/docs/gguf.md e https://github.com/ggml-org/llama.cpp/blob/master/ggml/include/gguf.h
+- Estrutura Safetensors: https://huggingface.co/docs/safetensors/en/index e https://huggingface.co/docs/safetensors/en/metadata_parsing
