@@ -1,0 +1,206 @@
+{
+  "schema": 1,
+  "registry_id": "kellvyn-workshop-tools",
+  "owner": "kellvyn-main-intelligence",
+  "policy": {
+    "single_intelligence": true,
+    "tools_are_not_agents": true,
+    "tools_must_not_plan_or_decide": true,
+    "network_access": false,
+    "execute_project_code": false,
+    "third_party_runtime_dependencies": false,
+    "brain_scope": "excluded"
+  },
+  "tools": [
+    {
+      "id": "dataset.inspect",
+      "title": "Inventariar dataset",
+      "script": "workshop/tools/dataset_catalog.py",
+      "command": [
+        "inspect"
+      ],
+      "purpose": "Inventariar arquivos, categorias, JSONL e fingerprints SHA-256.",
+      "inputs": [
+        "--root",
+        "--output"
+      ],
+      "optional_inputs": [
+        "--max-files",
+        "--max-bytes",
+        "--skip-jsonl-validation"
+      ],
+      "outputs": [
+        "manifest.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "dataset.verify",
+      "title": "Verificar integridade do dataset",
+      "script": "workshop/tools/dataset_catalog.py",
+      "command": [
+        "verify"
+      ],
+      "purpose": "Comparar os arquivos atuais com um manifesto previamente salvo.",
+      "inputs": [
+        "--root",
+        "--manifest"
+      ],
+      "outputs": [
+        "stdout_json"
+      ],
+      "side_effects": [],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "dataset.audit_splits",
+      "title": "Auditar vazamento entre divisões",
+      "script": "workshop/tools/dataset_split_auditor.py",
+      "command": [],
+      "purpose": "Detectar duplicatas JSON exatas entre treino, validação e teste.",
+      "inputs": [
+        "--output"
+      ],
+      "optional_inputs": [
+        "--train-root",
+        "--validation-root",
+        "--test-root",
+        "--sample-limit"
+      ],
+      "constraints": [
+        "at_least_two_split_roots"
+      ],
+      "outputs": [
+        "audit_report.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "benchmark.evaluate",
+      "title": "Avaliar previsões",
+      "script": "workshop/tools/benchmark_evaluator.py",
+      "command": [],
+      "purpose": "Calcular métricas determinísticas para uma suíte fixa e previsões externas à suíte.",
+      "inputs": [
+        "--suite-root",
+        "--suite-file",
+        "--predictions",
+        "--output"
+      ],
+      "optional_inputs": [
+        "--casefold",
+        "--collapse-whitespace"
+      ],
+      "outputs": [
+        "evaluation_result.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "runtime.profile",
+      "title": "Perfilar inferência",
+      "script": "workshop/tools/runtime_profiler.py",
+      "command": [],
+      "purpose": "Agregar medições de latência, TTFT, throughput e memória vinculadas à suíte.",
+      "inputs": [
+        "--suite-root",
+        "--suite-file",
+        "--measurements",
+        "--output"
+      ],
+      "outputs": [
+        "runtime_profile.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "experiment.record",
+      "title": "Registrar experimento",
+      "script": "workshop/tools/experiment_engine.py",
+      "command": [
+        "record"
+      ],
+      "purpose": "Selar especificação, contexto, avaliação e hashes dos artefatos.",
+      "inputs": [
+        "--spec",
+        "--artifact-root",
+        "--output"
+      ],
+      "optional_inputs": [
+        "--evaluation-result"
+      ],
+      "outputs": [
+        "sealed_run.json"
+      ],
+      "side_effects": [
+        "write_declared_output"
+      ],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "experiment.verify",
+      "title": "Verificar experimento",
+      "script": "workshop/tools/experiment_engine.py",
+      "command": [
+        "verify"
+      ],
+      "purpose": "Recalcular hashes dos artefatos e revalidar avaliação quando fornecida.",
+      "inputs": [
+        "--run",
+        "--artifact-root"
+      ],
+      "optional_inputs": [
+        "--evaluation-result"
+      ],
+      "outputs": [
+        "stdout_json"
+      ],
+      "side_effects": [],
+      "network": false,
+      "executes_project_code": false
+    },
+    {
+      "id": "experiment.compare",
+      "title": "Comparar experimentos",
+      "script": "workshop/tools/experiment_engine.py",
+      "command": [
+        "compare"
+      ],
+      "purpose": "Comparar duas execuções sob o mesmo contexto e política de tolerâncias.",
+      "inputs": [
+        "--baseline",
+        "--candidate",
+        "--policy"
+      ],
+      "optional_inputs": [
+        "--output"
+      ],
+      "outputs": [
+        "comparison.json_or_stdout"
+      ],
+      "side_effects": [
+        "write_declared_output_if_requested"
+      ],
+      "network": false,
+      "executes_project_code": false
+    }
+  ]
+}
