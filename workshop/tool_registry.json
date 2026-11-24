@@ -36,7 +36,29 @@
         "write_declared_output"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--root": {
+          "type": "directory",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        },
+        "--max-files": {
+          "type": "integer",
+          "required": false
+        },
+        "--max-bytes": {
+          "type": "integer",
+          "required": false
+        },
+        "--skip-jsonl-validation": {
+          "type": "boolean",
+          "required": false
+        }
+      }
     },
     {
       "id": "dataset.verify",
@@ -55,7 +77,17 @@
       ],
       "side_effects": [],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--root": {
+          "type": "directory",
+          "required": true
+        },
+        "--manifest": {
+          "type": "input_file",
+          "required": true
+        }
+      }
     },
     {
       "id": "dataset.audit_splits",
@@ -82,7 +114,29 @@
         "write_declared_output"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--train-root": {
+          "type": "directory",
+          "required": false
+        },
+        "--validation-root": {
+          "type": "directory",
+          "required": false
+        },
+        "--test-root": {
+          "type": "directory",
+          "required": false
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        },
+        "--sample-limit": {
+          "type": "integer",
+          "required": false
+        }
+      }
     },
     {
       "id": "benchmark.evaluate",
@@ -107,7 +161,33 @@
         "write_declared_output"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--suite-root": {
+          "type": "directory",
+          "required": true
+        },
+        "--suite-file": {
+          "type": "input_file",
+          "required": true
+        },
+        "--predictions": {
+          "type": "input_file",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        },
+        "--casefold": {
+          "type": "boolean",
+          "required": false
+        },
+        "--collapse-whitespace": {
+          "type": "boolean",
+          "required": false
+        }
+      }
     },
     {
       "id": "runtime.profile",
@@ -128,7 +208,25 @@
         "write_declared_output"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--suite-root": {
+          "type": "directory",
+          "required": true
+        },
+        "--suite-file": {
+          "type": "input_file",
+          "required": true
+        },
+        "--measurements": {
+          "type": "input_file",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        }
+      }
     },
     {
       "id": "experiment.record",
@@ -153,7 +251,25 @@
         "write_declared_output"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--spec": {
+          "type": "input_file",
+          "required": true
+        },
+        "--artifact-root": {
+          "type": "directory",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": true
+        },
+        "--evaluation-result": {
+          "type": "input_file",
+          "required": false
+        }
+      }
     },
     {
       "id": "experiment.verify",
@@ -175,7 +291,21 @@
       ],
       "side_effects": [],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--run": {
+          "type": "input_file",
+          "required": true
+        },
+        "--artifact-root": {
+          "type": "directory",
+          "required": true
+        },
+        "--evaluation-result": {
+          "type": "input_file",
+          "required": false
+        }
+      }
     },
     {
       "id": "experiment.compare",
@@ -200,7 +330,25 @@
         "write_declared_output_if_requested"
       ],
       "network": false,
-      "executes_project_code": false
+      "executes_project_code": false,
+      "arguments": {
+        "--baseline": {
+          "type": "input_file",
+          "required": true
+        },
+        "--candidate": {
+          "type": "input_file",
+          "required": true
+        },
+        "--policy": {
+          "type": "input_file",
+          "required": true
+        },
+        "--output": {
+          "type": "output_file",
+          "required": false
+        }
+      }
     }
   ]
 }
