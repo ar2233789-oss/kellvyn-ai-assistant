@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Any, BinaryIO
 
 MAX_HEADER_BYTES = 64 * 1024 * 1024
-MAX_TENSORS = 2_000_000
-MAX_METADATA_ITEMS = 2_000_000
+MAX_TENSORS = 500_000
+MAX_METADATA_ITEMS = 1_000_000
 MAX_STRING_BYTES = 16 * 1024 * 1024
 SAFETENSORS_DTYPE_BYTES = {
     "BOOL": 1, "U8": 1, "I8": 1, "I16": 2, "I32": 4,
@@ -259,8 +259,12 @@ def inspect_gguf(path: Path) -> dict[str, Any]:
         tensor_parameters = 0
         tensor_offsets = []
         tensor_samples = []
+        tensor_names = set()
         for index in range(tensor_count):
             name = reader.string()
+            if not name or name in tensor_names:
+                raise ModelArtifactError("Nome de tensor GGUF vazio ou duplicado")
+            tensor_names.add(name)
             dimensions = reader.unpack("<I")
             if dimensions > 4:
                 raise ModelArtifactError(f"Tensor GGUF com dimensões demais: {name}")
