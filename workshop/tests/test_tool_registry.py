@@ -93,6 +93,24 @@ class ToolRegistryTests(unittest.TestCase):
         with self.assertRaises(registry_module.RegistryError):
             registry_module.validate_registry(changed, self.root)
 
+    def test_argument_contract_must_cover_every_cli_flag(self):
+        changed = copy.deepcopy(self.registry)
+        del changed["tools"][0]["arguments"]["--root"]
+        with self.assertRaises(registry_module.RegistryError):
+            registry_module.validate_registry(changed, self.root)
+
+    def test_unknown_argument_type_is_rejected(self):
+        changed = copy.deepcopy(self.registry)
+        changed["tools"][0]["arguments"]["--root"]["type"] = "shell_command"
+        with self.assertRaises(registry_module.RegistryError):
+            registry_module.validate_registry(changed, self.root)
+
+    def test_argument_required_flag_must_match_contract(self):
+        changed = copy.deepcopy(self.registry)
+        changed["tools"][0]["arguments"]["--root"]["required"] = False
+        with self.assertRaises(registry_module.RegistryError):
+            registry_module.validate_registry(changed, self.root)
+
     def test_invalid_registry_schema_is_rejected(self):
         changed = copy.deepcopy(self.registry)
         changed["schema"] = 99
