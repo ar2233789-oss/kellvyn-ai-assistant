@@ -113,6 +113,8 @@ def inspect_safetensors(path: Path) -> dict[str, Any]:
         if not isinstance(name, str) or not isinstance(info, dict):
             raise ModelArtifactError("Entrada de tensor Safetensors inválida")
         dtype = info.get("dtype")
+        if not isinstance(dtype, str):
+            raise ModelArtifactError(f"Tipo Safetensors inválido no tensor {name}")
         shape = info.get("shape")
         offsets = info.get("data_offsets")
         if dtype not in SAFETENSORS_DTYPE_BYTES:
@@ -281,7 +283,7 @@ def inspect_gguf(path: Path) -> dict[str, Any]:
         data_start = ((stream.tell() + alignment - 1) // alignment) * alignment if tensor_count else stream.tell()
         data_size = file_size - data_start
         for offset, name in tensor_offsets:
-            if offset >= data_size and data_size != 0:
+            if data_size <= 0 or offset >= data_size:
                 raise ModelArtifactError(f"Offset GGUF fora do buffer de tensores: {name}")
             if offset % alignment:
                 raise ModelArtifactError(f"Offset GGUF desalinhado: {name}")
